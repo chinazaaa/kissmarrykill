@@ -370,6 +370,8 @@ export function gameHowItWorks(
       return "Upload everyone's names on the next step. Players claim their name when joining, then submit a quote and who said it in the lobby. Only quotes in the pool become rounds — if 5 of 10 submit, that's 5 rounds."
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
+    case 'hot_seat':
+      return 'Players join with any name — no list to set up. Each round one person is in the hot seat; everyone else anonymously submits one thing about them.'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'

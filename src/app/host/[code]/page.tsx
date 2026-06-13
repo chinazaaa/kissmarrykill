@@ -28,6 +28,7 @@ import {
   isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
+  isHotSeat,
   isNameOnlyPlayerJoin,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
@@ -1009,6 +1010,7 @@ export default function HostPage() {
     const isWyr = isWouldYouRather(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
+    const isHotSeatGame = isHotSeat(gameType)
     const isMltImport = isMltImportGame(game)
     const wstSubmitters = wstEligibleSubmitters(players)
     const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
@@ -1021,16 +1023,26 @@ export default function HostPage() {
         : game.participant_filter === 'all'
           ? participants
           : participantsWhoJoined(participants, players)
-    const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
+    const participantInputs = isHotSeatGame
+      ? players.map((p) => ({ name: p.name, gender: 'female' as ParticipantGender }))
+      : roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
     const lobbyQuestionMax =
       isWyr || isMlt
         ? questionPoolCap(game)
         : isWst
           ? wstAutoRoundCount(wstPool.length || wstSubmitters.length)
-          : maxRecommendedRounds(participantInputs, gameType)
+          : isHotSeatGame
+            ? Math.min(20, Math.max(players.length, 3))
+            : maxRecommendedRounds(participantInputs, gameType)
     const maxRounds =
-      isWyr || isMlt ? lobbyQuestionMax : isWst ? lobbyQuestionMax : maxRecommendedRounds(participantInputs, gameType)
+      isWyr || isMlt
+        ? lobbyQuestionMax
+        : isWst
+          ? lobbyQuestionMax
+          : isHotSeatGame
+            ? Math.min(20, Math.max(players.length, 1))
+            : maxRecommendedRounds(participantInputs, gameType)
     const roundsHint = isWst
       ? wstPool.length >= 2
         ? `${wstPool.length} quotes in the pool → ${wstAutoRoundCount(wstPool.length)} rounds`
@@ -1053,7 +1065,9 @@ export default function HostPage() {
         ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
         : isWst
           ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
-          : kmkRoundPickerOptions(maxRounds)
+          : isHotSeatGame
+            ? [2, 3, 4, 5, 6, 8, 10].filter((n) => n <= Math.max(players.length, 3))
+            : kmkRoundPickerOptions(maxRounds)
     const voterCheck = hasVotersForPolls(roundParticipants, players)
     const wstSource = game?.wst_quote_source ?? 'player'
     const animeQuoteCount = animePool.length
@@ -1065,6 +1079,8 @@ export default function HostPage() {
         : wstSource === 'both'
           ? totalQuotes >= 2
           : participants.length >= 2 && wstSubmitters.length >= 2 && wstPool.length >= 2
+      : isHotSeatGame
+        ? players.length >= 3 && !roundsTooHigh
       : isMltImport
         ? participants.length >= 2 && players.length > 0 && !roundsTooHigh
         : isMlt
@@ -1106,6 +1122,8 @@ export default function HostPage() {
                     ? 'Who Said This — players submit quotes in the lobby, then guess who said each one'
                     : isWyr
                       ? 'Would You Rather — players join and pick A or B each round'
+                      : isHotSeatGame
+                        ? 'Hot Seat — one player in the spotlight each round, everyone else submits anonymously'
                       : isJoinersMode
                         ? 'Join & play — joiners are the names in the poll'
                         : 'Import list — voters join separately'}
@@ -1127,8 +1145,7 @@ export default function HostPage() {
               <p className="font-bold text-body text-2xl">{game.rounds_count}</p>
               <p className="text-faint text-xs">{roundsHint}</p>
             </>
-          ) : isWyr ||
-            isMlt ||
+          ) : isWyr || isMlt || isHotSeatGame ||
             (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
             <>
               {roundsHint && <p className="text-faint text-xs">{roundsHint}</p>}
@@ -1149,8 +1166,8 @@ export default function HostPage() {
               </div>
               {roundsTooHigh && (
                 <p className="callout-warning">
-                  {game.rounds_count} rounds is too many for {roundParticipants.length} in the game — pick {maxRounds}{' '}
-                  or fewer
+                  {game.rounds_count} rounds is too many for{' '}
+                  {isHotSeatGame ? players.length : roundParticipants.length} in the game — pick {maxRounds} or fewer
                 </p>
               )}
             </>
@@ -1158,7 +1175,9 @@ export default function HostPage() {
             <p className="text-faint text-xs">
               {isWyr || isMlt
                 ? 'Set how many questions to play'
-                : `Need at least ${minPool} joined people of one gender before you can set rounds`}
+                : isHotSeatGame
+                  ? 'Need at least 3 players before you can set rounds'
+                  : `Need at least ${minPool} joined people of one gender before you can set rounds`}
             </p>
           )}
         </div>
@@ -1353,7 +1372,7 @@ export default function HostPage() {
           {!isJoinersMode && (
             <p className="text-faint text-xs">Tap Male/Female to fix identity · Remove to kick someone out</p>
           )}
-          {isJoinersMode && participants.length > 0 && (
+          {isJoinersMode && participants.length > 0 && !isHotSeatGame && (
             <p className="text-faint text-xs">Tap to fix poll placement or gender · Remove to kick out</p>
           )}
           {(isJoinersMode ? joinerParticipantsWithPlayers.length : players.length) > 8 && (
@@ -1388,7 +1407,7 @@ export default function HostPage() {
               )}
             </div>
           )}
-          {isWyr || (isMlt && isJoinersMode) ? (
+          {isWyr || (isMlt && isJoinersMode) || isHotSeatGame ? (
             filteredPlayers.length === 0 ? (
               <p className="text-faint text-sm">Waiting for people to join...</p>
             ) : (
@@ -1510,7 +1529,7 @@ export default function HostPage() {
               })}
             </div>
           )}
-          {isJoinersMode && !isWyr && !isMlt && participants.length > 0 && (
+          {isJoinersMode && !isWyr && !isMlt && !isHotSeatGame && participants.length > 0 && (
             <p className="text-faint text-xs text-center">
               {genderCounts.female} female · {genderCounts.male} male
             </p>
@@ -1518,11 +1537,12 @@ export default function HostPage() {
           {isJoinersMode &&
             !isWyr &&
             !isMlt &&
+            !isHotSeatGame &&
             participants.length > 0 &&
             !hasEnoughForRounds(participantInputs, gameType) && (
               <p className="callout-warning text-center">Need at least {minPool} people of the same gender to start</p>
             )}
-          {!voterCheck.ok && players.length > 0 && roundParticipants.length >= minPool && (
+          {!isHotSeatGame && !voterCheck.ok && players.length > 0 && roundParticipants.length >= minPool && (
             <p className="callout-warning text-center">{voterCheck.message}</p>
           )}
           {!isJoinersMode && roundParticipants.length < minPool && players.length > 0 && (
@@ -1681,9 +1701,11 @@ export default function HostPage() {
                             ? 'Waiting for voters to join...'
                             : isMlt && !isMltImport && players.length < 2
                               ? `Need at least 2 players (${players.length}/2)`
-                              : isWyr && players.length === 0
-                                ? 'Waiting for players...'
-                                : isJoinersMode
+                              : isHotSeatGame && players.length < 3
+                                ? `Need at least 3 players (${players.length}/3)`
+                                : isWyr && players.length === 0
+                                  ? 'Waiting for players...'
+                                  : isJoinersMode
                                   ? participants.length < minPool
                                     ? `Need ${minPool - participants.length} more to start`
                                     : roundsTooHigh

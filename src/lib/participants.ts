@@ -3,6 +3,7 @@ import {
   isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
+  isHotSeat,
   isLobbyGame,
   isNameOnlyPlayerJoin,
   parseGameType,
@@ -67,10 +68,10 @@ export function parseParticipantRows(text: string): ParticipantInput[] {
   return rows
 }
 
-/** Smash / Red Flag / Smash or Pass need gender for same-gender rounds. WYR, MLT & WST do not. */
+/** Smash / pair / KMK need gender for same-gender rounds. Name-only lobby games & WST do not. */
 export function participantsNeedGender(gameType?: GameType | string): boolean {
   const type = parseGameType(gameType)
-  return !isWouldYouRather(type) && !isMostLikelyTo(type) && !isWhoSaidThis(type)
+  return !isNameOnlyPlayerJoin(type) && !isWhoSaidThis(type)
 }
 
 /** Whether the join screen should ask for gender / vote preference. */
@@ -204,6 +205,7 @@ export function countByGender(participants: ParticipantInput[]): Record<Particip
 
 export function hasEnoughForRounds(participants: ParticipantInput[], gameType?: GameType | string): boolean {
   if (isWouldYouRather(gameType)) return true
+  if (isHotSeat(gameType)) return participants.length >= 3
   if (isMostLikelyTo(gameType)) return participants.length >= roundPoolSize(gameType)
   if (isWhoSaidThis(gameType)) return participants.length >= 2
   const min = roundPoolSize(gameType)
@@ -224,6 +226,7 @@ export function kmkRoundPickerOptions(maxRounds: number): number[] {
 /** Max rounds before the same names repeat heavily. */
 export function maxRecommendedRounds(participants: ParticipantInput[], gameType?: GameType | string): number {
   if (isWouldYouRather(gameType)) return Math.min(20, WYR_QUESTION_COUNT)
+  if (isHotSeat(gameType)) return participants.length >= 3 ? Math.min(20, participants.length) : 0
   if (isMostLikelyTo(gameType)) return Math.min(20, MLT_QUESTION_COUNT)
   if (isWhoSaidThis(gameType)) return Math.min(20, Math.max(participants.length, 2))
   const perRound = roundPoolSize(gameType)
@@ -241,6 +244,10 @@ export function maxRecommendedRounds(participants: ParticipantInput[], gameType?
 export function roundLimitHint(participants: ParticipantInput[], gameType?: GameType | string): string | null {
   if (isWouldYouRather(gameType)) {
     return `${WYR_QUESTION_COUNT} questions available → up to ${Math.min(20, WYR_QUESTION_COUNT)} rounds`
+  }
+  if (isHotSeat(gameType)) {
+    if (participants.length < 3) return null
+    return `${participants.length} players → up to ${Math.min(20, participants.length)} rounds`
   }
   if (isMostLikelyTo(gameType)) {
     return `${MLT_QUESTION_COUNT} prompts available → up to ${Math.min(20, MLT_QUESTION_COUNT)} rounds`
