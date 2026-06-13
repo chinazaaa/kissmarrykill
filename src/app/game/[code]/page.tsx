@@ -612,54 +612,63 @@ export default function GamePage() {
     const parts = participantsRef.current
     const pid = myPlayerIdRef.current
 
-    if (!r || !pid) return
+    if (!r || !pid || !g) return
 
-    const gameType = parseGameType(g?.game_type)
+    const gameType = parseGameType(g.game_type)
     const roundParts = parts.filter((p) => r.participant_ids.includes(p.id))
     const roundIds = roundParts.map((p) => p.id)
+    const useRandom = g.auto_submit_behavior === 'random'
 
-    if (g?.auto_submit_behavior === 'random') {
+    if (useRandom) {
       if (isWouldYouRather(gameType)) {
         wyr = Math.random() < 0.5 ? 'a' : 'b'
       } else if (isMostLikelyTo(gameType)) {
-        const g = gameRef.current
-        const targets = g
-          ? mltVoteTargets(g, participantsRef.current, plrs)
-          : plrs.map((p) => ({ id: p.id, name: p.name, kind: 'player' as const }))
+        const targets = mltVoteTargets(g, parts, plrs)
         if (targets.length > 0) {
           mltTarget = targets[Math.floor(Math.random() * targets.length)].id
         }
       } else if (isPairGame(gameType)) {
         for (const p of roundParts) {
-          pa[p.id] = Math.random() < 0.5 ? 'kiss' : 'kill'
+          if (!pa[p.id]) pa[p.id] = Math.random() < 0.5 ? 'kiss' : 'kill'
         }
       } else {
-        const actions = voteSlots(gameType)
-        const unassigned = actions.filter((k) => !a[k])
-        const available = roundParts.filter((p) => !Object.values(a).includes(p.id))
-        unassigned.forEach((act, i) => { if (available[i]) a[act] = available[i].id })
+        const unassigned = voteSlots(gameType).filter((slot) => !a[slot])
+        const available = shuffleCopy(
+          roundParts.filter((p) => !Object.values(a).includes(p.id))
+        )
+        unassigned.forEach((slot, i) => {
+          if (available[i]) a[slot] = available[i].id
+        })
       }
     }
 
-    const voteBody = isWouldYouRather(gameType)
-      ? { wyrChoice: wyr ?? (Math.random() < 0.5 ? 'a' : 'b') }
-      : isMostLikelyTo(gameType)
-      ? isMltImportGame(g!)
-        ? { targetParticipantId: mltTarget ?? participantsRef.current[0]?.id }
-        : { targetPlayerId: mltTarget ?? plrs[0]?.id }
-      : isPairGame(gameType)
-      ? {
-          pairAssignments: Object.fromEntries(
-            roundIds
-              .map((id) => [id, pa[id]] as const)
-              .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
-          ),
-        }
-      : {
-          kiss: a.kiss,
-          marry: isThreeChoiceGame(gameType) ? a.marry : null,
-          kill: a.kill,
-        }
+    let voteBody: Record<string, unknown> | null = null
+
+    if (isWouldYouRather(gameType)) {
+      if (!wyr) return
+      voteBody = { wyrChoice: wyr }
+    } else if (isMostLikelyTo(gameType)) {
+      if (!mltTarget) return
+      voteBody = isMltImportGame(g)
+        ? { targetParticipantId: mltTarget }
+        : { targetPlayerId: mltTarget }
+    } else if (isPairGame(gameType)) {
+      if (!isPairAssignmentComplete(pa, roundIds)) return
+      voteBody = {
+        pairAssignments: Object.fromEntries(
+          roundIds
+            .map((id) => [id, pa[id]] as const)
+            .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
+        ),
+      }
+    } else {
+      if (!isAssignmentComplete(a, gameType)) return
+      voteBody = {
+        kiss: a.kiss,
+        marry: isThreeChoiceGame(gameType) ? a.marry : null,
+        kill: a.kill,
+      }
+    }
 
     fetch('/api/votes', {
       method: 'POST',
@@ -1862,3 +1871,12 @@ function NotFound({ onHome }: { onHome: () => void }) {
 
 const inputCls = 'input-field'
 const primaryBtnCls = 'btn-primary'
+
+function shuffleCopy<T>(items: T[]): T[] {
+  const arr = [...items]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
