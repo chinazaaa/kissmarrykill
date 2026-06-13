@@ -533,7 +533,7 @@ export default function HostPage() {
                     <div className="flex gap-3 text-sm">
                       <span className="text-pink-400">❤️ {k}</span>
                       <span className="text-amber-400">💍 {m}</span>
-                      <span className="text-red-400">💀 {d}</span>
+                      <span className="text-red-400">🔥 {d}</span>
                     </div>
                   </div>
                 )
@@ -591,7 +591,7 @@ export default function HostPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <MiniStat emoji="❤️" label="Kiss"  count={k} total={total} color="#f472b6" />
                   <MiniStat emoji="💍" label="Marry" count={m} total={total} color="#fbbf24" />
-                  <MiniStat emoji="💀" label="Kill"  count={d} total={total} color="#f87171" />
+                  <MiniStat emoji="🔥" label="Smash" count={d} total={total} color="#f87171" />
                 </div>
               </div>
             )
@@ -649,7 +649,7 @@ export default function HostPage() {
     }))
     const mostMarried = [...tally].sort((a, b) => b.marryCount - a.marryCount)[0]
     const mostKissed  = [...tally].sort((a, b) => b.kissCount  - a.kissCount)[0]
-    const mostKilled  = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
+    const mostSmashed = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -663,7 +663,7 @@ export default function HostPage() {
         <div className="grid grid-cols-3 gap-3">
           <StatCard emoji="💍" label="Most Married" name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
           <StatCard emoji="❤️" label="Most Kissed"  name={mostKissed?.name}  count={mostKissed?.kissCount}  color="pink" />
-          <StatCard emoji="💀" label="Most Killed"  name={mostKilled?.name}  count={mostKilled?.killCount}  color="red" />
+          <StatCard emoji="🔥" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red" />
         </div>
 
         {/* Full breakdown */}
@@ -679,7 +679,7 @@ export default function HostPage() {
               <div className="grid grid-cols-3 gap-2">
                 <MiniStat emoji="❤️" label="Kiss"  count={p.kissCount}  total={players.length} color="#f472b6" />
                 <MiniStat emoji="💍" label="Marry" count={p.marryCount} total={players.length} color="#fbbf24" />
-                <MiniStat emoji="💀" label="Kill"  count={p.killCount}  total={players.length} color="#f87171" />
+                <MiniStat emoji="🔥" label="Smash" count={p.killCount}  total={players.length} color="#f87171" />
               </div>
             </div>
           ))}

@@ -18,11 +18,11 @@ export default function Home() {
           <div className="inline-flex items-center gap-3 rounded-full glass-card px-5 py-2 text-2xl">
             <span>❤️</span>
             <span>💍</span>
-            <span>💀</span>
+            <span>🔥</span>
           </div>
           <div className="space-y-2">
             <h1 className="text-5xl sm:text-6xl font-black tracking-tight gradient-title">
-              Kiss Marry Kill
+              Kiss Marry Smash
             </h1>
             <p className="text-muted text-lg">The party game that reveals everything</p>
           </div>

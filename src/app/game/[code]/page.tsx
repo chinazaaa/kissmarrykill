@@ -477,7 +477,7 @@ export default function GamePage() {
     return (
       <CenteredCard>
         <div className="text-center space-y-1">
-          <div className="text-4xl">❤️💍💀</div>
+          <div className="text-4xl">❤️💍🔥</div>
           <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
           <p className="text-muted text-sm">{game?.rounds_count} rounds · {game?.timer_seconds}s each</p>
         </div>
@@ -645,7 +645,7 @@ export default function GamePage() {
               )}
               {myVote.kill_participant_id && (
                 <span className="text-red-300 text-sm font-medium">
-                  💀 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}
+                  🔥 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}
                 </span>
               )}
             </div>
@@ -679,7 +679,7 @@ export default function GamePage() {
                   <p className="text-white font-bold text-lg">{p.name}</p>
                   {myAction && (
                     <span className="ml-auto text-xs text-muted italic">
-                      you: {myAction === 'kiss' ? '❤️' : myAction === 'marry' ? '💍' : '💀'}
+                      you: {myAction === 'kiss' ? '❤️' : myAction === 'marry' ? '💍' : '🔥'}
                     </span>
                   )}
                 </div>
@@ -687,7 +687,7 @@ export default function GamePage() {
                 <div className="grid grid-cols-3 gap-3">
                   <VoteStat emoji="❤️" label="Kiss"  count={k} total={total} color="#f472b6" />
                   <VoteStat emoji="💍" label="Marry" count={m} total={total} color="#fbbf24" />
-                  <VoteStat emoji="💀" label="Kill"  count={d} total={total} color="#f87171" />
+                  <VoteStat emoji="🔥" label="Smash" count={d} total={total} color="#f87171" />
                 </div>
               </div>
             )
@@ -740,7 +740,7 @@ export default function GamePage() {
 const ACTION_CONFIG = {
   kiss:  { emoji: '❤️', label: 'Kiss',  border: 'border-[var(--kiss)]/50 bg-[var(--kiss)]/10',  active: 'bg-[var(--kiss)]/20 text-rose-200 border-[var(--kiss)]'  },
   marry: { emoji: '💍', label: 'Marry', border: 'border-[var(--marry)]/50 bg-[var(--marry)]/10', active: 'bg-[var(--marry)]/20 text-amber-100 border-[var(--marry)]' },
-  kill:  { emoji: '💀', label: 'Kill',  border: 'border-[var(--kill)]/50 bg-[var(--kill)]/10',  active: 'bg-[var(--kill)]/20 text-red-200 border-[var(--kill)]'   },
+  kill:  { emoji: '🔥', label: 'Smash', border: 'border-[var(--kill)]/50 bg-[var(--kill)]/10',  active: 'bg-[var(--kill)]/20 text-red-200 border-[var(--kill)]'   },
 }
 
 function ParticipantCard({ participant, action, onAssign, disabled }: {
@@ -838,7 +838,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
 
   const mostMarried = [...tally].sort((a, b) => b.marryCount - a.marryCount)[0]
   const mostKissed  = [...tally].sort((a, b) => b.kissCount  - a.kissCount)[0]
-  const mostKilled  = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
+    const mostSmashed = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -854,7 +854,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
         <div className="grid grid-cols-3 gap-3">
           <LeaderCard emoji="💍" label="Most Married" name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
           <LeaderCard emoji="❤️" label="Most Kissed"  name={mostKissed?.name}  count={mostKissed?.kissCount}  color="pink"  />
-          <LeaderCard emoji="💀" label="Most Killed"  name={mostKilled?.name}  count={mostKilled?.killCount}  color="red"   />
+          <LeaderCard emoji="🔥" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red"   />
         </div>
       </div>
 
@@ -872,7 +872,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
                 <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
                 {myVote.kiss_participant_id  && <span className="text-pink-300 text-sm">❤️ {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}</span>}
                 {myVote.marry_participant_id && <span className="text-amber-300 text-sm">💍 {participants.find((p) => p.id === myVote.marry_participant_id)?.name}</span>}
-                {myVote.kill_participant_id  && <span className="text-red-300 text-sm">💀 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
+                {myVote.kill_participant_id  && <span className="text-red-300 text-sm">🔥 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
               </div>
             )}
             <div className="space-y-2">
@@ -891,7 +891,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
                     <div className="grid grid-cols-3 gap-2">
                       <VoteStat emoji="❤️" label="Kiss"  count={k} total={roundVotes.length || 1} color="#f472b6" />
                       <VoteStat emoji="💍" label="Marry" count={m} total={roundVotes.length || 1} color="#fbbf24" />
-                      <VoteStat emoji="💀" label="Kill"  count={d} total={roundVotes.length || 1} color="#f87171" />
+                      <VoteStat emoji="🔥" label="Smash" count={d} total={roundVotes.length || 1} color="#f87171" />
                     </div>
                   </div>
                 )
