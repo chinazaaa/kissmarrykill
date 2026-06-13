@@ -28,6 +28,7 @@
   --kill: #991b1b;
   --slot-kiss-text: #c2410c;
   --slot-kill-text: #7f1d1d;
+  --slot-pass-text: #475569;
   --primary: #f43f5e;
   --primary-strong: #e11d48;
   --primary-glow: rgba(244, 63, 94, 0.35);
@@ -78,6 +79,7 @@
   --kill: #ef4444;
   --slot-kiss-text: #fdba74;
   --slot-kill-text: #fca5a5;
+  --slot-pass-text: #94a3b8;
   --primary-glow: rgba(244, 63, 94, 0.45);
 
   --chip-active-text: #ffaab8;
