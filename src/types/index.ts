@@ -22,6 +22,18 @@ export type ParticipantGender = 'male' | 'female'
 /** Gender selected when joining — `both` means vote on every round. */
 export type PlayerGender = 'male' | 'female' | 'both'
 
+export interface CustomSlot {
+  key: string
+  label: string
+  emoji: string
+  color: string
+}
+
+export interface CustomSlotsConfig {
+  slots: CustomSlot[]
+  title: string
+}
+
 export interface Game {
   id: string
   title: string
@@ -151,15 +163,3 @@ export interface AnimeQuotePoolEntry {
 }
 
 export type WstQuoteSource = 'player' | 'anime' | 'both'
-
-export interface CustomSlot {
-  key: string
-  label: string
-  emoji: string
-  color: string
-}
-
-export interface CustomSlotsConfig {
-  slots: CustomSlot[]
-  title: string
-}
