@@ -61,7 +61,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
   red_flag_green_flag: {
     id: 'red_flag_green_flag',
     label: 'Red Flag / Green Flag',
-    tagline: 'Green flag, red flag, and pass — one per person',
+    tagline: 'Two names — pick green flag for one, red flag for the other',
     headerEmoji: '💚🚩',
     slots: {
       kiss: {
@@ -106,12 +106,22 @@ export function gameTypeConfig(gameType: GameType | string | undefined): GameTyp
   return GAME_TYPE_CONFIG[parseGameType(gameType)]
 }
 
-export function voteSlots(): VoteSlot[] {
+export function roundPoolSize(gameType: GameType | string | undefined): 2 | 3 {
+  return parseGameType(gameType) === 'red_flag_green_flag' ? 2 : 3
+}
+
+export function voteSlots(gameType?: GameType | string): VoteSlot[] {
+  if (parseGameType(gameType) === 'red_flag_green_flag') return ['kiss', 'kill']
   return ['kiss', 'marry', 'kill']
 }
 
-export function voteCategories(): VoteCategory[] {
+export function voteCategories(gameType?: GameType | string): VoteCategory[] {
+  if (parseGameType(gameType) === 'red_flag_green_flag') return ['kiss', 'smash']
   return ['kiss', 'marry', 'smash']
+}
+
+export function assignmentTargetCount(gameType?: GameType | string): number {
+  return voteSlots(gameType).length
 }
 
 export function categoryToSlot(category: VoteCategory): VoteSlot {
@@ -143,10 +153,13 @@ export function emptyAssignment(): VoteAssignment {
   return { kiss: null, marry: null, kill: null }
 }
 
-export function isAssignmentComplete(assignment: VoteAssignment): boolean {
-  return !!(assignment.kiss && assignment.marry && assignment.kill)
+export function isAssignmentComplete(
+  assignment: VoteAssignment,
+  gameType?: GameType | string
+): boolean {
+  return voteSlots(gameType).every((slot) => assignment[slot])
 }
 
-export function assignedCount(assignment: VoteAssignment): number {
-  return voteSlots().filter((s) => assignment[s]).length
+export function assignedCount(assignment: VoteAssignment, gameType?: GameType | string): number {
+  return voteSlots(gameType).filter((slot) => assignment[slot]).length
 }

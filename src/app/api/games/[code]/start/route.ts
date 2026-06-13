@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateRoundsByGender } from '@/lib/utils'
 import { hasVotersForPolls, parseParticipantGenderFromDb, participantsWhoJoined, maxRecommendedRounds } from '@/lib/participants'
+import { parseGameType, roundPoolSize } from '@/lib/game-types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,14 +18,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'waiting') return NextResponse.json({ error: 'Game already started' }, { status: 400 })
 
+  const gameType = parseGameType(game.game_type)
+  const poolSize = roundPoolSize(gameType)
+  const minPool = poolSize
+
   const { data: participantsData } = await supabase
     .from('participants')
     .select('id, gender, name')
     .eq('game_id', code.toUpperCase())
     .order('display_order')
 
-  if (!participantsData || participantsData.length < 3) {
-    return NextResponse.json({ error: 'Need at least 3 names on the list' }, { status: 400 })
+  if (!participantsData || participantsData.length < minPool) {
+    return NextResponse.json({ error: `Need at least ${minPool} names on the list` }, { status: 400 })
   }
 
   const { data: playersData } = await supabase
@@ -41,9 +46,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     ? participantsWhoJoined(participantsData, playersData)
     : participantsData
 
-  if (roundPool.length < 3) {
+  if (roundPool.length < minPool) {
     return NextResponse.json(
-      { error: 'Need at least 3 people to join before starting — only joined names appear in rounds' },
+      { error: `Need at least ${minPool} people to join before starting — only joined names appear in rounds` },
       { status: 400 }
     )
   }
@@ -53,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     gender: parseParticipantGenderFromDb(p.gender) ?? ('female' as const),
   }))
 
-  const maxRounds = maxRecommendedRounds(participantInputs)
+  const maxRounds = maxRecommendedRounds(participantInputs, gameType)
   if (game.rounds_count > maxRounds) {
     return NextResponse.json(
       {
@@ -68,10 +73,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     gender: parseParticipantGenderFromDb(p.gender) ?? ('female' as const),
   }))
 
-  const trios = generateRoundsByGender(participants, game.rounds_count)
+  const trios = generateRoundsByGender(participants, game.rounds_count, poolSize)
   if (trios.length === 0) {
     return NextResponse.json(
-      { error: 'Need at least 3 joined people of the same gender to start' },
+      { error: `Need at least ${minPool} joined people of the same gender to start` },
       { status: 400 }
     )
   }

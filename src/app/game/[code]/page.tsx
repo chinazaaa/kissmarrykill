@@ -7,7 +7,7 @@ import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
 import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, parseParticipantGenderFromDb, playerGenderFromJoin, joinGenderHint, playerVoteGenderForRound } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
 import { tallyRoundVotes, getCategoryMeta, getVoteCategories, assignmentEmojiFor, myActionBorderClass } from '@/lib/vote-stats'
-import { gameTypeConfig, slotMeta, voteSlots, emptyAssignment, isAssignmentComplete, assignedCount, parseGameType } from '@/lib/game-types'
+import { gameTypeConfig, slotMeta, voteSlots, emptyAssignment, isAssignmentComplete, assignedCount, parseGameType, assignmentTargetCount } from '@/lib/game-types'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { NameSearchPicker } from '@/components/NameSearchPicker'
@@ -545,12 +545,14 @@ export default function GamePage() {
 
     if (g?.auto_submit_behavior === 'random') {
       const roundParts = parts.filter((p) => r.participant_ids.includes(p.id))
-      const actions: (keyof VoteAssignment)[] = ['kiss', 'marry', 'kill']
+      const gameType = parseGameType(g?.game_type)
+      const actions = voteSlots(gameType)
       const unassigned = actions.filter((k) => !a[k])
       const available = roundParts.filter((p) => !Object.values(a).includes(p.id))
       unassigned.forEach((act, i) => { if (available[i]) a[act] = available[i].id })
     }
 
+    const gameType = parseGameType(g?.game_type)
     fetch('/api/votes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -559,7 +561,7 @@ export default function GamePage() {
         roundId: r.id,
         gameId: gameCode,
         kiss: a.kiss,
-        marry: a.marry,
+        marry: gameType === 'red_flag_green_flag' ? null : a.marry,
         kill: a.kill,
       }),
     })
@@ -582,6 +584,7 @@ export default function GamePage() {
     if (submittedRef.current || !currentRound || !myPlayerId) return
     submittedRef.current = true
     setSubmitted(true)
+    const submitGameType = parseGameType(game?.game_type)
     await fetch('/api/votes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -590,7 +593,7 @@ export default function GamePage() {
         roundId: currentRound.id,
         gameId: gameCode,
         kiss: assignment.kiss,
-        marry: assignment.marry,
+        marry: submitGameType === 'red_flag_green_flag' ? null : assignment.marry,
         kill: assignment.kill,
       }),
     })
@@ -874,8 +877,9 @@ export default function GamePage() {
       canPlayerVoteInRound(effectiveGender, roundParticipantGender)
     )
     const voteBanner = canVote ? activeVoteBanner(effectiveGender) : null
-    const allAssigned = isAssignmentComplete(assignment)
     const gameType = parseGameType(game?.game_type)
+    const allAssigned = isAssignmentComplete(assignment, gameType)
+    const assignTarget = assignmentTargetCount(gameType)
     const typeConfig = gameTypeConfig(gameType)
 
     return (
@@ -945,7 +949,7 @@ export default function GamePage() {
           >
             {allAssigned
               ? 'Submit Vote ✓'
-              : `Assign all 3 (${assignedCount(assignment)}/3)`}
+              : `Assign all ${assignTarget} (${assignedCount(assignment, gameType)}/${assignTarget})`}
           </button>
         ) : (
           <div className="space-y-3">
@@ -1018,21 +1022,18 @@ export default function GamePage() {
           <div className="glass-card border border-[var(--primary)]/30 p-4">
             <p className="text-[var(--primary)] text-xs uppercase tracking-wider mb-2">Your vote</p>
             <div className="flex gap-4 flex-wrap">
-              {myVote.kiss_participant_id && (
-                <span className="text-pink-300 text-sm font-medium">
-                  {assignmentEmojiFor(gameType, 'kiss')} {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}
-                </span>
-              )}
-              {myVote.marry_participant_id && (
-                <span className="text-amber-300 text-sm font-medium">
-                  {assignmentEmojiFor(gameType, 'marry')} {participants.find((p) => p.id === myVote.marry_participant_id)?.name}
-                </span>
-              )}
-              {myVote.kill_participant_id && (
-                <span className="text-red-300 text-sm font-medium">
-                  {assignmentEmojiFor(gameType, 'kill')} {participants.find((p) => p.id === myVote.kill_participant_id)?.name}
-                </span>
-              )}
+              {voteSlots(gameType).map((slot) => {
+                const participantId = slot === 'kiss' ? myVote.kiss_participant_id
+                  : slot === 'marry' ? myVote.marry_participant_id
+                  : myVote.kill_participant_id
+                if (!participantId) return null
+                const meta = slotMeta(gameType, slot)
+                return (
+                  <span key={slot} className="text-sm font-medium" style={{ color: meta.textColor }}>
+                    {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
+                  </span>
+                )
+              })}
             </div>
           </div>
         )}
@@ -1073,7 +1074,7 @@ export default function GamePage() {
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className={`grid gap-3 ${getVoteCategories(gameType).length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                       {getVoteCategories(gameType).map((category) => {
                         const meta = getCategoryMeta(gameType, category)
                         return (
@@ -1164,7 +1165,7 @@ function ParticipantCard({ gameType, participant, action, onAssign, disabled }: 
         </div>
       </div>
       <div className="flex gap-2">
-        {voteSlots().map((a) => {
+        {voteSlots(gameType).map((a) => {
           const slot = slotMeta(gameType, a)
           return (
           <button
@@ -1254,9 +1255,18 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
             {myVote && (
               <div className="glass-card border border-[var(--primary)]/25 px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
                 <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
-                {myVote.kiss_participant_id  && <span className="text-orange-300 text-sm">{assignmentEmojiFor(gameType, 'kiss')} {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}</span>}
-                {myVote.marry_participant_id && <span className="text-amber-300 text-sm">{assignmentEmojiFor(gameType, 'marry')} {participants.find((p) => p.id === myVote.marry_participant_id)?.name}</span>}
-                {myVote.kill_participant_id  && <span className="text-red-300 text-sm">{assignmentEmojiFor(gameType, 'kill')} {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
+                {voteSlots(gameType).map((slot) => {
+                  const participantId = slot === 'kiss' ? myVote.kiss_participant_id
+                    : slot === 'marry' ? myVote.marry_participant_id
+                    : myVote.kill_participant_id
+                  if (!participantId) return null
+                  const meta = slotMeta(gameType, slot)
+                  return (
+                    <span key={slot} className="text-sm" style={{ color: meta.textColor }}>
+                      {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
+                    </span>
+                  )
+                })}
               </div>
             )}
             <div className="space-y-4">
@@ -1280,7 +1290,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
                           </div>
                           <p className="text-white font-bold">{name}</p>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className={`grid gap-2 ${getVoteCategories(gameType).length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                           {getVoteCategories(gameType).map((category) => {
                             const meta = getCategoryMeta(gameType, category)
                             return (

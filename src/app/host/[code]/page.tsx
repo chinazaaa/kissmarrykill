@@ -6,7 +6,7 @@ import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import { roundGenderLabel, genderLabel, resolvePlayerIdentity, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel, hasEnoughForRounds, countByGender, hasVotersForPolls, participantsWhoJoined, maxRecommendedRounds, roundLimitHint } from '@/lib/participants'
 import type { ParticipantGender } from '@/types'
 import { tallyRoundVotes, getCategoryMeta, getVoteCategories } from '@/lib/vote-stats'
-import { parseGameType } from '@/lib/game-types'
+import { parseGameType, roundPoolSize } from '@/lib/game-types'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
@@ -577,26 +577,28 @@ export default function HostPage() {
 
   // ── WAITING ───────────────────────────────────────────────────────────────
   if (game?.status === 'waiting') {
+    const gameType = parseGameType(game.game_type)
+    const minPool = roundPoolSize(gameType)
     const isJoinersMode = (game.participant_mode ?? 'import') === 'joiners'
     const roundParticipants = isJoinersMode
       ? participants
       : participantsWhoJoined(participants, players)
     const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
-    const maxRounds = maxRecommendedRounds(participantInputs)
-    const roundsHint = roundLimitHint(participantInputs)
+    const maxRounds = maxRecommendedRounds(participantInputs, gameType)
+    const roundsHint = roundLimitHint(participantInputs, gameType)
     const roundsTooHigh = maxRounds > 0 && game.rounds_count > maxRounds
     const roundOptions = [1, 2, 3, 4, 5, 6, 8, 10].filter((n) => n <= Math.max(maxRounds, 1))
     const voterCheck = hasVotersForPolls(roundParticipants, players)
     const canStart = isJoinersMode
       ? players.length > 0 &&
-        participants.length >= 3 &&
-        hasEnoughForRounds(participantInputs) &&
+        participants.length >= minPool &&
+        hasEnoughForRounds(participantInputs, gameType) &&
         !roundsTooHigh &&
         voterCheck.ok
       : players.length > 0 &&
-        roundParticipants.length >= 3 &&
-        hasEnoughForRounds(participantInputs) &&
+        roundParticipants.length >= minPool &&
+        hasEnoughForRounds(participantInputs, gameType) &&
         !roundsTooHigh &&
         voterCheck.ok
 
@@ -622,7 +624,7 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider">Rounds</p>
             <span className="text-faint text-xs">{game.timer_seconds}s each</span>
           </div>
-          {roundParticipants.length >= 3 && hasEnoughForRounds(participantInputs) ? (
+          {roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType) ? (
             <>
               {roundsHint && (
                 <p className="text-faint text-xs">{roundsHint}</p>
@@ -650,7 +652,7 @@ export default function HostPage() {
             </>
           ) : (
             <p className="text-faint text-xs">
-              Need at least 3 joined people of one gender before you can set rounds
+              Need at least {minPool} joined people of one gender before you can set rounds
             </p>
           )}
         </div>
@@ -784,17 +786,17 @@ export default function HostPage() {
               {genderCounts.female} female · {genderCounts.male} male
             </p>
           )}
-          {isJoinersMode && participants.length > 0 && !hasEnoughForRounds(participantInputs) && (
+          {isJoinersMode && participants.length > 0 && !hasEnoughForRounds(participantInputs, gameType) && (
             <p className="text-amber-200/90 text-xs text-center">
-              Need at least 3 people of the same gender to start
+              Need at least {minPool} people of the same gender to start
             </p>
           )}
-          {!voterCheck.ok && players.length > 0 && roundParticipants.length >= 3 && (
+          {!voterCheck.ok && players.length > 0 && roundParticipants.length >= minPool && (
             <p className="text-amber-200/90 text-xs text-center">{voterCheck.message}</p>
           )}
-          {!isJoinersMode && roundParticipants.length < 3 && players.length > 0 && (
+          {!isJoinersMode && roundParticipants.length < minPool && players.length > 0 && (
             <p className="text-amber-200/90 text-xs text-center">
-              Need at least 3 people to join before starting ({roundParticipants.length}/3 joined)
+              Need at least {minPool} people to join before starting ({roundParticipants.length}/{minPool} joined)
             </p>
           )}
         </div>
@@ -884,20 +886,20 @@ export default function HostPage() {
             ? 'Starting...'
             : !canStart
               ? isJoinersMode
-                ? participants.length < 3
-                  ? `Need ${3 - participants.length} more to start`
+                ? participants.length < minPool
+                  ? `Need ${minPool - participants.length} more to start`
                   : roundsTooHigh
                     ? `Lower to ${maxRounds} rounds max`
-                  : 'Need 3+ of one gender to start'
+                  : `Need ${minPool}+ of one gender to start`
                 : players.length === 0
                   ? 'Waiting for players...'
-                  : roundParticipants.length < 3
-                    ? `Need ${3 - roundParticipants.length} more to join (${roundParticipants.length}/3)`
+                  : roundParticipants.length < minPool
+                    ? `Need ${minPool - roundParticipants.length} more to join (${roundParticipants.length}/${minPool})`
                   : roundsTooHigh
                     ? `Lower to ${maxRounds} rounds max`
                   : !voterCheck.ok
                     ? 'Need voters for each list'
-                  : 'Need 3+ joined of one gender'
+                  : `Need ${minPool}+ joined of one gender`
               : `Start Game (${players.length} players)`}
         </button>
       </div>
@@ -989,19 +991,24 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider mb-2">Live Tally</p>
             <div className="space-y-2">
               {roundParts.map((p) => {
-                const k = roundVotes.filter((v) => v.kiss_participant_id  === p.id).length
-                const m = roundVotes.filter((v) => v.marry_participant_id === p.id).length
-                const d = roundVotes.filter((v) => v.kill_participant_id  === p.id).length
-                const kissMeta = getCategoryMeta(gameType, 'kiss')
-                const marryMeta = getCategoryMeta(gameType, 'marry')
-                const smashMeta = getCategoryMeta(gameType, 'smash')
+                const counts = getVoteCategories(gameType).map((category) => {
+                  const field = category === 'kiss' ? 'kiss_participant_id'
+                    : category === 'marry' ? 'marry_participant_id'
+                    : 'kill_participant_id'
+                  return {
+                    meta: getCategoryMeta(gameType, category),
+                    count: roundVotes.filter((v) => v[field] === p.id).length,
+                  }
+                })
                 return (
                   <div key={p.id} className="glass-card px-4 py-3 flex items-center gap-4">
                     <p className="text-white font-semibold w-24 truncate">{p.name}</p>
                     <div className="flex gap-3 text-sm">
-                      <span style={{ color: kissMeta.color }}>{kissMeta.emoji} {k}</span>
-                      <span style={{ color: marryMeta.color }}>{marryMeta.emoji} {m}</span>
-                      <span style={{ color: smashMeta.color }}>{smashMeta.emoji} {d}</span>
+                      {counts.map(({ meta, count }) => (
+                        <span key={meta.label} style={{ color: meta.color }}>
+                          {meta.emoji} {count}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 )
@@ -1066,7 +1073,7 @@ export default function HostPage() {
                     </div>
                     <p className="text-white font-bold text-lg">{name}</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={`grid gap-2 ${getVoteCategories(gameType).length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                     {getVoteCategories(gameType).map((category) => {
                       const meta = getCategoryMeta(gameType, category)
                       return (

@@ -11,7 +11,7 @@ import {
   hasEnoughForRounds,
   genderLabel,
 } from '@/lib/participants'
-import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
+import { GAME_TYPE_OPTIONS, gameTypeConfig, roundPoolSize } from '@/lib/game-types'
 
 interface Settings {
   title: string
@@ -51,7 +51,8 @@ export default function CreateGame() {
 
   const genderCounts = countByGender(participants)
   const isJoinersMode = settings.participant_mode === 'joiners'
-  const canCreateImport = participants.length >= 3 && hasEnoughForRounds(participants)
+  const minPool = roundPoolSize(settings.game_type)
+  const canCreateImport = participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type)
   const canCreateJoiners = !!settings.title.trim()
 
   const addParticipantsFromRows = (rows: ParticipantInput[]) => {
@@ -445,14 +446,14 @@ export default function CreateGame() {
             </p>
           )}
 
-          {!hasEnoughForRounds(participants) && participants.length > 0 && (
+          {!hasEnoughForRounds(participants, settings.game_type) && participants.length > 0 && (
             <p className="text-amber-200/90 text-sm text-center">
-              Need at least 3 people of the same gender to run rounds
+              Need at least {minPool} people of the same gender to run rounds
             </p>
           )}
-          {participants.length < 3 && participants.length > 0 && (
+          {participants.length < minPool && participants.length > 0 && (
             <p className="text-faint text-sm text-center">
-              Add {3 - participants.length} more to continue
+              Add {minPool - participants.length} more to continue
             </p>
           )}
         </div>

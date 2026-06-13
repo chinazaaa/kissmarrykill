@@ -74,8 +74,8 @@ export function getCategoryMeta(gameType: GameType | string | undefined, categor
   return categoryMeta(parseGameType(gameType), category)
 }
 
-export function getVoteCategories(_gameType?: GameType | string | undefined): VoteCategory[] {
-  return voteCategories()
+export function getVoteCategories(gameType?: GameType | string | undefined): VoteCategory[] {
+  return voteCategories(gameType)
 }
 
 /** @deprecated Use assignmentEmoji(gameType, slot) */

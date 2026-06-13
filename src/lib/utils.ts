@@ -27,6 +27,10 @@ function trioKey(trio: string[]): string {
   return [...trio].sort().join('|')
 }
 
+function pairKey(pair: string[]): string {
+  return [...pair].sort().join('|')
+}
+
 /**
  * Builds same-gender round trios with fair rotation:
  * - Prefer people who have appeared least often
@@ -105,31 +109,106 @@ export function generateRounds(participantIds: string[], roundCount: number): st
   return rounds
 }
 
+/**
+ * Builds same-gender round pairs with fair rotation (Red Flag / Green Flag).
+ */
+export function generatePairRounds(participantIds: string[], roundCount: number): string[][] {
+  if (participantIds.length < 2 || roundCount <= 0) return []
+
+  const ids = [...participantIds]
+  const appearanceCount = new Map<string, number>(ids.map((id) => [id, 0]))
+  const lastRound = new Map<string, number>(ids.map((id) => [id, Number.NEGATIVE_INFINITY]))
+  const usedPairs = new Set<string>()
+  const rounds: string[][] = []
+
+  for (let r = 0; r < roundCount; r++) {
+    const ranked = [...ids].sort((a, b) => {
+      const countDiff = (appearanceCount.get(a) ?? 0) - (appearanceCount.get(b) ?? 0)
+      if (countDiff !== 0) return countDiff
+
+      const la = lastRound.get(a) ?? Number.NEGATIVE_INFINITY
+      const lb = lastRound.get(b) ?? Number.NEGATIVE_INFINITY
+      const backToBackA = la === r - 1 ? 1 : 0
+      const backToBackB = lb === r - 1 ? 1 : 0
+      if (backToBackA !== backToBackB) return backToBackA - backToBackB
+
+      return la - lb
+    })
+
+    const minCount = appearanceCount.get(ranked[0]) ?? 0
+    const topTier = shuffleInPlace(ranked.filter((id) => (appearanceCount.get(id) ?? 0) === minCount))
+    const rest = ranked.filter((id) => (appearanceCount.get(id) ?? 0) > minCount)
+    const ordered = [...topTier, ...rest]
+
+    let pair: string[] | null = null
+
+    outer: for (let i = 0; i < ordered.length - 1; i++) {
+      for (let j = i + 1; j < ordered.length; j++) {
+        const candidate = [ordered[i], ordered[j]]
+        const key = pairKey(candidate)
+        const hasBackToBack = candidate.some((id) => lastRound.get(id) === r - 1)
+        if (usedPairs.has(key) || hasBackToBack) continue
+        pair = candidate
+        break outer
+      }
+    }
+
+    if (!pair) {
+      outer2: for (let i = 0; i < ordered.length - 1; i++) {
+        for (let j = i + 1; j < ordered.length; j++) {
+          const candidate = [ordered[i], ordered[j]]
+          if (!usedPairs.has(pairKey(candidate))) {
+            pair = candidate
+            break outer2
+          }
+        }
+      }
+    }
+
+    if (!pair) {
+      pair = ordered.slice(0, 2)
+    }
+
+    rounds.push(pair)
+    usedPairs.add(pairKey(pair))
+    for (const id of pair) {
+      appearanceCount.set(id, (appearanceCount.get(id) ?? 0) + 1)
+      lastRound.set(id, r)
+    }
+  }
+
+  return rounds
+}
+
 export type ParticipantForRounds = { id: string; gender: 'male' | 'female' }
 
-/** Each round uses three people of the same gender; alternates when both pools qualify. */
+/** Each round uses same-gender people; alternates when both pools qualify. */
 export function generateRoundsByGender(
   participants: ParticipantForRounds[],
-  roundCount: number
+  roundCount: number,
+  poolSize: 2 | 3 = 3
 ): string[][] {
   if (roundCount <= 0) return []
+
+  const generate = poolSize === 2 ? generatePairRounds : generateRounds
+  const minPool = poolSize
 
   const byGender: Record<'male' | 'female', string[]> = { male: [], female: [] }
   for (const p of participants) {
     byGender[p.gender].push(p.id)
   }
 
-  const eligible = (['male', 'female'] as const).filter((g) => byGender[g].length >= 3)
+  const eligible = (['male', 'female'] as const).filter((g) => byGender[g].length >= minPool)
   if (eligible.length === 0) return []
 
   if (eligible.length === 1) {
-    return generateRounds(byGender[eligible[0]], roundCount)
+    return generate(byGender[eligible[0]], roundCount)
   }
 
   const maleCount = Math.ceil(roundCount / 2)
   const femaleCount = Math.floor(roundCount / 2)
-  const maleTrios = generateRounds(byGender.male, maleCount)
-  const femaleTrios = generateRounds(byGender.female, femaleCount)
+  const maleTrios = generate(byGender.male, maleCount)
+  const femaleTrios = generate(byGender.female, femaleCount)
 
   const result: string[][] = []
   let mi = 0

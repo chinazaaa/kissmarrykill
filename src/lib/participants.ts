@@ -1,3 +1,6 @@
+import { roundPoolSize } from '@/lib/game-types'
+import type { GameType } from '@/types'
+
 export type ParticipantGender = 'male' | 'female'
 export type PlayerGender = 'male' | 'female' | 'both'
 
@@ -77,16 +80,24 @@ export function countByGender(participants: ParticipantInput[]): Record<Particip
   )
 }
 
-export function hasEnoughForRounds(participants: ParticipantInput[]): boolean {
+export function hasEnoughForRounds(
+  participants: ParticipantInput[],
+  gameType?: GameType | string
+): boolean {
+  const min = roundPoolSize(gameType)
   const counts = countByGender(participants)
-  return counts.male >= 3 || counts.female >= 3
+  return counts.male >= min || counts.female >= min
 }
 
-/** Max rounds before the same names repeat heavily (3 people per same-gender round). */
-export function maxRecommendedRounds(participants: ParticipantInput[]): number {
+/** Max rounds before the same names repeat heavily. */
+export function maxRecommendedRounds(
+  participants: ParticipantInput[],
+  gameType?: GameType | string
+): number {
+  const perRound = roundPoolSize(gameType)
   const counts = countByGender(participants)
-  const maleRounds = Math.floor(counts.male / 3)
-  const femaleRounds = Math.floor(counts.female / 3)
+  const maleRounds = Math.floor(counts.male / perRound)
+  const femaleRounds = Math.floor(counts.female / perRound)
   if (maleRounds >= 1 && femaleRounds >= 1) {
     return Math.min(20, maleRounds + femaleRounds)
   }
@@ -95,14 +106,18 @@ export function maxRecommendedRounds(participants: ParticipantInput[]): number {
   return 0
 }
 
-export function roundLimitHint(participants: ParticipantInput[]): string | null {
+export function roundLimitHint(
+  participants: ParticipantInput[],
+  gameType?: GameType | string
+): string | null {
+  const min = roundPoolSize(gameType)
   const counts = countByGender(participants)
-  const max = maxRecommendedRounds(participants)
+  const max = maxRecommendedRounds(participants, gameType)
   if (max === 0) return null
-  if (counts.male >= 3 && counts.female >= 3) {
+  if (counts.male >= min && counts.female >= min) {
     return `${counts.male} male · ${counts.female} female → up to ${max} rounds`
   }
-  if (counts.male >= 3) return `${counts.male} male → up to ${max} rounds`
+  if (counts.male >= min) return `${counts.male} male → up to ${max} rounds`
   return `${counts.female} female → up to ${max} rounds`
 }
 

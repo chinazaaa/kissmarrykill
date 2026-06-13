@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import { normalizeGender, hasEnoughForRounds, type ParticipantInput } from '@/lib/participants'
-import { parseGameType } from '@/lib/game-types'
+import { parseGameType, roundPoolSize } from '@/lib/game-types'
 import type { ParticipantMode } from '@/types'
 
 const supabase = createClient(
@@ -53,12 +53,16 @@ export async function POST(req: NextRequest) {
   let participants: ParticipantInput[] = []
   if (participant_mode === 'import') {
     const parsed = parseParticipants(rawParticipants)
-    if (!parsed || parsed.length < 3) {
-      return NextResponse.json({ error: 'At least 3 participants required' }, { status: 400 })
-    }
-    if (!hasEnoughForRounds(parsed)) {
+    if (!parsed || parsed.length < roundPoolSize(game_type)) {
       return NextResponse.json(
-        { error: 'Need at least 3 people of the same gender (male or female) for rounds' },
+        { error: `At least ${roundPoolSize(game_type)} participants required` },
+        { status: 400 }
+      )
+    }
+    if (!hasEnoughForRounds(parsed, game_type)) {
+      const min = roundPoolSize(game_type)
+      return NextResponse.json(
+        { error: `Need at least ${min} people of the same gender (male or female) for rounds` },
         { status: 400 }
       )
     }

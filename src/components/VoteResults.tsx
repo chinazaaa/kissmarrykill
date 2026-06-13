@@ -25,7 +25,7 @@ export function RoundWinnersSummary({
       <p className="text-muted text-xs uppercase tracking-wider text-center">
         Round winners · {voterCount} {voterCount === 1 ? 'vote' : 'votes'}
       </p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className={`grid gap-2 ${categories.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {categories.map((category) => {
           const meta = getCategoryMeta(gameType, category)
           const winners = winnerNames(tallies, category, nameById)

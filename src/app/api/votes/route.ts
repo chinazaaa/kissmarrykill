@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { canPlayerVoteInRound, getRoundParticipantGender, playerVoteGenderForRound } from '@/lib/participants'
+import { isAssignmentComplete, parseGameType, voteSlots } from '@/lib/game-types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,13 +15,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const [{ data: player }, { data: round }] = await Promise.all([
+  const [{ data: player }, { data: round }, { data: game }] = await Promise.all([
     supabase.from('players').select('id, gender, identity_gender, name').eq('id', playerId).maybeSingle(),
     supabase.from('rounds').select('participant_ids').eq('id', roundId).maybeSingle(),
+    supabase.from('games').select('game_type').eq('id', gameId.toUpperCase()).maybeSingle(),
   ])
 
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
   if (!round) return NextResponse.json({ error: 'Round not found' }, { status: 404 })
+  if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
+
+  const gameType = parseGameType(game.game_type)
+  const assignment = { kiss: kiss || null, marry: marry || null, kill: kill || null }
+  const roundIds = new Set(round.participant_ids)
+
+  if (!isAssignmentComplete(assignment, gameType)) {
+    return NextResponse.json({ error: 'Incomplete vote — assign every option' }, { status: 400 })
+  }
+
+  for (const slot of voteSlots(gameType)) {
+    const participantId = assignment[slot]
+    if (!participantId || !roundIds.has(participantId)) {
+      return NextResponse.json({ error: 'Invalid vote assignment' }, { status: 400 })
+    }
+  }
+
+  const assignedIds = voteSlots(gameType).map((slot) => assignment[slot] as string)
+  if (new Set(assignedIds).size !== assignedIds.length) {
+    return NextResponse.json({ error: 'Each person can only get one assignment' }, { status: 400 })
+  }
 
   const { data: participants } = await supabase
     .from('participants')
@@ -52,9 +75,9 @@ export async function POST(req: NextRequest) {
       player_id: playerId,
       round_id: roundId,
       game_id: gameId,
-      kiss_participant_id: kiss || null,
-      marry_participant_id: marry || null,
-      kill_participant_id: kill || null,
+      kiss_participant_id: assignment.kiss,
+      marry_participant_id: gameType === 'red_flag_green_flag' ? null : assignment.marry,
+      kill_participant_id: assignment.kill,
     },
     { onConflict: 'player_id,round_id' }
   )

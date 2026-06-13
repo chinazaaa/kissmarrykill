@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { roundGenderLabel } from '@/lib/participants'
 import { assignmentEmojiFor, tallyRoundVotes } from '@/lib/vote-stats'
-import { parseGameType, slotMeta } from '@/lib/game-types'
+import { parseGameType, slotMeta, voteSlots } from '@/lib/game-types'
+import { getVoteCategories } from '@/lib/vote-stats'
 import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
@@ -107,9 +108,14 @@ export default function GameHistoryPage() {
 
   const playerNameById = new Map(players.map((p) => [p.id, p.name]))
   const gameType = parseGameType(game.game_type)
-  const kissMeta = slotMeta(gameType, 'kiss')
-  const marryMeta = slotMeta(gameType, 'marry')
-  const killMeta = slotMeta(gameType, 'kill')
+  const voteColumns = voteSlots(gameType).map((slot) => ({
+    slot,
+    meta: slotMeta(gameType, slot),
+    field: slot === 'kiss' ? 'kiss_participant_id' as const
+      : slot === 'marry' ? 'marry_participant_id' as const
+      : 'kill_participant_id' as const,
+  }))
+  const tallyCategories = getVoteCategories(gameType)
   const roundsWithVotes = rounds.filter((r) => votes.some((v) => v.round_id === r.id))
 
   return (
@@ -194,21 +200,17 @@ export default function GameHistoryPage() {
                 {!game.anonymous ? (
                   <div className="glass-card overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm min-w-[32rem]">
+                      <table className={`w-full text-sm ${voteColumns.length === 2 ? 'min-w-[24rem]' : 'min-w-[32rem]'}`}>
                         <thead>
                           <tr className="border-b border-white/10 text-left">
                             <th className="px-4 py-3 text-faint text-xs uppercase tracking-wider font-medium">
                               Voter
                             </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium w-24">
-                              {assignmentEmojiFor(gameType, 'kiss')} {kissMeta.label}
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium w-24">
-                              {assignmentEmojiFor(gameType, 'marry')} {marryMeta.label}
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium w-24">
-                              {assignmentEmojiFor(gameType, 'kill')} {killMeta.label}
-                            </th>
+                            {voteColumns.map(({ slot, meta }) => (
+                              <th key={slot} className="px-4 py-3 text-center text-xs font-medium w-24">
+                                {assignmentEmojiFor(gameType, slot)} {meta.label}
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
@@ -217,15 +219,11 @@ export default function GameHistoryPage() {
                               <td className="px-4 py-3 font-medium text-white/90">
                                 {playerNameById.get(vote.player_id) ?? 'Unknown'}
                               </td>
-                              <td className="px-4 py-3 text-center text-pink-300">
-                                {participantName(participants, vote.kiss_participant_id)}
-                              </td>
-                              <td className="px-4 py-3 text-center text-amber-300">
-                                {participantName(participants, vote.marry_participant_id)}
-                              </td>
-                              <td className="px-4 py-3 text-center text-red-300">
-                                {participantName(participants, vote.kill_participant_id)}
-                              </td>
+                              {voteColumns.map(({ slot, meta, field }) => (
+                                <td key={slot} className="px-4 py-3 text-center" style={{ color: meta.textColor }}>
+                                  {participantName(participants, vote[field])}
+                                </td>
+                              ))}
                             </tr>
                           ))}
                         </tbody>
@@ -235,15 +233,17 @@ export default function GameHistoryPage() {
                 ) : (
                   <div className="glass-card overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm min-w-[20rem]">
+                      <table className={`w-full text-sm ${tallyCategories.length === 2 ? 'min-w-[16rem]' : 'min-w-[20rem]'}`}>
                         <thead>
                           <tr className="border-b border-white/10 text-left">
                             <th className="px-4 py-3 text-faint text-xs uppercase tracking-wider font-medium">
                               Name
                             </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium w-16">{kissMeta.emoji}</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium w-16">{marryMeta.emoji}</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium w-16">{killMeta.emoji}</th>
+                            {tallyCategories.map((category) => (
+                              <th key={category} className="px-4 py-3 text-center text-xs font-medium w-16">
+                                {slotMeta(gameType, category === 'smash' ? 'kill' : category).emoji}
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
@@ -252,9 +252,11 @@ export default function GameHistoryPage() {
                               <td className="px-4 py-3 font-medium text-white/90">
                                 {participantName(participants, t.id)}
                               </td>
-                              <td className="px-4 py-3 text-center text-pink-300">{t.kiss}</td>
-                              <td className="px-4 py-3 text-center text-amber-300">{t.marry}</td>
-                              <td className="px-4 py-3 text-center text-red-300">{t.smash}</td>
+                              {tallyCategories.map((category) => (
+                                <td key={category} className="px-4 py-3 text-center text-white/80">
+                                  {t[category]}
+                                </td>
+                              ))}
                             </tr>
                           ))}
                         </tbody>
@@ -270,22 +272,26 @@ export default function GameHistoryPage() {
                     </summary>
                     <div className="mt-2 glass-card overflow-hidden">
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm min-w-[20rem]">
+                        <table className={`w-full text-sm ${tallyCategories.length === 2 ? 'min-w-[16rem]' : 'min-w-[20rem]'}`}>
                           <thead>
                             <tr className="border-b border-white/10">
                               <th className="px-4 py-2 text-left text-xs uppercase tracking-wider">Name</th>
-                              <th className="px-4 py-2 text-center w-16">{kissMeta.emoji}</th>
-                              <th className="px-4 py-2 text-center w-16">{marryMeta.emoji}</th>
-                              <th className="px-4 py-2 text-center w-16">{killMeta.emoji}</th>
+                              {tallyCategories.map((category) => (
+                                <th key={category} className="px-4 py-2 text-center w-16">
+                                  {slotMeta(gameType, category === 'smash' ? 'kill' : category).emoji}
+                                </th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody>
                             {tallies.map((t) => (
                               <tr key={t.id} className="border-b border-white/5 last:border-0">
                                 <td className="px-4 py-2 text-white/80">{participantName(participants, t.id)}</td>
-                                <td className="px-4 py-2 text-center text-pink-300">{t.kiss}</td>
-                                <td className="px-4 py-2 text-center text-amber-300">{t.marry}</td>
-                                <td className="px-4 py-2 text-center text-red-300">{t.smash}</td>
+                                {tallyCategories.map((category) => (
+                                  <td key={category} className="px-4 py-2 text-center text-white/80">
+                                    {t[category]}
+                                  </td>
+                                ))}
                               </tr>
                             ))}
                           </tbody>
