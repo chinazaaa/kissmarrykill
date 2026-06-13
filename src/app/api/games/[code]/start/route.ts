@@ -15,7 +15,7 @@ import {
   isWhoSaidThis,
   isHotSeat,
 } from '@/lib/game-types'
-import { hotSeatEffectiveRounds, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
+import { buildHotSeatRoundRows } from '@/lib/hot-seat'
 import { buildRoundsFromQuotePool, buildRoundsFromAnimePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
@@ -61,26 +61,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const now = new Date().toISOString()
 
   if (isHotSeat(gameType)) {
-    const claimed = playersData.filter((p) => p.participant_id)
-    if (claimed.length < HOT_SEAT_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${HOT_SEAT_MIN_PLAYERS} players who claimed a name from the list` },
-        { status: 400 }
-      )
+    const { data: participantsData } = await supabase
+      .from('participants')
+      .select('id, name')
+      .eq('game_id', code.toUpperCase())
+      .order('display_order')
+
+    const built = buildHotSeatRoundRows({
+      gameId: code.toUpperCase(),
+      players: playersData,
+      participants: participantsData ?? [],
+      participantMode: game.participant_mode,
+      maxRoundsCap: game.rounds_count,
+      now,
+    })
+
+    if (!built.ok) {
+      return NextResponse.json({ error: built.error }, { status: 400 })
     }
 
-    const roundsCount = hotSeatEffectiveRounds(claimed.length, game.rounds_count)
-    const shuffled = [...claimed].sort(() => Math.random() - 0.5)
-
-    const roundRows = shuffled.slice(0, roundsCount).map((hotSeatPlayer, index) => ({
-      game_id: code.toUpperCase(),
-      round_number: index + 1,
-      participant_ids: claimed.map((p) => p.participant_id as string),
-      submitter_player_id: hotSeatPlayer.id,
-      status: index === 0 ? 'active' : ('pending' as const),
-      started_at: index === 0 ? now : null,
-      ended_at: null,
-    }))
+    const { roundRows, roundsCount } = built
 
     const { error: roundError } = await supabase.from('rounds').insert(roundRows)
     if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
