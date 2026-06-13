@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     kiss_participant_id: string | null
     marry_participant_id: string | null
     kill_participant_id: string | null
-    pair_assignments: Record<string, PairFlag> | Record<string, string> | null
+    pair_assignments: Record<string, PairFlag | string> | null
     wyr_choice: WyrChoice | null
     target_player_id: string | null
     target_participant_id: string | null
