@@ -109,7 +109,6 @@ import type {
   Vote,
   VoteAssignment,
   Confession,
-  GameType,
   PairAssignmentMap,
   WyrChoice,
   WstQuotePoolEntry,
@@ -457,17 +456,6 @@ export default function GamePage() {
       resetRoundPlayerState()
       if (options?.switchView !== false) setView('round')
     }
-  }
-
-  async function fetchActiveRound() {
-    const { data } = await supabase
-      .from('rounds')
-      .select('*')
-      .eq('game_id', gameCode)
-      .eq('status', 'active')
-      .maybeSingle()
-    if (data) applyActiveRound(data, { switchView: false })
-    return data
   }
 
   function resetPlayerForLobby(hasSession: boolean) {
@@ -1243,12 +1231,12 @@ export default function GamePage() {
   const sendConfession = async () => {
     if (!confessionText.trim() || confessionSent) return
     setConfessionSent(true)
-    await fetch('/api/confessions', {
+    const res = await fetch('/api/confessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gameId: gameCode, roundId: currentRound?.id, text: confessionText }),
     })
-    playConfessionSound()
+    if (res.ok) playConfessionSound()
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -2302,61 +2290,6 @@ export default function GamePage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
-
-function ParticipantCard({
-  gameType,
-  participant,
-  action,
-  onAssign,
-  disabled,
-  disabledSlots = [],
-}: {
-  gameType: GameType
-  participant: Participant
-  action: 'kiss' | 'marry' | 'kill' | null
-  onAssign: (a: 'kiss' | 'marry' | 'kill') => void
-  disabled: boolean
-  disabledSlots?: ('kiss' | 'marry' | 'kill')[]
-}) {
-  const cfg = action ? slotMeta(gameType, action) : null
-  return (
-    <div
-      className={`rounded-2xl border-2 p-4 transition-all backdrop-blur-sm ${cfg ? cfg.borderClass : 'glass-card border-theme'}`}
-    >
-      <div className="flex items-center gap-3 mb-3">
-        <Avatar name={participant.name} photoUrl={participant.photo_url} />
-        <div>
-          <p className="font-bold text-body text-lg leading-tight">{participant.name}</p>
-          {action && cfg && (
-            <p className="text-sm font-medium" style={{ color: cfg.textColor }}>
-              {cfg.emoji} {cfg.label}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="flex gap-2">
-        {voteSlots(gameType).map((a) => {
-          const slot = slotMeta(gameType, a)
-          const slotDisabled = disabled || disabledSlots.includes(a)
-          return (
-            <button
-              key={a}
-              onClick={() => onAssign(a)}
-              disabled={slotDisabled}
-              className={`flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
-                action === a
-                  ? slot.activeClass
-                  : `surface-inset border-theme text-muted ${!slotDisabled ? 'hover:border-theme-strong hover:text-body-muted' : ''}`
-              } disabled:cursor-not-allowed disabled:opacity-40`}
-            >
-              {slot.emoji}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 function TimerDisplay({ seconds, total }: { seconds: number; total: number }) {
   const pct = total > 0 ? (seconds / total) * 100 : 0

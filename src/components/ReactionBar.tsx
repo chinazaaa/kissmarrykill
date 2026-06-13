@@ -1,17 +1,20 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
-const REACTIONS = ['😂', '😱', '🔥', '💀', '👀'] as const
+const REACTIONS = [
+  { emoji: '😂', label: 'Laughing' },
+  { emoji: '😱', label: 'Shocked' },
+  { emoji: '🔥', label: 'Fire' },
+  { emoji: '💀', label: 'Dead' },
+  { emoji: '👀', label: 'Eyes' },
+] as const
 
 interface FloatingEmoji {
   id: number
   emoji: string
 }
 
-let nextId = 0
-
-// Inject keyframe animation once
 const STYLE_ID = 'reaction-bar-styles'
 function ensureStyles() {
   if (typeof document === 'undefined') return
@@ -30,38 +33,44 @@ function ensureStyles() {
 export default function ReactionBar({ className = '' }: { className?: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [floaters, setFloaters] = useState<FloatingEmoji[]>([])
+  const idRef = useRef(0)
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
 
   useEffect(() => {
     ensureStyles()
+    const timers = timersRef.current
+    return () => {
+      timers.forEach(clearTimeout)
+    }
   }, [])
 
   const handleClick = useCallback((emoji: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
-      if (next.has(emoji)) {
-        next.delete(emoji)
-      } else {
-        next.add(emoji)
-      }
+      if (next.has(emoji)) next.delete(emoji)
+      else next.add(emoji)
       return next
     })
 
-    // Spawn a floating emoji animation
-    const id = nextId++
+    const id = idRef.current++
     setFloaters((prev) => [...prev, { id, emoji }])
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setFloaters((prev) => prev.filter((f) => f.id !== id))
+      timersRef.current.delete(timer)
     }, 700)
+    timersRef.current.add(timer)
   }, [])
 
   return (
     <div className={`relative flex items-center justify-center gap-2 ${className}`}>
-      {REACTIONS.map((emoji) => {
+      {REACTIONS.map(({ emoji, label }) => {
         const isSelected = selected.has(emoji)
         return (
           <button
             key={emoji}
             type="button"
+            aria-label={`React with ${label}`}
+            aria-pressed={isSelected}
             onClick={() => handleClick(emoji)}
             style={{
               background: isSelected ? 'var(--surface-bg)' : 'transparent',
@@ -79,7 +88,6 @@ export default function ReactionBar({ className = '' }: { className?: string }) 
         )
       })}
 
-      {/* Floating emoji animations */}
       {floaters.map((f) => (
         <span
           key={f.id}

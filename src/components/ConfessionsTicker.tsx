@@ -7,14 +7,15 @@ interface ConfessionsTickerProps {
 }
 
 export function ConfessionsTicker({ confessions }: ConfessionsTickerProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const prevCountRef = useRef(confessions.length)
 
-  // Auto-scroll to bottom when new confessions arrive
+  // Auto-scroll only when new confessions arrive (not on initial mount)
   useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' })
+    if (confessions.length > prevCountRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
+    prevCountRef.current = confessions.length
   }, [confessions.length])
 
   if (confessions.length === 0) return null
@@ -22,11 +23,11 @@ export function ConfessionsTicker({ confessions }: ConfessionsTickerProps) {
   return (
     <div className="glass-card border border-white/10 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-muted text-xs uppercase tracking-wider">🤫 Anonymous hot takes</p>
+        <p className="text-muted text-xs uppercase tracking-wider">Anonymous hot takes</p>
         <span className="text-faint text-xs tabular-nums">{confessions.length}</span>
       </div>
 
-      <div ref={containerRef} className="max-h-48 overflow-y-auto space-y-2 scrollbar-thin">
+      <div ref={scrollRef} className="max-h-48 overflow-y-auto space-y-2 scrollbar-thin">
         {confessions.map((c, i) => (
           <div
             key={c.id}
@@ -36,7 +37,6 @@ export function ConfessionsTicker({ confessions }: ConfessionsTickerProps) {
             <p className="text-body-muted text-sm italic opacity-80">&ldquo;{c.text}&rdquo;</p>
           </div>
         ))}
-        <div ref={bottomRef} />
       </div>
 
       <style jsx>{`
