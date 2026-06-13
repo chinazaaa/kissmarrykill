@@ -1,5 +1,7 @@
 import type { Game, Participant, Player, Round, Vote } from '@/types'
 import { parseGameType, isPairGame, isWouldYouRather, isMostLikelyTo, isWhoSaidThis } from '@/lib/game-types'
+import { flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
+import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstPlayerScores, wstCorrectParticipantIdFromRound } from '@/lib/who-said-this'
 
 export interface Achievement {
@@ -173,7 +175,7 @@ function trioAndPairAchievements(
 
   // Untouched — never got killed/red-flagged (only if they appeared in 2+ rounds)
   const untouchedCandidates = [...neverNegative].filter(
-    (pid) => (roundsAppeared.get(pid)?.length ?? 0) >= 2 && pid !== survivorCandidates.reduce((best, p) => best, '') // avoid duplicate with survivor
+    (pid) => (roundsAppeared.get(pid)?.length ?? 0) >= 2 && pid !== survivorCandidates.reduce((best, _p) => best, '') // avoid duplicate with survivor
   )
   // Only show if different from survivor
   if (untouchedCandidates.length > 0 && untouchedCandidates.length <= 2) {
@@ -302,7 +304,7 @@ function mltAchievements(
   participants: Participant[],
   rounds: Round[],
   votes: Vote[],
-  _players: Player[]
+  players: Player[]
 ): Achievement[] {
   const achievements: Achievement[] = []
   const finishedRounds = rounds.filter((r) => r.status === 'finished')
@@ -370,7 +372,7 @@ function mltAchievements(
 function wstAchievements(
   rounds: Round[],
   votes: Vote[],
-  _players: Player[],
+  players: Player[],
   participants: Participant[]
 ): Achievement[] {
   const achievements: Achievement[] = []
@@ -431,7 +433,7 @@ export function computeAchievements(
   participants: Participant[],
   rounds: Round[],
   votes: Vote[],
-  _players: Player[]
+  players: Player[]
 ): Achievement[] {
   const gameType = parseGameType(game.game_type)
 
