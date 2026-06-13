@@ -7,7 +7,6 @@ import { Avatar } from '@/components/Avatar'
 import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
 import {
   roundGenderLabel,
-  playerGenderLabel,
   playerIdentityLabel,
   genderLabel,
   getRoundParticipantGender,
@@ -48,7 +47,6 @@ import {
   isMostLikelyTo,
   isWhoSaidThis,
   isNameOnlyPlayerJoin,
-  isPairAssignmentComplete,
   pairAssignedCount,
   pairAssignmentFromVote,
   parsePairVoteMode,
@@ -925,7 +923,7 @@ export default function GamePage() {
       }
     }
 
-    let voteBody: Record<string, unknown> | null = null
+    let voteBody: Record<string, unknown> | null
 
     if (isWouldYouRather(gameType)) {
       if (!wyr) return
@@ -1040,7 +1038,7 @@ export default function GamePage() {
     }
   }
 
-  const handleSubmitQuote = async () => {
+  const _handleSubmitQuote = async () => {
     if (!currentRound || !myPlayerId || quoteSubmitting) return
     const text = quoteInput.trim()
     if (!text || !quoteAuthorParticipantId) return
@@ -1763,7 +1761,6 @@ export default function GamePage() {
     const question = currentRound.mlt_question ?? ''
     const canVote = !!myPlayerId
     const mltTargets = game ? mltVoteTargets(game, participants, players) : []
-    const mltTargetKind = isMltImport ? 'participant' : 'player'
     const mltSelfId = isMltImport
       ? (participants.find((p) => myPlayerName && p.name.toLowerCase() === myPlayerName.toLowerCase())?.id ?? null)
       : myPlayerId
@@ -1912,7 +1909,6 @@ export default function GamePage() {
     const assignProgress = isPair
       ? pairAssignedCount(pairAssignment, roundPartIds)
       : assignedCount(assignment, gameType)
-    const typeConfig = gameTypeConfig(gameType)
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
