@@ -177,11 +177,7 @@ export function generatePairRounds(participantIds: string[], roundCount: number)
 }
 
 /** Generate rounds with N participants each (for custom games with 2-5 slots). */
-export function generateNRounds(
-  participantIds: string[],
-  roundCount: number,
-  poolSize: number,
-): string[][] {
+export function generateNRounds(participantIds: string[], roundCount: number, poolSize: number): string[][] {
   if (participantIds.length < poolSize || poolSize < 2) return []
 
   const rounds: string[][] = []

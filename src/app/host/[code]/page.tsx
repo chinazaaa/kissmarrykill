@@ -2119,13 +2119,15 @@ export default function HostPage() {
             countB={countB}
             voterCount={voterCount}
           />
-        ) : isCustomGame(gameType) && game ? (() => {
-          const slots = getCustomSlots(game)
-          const slotKeys = slots.map((s) => s.key)
-          const nameMap = new Map(participants.map((p) => [p.id, p.name]))
-          const tally = tallyCustomVotes(roundVotes, lastFinishedRound.participant_ids, nameMap, slotKeys)
-          return <CustomRoundResults tally={tally} slots={slots} />
-        })() : (
+        ) : isCustomGame(gameType) && game ? (
+          (() => {
+            const slots = getCustomSlots(game)
+            const slotKeys = slots.map((s) => s.key)
+            const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+            const tally = tallyCustomVotes(roundVotes, lastFinishedRound.participant_ids, nameMap, slotKeys)
+            return <CustomRoundResults tally={tally} slots={slots} />
+          })()
+        ) : (
           (() => {
             const tallies = tallyRoundVotes(
               roundParts.map((p) => p.id),

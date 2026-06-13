@@ -31,9 +31,7 @@ export function CustomRoundResults({ tally, slots, myAssignment }: CustomRoundRe
               <div key={slot.key} className="surface-inset rounded-xl px-2 py-3 text-center">
                 <p className="text-lg">{slot.emoji}</p>
                 <p className="text-faint text-[10px] uppercase tracking-wider mt-0.5">Most {slot.label}</p>
-                <p className="text-body font-semibold text-sm mt-1 leading-tight truncate">
-                  {winner?.name ?? '—'}
-                </p>
+                <p className="text-body font-semibold text-sm mt-1 leading-tight truncate">{winner?.name ?? '—'}</p>
                 {winner && <p className="text-faint text-[10px] mt-0.5">{winner.count} votes</p>}
               </div>
             )

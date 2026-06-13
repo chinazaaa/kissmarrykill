@@ -378,31 +378,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     if (!participantsData || participantsData.length < slotCount) {
       return NextResponse.json(
         { error: `Need at least ${slotCount} names on the list (one per slot)` },
-        { status: 400 },
+        { status: 400 }
       )
     }
 
     const isImportMode = (game.participant_mode ?? 'import') === 'import'
     const useAllParticipants = !isImportMode || game.participant_filter === 'all'
-    const roundPool = useAllParticipants
-      ? participantsData
-      : participantsWhoJoined(participantsData, playersData)
+    const roundPool = useAllParticipants ? participantsData : participantsWhoJoined(participantsData, playersData)
 
     if (roundPool.length < slotCount) {
-      return NextResponse.json(
-        { error: `Need at least ${slotCount} people to join before starting` },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: `Need at least ${slotCount} people to join before starting` }, { status: 400 })
     }
 
     const participantIds = roundPool.map((p) => p.id)
     const groups = generateNRounds(participantIds, game.rounds_count, slotCount)
 
     if (groups.length === 0) {
-      return NextResponse.json(
-        { error: `Need at least ${slotCount} people to start` },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: `Need at least ${slotCount} people to start` }, { status: 400 })
     }
 
     const roundRows = groups.map((group, index) => ({

@@ -3,15 +3,29 @@ import { useState } from 'react'
 import type { CustomSlot, CustomSlotsConfig } from '@/types'
 
 const PRESET_EMOJI = [
-  '🔥', '💀', '💍', '💚', '🚩', '⭐', '💼', '🏆',
-  '💩', '👔', '📋', '🚪', '💕', '👋', '🎯', '👑',
-  '🥇', '🥈', '🥉', '✨',
+  '🔥',
+  '💀',
+  '💍',
+  '💚',
+  '🚩',
+  '⭐',
+  '💼',
+  '🏆',
+  '💩',
+  '👔',
+  '📋',
+  '🚪',
+  '💕',
+  '👋',
+  '🎯',
+  '👑',
+  '🥇',
+  '🥈',
+  '🥉',
+  '✨',
 ]
 
-const PRESET_COLORS = [
-  '#ef4444', '#22c55e', '#3b82f6', '#eab308',
-  '#a855f7', '#ec4899', '#64748b', '#b45309',
-]
+const PRESET_COLORS = ['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#a855f7', '#ec4899', '#64748b', '#b45309']
 
 interface Template {
   title: string
@@ -83,22 +97,21 @@ export function CustomSlotBuilder({ value, onChange }: CustomSlotBuilderProps) {
 
   function updateSlot(index: number, updates: Partial<CustomSlot>) {
     const newSlots = slots.map((s, i) => (i === index ? { ...s, ...updates } : s))
-    const newTitle = newSlots.every((s) => s.label)
-      ? newSlots.map((s) => s.label).join(' / ')
-      : title
+    const newTitle = newSlots.every((s) => s.label) ? newSlots.map((s) => s.label).join(' / ') : title
     onChange({ slots: newSlots, title: newTitle })
   }
 
   function setSlotCount(count: number) {
     let newSlots: CustomSlot[]
     if (count > slots.length) {
-      newSlots = [...slots, ...makeSlots(count - slots.length).map((s, i) => ({ ...s, key: `slot_${slots.length + i}` }))]
+      newSlots = [
+        ...slots,
+        ...makeSlots(count - slots.length).map((s, i) => ({ ...s, key: `slot_${slots.length + i}` })),
+      ]
     } else {
       newSlots = slots.slice(0, count)
     }
-    const newTitle = newSlots.every((s) => s.label)
-      ? newSlots.map((s) => s.label).join(' / ')
-      : title
+    const newTitle = newSlots.every((s) => s.label) ? newSlots.map((s) => s.label).join(' / ') : title
     onChange({ slots: newSlots, title: newTitle })
   }
 
@@ -166,9 +179,7 @@ export function CustomSlotBuilder({ value, onChange }: CustomSlotBuilderProps) {
             type="button"
             onClick={() => setSlotCount(n)}
             className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-              slots.length === n
-                ? 'bg-[var(--primary)] text-white'
-                : 'surface-inset text-muted hover:text-body'
+              slots.length === n ? 'bg-[var(--primary)] text-white' : 'surface-inset text-muted hover:text-body'
             }`}
           >
             {n} slots
@@ -213,7 +224,10 @@ export function CustomSlotBuilder({ value, onChange }: CustomSlotBuilderProps) {
                   <button
                     key={e}
                     type="button"
-                    onClick={() => { updateSlot(i, { emoji: e }); setEditingEmoji(null) }}
+                    onClick={() => {
+                      updateSlot(i, { emoji: e })
+                      setEditingEmoji(null)
+                    }}
                     className={`w-8 h-8 flex items-center justify-center rounded-lg text-base hover:bg-white/10 ${
                       slot.emoji === e ? 'bg-white/15 ring-1 ring-white/30' : ''
                     }`}
@@ -231,10 +245,11 @@ export function CustomSlotBuilder({ value, onChange }: CustomSlotBuilderProps) {
                   <button
                     key={c}
                     type="button"
-                    onClick={() => { updateSlot(i, { color: c }); setEditingColor(null) }}
-                    className={`w-7 h-7 rounded-full border-2 ${
-                      slot.color === c ? 'border-white' : 'border-white/20'
-                    }`}
+                    onClick={() => {
+                      updateSlot(i, { color: c })
+                      setEditingColor(null)
+                    }}
+                    className={`w-7 h-7 rounded-full border-2 ${slot.color === c ? 'border-white' : 'border-white/20'}`}
                     style={{ backgroundColor: c }}
                   />
                 ))}

@@ -170,7 +170,8 @@ function CreateGameInner() {
   const canCreateQuickLobby = !!settings.title.trim() && hasEnoughCustomQuestions
 
   const isCustom = isCustomGame(settings.game_type)
-  const customSlotsValid = !isCustom || (customSlots && customSlots.slots.length >= 2 && customSlots.slots.every((s) => s.label.trim()))
+  const customSlotsValid =
+    !isCustom || (customSlots && customSlots.slots.length >= 2 && customSlots.slots.every((s) => s.label.trim()))
 
   const needsParticipantStep = !isWyr && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
@@ -549,9 +550,7 @@ function CreateGameInner() {
                 />
               </Field>
 
-              {isCustom && (
-                <CustomSlotBuilder value={customSlots} onChange={setCustomSlots} />
-              )}
+              {isCustom && <CustomSlotBuilder value={customSlots} onChange={setCustomSlots} />}
 
               {isPair && (
                 <Field label="Pair voting">
@@ -806,7 +805,10 @@ function CreateGameInner() {
                 {loading ? 'Creating...' : 'Create Game'}
               </PrimaryBtn>
             ) : (
-              <PrimaryBtn onClick={() => setStep('participants')} disabled={!settings.title.trim() || !customSlotsValid}>
+              <PrimaryBtn
+                onClick={() => setStep('participants')}
+                disabled={!settings.title.trim() || !customSlotsValid}
+              >
                 Next: Add People →
               </PrimaryBtn>
             )}

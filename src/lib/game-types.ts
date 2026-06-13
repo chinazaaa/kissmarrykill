@@ -344,9 +344,33 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       vibe: 'Your rules',
     },
     slots: {
-      kiss: { emoji: '✏️', label: 'Slot 1', color: '#a855f7', leaderboardLabel: 'Most Slot 1', activeClass: 'border-purple-400 bg-purple-500/20 text-purple-100', borderClass: 'border-purple-500/40', textColor: '#a855f7' },
-      marry: { emoji: '✏️', label: 'Slot 2', color: '#64748b', leaderboardLabel: 'Most Slot 2', activeClass: 'border-slate-400 bg-slate-500/20 text-slate-100', borderClass: 'border-slate-500/40', textColor: '#64748b' },
-      kill: { emoji: '✏️', label: 'Slot 3', color: '#ef4444', leaderboardLabel: 'Most Slot 3', activeClass: 'border-red-400 bg-red-500/20 text-red-100', borderClass: 'border-red-500/40', textColor: '#ef4444' },
+      kiss: {
+        emoji: '✏️',
+        label: 'Slot 1',
+        color: '#a855f7',
+        leaderboardLabel: 'Most Slot 1',
+        activeClass: 'border-purple-400 bg-purple-500/20 text-purple-100',
+        borderClass: 'border-purple-500/40',
+        textColor: '#a855f7',
+      },
+      marry: {
+        emoji: '✏️',
+        label: 'Slot 2',
+        color: '#64748b',
+        leaderboardLabel: 'Most Slot 2',
+        activeClass: 'border-slate-400 bg-slate-500/20 text-slate-100',
+        borderClass: 'border-slate-500/40',
+        textColor: '#64748b',
+      },
+      kill: {
+        emoji: '✏️',
+        label: 'Slot 3',
+        color: '#ef4444',
+        leaderboardLabel: 'Most Slot 3',
+        activeClass: 'border-red-400 bg-red-500/20 text-red-100',
+        borderClass: 'border-red-500/40',
+        textColor: '#ef4444',
+      },
     },
   },
 }
@@ -405,7 +429,7 @@ export function gameHowItWorks(
     case 'smash_marry_kill':
     default:
       if (isCustomGame(gameType)) {
-        return 'Add everyone\'s names on the next step. Each round shows a group of names — everyone assigns one person to each custom category.'
+        return "Add everyone's names on the next step. Each round shows a group of names — everyone assigns one person to each custom category."
       }
       return joiners
         ? 'Players add their name to the poll when joining. Each round, three names appear — everyone picks one to smash, one to marry, and one to kill.'

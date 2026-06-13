@@ -10,13 +10,7 @@ interface CustomVoteCardProps {
   disabled?: boolean
 }
 
-export function CustomVoteCard({
-  participants,
-  slots,
-  assignments,
-  onAssign,
-  disabled,
-}: CustomVoteCardProps) {
+export function CustomVoteCard({ participants, slots, assignments, onAssign, disabled }: CustomVoteCardProps) {
   const usedSlots = new Set(Object.values(assignments))
 
   return (
@@ -29,14 +23,15 @@ export function CustomVoteCard({
               <Avatar name={p.name} photoUrl={p.photo_url} />
               <div className="min-w-0 flex-1">
                 <p className="text-body font-bold text-lg leading-tight truncate">{p.name}</p>
-                {currentSlot && (() => {
-                  const slot = slots.find((s) => s.key === currentSlot)
-                  return slot ? (
-                    <p className="text-xs mt-0.5" style={{ color: slot.color }}>
-                      {slot.emoji} {slot.label}
-                    </p>
-                  ) : null
-                })()}
+                {currentSlot &&
+                  (() => {
+                    const slot = slots.find((s) => s.key === currentSlot)
+                    return slot ? (
+                      <p className="text-xs mt-0.5" style={{ color: slot.color }}>
+                        {slot.emoji} {slot.label}
+                      </p>
+                    ) : null
+                  })()}
               </div>
             </div>
             <div className="flex gap-1.5">

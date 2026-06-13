@@ -91,7 +91,9 @@ function buildRoundShareText({
     const nameMap = new Map(roundParts.map((p) => [p.id, p.name]))
     const tally = tallyCustomVotes(votes, round.participant_ids, nameMap, slotKeys)
 
-    lines.push(`\u270F\uFE0F ${game.custom_slots?.title ?? 'Custom Game'} - Round ${round.round_number} of ${game.rounds_count}`)
+    lines.push(
+      `\u270F\uFE0F ${game.custom_slots?.title ?? 'Custom Game'} - Round ${round.round_number} of ${game.rounds_count}`
+    )
     for (const slot of slots) {
       const winner = tally.slotWinners[slot.key]
       if (winner) {

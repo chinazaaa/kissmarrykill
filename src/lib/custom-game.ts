@@ -24,9 +24,7 @@ export function getCustomTitle(game: Game): string {
 // Vote assignment validation
 // ---------------------------------------------------------------------------
 
-export function parseCustomAssignments(
-  raw: unknown,
-): Record<string, string> | null {
+export function parseCustomAssignments(raw: unknown): Record<string, string> | null {
   if (!raw || typeof raw !== 'object') return null
   const out: Record<string, string> = {}
   for (const [id, slot] of Object.entries(raw as Record<string, unknown>)) {
@@ -38,7 +36,7 @@ export function parseCustomAssignments(
 export function isCustomAssignmentValid(
   assignments: Record<string, string>,
   participantIds: string[],
-  slotKeys: string[],
+  slotKeys: string[]
 ): boolean {
   if (!participantIds.every((id) => id in assignments)) return false
   const slotSet = new Set(slotKeys)
@@ -49,10 +47,7 @@ export function isCustomAssignmentValid(
   return true
 }
 
-export function fillRandomCustomAssignment(
-  participantIds: string[],
-  slotKeys: string[],
-): Record<string, string> {
+export function fillRandomCustomAssignment(participantIds: string[], slotKeys: string[]): Record<string, string> {
   const shuffledSlots = [...slotKeys]
   for (let i = shuffledSlots.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -68,7 +63,7 @@ export function fillRandomCustomAssignment(
 export function completeRandomCustomAssignment(
   current: Record<string, string>,
   participantIds: string[],
-  slotKeys: string[],
+  slotKeys: string[]
 ): Record<string, string> {
   const out = { ...current }
   const usedSlots = new Set(Object.values(out))
@@ -104,7 +99,7 @@ export function tallyCustomVotes(
   votes: Vote[],
   participantIds: string[],
   nameById: Map<string, string>,
-  slotKeys: string[],
+  slotKeys: string[]
 ): CustomTally {
   const countsMap = new Map<string, Record<string, number>>()
   for (const pid of participantIds) {
@@ -163,7 +158,7 @@ export interface CustomLeaderboardEntry {
 export function buildCustomLeaderboard(
   allVotes: Vote[],
   participants: Participant[],
-  slots: CustomSlot[],
+  slots: CustomSlot[]
 ): CustomLeaderboardEntry[] {
   const nameById = new Map(participants.map((p) => [p.id, p.name]))
   const participantIds = participants.map((p) => p.id)

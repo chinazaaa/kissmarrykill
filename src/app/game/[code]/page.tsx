@@ -91,7 +91,13 @@ import {
   isAnimeRound,
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
-import { getCustomSlots, getCustomSlotKeys, tallyCustomVotes, completeRandomCustomAssignment, buildCustomLeaderboard } from '@/lib/custom-game'
+import {
+  getCustomSlots,
+  getCustomSlotKeys,
+  tallyCustomVotes,
+  completeRandomCustomAssignment,
+  buildCustomLeaderboard,
+} from '@/lib/custom-game'
 import { CustomVoteCard } from '@/components/CustomVoteCard'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { ShareResults } from '@/components/ShareResults'
@@ -1162,18 +1168,18 @@ export default function GamePage() {
           : isCustomGame(submitGameType)
             ? { customAssignments }
             : isPairGame(submitGameType)
-            ? {
-                pairAssignments: Object.fromEntries(
-                  roundIds
-                    .map((id) => [id, pairAssignment[id]] as const)
-                    .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
-                ),
-              }
-            : {
-                kiss: assignment.kiss,
-                marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
-                kill: assignment.kill,
-              }
+              ? {
+                  pairAssignments: Object.fromEntries(
+                    roundIds
+                      .map((id) => [id, pairAssignment[id]] as const)
+                      .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
+                  ),
+                }
+              : {
+                  kiss: assignment.kiss,
+                  marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
+                  kill: assignment.kill,
+                }
     try {
       const res = await fetch('/api/votes', {
         method: 'POST',
@@ -2229,13 +2235,15 @@ export default function GamePage() {
     const roundPartIds = roundParts.map((p) => p.id)
     const pairMode = parsePairVoteMode(game?.pair_vote_mode)
     const isCustom = isCustomGame(gameType)
-    const customComplete = isCustom && game ? Object.keys(customAssignments).length === getCustomSlots(game).length : false
+    const customComplete =
+      isCustom && game ? Object.keys(customAssignments).length === getCustomSlots(game).length : false
     const allAssigned = isCustom
       ? customComplete
       : isPair
         ? isPairAssignmentValid(pairAssignment, roundPartIds, pairMode)
         : isAssignmentComplete(assignment, gameType)
-    const assignTarget = isCustom && game ? getCustomSlots(game).length : assignmentTargetCount(gameType, roundParts.length)
+    const assignTarget =
+      isCustom && game ? getCustomSlots(game).length : assignmentTargetCount(gameType, roundParts.length)
     const assignProgress = isCustom
       ? Object.keys(customAssignments).length
       : isPair
@@ -2279,59 +2287,63 @@ export default function GamePage() {
         )}
 
         {/* Custom game voting UI */}
-        {isCustomGame(gameType) && game && currentRound ? (() => {
-          const slots = getCustomSlots(game)
-          const roundPartsCustom = participants.filter((p) => currentRound.participant_ids.includes(p.id))
-          return (
-            <div className="flex-1 mb-6">
-              <CustomVoteCard
-                participants={roundPartsCustom}
-                slots={slots}
-                assignments={customAssignments}
-                onAssign={(pid, slotKey) => {
-                  if (!canVote || submitted) return
-                  setCustomAssignments((prev) => {
-                    const cleaned: Record<string, string> = {}
-                    for (const [id, key] of Object.entries(prev)) {
-                      if (key !== slotKey && id !== pid) cleaned[id] = key
-                    }
-                    cleaned[pid] = slotKey
-                    return cleaned
-                  })
-                }}
-                disabled={submitted || !canVote}
-              />
-            </div>
-          )
-        })() : null}
+        {isCustomGame(gameType) && game && currentRound
+          ? (() => {
+              const slots = getCustomSlots(game)
+              const roundPartsCustom = participants.filter((p) => currentRound.participant_ids.includes(p.id))
+              return (
+                <div className="flex-1 mb-6">
+                  <CustomVoteCard
+                    participants={roundPartsCustom}
+                    slots={slots}
+                    assignments={customAssignments}
+                    onAssign={(pid, slotKey) => {
+                      if (!canVote || submitted) return
+                      setCustomAssignments((prev) => {
+                        const cleaned: Record<string, string> = {}
+                        for (const [id, key] of Object.entries(prev)) {
+                          if (key !== slotKey && id !== pid) cleaned[id] = key
+                        }
+                        cleaned[pid] = slotKey
+                        return cleaned
+                      })
+                    }}
+                    disabled={submitted || !canVote}
+                  />
+                </div>
+              )
+            })()
+          : null}
 
         {/* Participant photo cards — side-by-side grid */}
-        {!isCustomGame(gameType) && <div
-          className={`flex-1 grid gap-3 mb-6 ${roundParts.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}
-        >
-          {roundParts.map((p) => {
-            const action = isPair
-              ? (pairAssignment[p.id] ?? null)
-              : assignment.kiss === p.id
-                ? 'kiss'
-                : assignment.marry === p.id
-                  ? 'marry'
-                  : assignment.kill === p.id
-                    ? 'kill'
-                    : null
-            return (
-              <ParticipantPhotoCard
-                key={p.id}
-                gameType={gameType}
-                participant={p}
-                action={action}
-                onAssign={(a) => canVote && !submitted && assign(a, p.id)}
-                disabled={submitted || !canVote}
-                disabledSlots={isPair && game ? pairDisabledSlots(pairAssignment, p.id, roundPartIds, pairMode) : []}
-              />
-            )
-          })}
-        </div>}
+        {!isCustomGame(gameType) && (
+          <div
+            className={`flex-1 grid gap-3 mb-6 ${roundParts.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}
+          >
+            {roundParts.map((p) => {
+              const action = isPair
+                ? (pairAssignment[p.id] ?? null)
+                : assignment.kiss === p.id
+                  ? 'kiss'
+                  : assignment.marry === p.id
+                    ? 'marry'
+                    : assignment.kill === p.id
+                      ? 'kill'
+                      : null
+              return (
+                <ParticipantPhotoCard
+                  key={p.id}
+                  gameType={gameType}
+                  participant={p}
+                  action={action}
+                  onAssign={(a) => canVote && !submitted && assign(a, p.id)}
+                  disabled={submitted || !canVote}
+                  disabledSlots={isPair && game ? pairDisabledSlots(pairAssignment, p.id, roundPartIds, pairMode) : []}
+                />
+              )
+            })}
+          </div>
+        )}
 
         {/* Submit / submitted / spectating */}
         {!canVote ? (
@@ -2716,81 +2728,85 @@ export default function GamePage() {
         )}
 
         {/* Per-person vote counts */}
-        {isCustomGame(gameType) && game ? (() => {
-          const slots = getCustomSlots(game)
-          const slotKeys = slots.map((s) => s.key)
-          const roundPartsIds = lastFinishedRound.participant_ids
-          const nameMap = new Map(participants.map((p) => [p.id, p.name]))
-          const tally = tallyCustomVotes(lastRoundVotes, roundPartsIds, nameMap, slotKeys)
-          const myAssignment = myVote?.pair_assignments as Record<string, string> | null
-          return <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
-        })() : (() => {
-          const tallies = tallyRoundVotes(
-            roundParts.map((p) => p.id),
-            lastRoundVotes
-          )
-          const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
-          const voterCount = lastRoundVotes.length
+        {isCustomGame(gameType) && game
+          ? (() => {
+              const slots = getCustomSlots(game)
+              const slotKeys = slots.map((s) => s.key)
+              const roundPartsIds = lastFinishedRound.participant_ids
+              const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+              const tally = tallyCustomVotes(lastRoundVotes, roundPartsIds, nameMap, slotKeys)
+              const myAssignment = myVote?.pair_assignments as Record<string, string> | null
+              return <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
+            })()
+          : (() => {
+              const tallies = tallyRoundVotes(
+                roundParts.map((p) => p.id),
+                lastRoundVotes
+              )
+              const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
+              const voterCount = lastRoundVotes.length
 
-          return (
-            <ParticipantRoundResults
-              gameType={gameType}
-              tallies={tallies}
-              nameById={nameById}
-              voterCount={voterCount}
-              participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
-              myFlagsByParticipantId={
-                myVote ? Object.fromEntries(roundParts.map((p) => [p.id, flagForParticipant(myVote, p.id)])) : undefined
-              }
-              renderCard={
-                isPairGame(gameType)
-                  ? undefined
-                  : ({ tally, name, maxes, isWinner }) => {
-                      const myAction =
-                        myVote?.kiss_participant_id === tally.id
-                          ? 'kiss'
-                          : myVote?.marry_participant_id === tally.id
-                            ? 'marry'
-                            : myVote?.kill_participant_id === tally.id
-                              ? 'kill'
-                              : null
+              return (
+                <ParticipantRoundResults
+                  gameType={gameType}
+                  tallies={tallies}
+                  nameById={nameById}
+                  voterCount={voterCount}
+                  participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
+                  myFlagsByParticipantId={
+                    myVote
+                      ? Object.fromEntries(roundParts.map((p) => [p.id, flagForParticipant(myVote, p.id)]))
+                      : undefined
+                  }
+                  renderCard={
+                    isPairGame(gameType)
+                      ? undefined
+                      : ({ tally, name, maxes, isWinner }) => {
+                          const myAction =
+                            myVote?.kiss_participant_id === tally.id
+                              ? 'kiss'
+                              : myVote?.marry_participant_id === tally.id
+                                ? 'marry'
+                                : myVote?.kill_participant_id === tally.id
+                                  ? 'kill'
+                                  : null
 
-                      const borderCls = myActionBorderClass(gameType, myAction)
+                          const borderCls = myActionBorderClass(gameType, myAction)
 
-                      return (
-                        <div key={tally.id} className={`glass-card border-2 ${borderCls} rounded-2xl p-4`}>
-                          <div className="flex items-center gap-3 mb-3">
-                            <Avatar name={name} />
-                            <p className="font-bold text-body text-lg">{name}</p>
-                            {myAction && (
-                              <span className="ml-auto text-xs text-muted italic">
-                                you: {assignmentEmojiFor(gameType, myAction)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            {getVoteCategories(gameType).map((category) => {
-                              const meta = getCategoryMeta(gameType, category)
-                              return (
-                                <VoteCountStat
-                                  key={category}
-                                  emoji={meta.emoji}
-                                  label={meta.label}
-                                  count={tally[category]}
-                                  max={maxes[category]}
-                                  color={meta.color}
-                                  isWinner={isWinner(category)}
-                                />
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    }
-              }
-            />
-          )
-        })()}
+                          return (
+                            <div key={tally.id} className={`glass-card border-2 ${borderCls} rounded-2xl p-4`}>
+                              <div className="flex items-center gap-3 mb-3">
+                                <Avatar name={name} />
+                                <p className="font-bold text-body text-lg">{name}</p>
+                                {myAction && (
+                                  <span className="ml-auto text-xs text-muted italic">
+                                    you: {assignmentEmojiFor(gameType, myAction)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-3 gap-3">
+                                {getVoteCategories(gameType).map((category) => {
+                                  const meta = getCategoryMeta(gameType, category)
+                                  return (
+                                    <VoteCountStat
+                                      key={category}
+                                      emoji={meta.emoji}
+                                      label={meta.label}
+                                      count={tally[category]}
+                                      max={maxes[category]}
+                                      color={meta.color}
+                                      isWinner={isWinner(category)}
+                                    />
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }
+                  }
+                />
+              )
+            })()}
 
         {/* Hot takes for this round */}
         <ConfessionsTicker confessions={roundConfessions} />
@@ -2918,27 +2934,34 @@ function FinalResultsView({
         />
       )}
 
-      {isCustomGame(gameType) && game ? (() => {
-        const slots = getCustomSlots(game)
-        const leaderboard = buildCustomLeaderboard(votes, participants, slots)
-        return (
-          <div className="glass-card border border-theme-strong p-4 space-y-4">
-            <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
-            {leaderboard.map((entry: { slot: { key: string; emoji: string; label: string; color: string }; entries: { name: string; count: number }[] }) => (
-              <div key={entry.slot.key} className="space-y-1">
-                <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
-                  {entry.slot.emoji} Most {entry.slot.label}
-                </p>
-                {entry.entries.slice(0, 3).map((e: { name: string; count: number }, i: number) => (
-                  <p key={e.name} className="text-body text-sm pl-6">
-                    {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
-                  </p>
-                ))}
+      {isCustomGame(gameType) && game
+        ? (() => {
+            const slots = getCustomSlots(game)
+            const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+            return (
+              <div className="glass-card border border-theme-strong p-4 space-y-4">
+                <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
+                {leaderboard.map(
+                  (entry: {
+                    slot: { key: string; emoji: string; label: string; color: string }
+                    entries: { name: string; count: number }[]
+                  }) => (
+                    <div key={entry.slot.key} className="space-y-1">
+                      <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
+                        {entry.slot.emoji} Most {entry.slot.label}
+                      </p>
+                      {entry.entries.slice(0, 3).map((e: { name: string; count: number }, i: number) => (
+                        <p key={e.name} className="text-body text-sm pl-6">
+                          {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
+                        </p>
+                      ))}
+                    </div>
+                  )
+                )}
               </div>
-            ))}
-          </div>
-        )
-      })() : null}
+            )
+          })()
+        : null}
 
       {!isWyr && !isMlt && !isWst && !isCustomGame(gameType) && (
         <>

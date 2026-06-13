@@ -97,7 +97,7 @@ export const createGameSchema = z.object({
             label: sanitizedString(1, 20),
             emoji: z.string().min(1).max(4),
             color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-          }),
+          })
         )
         .min(2)
         .max(5),

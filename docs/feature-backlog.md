@@ -13,9 +13,6 @@ Track patterns across rounds and show badges at game end. Examples: "Most Smashe
 ### Rematch History
 When playing again, show how results changed between sessions. "Alice went from Most Married to Most Killed." Requires storing previous game results before the play-again reset clears them.
 
-### Spectator Mode
-Let people watch without joining, with a live vote count ticker. Add a "Watch" option on the join page that skips player creation but subscribes to realtime updates. Show vote counts without revealing who voted.
-
 ### Timer Music
 Play increasingly intense background music as the timer counts down. Use Web Audio API with pre-loaded audio sprites. Add a mute toggle. Tie intensity to the `timeLeft` value.
 
