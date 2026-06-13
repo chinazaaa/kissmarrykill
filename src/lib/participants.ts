@@ -82,6 +82,30 @@ export function hasEnoughForRounds(participants: ParticipantInput[]): boolean {
   return counts.male >= 3 || counts.female >= 3
 }
 
+/** Max rounds before the same names repeat heavily (3 people per same-gender round). */
+export function maxRecommendedRounds(participants: ParticipantInput[]): number {
+  const counts = countByGender(participants)
+  const maleRounds = Math.floor(counts.male / 3)
+  const femaleRounds = Math.floor(counts.female / 3)
+  if (maleRounds >= 1 && femaleRounds >= 1) {
+    return Math.min(20, maleRounds + femaleRounds)
+  }
+  if (maleRounds >= 1) return Math.min(20, maleRounds)
+  if (femaleRounds >= 1) return Math.min(20, femaleRounds)
+  return 0
+}
+
+export function roundLimitHint(participants: ParticipantInput[]): string | null {
+  const counts = countByGender(participants)
+  const max = maxRecommendedRounds(participants)
+  if (max === 0) return null
+  if (counts.male >= 3 && counts.female >= 3) {
+    return `${counts.male} male · ${counts.female} female → up to ${max} rounds`
+  }
+  if (counts.male >= 3) return `${counts.male} male → up to ${max} rounds`
+  return `${counts.female} female → up to ${max} rounds`
+}
+
 export function normalizePlayerGender(raw: string): PlayerGender | null {
   const key = raw.trim().toLowerCase()
   if (!key) return null

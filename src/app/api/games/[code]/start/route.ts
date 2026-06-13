@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateRoundsByGender } from '@/lib/utils'
-import { hasVotersForPolls, parseParticipantGenderFromDb, participantsWhoJoined } from '@/lib/participants'
+import { hasVotersForPolls, parseParticipantGenderFromDb, participantsWhoJoined, maxRecommendedRounds } from '@/lib/participants'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,6 +44,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (roundPool.length < 3) {
     return NextResponse.json(
       { error: 'Need at least 3 people to join before starting — only joined names appear in rounds' },
+      { status: 400 }
+    )
+  }
+
+  const participantInputs = roundPool.map((p) => ({
+    name: p.name,
+    gender: parseParticipantGenderFromDb(p.gender) ?? ('female' as const),
+  }))
+
+  const maxRounds = maxRecommendedRounds(participantInputs)
+  if (game.rounds_count > maxRounds) {
+    return NextResponse.json(
+      {
+        error: `Too many rounds for ${roundPool.length} players — lower to ${maxRounds} or fewer before starting`,
+      },
       { status: 400 }
     )
   }

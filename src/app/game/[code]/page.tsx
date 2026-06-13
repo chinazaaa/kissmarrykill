@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
+import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
 import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, parseParticipantGenderFromDb, playerGenderFromJoin, joinGenderHint, playerVoteGenderForRound } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
 import { tallyRoundVotes, VOTE_CATEGORY_META, ASSIGNMENT_ACTION_META, assignmentEmoji } from '@/lib/vote-stats'
@@ -121,10 +122,13 @@ export default function GamePage() {
   const myPlayerGenderRef = useRef(myPlayerGender)
   myPlayerGenderRef.current = myPlayerGender
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const announcedRoundIdRef = useRef<string | null>(null)
+  const suppressRoundSoundRef = useRef(true)
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
+      try {
       const { data: gameData } = await supabase
         .from('games').select('*').eq('id', gameCode).maybeSingle()
       if (!gameData) { setView('not_found'); return }
@@ -153,6 +157,7 @@ export default function GamePage() {
 
         if (activeRound) {
           setCurrentRound(activeRound)
+          announcedRoundIdRef.current = activeRound.id
           if (session) {
             const { data: existingVote } = await supabase
               .from('votes').select('*')
@@ -201,9 +206,19 @@ export default function GamePage() {
       }
 
       setView(session ? 'waiting' : 'join')
+      } finally {
+        suppressRoundSoundRef.current = false
+      }
     }
     load()
   }, [gameCode])
+
+  useEffect(() => {
+    if (view !== 'round' || !currentRound?.id || suppressRoundSoundRef.current) return
+    if (announcedRoundIdRef.current === currentRound.id) return
+    announcedRoundIdRef.current = currentRound.id
+    playRoundStartSound()
+  }, [view, currentRound?.id])
 
   async function loadAllResults() {
     const [{ data: rounds }, { data: votes }, { data: confs }] = await Promise.all([
@@ -350,6 +365,16 @@ export default function GamePage() {
           }
         }
       )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.new as Participant
+          setParticipants((prev) =>
+            prev.some((x) => x.id === p.id)
+              ? prev
+              : [...prev, p].sort((a, b) => a.display_order - b.display_order)
+          )
+        }
+      )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const p = payload.new as Participant
@@ -383,11 +408,13 @@ export default function GamePage() {
     if (view !== 'waiting' && view !== 'join') return
 
     async function refreshLobby() {
-      const [{ data: plrs }, { data: gameData }] = await Promise.all([
+      const [{ data: plrs }, { data: parts }, { data: gameData }] = await Promise.all([
         supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
         supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
       ])
       if (plrs) setPlayers(plrs)
+      if (parts) setParticipants(parts)
       if (gameData) setGame(gameData)
 
       if (view === 'waiting' && gameData?.status === 'active' && myPlayerIdRef.current) {
@@ -571,6 +598,7 @@ export default function GamePage() {
   const joinGame = async () => {
     if (joining) return
     if (isJoinersMode ? !nameInput.trim() : !selectedParticipantId) return
+    unlockAudio()
     setJoining(true)
     try {
       const body = {

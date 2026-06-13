@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
-import { roundGenderLabel, genderLabel, resolvePlayerIdentity, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel, hasEnoughForRounds, countByGender, hasVotersForPolls, participantsWhoJoined } from '@/lib/participants'
+import { roundGenderLabel, genderLabel, resolvePlayerIdentity, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel, hasEnoughForRounds, countByGender, hasVotersForPolls, participantsWhoJoined, maxRecommendedRounds, roundLimitHint } from '@/lib/participants'
 import type { ParticipantGender } from '@/types'
 import { tallyRoundVotes, VOTE_CATEGORY_META } from '@/lib/vote-stats'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
@@ -34,6 +34,11 @@ export default function HostPage() {
   const [finishing, setFinishing] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
   const [adminBusy, setAdminBusy] = useState<string | null>(null)
+  const [addName, setAddName] = useState('')
+  const [addGender, setAddGender] = useState<ParticipantGender>('female')
+  const [addError, setAddError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [updatingRounds, setUpdatingRounds] = useState(false)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
@@ -419,6 +424,49 @@ export default function HostPage() {
     if (parts) setParticipants(parts)
   }
 
+  async function hostUpdateRounds(roundsCount: number) {
+    if (updatingRounds || game?.rounds_count === roundsCount) return
+    setUpdatingRounds(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken, rounds_count: roundsCount }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Failed to update rounds')
+        return
+      }
+      if (data.game) setGame(data.game)
+    } finally {
+      setUpdatingRounds(false)
+    }
+  }
+
+  async function hostAddParticipant() {
+    const name = addName.trim()
+    if (!name || adding) return
+    setAdding(true)
+    setAddError(null)
+    try {
+      const res = await fetch('/api/participants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, hostToken, name, gender: addGender }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAddError(data.error || 'Failed to add')
+        return
+      }
+      setAddName('')
+      await refreshLobbyLists()
+    } finally {
+      setAdding(false)
+    }
+  }
+
   async function hostUpdateParticipant(participantId: string, gender: ParticipantGender) {
     setAdminBusy(participantId)
     try {
@@ -534,15 +582,21 @@ export default function HostPage() {
       : participantsWhoJoined(participants, players)
     const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
+    const maxRounds = maxRecommendedRounds(participantInputs)
+    const roundsHint = roundLimitHint(participantInputs)
+    const roundsTooHigh = maxRounds > 0 && game.rounds_count > maxRounds
+    const roundOptions = [1, 2, 3, 4, 5, 6, 8, 10].filter((n) => n <= Math.max(maxRounds, 1))
     const voterCheck = hasVotersForPolls(roundParticipants, players)
     const canStart = isJoinersMode
       ? players.length > 0 &&
         participants.length >= 3 &&
         hasEnoughForRounds(participantInputs) &&
+        !roundsTooHigh &&
         voterCheck.ok
       : players.length > 0 &&
         roundParticipants.length >= 3 &&
         hasEnoughForRounds(participantInputs) &&
+        !roundsTooHigh &&
         voterCheck.ok
 
     return (
@@ -560,6 +614,44 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider">Code</p>
             <p className="text-white font-mono font-black text-2xl tracking-[0.2em]">{gameCode}</p>
           </div>
+        </div>
+
+        <div className="glass-card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-muted text-xs uppercase tracking-wider">Rounds</p>
+            <span className="text-faint text-xs">{game.timer_seconds}s each</span>
+          </div>
+          {roundParticipants.length >= 3 && hasEnoughForRounds(participantInputs) ? (
+            <>
+              {roundsHint && (
+                <p className="text-faint text-xs">{roundsHint}</p>
+              )}
+              <div className="flex gap-2 flex-wrap">
+                {(roundOptions.length > 0 ? roundOptions : [1, 2, 3]).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={updatingRounds || n > maxRounds}
+                    onClick={() => hostUpdateRounds(n)}
+                    className={`min-w-[2.5rem] px-3 py-2 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-40 ${
+                      game.rounds_count === n ? 'chip-active' : 'chip'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              {roundsTooHigh && (
+                <p className="text-amber-200/90 text-xs">
+                  {game.rounds_count} rounds is too many for {roundParticipants.length} in the game — pick {maxRounds} or fewer
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-faint text-xs">
+              Need at least 3 joined people of one gender before you can set rounds
+            </p>
+          )}
         </div>
 
         {/* Share link */}
@@ -710,6 +802,44 @@ export default function HostPage() {
         {!isJoinersMode && (
         <div className="glass-card p-4 space-y-3">
           <p className="text-muted text-xs uppercase tracking-wider">On the list ({participants.length})</p>
+          <div className="surface-inset border border-white/10 rounded-xl p-3 space-y-2">
+            <p className="text-faint text-xs">Add someone to the list</p>
+            <div className="flex gap-2">
+              <input
+                value={addName}
+                onChange={(e) => {
+                  setAddName(e.target.value)
+                  if (addError) setAddError(null)
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && hostAddParticipant()}
+                placeholder="Name"
+                className="input-field flex-1 py-2 text-sm"
+              />
+              <div className="flex gap-1 shrink-0">
+                {(['female', 'male'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setAddGender(g)}
+                    className={`text-[10px] px-2.5 py-2 rounded-lg border transition-colors ${
+                      addGender === g ? 'chip-active' : 'chip'
+                    }`}
+                  >
+                    {g === 'male' ? 'M' : 'F'}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={hostAddParticipant}
+                disabled={!addName.trim() || adding}
+                className="btn-secondary text-sm px-4 py-2 shrink-0 disabled:opacity-40"
+              >
+                {adding ? '…' : 'Add'}
+              </button>
+            </div>
+            {addError && <p className="text-red-300/90 text-xs">{addError}</p>}
+          </div>
           <p className="text-faint text-xs">Tap gender to correct · Remove if someone shouldn&apos;t be in the poll</p>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {participants.map((p) => (
@@ -755,11 +885,15 @@ export default function HostPage() {
               ? isJoinersMode
                 ? participants.length < 3
                   ? `Need ${3 - participants.length} more to start`
+                  : roundsTooHigh
+                    ? `Lower to ${maxRounds} rounds max`
                   : 'Need 3+ of one gender to start'
                 : players.length === 0
                   ? 'Waiting for players...'
                   : roundParticipants.length < 3
                     ? `Need ${3 - roundParticipants.length} more to join (${roundParticipants.length}/3)`
+                  : roundsTooHigh
+                    ? `Lower to ${maxRounds} rounds max`
                   : !voterCheck.ok
                     ? 'Need voters for each list'
                   : 'Need 3+ joined of one gender'

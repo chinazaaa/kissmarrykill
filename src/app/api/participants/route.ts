@@ -1,12 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { normalizeGender } from '@/lib/participants'
+import { normalizeGender, type ParticipantInput } from '@/lib/participants'
 import { assertHostGame, deleteJoinerPair } from '@/lib/game-admin'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
+
+function parseIncomingParticipants(
+  rawName: unknown,
+  rawGender: unknown,
+  rawList: unknown
+): ParticipantInput[] | { error: string } {
+  if (Array.isArray(rawList)) {
+    const parsed: ParticipantInput[] = []
+    for (const item of rawList) {
+      if (!item || typeof item !== 'object') continue
+      const name = String((item as { name?: string }).name ?? '').trim()
+      const gender = normalizeGender(String((item as { gender?: string }).gender ?? ''))
+      if (name && gender) parsed.push({ name, gender })
+    }
+    if (parsed.length === 0) return { error: 'Add at least one valid name and gender' }
+    return parsed
+  }
+
+  const name = String(rawName ?? '').trim()
+  const gender = normalizeGender(String(rawGender ?? ''))
+  if (!name) return { error: 'Name is required' }
+  if (!gender) return { error: 'Gender must be male or female' }
+  return [{ name, gender }]
+}
+
+export async function POST(req: NextRequest) {
+  const { gameCode, hostToken, name, gender, participants: rawList } = await req.json()
+
+  if (!gameCode || !hostToken) {
+    return NextResponse.json({ error: 'gameCode and hostToken are required' }, { status: 400 })
+  }
+
+  const auth = await assertHostGame(supabase, gameCode, hostToken)
+  if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  if ((auth.game!.participant_mode ?? 'import') !== 'import') {
+    return NextResponse.json(
+      { error: 'Names are added when players join in this game mode' },
+      { status: 400 }
+    )
+  }
+
+  const incoming = parseIncomingParticipants(name, gender, rawList)
+  if ('error' in incoming) {
+    return NextResponse.json({ error: incoming.error }, { status: 400 })
+  }
+
+  const { data: existing } = await supabase
+    .from('participants')
+    .select('name')
+    .eq('game_id', auth.id)
+
+  const existingNames = new Set((existing ?? []).map((p) => p.name.toLowerCase()))
+  for (const p of incoming) {
+    const key = p.name.toLowerCase()
+    if (existingNames.has(key)) {
+      return NextResponse.json({ error: `"${p.name}" is already on the list` }, { status: 400 })
+    }
+    existingNames.add(key)
+  }
+
+  const { data: lastRow } = await supabase
+    .from('participants')
+    .select('display_order')
+    .eq('game_id', auth.id)
+    .order('display_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  let displayOrder = (lastRow?.display_order ?? -1) + 1
+  const rows = incoming.map((p) => ({
+    game_id: auth.id,
+    name: p.name,
+    gender: p.gender,
+    display_order: displayOrder++,
+  }))
+
+  const { data: created, error } = await supabase.from('participants').insert(rows).select()
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ participants: created })
+}
 
 export async function PATCH(req: NextRequest) {
   const {
