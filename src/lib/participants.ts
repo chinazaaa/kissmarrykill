@@ -235,6 +235,25 @@ export function getRoundParticipantGender(
   return unique[0]
 }
 
+/** Gender used for opposite-gender voting (identity when set, unless vote-both). */
+export function playerVoteGenderForRound(
+  player: {
+    gender: PlayerGender | string
+    identity_gender?: ParticipantGender | string | null
+    name: string
+  },
+  participants?: { name: string; gender: ParticipantGender }[]
+): PlayerGender | null {
+  const votePref = parsePlayerGenderFromDb(player.gender)
+  if (votePref === 'both') return 'both'
+  const identity = parseParticipantGenderFromDb(player.identity_gender)
+  if (identity) return identity
+  if (votePref === 'male' || votePref === 'female') return votePref
+  const part = participants?.find((p) => p.name === player.name)
+  if (part) return part.gender
+  return null
+}
+
 /** Opposite gender votes; `both` votes on every round. */
 export function canPlayerVoteInRound(
   playerGender: PlayerGender,
@@ -248,13 +267,17 @@ export function voterGenderForRound(roundGender: ParticipantGender): Participant
   return roundGender === 'male' ? 'female' : 'male'
 }
 
-export function eligibleVotersForRound<T extends { id: string; gender: PlayerGender | string }>(
-  roundGender: ParticipantGender | null,
-  players: T[]
-): T[] {
+export function eligibleVotersForRound<
+  T extends {
+    id: string
+    gender: PlayerGender | string
+    identity_gender?: ParticipantGender | string | null
+    name: string
+  }
+>(roundGender: ParticipantGender | null, players: T[]): T[] {
   if (!roundGender) return []
   return players.filter((p) => {
-    const g = parsePlayerGenderFromDb(p.gender)
+    const g = playerVoteGenderForRound(p)
     return g && canPlayerVoteInRound(g, roundGender)
   })
 }
@@ -302,7 +325,11 @@ export function participantsWhoJoined<T extends { id: string; name: string }>(
 /** Every poll gender needs at least one eligible voter before the game starts. */
 export function hasVotersForPolls(
   participants: { gender: ParticipantGender | string }[],
-  players: { gender: PlayerGender | string }[]
+  players: {
+    gender: PlayerGender | string
+    identity_gender?: ParticipantGender | string | null
+    name: string
+  }[]
 ): { ok: boolean; message?: string } {
   const pollGenders = new Set<ParticipantGender>()
   for (const p of participants) {
@@ -312,7 +339,7 @@ export function hasVotersForPolls(
 
   for (const pollGender of pollGenders) {
     const voters = players.filter((p) => {
-      const g = parsePlayerGenderFromDb(p.gender)
+      const g = playerVoteGenderForRound(p)
       return g && canPlayerVoteInRound(g, pollGender)
     })
     if (voters.length === 0) {

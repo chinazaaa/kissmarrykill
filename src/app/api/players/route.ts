@@ -345,6 +345,12 @@ export async function PATCH(req: NextRequest) {
     if (identityGender) updates.identity_gender = identityGender
   }
 
+  const effectiveVotePref = updates.gender ?? voteGender
+  if (updates.identity_gender && effectiveVotePref !== 'both') {
+    updates.gender = updates.identity_gender
+    voteGender = updates.identity_gender
+  }
+
   if (
     Object.keys(updates).length === 0 &&
     rawPollGender === undefined

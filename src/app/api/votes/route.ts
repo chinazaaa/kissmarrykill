@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { canPlayerVoteInRound, getRoundParticipantGender, parsePlayerGenderFromDb } from '@/lib/participants'
+import { canPlayerVoteInRound, getRoundParticipantGender, playerVoteGenderForRound } from '@/lib/participants'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   const [{ data: player }, { data: round }] = await Promise.all([
-    supabase.from('players').select('id, gender').eq('id', playerId).maybeSingle(),
+    supabase.from('players').select('id, gender, identity_gender, name').eq('id', playerId).maybeSingle(),
     supabase.from('rounds').select('participant_ids').eq('id', roundId).maybeSingle(),
   ])
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     }))
   )
 
-  const playerGender = parsePlayerGenderFromDb(player.gender)
+  const playerGender = playerVoteGenderForRound(player)
   if (!playerGender) {
     return NextResponse.json({ error: 'Invalid player gender' }, { status: 400 })
   }

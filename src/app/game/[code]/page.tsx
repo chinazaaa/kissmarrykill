@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
-import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, eligibleVotersForRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, playerGenderFromJoin, joinChoicesFromPlayerGender, joinGenderHint } from '@/lib/participants'
+import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, parseParticipantGenderFromDb, playerGenderFromJoin, joinGenderHint, playerVoteGenderForRound } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
 import { tallyRoundVotes, VOTE_CATEGORY_META, ASSIGNMENT_ACTION_META, assignmentEmoji } from '@/lib/vote-stats'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
@@ -141,7 +141,10 @@ export default function GamePage() {
       if (session) {
         setMyPlayerId(session.playerId)
         setMyPlayerName(session.playerName)
-        setMyPlayerGender(session.playerGender)
+        const me = (plrs || []).find((p) => p.id === session.playerId)
+        const voteGender = me ? playerVoteGenderForRound(me, parts || []) : session.playerGender
+        setMyPlayerGender(voteGender)
+        if (me && voteGender) setPlayerSession(gameCode, me.id, me.name, voteGender)
       }
 
       if (gameData.status === 'active') {
@@ -325,8 +328,11 @@ export default function GamePage() {
           setPlayers((prev) => prev.map((x) => x.id === p.id ? p : x))
           if (p.id === myPlayerIdRef.current) {
             setMyPlayerName(p.name)
-            setMyPlayerGender(p.gender)
-            setPlayerSession(gameCode, p.id, p.name, p.gender)
+            const voteGender = playerVoteGenderForRound(p, participantsRef.current)
+            if (voteGender) {
+              setMyPlayerGender(voteGender)
+              setPlayerSession(gameCode, p.id, p.name, voteGender)
+            }
           }
         }
       )
@@ -460,9 +466,9 @@ export default function GamePage() {
   useEffect(() => {
     if (!myPlayerId) return
     const me = players.find((p) => p.id === myPlayerId)
-    const parsed = me ? parsePlayerGenderFromDb(me.gender) : null
+    const parsed = me ? playerVoteGenderForRound(me, participants) : null
     if (parsed) setMyPlayerGender(parsed)
-  }, [myPlayerId, players])
+  }, [myPlayerId, players, participants])
 
   // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
   useEffect(() => {
@@ -587,17 +593,23 @@ export default function GamePage() {
       })
       const data = await res.json()
       if (data.playerId) {
-        setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
-        setMyPlayerId(data.playerId)
-        setMyPlayerName(data.playerName)
-        setMyPlayerGender(data.playerGender)
-        setEditingJoin(false)
         const [{ data: plrs }, { data: parts }] = await Promise.all([
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
         ])
         setPlayers(plrs || [])
         setParticipants(parts || [])
+        const me = plrs?.find((p) => p.id === data.playerId)
+        const voteGender = me
+          ? playerVoteGenderForRound(me, parts || [])
+          : parsePlayerGenderFromDb(data.playerGender)
+        if (voteGender) {
+          setPlayerSession(gameCode, data.playerId, data.playerName, voteGender)
+          setMyPlayerGender(voteGender)
+        }
+        setMyPlayerId(data.playerId)
+        setMyPlayerName(data.playerName)
+        setEditingJoin(false)
         setView('waiting')
       } else {
         const msg = data.error ?? 'Failed to join'
@@ -609,20 +621,21 @@ export default function GamePage() {
   }
 
   const openEditJoin = () => {
-    const gender = myPlayerGender ?? getPlayerSession(gameCode)?.playerGender ?? 'female'
     const me = players.find((p) => p.id === myPlayerId)
-    const { identity, voteBoth } = joinChoicesFromPlayerGender(
-      gender,
-      me?.identity_gender ?? undefined
-    )
+    const votePref = me ? parsePlayerGenderFromDb(me.gender) : parsePlayerGenderFromDb(getPlayerSession(gameCode)?.playerGender ?? '')
+    const voteBoth = votePref === 'both'
     setNameInput(myPlayerName ?? '')
     const part =
       participants.find((p) => p.id === me?.participant_id) ??
       participants.find((p) => p.name === myPlayerName)
     setSelectedParticipantId(part?.id ?? null)
-    setJoinIdentityGender(me?.identity_gender ?? part?.gender ?? identity)
+    setJoinIdentityGender(
+      me?.identity_gender
+        ? (parseParticipantGenderFromDb(me.identity_gender) ?? 'female')
+        : (part?.gender ?? 'female')
+    )
     setVoteBothGenders(voteBoth)
-    setJoinPollGender(part?.gender ?? identity)
+    setJoinPollGender(part?.gender ?? 'female')
     setEditingJoin(true)
     setView('join')
   }
@@ -784,6 +797,7 @@ export default function GamePage() {
   if (view === 'waiting') {
     return (
       <CenteredCard>
+        <PlayerNameBar name={myPlayerName} />
         <div className="text-center space-y-1">
           <div className="text-4xl">⏳</div>
           <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
@@ -835,6 +849,7 @@ export default function GamePage() {
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
+        <PlayerNameBar name={myPlayerName} />
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -952,6 +967,7 @@ export default function GamePage() {
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+        <PlayerNameBar name={myPlayerName} />
         {/* Header */}
         <div className="text-center">
           <p className="text-muted text-xs uppercase tracking-wider">
@@ -1083,6 +1099,7 @@ export default function GamePage() {
         confessions={allConfessions}
         players={players}
         myPlayerId={myPlayerId}
+        myPlayerName={myPlayerName}
       />
     )
   }
@@ -1159,7 +1176,7 @@ function TimerDisplay({ seconds, total }: { seconds: number; total: number }) {
   )
 }
 
-function FinalResultsView({ game, participants, rounds, votes, confessions, players, myPlayerId }: {
+function FinalResultsView({ game, participants, rounds, votes, confessions, players, myPlayerId, myPlayerName }: {
   game: Game
   participants: Participant[]
   rounds: Round[]
@@ -1167,11 +1184,13 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
   confessions: Confession[]
   players: Player[]
   myPlayerId: string | null
+  myPlayerName: string | null
 }) {
   const playedParticipants = filterParticipantsInRounds(participants, rounds)
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
+      <PlayerNameBar name={myPlayerName} />
       <div className="text-center">
         <div className="text-4xl mb-2">🎊</div>
         <h1 className="text-3xl font-black text-white">{game.title}</h1>
@@ -1297,6 +1316,19 @@ function CenteredCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="page-wrap flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm glass-card-strong p-6 space-y-6">{children}</div>
+    </div>
+  )
+}
+
+function PlayerNameBar({ name }: { name: string | null | undefined }) {
+  if (!name) return null
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/8 mb-4">
+      <div className="avatar w-7 h-7 text-xs shrink-0">{getInitial(name)}</div>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wider text-faint leading-none">Playing as</p>
+        <p className="text-sm font-semibold text-white truncate">{name}</p>
+      </div>
     </div>
   )
 }

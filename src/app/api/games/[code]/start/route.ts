@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: playersData } = await supabase
     .from('players')
-    .select('gender, participant_id, name')
+    .select('gender, identity_gender, participant_id, name')
     .eq('game_id', code.toUpperCase())
 
   if (!playersData?.length) {
