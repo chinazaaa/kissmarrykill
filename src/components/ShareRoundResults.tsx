@@ -17,6 +17,8 @@ import {
   wstVoteTargets,
   wstCorrectParticipantIdFromRound,
   wstCorrectNameFromRound,
+  isAnimeRound,
+  tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
 import { useToast } from '@/components/ui/Toast'
 
@@ -62,15 +64,22 @@ function buildRoundShareText({
     lines.push(`Most likely to ${q.charAt(0).toLowerCase()}${q.slice(1)}`)
     lines.push(`Winner: ${winner}`)
   } else if (isWhoSaidThis(gameType)) {
-    const targets = wstVoteTargets(participants)
-    const correctId = wstCorrectParticipantIdFromRound(round, players)
-    const correctName = wstCorrectNameFromRound(round, players, participants)
-    const { correctCount } = tallyWstVotes(votes, targets, correctId)
-    const voterCount = votes.filter((v) => v.target_participant_id).length
-
     lines.push(`🕵️ ${config.label} - Round ${round.round_number} of ${game.rounds_count}`)
     lines.push(`"${round.quote_text ?? '(no quote)'}"`)
-    lines.push(`Answer: ${correctName ?? 'Unknown'} (${correctCount} of ${voterCount} guessed right)`)
+
+    if (isAnimeRound(round)) {
+      const meta = round.anime_metadata as { anime_name: string; correct_character: string; choices: string[] }
+      const { correctCount } = tallyAnimeWstVotes(votes, meta.choices, meta.correct_character)
+      const voterCount = votes.filter((v) => v.anime_choice).length
+      lines.push(`Answer: ${meta.correct_character} from ${meta.anime_name} (${correctCount} of ${voterCount} guessed right)`)
+    } else {
+      const targets = wstVoteTargets(participants)
+      const correctId = wstCorrectParticipantIdFromRound(round, players)
+      const correctName = wstCorrectNameFromRound(round, players, participants)
+      const { correctCount } = tallyWstVotes(votes, targets, correctId)
+      const voterCount = votes.filter((v) => v.target_participant_id).length
+      lines.push(`Answer: ${correctName ?? 'Unknown'} (${correctCount} of ${voterCount} guessed right)`)
+    }
   } else {
     // Trio and pair games (SMK, RF/GF, SoP)
     const pairGame = isPairGame(gameType)
