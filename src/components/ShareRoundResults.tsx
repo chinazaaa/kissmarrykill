@@ -14,7 +14,6 @@ import { getCategoryMeta, getVoteCategories, flagForParticipant, tallyWyrVotes, 
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstVotes, wstVoteTargets, wstCorrectParticipantIdFromRound, wstCorrectNameFromRound } from '@/lib/who-said-this'
 import { useToast } from '@/components/ui/Toast'
-import { filterParticipantsInRounds } from '@/lib/utils'
 
 const APP_URL = 'kissmarrykill.app'
 
@@ -73,9 +72,7 @@ function buildRoundShareText({
     const categories = getVoteCategories(gameType)
     const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
 
-    // Use first emoji from headerEmoji for the header line
-    const headerEmoji = pairGame && gameType === 'red_flag_green_flag' ? '🟢' : config.headerEmoji.charAt(0) === '🔥' ? '💋' : config.headerEmoji.charAt(0)
-    lines.push(`${headerEmoji} ${config.label} - Round ${round.round_number} of ${game.rounds_count}`)
+    lines.push(`${config.headerEmoji} ${config.label} - Round ${round.round_number} of ${game.rounds_count}`)
 
     for (const category of categories) {
       const meta = getCategoryMeta(gameType, category)

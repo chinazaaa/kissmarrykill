@@ -93,7 +93,6 @@ import {
 } from '@/lib/who-said-this'
 import { ShareResults } from '@/components/ShareResults'
 import { ShareRoundResults } from '@/components/ShareRoundResults'
-import { RematchHistory } from '@/components/RematchHistory'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { ConfessionsTicker } from '@/components/ConfessionsTicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
@@ -2807,15 +2806,6 @@ function FinalResultsView({
             ))}
           </div>
         </div>
-      )}
-
-      {!isWyr && !isMlt && !isWst && (
-        <RematchHistory
-          gameId={game.id}
-          currentParticipants={playedParticipants}
-          currentVotes={votes}
-          gameType={gameType}
-        />
       )}
 
       <p className="text-faint text-xs text-center">
