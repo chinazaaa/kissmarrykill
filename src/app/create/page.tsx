@@ -1,7 +1,15 @@
 'use client'
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { ParticipantGender, ParticipantMode, GameType, PairVoteMode, QuestionSource, ThemeId, WstQuoteSource } from '@/types'
+import type {
+  ParticipantGender,
+  ParticipantMode,
+  GameType,
+  PairVoteMode,
+  QuestionSource,
+  ThemeId,
+  WstQuoteSource,
+} from '@/types'
 import { THEMES, type ThemeConfig } from '@/lib/themes'
 import {
   type ParticipantInput,

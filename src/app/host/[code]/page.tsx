@@ -70,7 +70,17 @@ import {
   msUntilDeadline,
   ROUND_RESULTS_AUTO_ADVANCE_SECONDS,
 } from '@/lib/round-timing'
-import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment, WstQuotePoolEntry, AnimeQuotePoolEntry } from '@/types'
+import type {
+  Game,
+  Participant,
+  Player,
+  Round,
+  Vote,
+  Confession,
+  VoteAssignment,
+  WstQuotePoolEntry,
+  AnimeQuotePoolEntry,
+} from '@/types'
 import { parseThemeId, THEME_MAP } from '@/lib/themes'
 
 export default function HostPage() {
