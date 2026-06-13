@@ -141,6 +141,9 @@ export default function HostPage() {
   const [hotSeatSubmissions, setHotSeatSubmissions] = useState<
     { id: string; text: string; submission_type: string }[]
   >([])
+  const [activeHotSeatSubs, setActiveHotSeatSubs] = useState<
+    { id: string; player_id: string; round_id: string }[]
+  >([])
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
@@ -179,6 +182,25 @@ export default function HostPage() {
       cancelled = true
     }
   }, [betweenRounds, game?.game_type, lastFinishedRound?.id, gameCode])
+
+  useEffect(() => {
+    if (!currentRound?.id || !isHotSeat(game?.game_type)) {
+      setActiveHotSeatSubs([])
+      return
+    }
+    let cancelled = false
+    async function loadActiveHotSeatSubs() {
+      const { data } = await supabase
+        .from('hot_seat_submissions')
+        .select('id, player_id, round_id')
+        .eq('round_id', currentRound!.id)
+      if (!cancelled && data) setActiveHotSeatSubs(data)
+    }
+    loadActiveHotSeatSubs()
+    return () => {
+      cancelled = true
+    }
+  }, [currentRound?.id, game?.game_type])
 
   useTimerTickSound(timeLeft, game?.status === 'active' && !!currentRound)
 
@@ -313,6 +335,7 @@ export default function HostPage() {
     setVotes([])
     setConfessions([])
     setWstPool([])
+    setActiveHotSeatSubs([])
     autoFinishTriggeredRef.current = false
     autoAdvanceScheduledRef.current = null
     advancingRef.current = false
@@ -331,6 +354,21 @@ export default function HostPage() {
       return next
     }
     return [...prev, vote]
+  }
+
+  function mergeHotSeatSub(
+    prev: { id: string; player_id: string; round_id: string }[],
+    sub: { id: string; player_id: string; round_id: string }
+  ) {
+    const idx = prev.findIndex(
+      (s) => s.id === sub.id || (s.player_id === sub.player_id && s.round_id === sub.round_id)
+    )
+    if (idx >= 0) {
+      const next = [...prev]
+      next[idx] = sub
+      return next
+    }
+    return [...prev, sub]
   }
 
   async function syncGameState() {
@@ -365,12 +403,20 @@ export default function HostPage() {
     if (activeRound) {
       setCurrentRound((prev) => mergeActiveRound(prev, activeRound))
       setLastFinishedRound(null)
+      if (isHotSeat(parseGameType(gameData?.game_type))) {
+        const { data: subs } = await supabase
+          .from('hot_seat_submissions')
+          .select('id, player_id, round_id')
+          .eq('round_id', activeRound.id)
+        if (subs) setActiveHotSeatSubs(subs)
+      }
       return
     }
 
     if (finishedRound) {
       setCurrentRound(null)
       setLastFinishedRound(finishedRound)
+      setActiveHotSeatSubs([])
       advancingRef.current = false
       setEnding(false)
       setAdvancing(false)
@@ -516,6 +562,22 @@ export default function HostPage() {
           setConfessions((prev) => (prev.some((x) => x.id === c.id) ? prev : [...prev, c]))
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'hot_seat_submissions', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const sub = payload.new as { id: string; player_id: string; round_id: string }
+          setActiveHotSeatSubs((prev) => mergeHotSeatSub(prev, sub))
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'hot_seat_submissions', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const sub = payload.new as { id: string; player_id: string; round_id: string }
+          setActiveHotSeatSubs((prev) => mergeHotSeatSub(prev, sub))
+        }
+      )
       .subscribe()
 
     return () => {
@@ -653,6 +715,21 @@ export default function HostPage() {
       return
     }
 
+    if (isHotSeat(gameType)) {
+      const hotSeatPlayerId = currentRound.submitter_player_id
+      const joined = hotSeatJoinedPlayers(players, participants, game.participant_mode)
+      const eligible = joined.filter((p) => p.id !== hotSeatPlayerId)
+      if (eligible.length === 0) return
+      const eligibleIds = new Set(eligible.map((p) => p.id))
+      const roundSubs = activeHotSeatSubs.filter(
+        (s) => s.round_id === currentRound.id && eligibleIds.has(s.player_id)
+      )
+      if (roundSubs.length >= eligible.length) {
+        handleEndRound()
+      }
+      return
+    }
+
     const roundGender = getRoundParticipantGender(currentRound.participant_ids, participants)
     const eligible = eligibleVotersForRound(roundGender, players, game?.game_type)
     if (eligible.length === 0) return
@@ -663,7 +740,7 @@ export default function HostPage() {
       handleEndRound()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentRound?.id, currentRound?.quote_text, votes, players, participants, game?.status])
+  }, [currentRound?.id, currentRound?.quote_text, votes, players, participants, game?.status, activeHotSeatSubs])
 
   const handleStart = async () => {
     if (starting) return
@@ -2048,6 +2125,13 @@ export default function HostPage() {
       const hotSeatPlayerName = hotSeatPlayerDisplayName(hotSeatPlayerId, players, participants)
       const joinedPlayers = hotSeatJoinedPlayers(players, participants, game.participant_mode)
       const submitters = joinedPlayers.filter((p) => p.id !== hotSeatPlayerId)
+      const submitterIds = new Set(submitters.map((p) => p.id))
+      const roundSubs = activeHotSeatSubs.filter(
+        (s) => s.round_id === currentRound.id && submitterIds.has(s.player_id)
+      )
+      const submissionCount = roundSubs.length
+      const submittedPlayerIds = new Set(roundSubs.map((s) => s.player_id))
+      const allSubmitted = submissionCount >= submitters.length && submitters.length > 0
 
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -2070,23 +2154,52 @@ export default function HostPage() {
           </div>
 
           <div className="glass-card p-4 space-y-3">
-            <p className="text-muted text-xs uppercase tracking-wider">
-              Writing about {hotSeatPlayerName} ({submitters.length} joined)
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {submitters.map((p) => (
-                <span key={p.id} className="chip text-xs py-1 px-2">
-                  {p.name}
-                </span>
-              ))}
+            <div className="flex items-center justify-between">
+              <p className="text-muted text-xs uppercase tracking-wider">Submissions In</p>
+              <span className={`text-sm font-bold ${allSubmitted ? 'text-green-400' : 'text-body-muted'}`}>
+                {submissionCount} / {submitters.length}
+                {allSubmitted && ' · ending round...'}
+              </span>
+            </div>
+            <div className="h-2 bg-[var(--border-strong)] rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${allSubmitted ? 'bg-emerald-500' : 'bg-[var(--primary-strong)]'}`}
+                style={{
+                  width: submitters.length > 0 ? `${(submissionCount / submitters.length) * 100}%` : '0%',
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {submitters.map((p) => {
+                const submitted = submittedPlayerIds.has(p.id)
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center gap-1.5 text-xs ${submitted ? 'text-green-400' : 'text-faint'}`}
+                  >
+                    <span>{submitted ? '✓' : '○'}</span>
+                    <span className="truncate">{p.name}</span>
+                  </div>
+                )
+              })}
             </div>
             <p className="text-faint text-xs text-center">
-              Only players who joined and claimed a name take turns in the hot seat
+              Answers stay anonymous — only who has submitted is shown here
             </p>
           </div>
 
-          <button onClick={handleEndRound} disabled={ending} className="btn-secondary">
-            {ending ? 'Ending...' : 'End Round Early'}
+          <button
+            onClick={handleEndRound}
+            disabled={ending}
+            className={allSubmitted || timeLeft === 0 ? 'btn-primary animate-pulse' : 'btn-secondary'}
+          >
+            {ending
+              ? 'Ending...'
+              : allSubmitted
+                ? '✓ End Round & Show Results'
+                : submissionCount > 0
+                  ? `End Round (${submissionCount}/${submitters.length} submitted)`
+                  : 'End Round Early'}
           </button>
         </div>
       )
