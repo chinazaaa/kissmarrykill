@@ -47,3 +47,31 @@ export function pollGenderForPlayer(
   if (voteGender === 'both') return normalizeGender(String(rawPollGender ?? ''))
   return voteGender
 }
+
+/** Which poll (men's/women's rounds) a claimed import-list name appears in. */
+export function importBallotGender(
+  voteGender: 'male' | 'female' | 'both',
+  identityGender: ParticipantGender,
+  rawPollGender?: string
+): ParticipantGender {
+  if (voteGender === 'both') {
+    return normalizeGender(String(rawPollGender ?? '')) ?? identityGender
+  }
+  return identityGender
+}
+
+export async function syncImportParticipantBallot(
+  supabase: SupabaseClient,
+  gameId: string,
+  participantId: string,
+  voteGender: 'male' | 'female' | 'both',
+  identityGender: ParticipantGender,
+  rawPollGender?: string
+) {
+  const gender = importBallotGender(voteGender, identityGender, rawPollGender)
+  await supabase
+    .from('participants')
+    .update({ gender })
+    .eq('id', participantId)
+    .eq('game_id', gameId)
+}

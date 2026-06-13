@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { assertHostGame, deleteJoinerPair, findJoinerParticipant, pollGenderForPlayer } from '@/lib/game-admin'
+import { assertHostGame, deleteJoinerPair, findJoinerParticipant, pollGenderForPlayer, syncImportParticipantBallot } from '@/lib/game-admin'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -143,6 +143,15 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    await syncImportParticipantBallot(
+      supabase,
+      id,
+      participantId,
+      gender,
+      identityGender,
+      rawPollGender
+    )
 
     return NextResponse.json({
       playerId: player.id,
@@ -389,6 +398,21 @@ export async function PATCH(req: NextRequest) {
 
     if (Object.keys(partUpdates).length > 0) {
       await supabase.from('participants').update(partUpdates).eq('id', participant.id)
+    }
+  }
+
+  if (game!.participant_mode === 'import') {
+    const participantId = updatedPlayer.participant_id ?? player.participant_id
+    const identityGender = normalizeGender(String(updatedPlayer.identity_gender ?? ''))
+    if (participantId && identityGender) {
+      await syncImportParticipantBallot(
+        supabase,
+        id,
+        participantId,
+        updatedPlayer.gender as 'male' | 'female' | 'both',
+        identityGender,
+        rawPollGender
+      )
     }
   }
 
