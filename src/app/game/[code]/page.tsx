@@ -4,6 +4,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession, filterParticipantsInRounds } from '@/lib/utils'
 import { Avatar } from '@/components/Avatar'
+import { ParticipantPhotoCard } from '@/components/ParticipantPhotoCard'
+import { ParticipantGallery } from '@/components/ParticipantGallery'
 import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
 import {
   roundGenderLabel,
@@ -1610,6 +1612,11 @@ export default function GamePage() {
           </div>
         )}
 
+        {/* Participant gallery for games with photo cards */}
+        {participants.length > 0 && !isWyrGame && !isMostLikelyTo(game?.game_type) && !isWst && (
+          <ParticipantGallery participants={participants} />
+        )}
+
         <div className="flex flex-col gap-2">
           <button type="button" onClick={openEditJoin} className="btn-secondary text-sm py-2.5">
             {isNameOnlyJoin || !joinNeedsGender ? 'Change name' : 'Change name or gender'}
@@ -1893,8 +1900,10 @@ export default function GamePage() {
           </div>
         )}
 
-        {/* Participant cards */}
-        <div className="flex-1 flex flex-col gap-4 mb-6">
+        {/* Participant photo cards — side-by-side grid */}
+        <div
+          className={`flex-1 grid gap-3 mb-6 ${roundParts.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}
+        >
           {roundParts.map((p) => {
             const action = isPair
               ? (pairAssignment[p.id] ?? null)
@@ -1906,7 +1915,7 @@ export default function GamePage() {
                     ? 'kill'
                     : null
             return (
-              <ParticipantCard
+              <ParticipantPhotoCard
                 key={p.id}
                 gameType={gameType}
                 participant={p}
