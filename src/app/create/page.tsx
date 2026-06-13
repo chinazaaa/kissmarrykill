@@ -29,14 +29,54 @@ export default function CreateGame() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ gameCode: string; hostToken: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [bulkPaste, setBulkPaste] = useState('')
+
+  function parseNamesFromText(text: string): string[] {
+    return text
+      .split(/[\n\r\t,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }
+
+  function mergeParticipants(existing: string[], incoming: string[]): string[] {
+    const seen = new Set(existing.map((n) => n.toLowerCase()))
+    const merged = [...existing]
+    for (const name of incoming) {
+      const key = name.toLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        merged.push(name)
+      }
+    }
+    return merged
+  }
+
+  const addParticipantsFromText = (text: string) => {
+    const names = parseNamesFromText(text)
+    if (names.length === 0) return 0
+    setParticipants((prev) => mergeParticipants(prev, names))
+    return names.length
+  }
 
   const addParticipant = () => {
-    const name = nameInput.trim()
-    if (!name) return
-    if (participants.some((p) => p.toLowerCase() === name.toLowerCase())) return
-    setParticipants((prev) => [...prev, name])
+    const added = addParticipantsFromText(nameInput)
+    if (added === 0) return
     setNameInput('')
     inputRef.current?.focus()
+  }
+
+  const addBulkParticipants = () => {
+    if (!bulkPaste.trim()) return
+    addParticipantsFromText(bulkPaste)
+    setBulkPaste('')
+  }
+
+  const handleNamePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text')
+    if (!/[\n\r\t,;]/.test(text)) return
+    e.preventDefault()
+    addParticipantsFromText(text)
+    setNameInput('')
   }
 
   const removeParticipant = (i: number) => setParticipants((prev) => prev.filter((_, idx) => idx !== i))
@@ -164,7 +204,7 @@ export default function CreateGame() {
         <div>
           <p className="label-caps mb-2">Almost there</p>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Add Participants</h1>
-          <p className="text-muted text-sm mt-2">People being voted on — need at least 3</p>
+          <p className="text-muted text-sm mt-2">People being voted on — need at least 3. Paste from a sheet (one name per line).</p>
         </div>
 
         <div className="glass-card p-5 space-y-4">
@@ -174,6 +214,7 @@ export default function CreateGame() {
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addParticipant()}
+              onPaste={handleNamePaste}
               placeholder="Enter name..."
               autoFocus
               className="input-field"
@@ -184,6 +225,31 @@ export default function CreateGame() {
             >
               Add
             </button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="divider-soft" />
+              <span className="text-faint text-xs shrink-0">or paste a list</span>
+              <div className="divider-soft" />
+            </div>
+            <textarea
+              value={bulkPaste}
+              onChange={(e) => setBulkPaste(e.target.value)}
+              placeholder={'Sarah\nJames\nAlex\n…one name per line'}
+              rows={5}
+              className="input-field resize-y min-h-[120px] font-medium"
+            />
+            <button
+              onClick={addBulkParticipants}
+              disabled={!bulkPaste.trim()}
+              className="btn-secondary w-full disabled:opacity-40"
+            >
+              Add all from paste
+            </button>
+            <p className="text-faint text-xs text-center">
+              Works with Google Sheets, Excel, Notes — new lines, tabs, or commas
+            </p>
           </div>
 
           {participants.length > 0 ? (
