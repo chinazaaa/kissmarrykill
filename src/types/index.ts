@@ -57,6 +57,9 @@ export interface Round {
   ended_at: string | null
 }
 
+export type PairFlag = 'kiss' | 'kill'
+export type PairAssignmentMap = Record<string, PairFlag | null>
+
 export interface Vote {
   id: string
   player_id: string
@@ -65,6 +68,7 @@ export interface Vote {
   kiss_participant_id: string | null
   marry_participant_id: string | null
   kill_participant_id: string | null
+  pair_assignments: Record<string, PairFlag> | null
   created_at: string
 }
 

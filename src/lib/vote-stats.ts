@@ -1,4 +1,4 @@
-import type { GameType } from '@/types'
+import type { GameType, PairFlag } from '@/types'
 import {
   type VoteCategory,
   categoryMeta,
@@ -19,14 +19,23 @@ type VoteRow = {
   kiss_participant_id: string | null
   marry_participant_id: string | null
   kill_participant_id: string | null
+  pair_assignments?: Record<string, PairFlag> | null
+}
+
+export function flagForParticipant(vote: VoteRow, participantId: string): PairFlag | null {
+  const stored = vote.pair_assignments?.[participantId]
+  if (stored === 'kiss' || stored === 'kill') return stored
+  if (vote.kiss_participant_id === participantId) return 'kiss'
+  if (vote.kill_participant_id === participantId) return 'kill'
+  return null
 }
 
 export function tallyRoundVotes(participantIds: string[], votes: VoteRow[]): RoundTally[] {
   return participantIds.map((id) => ({
     id,
-    kiss: votes.filter((v) => v.kiss_participant_id === id).length,
+    kiss: votes.filter((v) => flagForParticipant(v, id) === 'kiss').length,
     marry: votes.filter((v) => v.marry_participant_id === id).length,
-    smash: votes.filter((v) => v.kill_participant_id === id).length,
+    smash: votes.filter((v) => flagForParticipant(v, id) === 'kill').length,
   }))
 }
 

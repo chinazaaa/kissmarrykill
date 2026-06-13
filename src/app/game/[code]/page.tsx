@@ -6,13 +6,27 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession, getInitial, fil
 import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
 import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, parseParticipantGenderFromDb, playerGenderFromJoin, joinGenderHint, playerVoteGenderForRound } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
-import { tallyRoundVotes, getCategoryMeta, getVoteCategories, assignmentEmojiFor, myActionBorderClass } from '@/lib/vote-stats'
-import { gameTypeConfig, slotMeta, voteSlots, emptyAssignment, isAssignmentComplete, assignedCount, parseGameType, assignmentTargetCount, isThreeChoiceGame } from '@/lib/game-types'
+import { tallyRoundVotes, getCategoryMeta, getVoteCategories, assignmentEmojiFor, myActionBorderClass, flagForParticipant } from '@/lib/vote-stats'
+import {
+  gameTypeConfig,
+  slotMeta,
+  voteSlots,
+  emptyAssignment,
+  isAssignmentComplete,
+  assignedCount,
+  parseGameType,
+  assignmentTargetCount,
+  isThreeChoiceGame,
+  isPairGame,
+  isPairAssignmentComplete,
+  pairAssignedCount,
+  pairAssignmentFromVote,
+} from '@/lib/game-types'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
-import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType } from '@/types'
+import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
 
@@ -30,6 +44,7 @@ export default function GamePage() {
   const [currentRound, setCurrentRound] = useState<Round | null>(null)
   const [timeLeft, setTimeLeft] = useState(0)
   const [assignment, setAssignment] = useState<VoteAssignment>(emptyAssignment())
+  const [pairAssignment, setPairAssignment] = useState<PairAssignmentMap>({})
   const [submitted, setSubmitted] = useState(false)
   const [confessionText, setConfessionText] = useState('')
   const [confessionSent, setConfessionSent] = useState(false)
@@ -113,6 +128,8 @@ export default function GamePage() {
   const submittedRef = useRef(false)
   const assignmentRef = useRef(assignment)
   assignmentRef.current = assignment
+  const pairAssignmentRef = useRef(pairAssignment)
+  pairAssignmentRef.current = pairAssignment
   const currentRoundRef = useRef(currentRound)
   currentRoundRef.current = currentRound
   const gameRef = useRef(game)
@@ -165,11 +182,16 @@ export default function GamePage() {
               .from('votes').select('*')
               .eq('player_id', session.playerId).eq('round_id', activeRound.id).maybeSingle()
             if (existingVote) {
-              setAssignment({
-                kiss: existingVote.kiss_participant_id,
-                marry: existingVote.marry_participant_id,
-                kill: existingVote.kill_participant_id,
-              })
+              const gameType = parseGameType(gameData.game_type)
+              if (isPairGame(gameType)) {
+                setPairAssignment(pairAssignmentFromVote(existingVote, activeRound.participant_ids))
+              } else {
+                setAssignment({
+                  kiss: existingVote.kiss_participant_id,
+                  marry: existingVote.marry_participant_id,
+                  kill: existingVote.kill_participant_id,
+                })
+              }
               submittedRef.current = true
               setSubmitted(true)
             }
@@ -255,6 +277,7 @@ export default function GamePage() {
               submittedRef.current = false
               setSubmitted(false)
               setAssignment(emptyAssignment())
+              setPairAssignment({})
               setConfessionText('')
               setConfessionSent(false)
               setView('round')
@@ -280,6 +303,7 @@ export default function GamePage() {
             submittedRef.current = false
             setSubmitted(false)
             setAssignment(emptyAssignment())
+            setPairAssignment({})
             setConfessionText('')
             setConfessionSent(false)
             setView('round')
@@ -298,6 +322,7 @@ export default function GamePage() {
             submittedRef.current = false
             setSubmitted(false)
             setAssignment(emptyAssignment())
+            setPairAssignment({})
             setConfessionText('')
             setConfessionSent(false)
             setView('round')
@@ -427,6 +452,7 @@ export default function GamePage() {
           submittedRef.current = false
           setSubmitted(false)
           setAssignment(emptyAssignment())
+          setPairAssignment({})
           setView('round')
         }
       }
@@ -462,6 +488,7 @@ export default function GamePage() {
           submittedRef.current = false
           setSubmitted(false)
           setAssignment(emptyAssignment())
+          setPairAssignment({})
           setConfessionText('')
           setConfessionSent(false)
           setView('round')
@@ -537,6 +564,7 @@ export default function GamePage() {
   // Uses only refs so it never causes stale closure issues
   function autoSubmitFromRefs() {
     const a = { ...assignmentRef.current }
+    const pa = { ...pairAssignmentRef.current }
     const r = currentRoundRef.current
     const g = gameRef.current
     const parts = participantsRef.current
@@ -544,16 +572,37 @@ export default function GamePage() {
 
     if (!r || !pid) return
 
+    const gameType = parseGameType(g?.game_type)
+    const roundParts = parts.filter((p) => r.participant_ids.includes(p.id))
+    const roundIds = roundParts.map((p) => p.id)
+
     if (g?.auto_submit_behavior === 'random') {
-      const roundParts = parts.filter((p) => r.participant_ids.includes(p.id))
-      const gameType = parseGameType(g?.game_type)
-      const actions = voteSlots(gameType)
-      const unassigned = actions.filter((k) => !a[k])
-      const available = roundParts.filter((p) => !Object.values(a).includes(p.id))
-      unassigned.forEach((act, i) => { if (available[i]) a[act] = available[i].id })
+      if (isPairGame(gameType)) {
+        for (const p of roundParts) {
+          pa[p.id] = Math.random() < 0.5 ? 'kiss' : 'kill'
+        }
+      } else {
+        const actions = voteSlots(gameType)
+        const unassigned = actions.filter((k) => !a[k])
+        const available = roundParts.filter((p) => !Object.values(a).includes(p.id))
+        unassigned.forEach((act, i) => { if (available[i]) a[act] = available[i].id })
+      }
     }
 
-    const gameType = parseGameType(g?.game_type)
+    const voteBody = isPairGame(gameType)
+      ? {
+          pairAssignments: Object.fromEntries(
+            roundIds
+              .map((id) => [id, pa[id]] as const)
+              .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
+          ),
+        }
+      : {
+          kiss: a.kiss,
+          marry: isThreeChoiceGame(gameType) ? a.marry : null,
+          kill: a.kill,
+        }
+
     fetch('/api/votes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -561,15 +610,18 @@ export default function GamePage() {
         playerId: pid,
         roundId: r.id,
         gameId: gameCode,
-        kiss: a.kiss,
-        marry: isThreeChoiceGame(gameType) ? a.marry : null,
-        kill: a.kill,
+        ...voteBody,
       }),
     })
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const assign = (action: keyof VoteAssignment, participantId: string) => {
+    const gameType = parseGameType(game?.game_type)
+    if (isPairGame(gameType) && (action === 'kiss' || action === 'kill')) {
+      setPairAssignment((prev) => ({ ...prev, [participantId]: action }))
+      return
+    }
     setAssignment((prev) => {
       const next = { ...prev }
       // Clear this participant from any existing slot
@@ -586,6 +638,20 @@ export default function GamePage() {
     submittedRef.current = true
     setSubmitted(true)
     const submitGameType = parseGameType(game?.game_type)
+    const roundIds = currentRound.participant_ids
+    const voteBody = isPairGame(submitGameType)
+      ? {
+          pairAssignments: Object.fromEntries(
+            roundIds
+              .map((id) => [id, pairAssignment[id]] as const)
+              .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
+          ),
+        }
+      : {
+          kiss: assignment.kiss,
+          marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
+          kill: assignment.kill,
+        }
     await fetch('/api/votes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -593,9 +659,7 @@ export default function GamePage() {
         playerId: myPlayerId,
         roundId: currentRound.id,
         gameId: gameCode,
-        kiss: assignment.kiss,
-        marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
-        kill: assignment.kill,
+        ...voteBody,
       }),
     })
   }
@@ -881,8 +945,15 @@ export default function GamePage() {
     )
     const voteBanner = canVote ? activeVoteBanner(effectiveGender) : null
     const gameType = parseGameType(game?.game_type)
-    const allAssigned = isAssignmentComplete(assignment, gameType)
-    const assignTarget = assignmentTargetCount(gameType)
+    const isPair = isPairGame(gameType)
+    const roundPartIds = roundParts.map((p) => p.id)
+    const allAssigned = isPair
+      ? isPairAssignmentComplete(pairAssignment, roundPartIds)
+      : isAssignmentComplete(assignment, gameType)
+    const assignTarget = assignmentTargetCount(gameType, roundParts.length)
+    const assignProgress = isPair
+      ? pairAssignedCount(pairAssignment, roundPartIds)
+      : assignedCount(assignment, gameType)
     const typeConfig = gameTypeConfig(gameType)
 
     return (
@@ -925,8 +996,9 @@ export default function GamePage() {
         {/* Participant cards */}
         <div className="flex-1 flex flex-col gap-4 mb-6">
           {roundParts.map((p) => {
-            const action =
-              assignment.kiss === p.id ? 'kiss' :
+            const action = isPair
+              ? (pairAssignment[p.id] ?? null)
+              : assignment.kiss === p.id ? 'kiss' :
               assignment.marry === p.id ? 'marry' :
               assignment.kill === p.id ? 'kill' : null
             return (
@@ -953,7 +1025,9 @@ export default function GamePage() {
           >
             {allAssigned
               ? 'Submit Vote ✓'
-              : `Assign all ${assignTarget} (${assignedCount(assignment, gameType)}/${assignTarget})`}
+              : isPair
+                ? `Rate both (${assignProgress}/${assignTarget})`
+                : `Assign all ${assignTarget} (${assignProgress}/${assignTarget})`}
           </button>
         ) : (
           <div className="space-y-3">
@@ -1027,18 +1101,29 @@ export default function GamePage() {
           <div className="glass-card border border-[var(--primary)]/30 p-4">
             <p className="text-[var(--primary)] text-xs uppercase tracking-wider mb-2">Your vote</p>
             <div className="flex gap-4 flex-wrap">
-              {voteSlots(gameType).map((slot) => {
-                const participantId = slot === 'kiss' ? myVote.kiss_participant_id
-                  : slot === 'marry' ? myVote.marry_participant_id
-                  : myVote.kill_participant_id
-                if (!participantId) return null
-                const meta = slotMeta(gameType, slot)
-                return (
-                  <span key={slot} className="text-sm font-medium" style={{ color: meta.textColor }}>
-                    {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
-                  </span>
-                )
-              })}
+              {isPairGame(gameType)
+                ? roundParts.map((p) => {
+                    const flag = flagForParticipant(myVote, p.id)
+                    if (!flag) return null
+                    const meta = slotMeta(gameType, flag)
+                    return (
+                      <span key={p.id} className="text-sm font-medium" style={{ color: meta.textColor }}>
+                        {p.name}: {meta.emoji} {meta.label}
+                      </span>
+                    )
+                  })
+                : voteSlots(gameType).map((slot) => {
+                    const participantId = slot === 'kiss' ? myVote.kiss_participant_id
+                      : slot === 'marry' ? myVote.marry_participant_id
+                      : myVote.kill_participant_id
+                    if (!participantId) return null
+                    const meta = slotMeta(gameType, slot)
+                    return (
+                      <span key={slot} className="text-sm font-medium" style={{ color: meta.textColor }}>
+                        {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
+                      </span>
+                    )
+                  })}
             </div>
           </div>
         )}
@@ -1059,10 +1144,14 @@ export default function GamePage() {
               nameById={nameById}
               voterCount={voterCount}
               renderCard={({ tally, name, maxes, isWinner }) => {
-                const myAction =
-                  myVote?.kiss_participant_id  === tally.id ? 'kiss'  :
-                  myVote?.marry_participant_id === tally.id ? 'marry' :
-                  myVote?.kill_participant_id  === tally.id ? 'kill'  : null
+                const myAction = myVote
+                  ? isPairGame(gameType)
+                    ? flagForParticipant(myVote, tally.id)
+                    : myVote.kiss_participant_id === tally.id ? 'kiss'
+                    : myVote.marry_participant_id === tally.id ? 'marry'
+                    : myVote.kill_participant_id === tally.id ? 'kill'
+                    : null
+                  : null
 
                 const borderCls = myActionBorderClass(gameType, myAction)
 
@@ -1261,18 +1350,29 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
             {myVote && (
               <div className="glass-card border border-[var(--primary)]/25 px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
                 <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
-                {voteSlots(gameType).map((slot) => {
-                  const participantId = slot === 'kiss' ? myVote.kiss_participant_id
-                    : slot === 'marry' ? myVote.marry_participant_id
-                    : myVote.kill_participant_id
-                  if (!participantId) return null
-                  const meta = slotMeta(gameType, slot)
-                  return (
-                    <span key={slot} className="text-sm" style={{ color: meta.textColor }}>
-                      {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
-                    </span>
-                  )
-                })}
+                {isPairGame(gameType)
+                  ? roundParts.map((p) => {
+                      const flag = flagForParticipant(myVote, p.id)
+                      if (!flag) return null
+                      const meta = slotMeta(gameType, flag)
+                      return (
+                        <span key={p.id} className="text-sm" style={{ color: meta.textColor }}>
+                          {p.name}: {meta.emoji}
+                        </span>
+                      )
+                    })
+                  : voteSlots(gameType).map((slot) => {
+                      const participantId = slot === 'kiss' ? myVote.kiss_participant_id
+                        : slot === 'marry' ? myVote.marry_participant_id
+                        : myVote.kill_participant_id
+                      if (!participantId) return null
+                      const meta = slotMeta(gameType, slot)
+                      return (
+                        <span key={slot} className="text-sm" style={{ color: meta.textColor }}>
+                          {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
+                        </span>
+                      )
+                    })}
               </div>
             )}
             <div className="space-y-4">

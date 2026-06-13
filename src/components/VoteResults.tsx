@@ -59,8 +59,7 @@ function PairRoundResultsSummary({
         })}
       </div>
       <p className="text-faint text-[10px] text-center leading-snug">
-        Each voter picks one {greenMeta.label.toLowerCase()} and one {redMeta.label.toLowerCase()} — so one person&apos;s{' '}
-        {greenMeta.label.toLowerCase()} count matches the other&apos;s {redMeta.label.toLowerCase()} count.
+        Each person is rated separately — both can get the same flag.
       </p>
     </div>
   )

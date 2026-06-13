@@ -82,11 +82,15 @@ create table if not exists votes (
   kiss_participant_id uuid references participants(id),
   marry_participant_id uuid references participants(id),
   kill_participant_id uuid references participants(id),
+  /** Pair games: { "participant-id": "kiss"|"kill" } — one flag per person, can match. */
+  pair_assignments jsonb,
   created_at timestamptz not null default now(),
   unique(player_id, round_id)
 );
 create index if not exists idx_votes_game_id on votes(game_id);
 create index if not exists idx_votes_round_id on votes(round_id);
+
+-- If upgrading: alter table votes add column if not exists pair_assignments jsonb;
 
 -- Confessions (anonymous post-round messages)
 create table if not exists confessions (

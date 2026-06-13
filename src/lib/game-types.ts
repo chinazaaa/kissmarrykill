@@ -1,4 +1,4 @@
-import type { GameType, VoteAssignment } from '@/types'
+import type { GameType, VoteAssignment, PairFlag, PairAssignmentMap } from '@/types'
 
 export type VoteSlot = 'kiss' | 'marry' | 'kill'
 /** Tally keys — `smash` counts the kill slot (Red Flag / Kill). */
@@ -61,7 +61,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
   red_flag_green_flag: {
     id: 'red_flag_green_flag',
     label: 'Red Flag / Green Flag',
-    tagline: 'Two names — pick green flag for one, red flag for the other',
+    tagline: 'Two names — rate each person green or red on their own',
     headerEmoji: '💚🚩',
     slots: {
       kiss: {
@@ -96,7 +96,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
   smash_or_pass: {
     id: 'smash_or_pass',
     label: 'Smash or Pass',
-    tagline: 'Two names — smash one, pass on the other',
+    tagline: 'Two names — smash or pass on each person separately',
     headerEmoji: '🔥👎',
     slots: {
       kiss: {
@@ -164,8 +164,53 @@ export function voteCategories(gameType?: GameType | string): VoteCategory[] {
   return isPairGame(gameType) ? ['kiss', 'smash'] : ['kiss', 'marry', 'smash']
 }
 
-export function assignmentTargetCount(gameType?: GameType | string): number {
+export function assignmentTargetCount(gameType?: GameType | string, participantCount?: number): number {
+  if (isPairGame(gameType) && participantCount !== undefined) return participantCount
   return voteSlots(gameType).length
+}
+
+export function emptyPairAssignment(participantIds: string[]): PairAssignmentMap {
+  return Object.fromEntries(participantIds.map((id) => [id, null]))
+}
+
+export function isPairAssignmentComplete(
+  pairAssignment: PairAssignmentMap,
+  participantIds: string[]
+): boolean {
+  return participantIds.every(
+    (id) => pairAssignment[id] === 'kiss' || pairAssignment[id] === 'kill'
+  )
+}
+
+export function pairAssignedCount(
+  pairAssignment: PairAssignmentMap,
+  participantIds: string[]
+): number {
+  return participantIds.filter(
+    (id) => pairAssignment[id] === 'kiss' || pairAssignment[id] === 'kill'
+  ).length
+}
+
+export function pairAssignmentFromVote(
+  vote: {
+    pair_assignments?: Record<string, PairFlag> | null
+    kiss_participant_id?: string | null
+    kill_participant_id?: string | null
+  },
+  participantIds: string[]
+): PairAssignmentMap {
+  const result = emptyPairAssignment(participantIds)
+  for (const id of participantIds) {
+    const stored = vote.pair_assignments?.[id]
+    if (stored === 'kiss' || stored === 'kill') {
+      result[id] = stored
+    } else if (vote.kiss_participant_id === id) {
+      result[id] = 'kiss'
+    } else if (vote.kill_participant_id === id) {
+      result[id] = 'kill'
+    }
+  }
+  return result
 }
 
 export function categoryToSlot(category: VoteCategory): VoteSlot {
