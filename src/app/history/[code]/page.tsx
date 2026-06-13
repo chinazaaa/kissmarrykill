@@ -1,8 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { useGame } from '@/hooks/queries/useGame'
+import { usePlayers } from '@/hooks/queries/usePlayers'
+import { useParticipants } from '@/hooks/queries/useParticipants'
+import { useAllResults } from '@/hooks/queries/useAllResults'
 import { roundGenderLabel } from '@/lib/participants'
 import {
   assignmentEmojiFor,
@@ -29,9 +31,7 @@ import {
   tallyWstVotes,
 } from '@/lib/who-said-this'
 import { ParticipantRoundResults, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
-import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
-
-type LoadState = 'loading' | 'not_found' | 'ready'
+import type { Game, Participant } from '@/types'
 
 function participantName(participants: Participant[], id: string | null): string {
   if (!id) return '—'
@@ -57,50 +57,17 @@ export default function GameHistoryPage() {
   const router = useRouter()
   const gameCode = String(params.code ?? '').toUpperCase()
 
-  const [loadState, setLoadState] = useState<LoadState>('loading')
-  const [game, setGame] = useState<Game | null>(null)
-  const [participants, setParticipants] = useState<Participant[]>([])
-  const [players, setPlayers] = useState<Player[]>([])
-  const [rounds, setRounds] = useState<Round[]>([])
-  const [votes, setVotes] = useState<Vote[]>([])
-  const [confessions, setConfessions] = useState<Confession[]>([])
+  const { data: game, isLoading: gameLoading } = useGame(gameCode)
+  const { data: participants = [] } = useParticipants(gameCode)
+  const { data: players = [] } = usePlayers(gameCode)
+  const { data: results, isLoading: resultsLoading } = useAllResults(gameCode, !!game)
+  const rounds = results?.rounds ?? []
+  const votes = results?.votes ?? []
+  const confessions = results?.confessions ?? []
 
-  useEffect(() => {
-    if (!gameCode || gameCode.length < 4) {
-      setLoadState('not_found')
-      return
-    }
+  const isLoading = gameLoading || resultsLoading
 
-    async function load() {
-      setLoadState('loading')
-      const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
-
-      if (!gameData) {
-        setLoadState('not_found')
-        return
-      }
-
-      const [{ data: parts }, { data: plrs }, { data: rds }, { data: vts }, { data: confs }] = await Promise.all([
-        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-        supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-        supabase.from('votes').select('*').eq('game_id', gameCode),
-        supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
-      ])
-
-      setGame(gameData)
-      setParticipants(parts ?? [])
-      setPlayers(plrs ?? [])
-      setRounds(rds ?? [])
-      setVotes(vts ?? [])
-      setConfessions(confs ?? [])
-      setLoadState('ready')
-    }
-
-    load()
-  }, [gameCode])
-
-  if (loadState === 'loading') {
+  if (isLoading) {
     return (
       <div className="page-wrap flex items-center justify-center">
         <div className="w-11 h-11 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
@@ -108,7 +75,7 @@ export default function GameHistoryPage() {
     )
   }
 
-  if (loadState === 'not_found' || !game) {
+  if (!isLoading && !game) {
     return (
       <div className="page-wrap flex items-center justify-center px-4 py-12">
         <div className="text-center space-y-4 max-w-sm">
