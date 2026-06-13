@@ -12,13 +12,32 @@ export function generateToken(): string {
   ).join('')
 }
 
+/**
+ * Generates round trios with minimal participant repetition.
+ * With enough participants (>= roundCount * 3) nobody appears twice.
+ * When the pool runs out it refills, pushing the most-recently-seen
+ * participants to the back so repeats are spread as far apart as possible.
+ */
 export function generateRounds(participantIds: string[], roundCount: number): string[][] {
   if (participantIds.length < 3) return []
+
   const rounds: string[][] = []
-  for (let i = 0; i < roundCount; i++) {
-    const shuffled = [...participantIds].sort(() => Math.random() - 0.5)
-    rounds.push(shuffled.slice(0, 3))
+  // Start with a full shuffle
+  let pool = [...participantIds].sort(() => Math.random() - 0.5)
+
+  for (let r = 0; r < roundCount; r++) {
+    if (pool.length < 3) {
+      // Refill: put the previous round's people at the very end
+      const lastUsed = rounds[rounds.length - 1] ?? []
+      const notRecent = participantIds
+        .filter((id) => !lastUsed.includes(id))
+        .sort(() => Math.random() - 0.5)
+      const recent = lastUsed.sort(() => Math.random() - 0.5)
+      pool = [...notRecent, ...recent]
+    }
+    rounds.push(pool.splice(0, 3))
   }
+
   return rounds
 }
 
@@ -34,7 +53,10 @@ export function getPlayerSession(gameCode: string): { playerId: string; playerNa
 
 export function setPlayerSession(gameCode: string, playerId: string, playerName: string): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(`kmk_player_${gameCode.toUpperCase()}`, JSON.stringify({ playerId, playerName }))
+  localStorage.setItem(
+    `kmk_player_${gameCode.toUpperCase()}`,
+    JSON.stringify({ playerId, playerName })
+  )
 }
 
 export function getInitial(name: string): string {
