@@ -41,6 +41,143 @@ export function playRoundStartSound() {
   }
 }
 
+/** Short satisfying "ding" when a vote is submitted (rising chime). */
+export function playVoteSubmittedSound() {
+  if (typeof window === 'undefined') return
+
+  try {
+    unlockAudio()
+    if (!audioCtx) audioCtx = new AudioContext()
+    const ctx = audioCtx
+    const now = ctx.currentTime
+
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(880, now)
+    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.08)
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(0.1, now + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(now)
+    osc.stop(now + 0.25)
+  } catch {
+    // Browser may block audio until user gesture — ignore silently
+  }
+}
+
+/** Descending tone when a round ends (pleasant buzzer). */
+export function playRoundEndSound() {
+  if (typeof window === 'undefined') return
+
+  try {
+    unlockAudio()
+    if (!audioCtx) audioCtx = new AudioContext()
+    const ctx = audioCtx
+    const now = ctx.currentTime
+
+    const playTone = (freq: number, start: number, duration: number, volume = 0.1) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, start)
+      gain.gain.linearRampToValueAtTime(volume, start + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(start)
+      osc.stop(start + duration + 0.05)
+    }
+
+    playTone(659.25, now, 0.18)
+    playTone(523.25, now + 0.12, 0.18)
+    playTone(392.0, now + 0.24, 0.3)
+  } catch {
+    // Browser may block audio until user gesture — ignore silently
+  }
+}
+
+/** Celebratory fanfare for game completion (ascending notes with final chord). */
+export function playGameFinishedSound() {
+  if (typeof window === 'undefined') return
+
+  try {
+    unlockAudio()
+    if (!audioCtx) audioCtx = new AudioContext()
+    const ctx = audioCtx
+    const now = ctx.currentTime
+
+    const playTone = (freq: number, start: number, duration: number, volume = 0.1) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, start)
+      gain.gain.linearRampToValueAtTime(volume, start + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(start)
+      osc.stop(start + duration + 0.05)
+    }
+
+    // Ascending notes
+    playTone(523.25, now, 0.15) // C5
+    playTone(659.25, now + 0.12, 0.15) // E5
+    playTone(783.99, now + 0.24, 0.15) // G5
+    // Final chord (C major, held longer)
+    playTone(1046.5, now + 0.4, 0.45, 0.12) // C6
+    playTone(783.99, now + 0.4, 0.45, 0.08) // G5
+    playTone(659.25, now + 0.4, 0.45, 0.06) // E5
+  } catch {
+    // Browser may block audio until user gesture — ignore silently
+  }
+}
+
+/** Subtle whoosh when a confession is sent. */
+export function playConfessionSound() {
+  if (typeof window === 'undefined') return
+
+  try {
+    unlockAudio()
+    if (!audioCtx) audioCtx = new AudioContext()
+    const ctx = audioCtx
+    const now = ctx.currentTime
+
+    // Filtered noise burst for a "whoosh" effect
+    const bufferSize = ctx.sampleRate * 0.3
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize)
+    }
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.setValueAtTime(2000, now)
+    filter.frequency.exponentialRampToValueAtTime(500, now + 0.25)
+    filter.Q.value = 1.5
+
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(0.06, now + 0.03)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25)
+
+    source.connect(filter)
+    filter.connect(gain)
+    gain.connect(ctx.destination)
+    source.start(now)
+    source.stop(now + 0.3)
+  } catch {
+    // Browser may block audio until user gesture — ignore silently
+  }
+}
+
 /** Short clock tick/tock for countdown urgency (last few seconds). */
 export function playTickTockSound(secondsRemaining: number) {
   if (typeof window === 'undefined') return

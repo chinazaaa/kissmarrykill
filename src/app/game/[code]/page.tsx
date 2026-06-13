@@ -6,7 +6,14 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession, filterParticipa
 import { Avatar } from '@/components/Avatar'
 import { ParticipantPhotoCard } from '@/components/ParticipantPhotoCard'
 import { ParticipantGallery } from '@/components/ParticipantGallery'
-import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
+import {
+  playRoundStartSound,
+  playVoteSubmittedSound,
+  playRoundEndSound,
+  playGameFinishedSound,
+  playConfessionSound,
+  unlockAudio,
+} from '@/lib/sounds'
 import {
   roundGenderLabel,
   playerGenderLabel,
@@ -81,8 +88,11 @@ import {
   dedupeWstPool,
   mergeWstPoolEntry,
 } from '@/lib/who-said-this'
+import { ShareResults } from '@/components/ShareResults'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { ConfessionsTicker } from '@/components/ConfessionsTicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
+import ReactionBar from '@/components/ReactionBar'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
@@ -403,6 +413,18 @@ export default function GamePage() {
     announcedRoundIdRef.current = currentRound.id
     playRoundStartSound()
   }, [view, currentRound?.id])
+
+  // Play round-end sound when transitioning to round results, game-finished sound for final results
+  const prevViewRef = useRef<View | null>(null)
+  useEffect(() => {
+    if (view === 'round_results' && prevViewRef.current !== 'round_results' && !suppressRoundSoundRef.current) {
+      playRoundEndSound()
+    }
+    if (view === 'results' && prevViewRef.current !== 'results') {
+      playGameFinishedSound()
+    }
+    prevViewRef.current = view
+  }, [view])
 
   async function loadAllResults() {
     const [{ data: rounds }, { data: votes }, { data: confs }] = await Promise.all([
@@ -1147,6 +1169,7 @@ export default function GamePage() {
       }
       submittedRef.current = true
       setSubmitted(true)
+      playVoteSubmittedSound()
     } catch {
       toast.error('Could not submit — try again')
     }
@@ -1280,6 +1303,7 @@ export default function GamePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gameId: gameCode, roundId: currentRound?.id, text: confessionText }),
     })
+    playConfessionSound()
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -2064,6 +2088,8 @@ export default function GamePage() {
             voterCount={voterCount}
             myChoice={myVote?.wyr_choice ?? null}
           />
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+          <ReactionBar className="pt-1" />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2107,6 +2133,8 @@ export default function GamePage() {
             correctCount={correctCount}
             myPickName={myPickName}
           />
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+          <ReactionBar className="pt-1" />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2146,6 +2174,8 @@ export default function GamePage() {
             winnerNames={winnerNames}
             myPickName={myPickName}
           />
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+          <ReactionBar className="pt-1" />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2292,18 +2322,9 @@ export default function GamePage() {
         })()}
 
         {/* Hot takes for this round */}
-        {roundConfessions.length > 0 && (
-          <div>
-            <p className="text-muted text-xs uppercase tracking-wider mb-2">🔥 Hot Takes</p>
-            <div className="space-y-2">
-              {roundConfessions.map((c) => (
-                <div key={c.id} className="glass-card px-4 py-3">
-                  <p className="text-body-muted text-sm italic">&ldquo;{c.text}&rdquo;</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <ConfessionsTicker confessions={roundConfessions} />
+
+        <ReactionBar className="pt-1" />
 
         <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-[var(--primary)]' : 'text-faint'}`}>
           {roundResultsWaitMessage({
@@ -2453,6 +2474,8 @@ function FinalResultsView({
                 : ''}
         </p>
       </div>
+
+      <ShareResults game={game} participants={participants} votes={votes} rounds={rounds} players={players} />
 
       {isWst && wstScores.length > 0 && (
         <PaginatedLeaderboard
