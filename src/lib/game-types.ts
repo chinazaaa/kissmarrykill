@@ -371,7 +371,7 @@ export function gameHowItWorks(
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
     case 'hot_seat':
-      return "Upload everyone's names on the next step. Players claim their name when joining — each round one person is in the hot seat and everyone else anonymously submits one thing about them."
+      return "Upload everyone's names on the next step. Players claim their name when joining. One round per player who joins — you set a max cap; the host lobby shows the final count."
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'

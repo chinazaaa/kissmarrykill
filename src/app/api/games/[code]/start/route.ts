@@ -15,6 +15,7 @@ import {
   isWhoSaidThis,
   isHotSeat,
 } from '@/lib/game-types'
+import { hotSeatEffectiveRounds, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
 import { buildRoundsFromQuotePool, buildRoundsFromAnimePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
@@ -61,14 +62,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isHotSeat(gameType)) {
     const claimed = playersData.filter((p) => p.participant_id)
-    if (claimed.length < 3) {
+    if (claimed.length < HOT_SEAT_MIN_PLAYERS) {
       return NextResponse.json(
-        { error: 'Need at least 3 players who claimed a name from the list' },
+        { error: `Need at least ${HOT_SEAT_MIN_PLAYERS} players who claimed a name from the list` },
         { status: 400 }
       )
     }
 
-    const roundsCount = Math.min(game.rounds_count, claimed.length)
+    const roundsCount = hotSeatEffectiveRounds(claimed.length, game.rounds_count)
     const shuffled = [...claimed].sort(() => Math.random() - 0.5)
 
     const roundRows = shuffled.slice(0, roundsCount).map((hotSeatPlayer, index) => ({

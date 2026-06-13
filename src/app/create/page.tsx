@@ -56,6 +56,11 @@ import { GameTypeModal } from '@/components/GameTypeModal'
 import { GameTypeCard } from '@/components/GameTypeCard'
 import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/components/ui/PageShell'
 import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGrid } from '@/components/ui/CreateWizard'
+import {
+  hotSeatMaxRoundOptions,
+  HOT_SEAT_MAX_ROUNDS_CAP,
+  HOT_SEAT_MIN_PLAYERS,
+} from '@/lib/hot-seat'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useToast } from '@/components/ui/Toast'
 
@@ -127,7 +132,12 @@ function CreateGameInner() {
         game_type: type,
         ...(isLobbyGame(type) ? { participant_mode: 'joiners', anonymous: true } : {}),
         ...(isWhoSaidThis(type) || isHotSeat(type)
-          ? { participant_mode: 'import' as const, anonymous: true, participant_filter: 'joined' as const }
+          ? {
+              participant_mode: 'import' as const,
+              anonymous: true,
+              participant_filter: 'joined' as const,
+              ...(isHotSeat(type) ? { rounds_count: HOT_SEAT_MAX_ROUNDS_CAP } : {}),
+            }
           : {}),
       }))
     }
@@ -157,16 +167,16 @@ function CreateGameInner() {
   const mltRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
   const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
   const wstRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= Math.max(participants.length, 2))
-  const hotSeatRoundOptions = [2, 3, 4, 5, 6, 8, 10].filter((n) => n <= Math.max(participants.length, 3))
+  const hotSeatMaxOptions = hotSeatMaxRoundOptions(
+    Math.max(participants.length, HOT_SEAT_MIN_PLAYERS)
+  )
   const roundOptions = isWyr
     ? wyrRoundOptions
     : isMlt
       ? mltRoundOptions
       : isWst
         ? wstRoundOptions
-        : isHotSeatGame
-          ? hotSeatRoundOptions
-          : [2, 3, 4, 5, 6, 8, 10]
+        : [2, 3, 4, 5, 6, 8, 10]
   const hasEnoughCustomQuestions =
     questionSource === 'platform' ||
     (isLobbyQuestions && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
@@ -193,7 +203,12 @@ function CreateGameInner() {
       game_type: type,
       ...(isLobbyGame(type) ? { participant_mode: 'joiners', anonymous: true } : {}),
       ...(isWhoSaidThis(type) || isHotSeat(type)
-        ? { participant_mode: 'import' as const, anonymous: true, participant_filter: 'joined' as const }
+        ? {
+            participant_mode: 'import' as const,
+            anonymous: true,
+            participant_filter: 'joined' as const,
+            ...(isHotSeat(type) ? { rounds_count: HOT_SEAT_MAX_ROUNDS_CAP } : {}),
+          }
         : {}),
     })
   }
@@ -509,6 +524,25 @@ function CreateGameInner() {
                         : 'Rounds are automatic — one turn per player who joins and claims their name. The count updates in the host lobby as people join.'}
                   </p>
                 </div>
+              ) : isHotSeatGame ? (
+                <Field label="Max rounds">
+                  <p className="text-faint text-xs mb-2">
+                    One hot seat turn per player who joins and claims a name. The actual round count is set
+                    automatically in the lobby — this is the cap.
+                  </p>
+                  <ChipGrid>
+                    {hotSeatMaxOptions.map((n) => (
+                      <Chip
+                        key={n}
+                        active={settings.rounds_count === n}
+                        onClick={() => setSettings((prev) => ({ ...prev, rounds_count: n }))}
+                        className="!px-0 w-full"
+                      >
+                        {n}
+                      </Chip>
+                    ))}
+                  </ChipGrid>
+                </Field>
               ) : (
                 <Field label="Rounds">
                   {isLobbyQuestions && questionSource === 'custom' && customQuestionCount === 0 && (

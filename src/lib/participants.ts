@@ -8,6 +8,7 @@ import {
   isNameOnlyPlayerJoin,
   parseGameType,
 } from '@/lib/game-types'
+import { HOT_SEAT_MIN_PLAYERS, HOT_SEAT_MAX_ROUNDS_CAP } from '@/lib/hot-seat'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import type { GameType, ParticipantMode } from '@/types'
@@ -210,7 +211,7 @@ export function countByGender(participants: ParticipantInput[]): Record<Particip
 
 export function hasEnoughForRounds(participants: ParticipantInput[], gameType?: GameType | string): boolean {
   if (isWouldYouRather(gameType)) return true
-  if (isHotSeat(gameType)) return participants.length >= 3
+  if (isHotSeat(gameType)) return participants.length >= HOT_SEAT_MIN_PLAYERS
   if (isMostLikelyTo(gameType)) return participants.length >= roundPoolSize(gameType)
   if (isWhoSaidThis(gameType)) return participants.length >= 2
   const min = roundPoolSize(gameType)
@@ -231,7 +232,7 @@ export function kmkRoundPickerOptions(maxRounds: number): number[] {
 /** Max rounds before the same names repeat heavily. */
 export function maxRecommendedRounds(participants: ParticipantInput[], gameType?: GameType | string): number {
   if (isWouldYouRather(gameType)) return Math.min(20, WYR_QUESTION_COUNT)
-  if (isHotSeat(gameType)) return participants.length >= 3 ? Math.min(20, participants.length) : 0
+  if (isHotSeat(gameType)) return participants.length >= HOT_SEAT_MIN_PLAYERS ? HOT_SEAT_MAX_ROUNDS_CAP : 0
   if (isMostLikelyTo(gameType)) return Math.min(20, MLT_QUESTION_COUNT)
   if (isWhoSaidThis(gameType)) return Math.min(20, Math.max(participants.length, 2))
   const perRound = roundPoolSize(gameType)
@@ -251,8 +252,8 @@ export function roundLimitHint(participants: ParticipantInput[], gameType?: Game
     return `${WYR_QUESTION_COUNT} questions available → up to ${Math.min(20, WYR_QUESTION_COUNT)} rounds`
   }
   if (isHotSeat(gameType)) {
-    if (participants.length < 3) return null
-    return `${participants.length} players → up to ${Math.min(20, participants.length)} rounds`
+    if (participants.length < HOT_SEAT_MIN_PLAYERS) return null
+    return `Up to ${participants.length} rounds (one per player who joins) — set a max cap below`
   }
   if (isMostLikelyTo(gameType)) {
     return `${MLT_QUESTION_COUNT} prompts available → up to ${Math.min(20, MLT_QUESTION_COUNT)} rounds`
