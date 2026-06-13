@@ -4,6 +4,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import { roundGenderLabel } from '@/lib/participants'
+import { tallyRoundVotes, VOTE_CATEGORY_META } from '@/lib/vote-stats'
+import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
@@ -478,7 +480,7 @@ export default function GamePage() {
     return (
       <CenteredCard>
         <div className="text-center space-y-1">
-          <div className="text-4xl">❤️💍🔥</div>
+          <div className="text-4xl">❤️💍💀</div>
           <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
           <p className="text-muted text-sm">{game?.rounds_count} rounds · {game?.timer_seconds}s each</p>
         </div>
@@ -650,7 +652,7 @@ export default function GamePage() {
               )}
               {myVote.kill_participant_id && (
                 <span className="text-red-300 text-sm font-medium">
-                  🔥 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}
+                  💀 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}
                 </span>
               )}
             </div>
@@ -658,46 +660,65 @@ export default function GamePage() {
         )}
 
         {/* Per-person vote counts */}
-        <div className="space-y-3">
-          {roundParts.map((p) => {
-            const k = lastRoundVotes.filter((v) => v.kiss_participant_id  === p.id).length
-            const m = lastRoundVotes.filter((v) => v.marry_participant_id === p.id).length
-            const d = lastRoundVotes.filter((v) => v.kill_participant_id  === p.id).length
-            const total = lastRoundVotes.length || 1
+        {(() => {
+          const tallies = tallyRoundVotes(
+            roundParts.map((p) => p.id),
+            lastRoundVotes
+          )
+          const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
+          const voterCount = lastRoundVotes.length
 
-            const myAction =
-              myVote?.kiss_participant_id  === p.id ? 'kiss'  :
-              myVote?.marry_participant_id === p.id ? 'marry' :
-              myVote?.kill_participant_id  === p.id ? 'kill'  : null
+          return (
+            <ParticipantRoundResults
+              tallies={tallies}
+              nameById={nameById}
+              voterCount={voterCount}
+              renderCard={({ tally, name, maxes, isWinner }) => {
+                const myAction =
+                  myVote?.kiss_participant_id  === tally.id ? 'kiss'  :
+                  myVote?.marry_participant_id === tally.id ? 'marry' :
+                  myVote?.kill_participant_id  === tally.id ? 'kill'  : null
 
-            const borderCls =
-              myAction === 'kiss'  ? 'border-pink-500/40'  :
-              myAction === 'marry' ? 'border-amber-500/40' :
-              myAction === 'kill'  ? 'border-red-500/40'   : 'border-white/10'
+                const borderCls =
+                  myAction === 'kiss'  ? 'border-pink-500/40'  :
+                  myAction === 'marry' ? 'border-amber-500/40' :
+                  myAction === 'kill'  ? 'border-red-500/40'   : 'border-white/10'
 
-            return (
-              <div key={p.id} className={`glass-card border-2 ${borderCls} rounded-2xl p-4`}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="avatar w-10 h-10 text-lg shrink-0">
-                    {getInitial(p.name)}
+                return (
+                  <div key={tally.id} className={`glass-card border-2 ${borderCls} rounded-2xl p-4`}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="avatar w-10 h-10 text-lg shrink-0">
+                        {getInitial(name)}
+                      </div>
+                      <p className="text-white font-bold text-lg">{name}</p>
+                      {myAction && (
+                        <span className="ml-auto text-xs text-muted italic">
+                          you: {myAction === 'kiss' ? '❤️' : myAction === 'marry' ? '💍' : '💀'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(['kiss', 'marry', 'smash'] as const).map((category) => {
+                        const meta = VOTE_CATEGORY_META[category]
+                        return (
+                          <VoteCountStat
+                            key={category}
+                            emoji={meta.emoji}
+                            label={meta.label}
+                            count={tally[category]}
+                            max={maxes[category]}
+                            color={meta.color}
+                            isWinner={isWinner(category)}
+                          />
+                        )
+                      })}
+                    </div>
                   </div>
-                  <p className="text-white font-bold text-lg">{p.name}</p>
-                  {myAction && (
-                    <span className="ml-auto text-xs text-muted italic">
-                      you: {myAction === 'kiss' ? '❤️' : myAction === 'marry' ? '💍' : '🔥'}
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <VoteStat emoji="❤️" label="Kiss"  count={k} total={total} color="#f472b6" />
-                  <VoteStat emoji="💍" label="Marry" count={m} total={total} color="#fbbf24" />
-                  <VoteStat emoji="🔥" label="Smash" count={d} total={total} color="#f87171" />
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                )
+              }}
+            />
+          )
+        })()}
 
         {/* Hot takes for this round */}
         {roundConfessions.length > 0 && (
@@ -745,7 +766,7 @@ export default function GamePage() {
 const ACTION_CONFIG = {
   kiss:  { emoji: '❤️', label: 'Kiss',  border: 'border-[var(--kiss)]/50 bg-[var(--kiss)]/10',  active: 'bg-[var(--kiss)]/20 text-rose-200 border-[var(--kiss)]'  },
   marry: { emoji: '💍', label: 'Marry', border: 'border-[var(--marry)]/50 bg-[var(--marry)]/10', active: 'bg-[var(--marry)]/20 text-amber-100 border-[var(--marry)]' },
-  kill:  { emoji: '🔥', label: 'Smash', border: 'border-[var(--kill)]/50 bg-[var(--kill)]/10',  active: 'bg-[var(--kill)]/20 text-red-200 border-[var(--kill)]'   },
+  kill:  { emoji: '💀', label: 'Smash', border: 'border-[var(--kill)]/50 bg-[var(--kill)]/10',  active: 'bg-[var(--kill)]/20 text-red-200 border-[var(--kill)]'   },
 }
 
 function ParticipantCard({ participant, action, onAssign, disabled }: {
@@ -809,21 +830,6 @@ function TimerDisplay({ seconds, total }: { seconds: number; total: number }) {
   )
 }
 
-function VoteStat({ emoji, label, count, total, color }: {
-  emoji: string; label: string; count: number; total: number; color: string
-}) {
-  const pct = total > 0 ? Math.min((count / total) * 100, 100) : 0
-  return (
-    <div className="text-center">
-      <p className="text-base">{emoji} <span className="text-white font-bold">{count}</span></p>
-      <p className="text-faint text-xs">{label}</p>
-      <div className="h-1.5 bg-white/8 rounded-full mt-1.5 overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
-      </div>
-    </div>
-  )
-}
-
 function FinalResultsView({ game, participants, rounds, votes, confessions, players, myPlayerId }: {
   game: Game
   participants: Participant[]
@@ -859,7 +865,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
         <div className="grid grid-cols-3 gap-3">
           <LeaderCard emoji="💍" label="Most Married" name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
           <LeaderCard emoji="❤️" label="Most Kissed"  name={mostKissed?.name}  count={mostKissed?.kissCount}  color="pink"  />
-          <LeaderCard emoji="🔥" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red"   />
+          <LeaderCard emoji="💀" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red"   />
         </div>
       </div>
 
@@ -877,30 +883,50 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
                 <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
                 {myVote.kiss_participant_id  && <span className="text-pink-300 text-sm">❤️ {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}</span>}
                 {myVote.marry_participant_id && <span className="text-amber-300 text-sm">💍 {participants.find((p) => p.id === myVote.marry_participant_id)?.name}</span>}
-                {myVote.kill_participant_id  && <span className="text-red-300 text-sm">🔥 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
+                {myVote.kill_participant_id  && <span className="text-red-300 text-sm">💀 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
               </div>
             )}
-            <div className="space-y-2">
-              {roundParts.map((p) => {
-                const k = roundVotes.filter((v) => v.kiss_participant_id  === p.id).length
-                const m = roundVotes.filter((v) => v.marry_participant_id === p.id).length
-                const d = roundVotes.filter((v) => v.kill_participant_id  === p.id).length
-                return (
-                  <div key={p.id} className="glass-card p-4">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="avatar w-8 h-8 shrink-0">
-                        {getInitial(p.name)}
-                      </div>
-                      <p className="text-white font-bold">{p.name}</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <VoteStat emoji="❤️" label="Kiss"  count={k} total={roundVotes.length || 1} color="#f472b6" />
-                      <VoteStat emoji="💍" label="Marry" count={m} total={roundVotes.length || 1} color="#fbbf24" />
-                      <VoteStat emoji="🔥" label="Smash" count={d} total={roundVotes.length || 1} color="#f87171" />
-                    </div>
-                  </div>
+            <div className="space-y-4">
+              {(() => {
+                const tallies = tallyRoundVotes(
+                  roundParts.map((p) => p.id),
+                  roundVotes
                 )
-              })}
+                const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
+                return (
+                  <ParticipantRoundResults
+                    tallies={tallies}
+                    nameById={nameById}
+                    voterCount={roundVotes.length}
+                    renderCard={({ tally, name, maxes, isWinner }) => (
+                      <div key={tally.id} className="glass-card p-4">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="avatar w-8 h-8 shrink-0">
+                            {getInitial(name)}
+                          </div>
+                          <p className="text-white font-bold">{name}</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['kiss', 'marry', 'smash'] as const).map((category) => {
+                            const meta = VOTE_CATEGORY_META[category]
+                            return (
+                              <VoteCountStat
+                                key={category}
+                                emoji={meta.emoji}
+                                label={meta.label}
+                                count={tally[category]}
+                                max={maxes[category]}
+                                color={meta.color}
+                                isWinner={isWinner(category)}
+                              />
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  />
+                )
+              })()}
             </div>
           </div>
         )

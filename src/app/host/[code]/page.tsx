@@ -4,6 +4,8 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import { roundGenderLabel } from '@/lib/participants'
+import { tallyRoundVotes, VOTE_CATEGORY_META } from '@/lib/vote-stats'
+import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
 
 export default function HostPage() {
@@ -537,7 +539,7 @@ export default function HostPage() {
                     <div className="flex gap-3 text-sm">
                       <span className="text-pink-400">❤️ {k}</span>
                       <span className="text-amber-400">💍 {m}</span>
-                      <span className="text-red-400">🔥 {d}</span>
+                      <span className="text-red-400">💀 {d}</span>
                     </div>
                   </div>
                 )
@@ -580,29 +582,47 @@ export default function HostPage() {
           <p className="text-muted text-sm mt-1">Players can see these results on their screens</p>
         </div>
 
-        <div className="space-y-3">
-          {roundParts.map((p) => {
-            const k = roundVotes.filter((v) => v.kiss_participant_id  === p.id).length
-            const m = roundVotes.filter((v) => v.marry_participant_id === p.id).length
-            const d = roundVotes.filter((v) => v.kill_participant_id  === p.id).length
-            const total = roundVotes.length || 1
-            return (
-              <div key={p.id} className="glass-card p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="avatar w-9 h-9 shrink-0">
-                    {getInitial(p.name)}
+        {(() => {
+          const tallies = tallyRoundVotes(
+            roundParts.map((p) => p.id),
+            roundVotes
+          )
+          const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
+
+          return (
+            <ParticipantRoundResults
+              tallies={tallies}
+              nameById={nameById}
+              voterCount={roundVotes.length}
+              renderCard={({ tally, name, maxes, isWinner }) => (
+                <div key={tally.id} className="glass-card p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="avatar w-9 h-9 shrink-0">
+                      {getInitial(name)}
+                    </div>
+                    <p className="text-white font-bold text-lg">{name}</p>
                   </div>
-                  <p className="text-white font-bold text-lg">{p.name}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['kiss', 'marry', 'smash'] as const).map((category) => {
+                      const meta = VOTE_CATEGORY_META[category]
+                      return (
+                        <VoteCountStat
+                          key={category}
+                          emoji={meta.emoji}
+                          label={meta.label}
+                          count={tally[category]}
+                          max={maxes[category]}
+                          color={meta.color}
+                          isWinner={isWinner(category)}
+                        />
+                      )
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <MiniStat emoji="❤️" label="Kiss"  count={k} total={total} color="#f472b6" />
-                  <MiniStat emoji="💍" label="Marry" count={m} total={total} color="#fbbf24" />
-                  <MiniStat emoji="🔥" label="Smash" count={d} total={total} color="#f87171" />
-                </div>
-              </div>
-            )
-          })}
-        </div>
+              )}
+            />
+          )
+        })()}
 
         {roundConfessions.length > 0 && (
           <div>
@@ -656,6 +676,9 @@ export default function HostPage() {
     const mostMarried = [...tally].sort((a, b) => b.marryCount - a.marryCount)[0]
     const mostKissed  = [...tally].sort((a, b) => b.kissCount  - a.kissCount)[0]
     const mostSmashed = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
+    const maxKiss = Math.max(1, ...tally.map((p) => p.kissCount))
+    const maxMarry = Math.max(1, ...tally.map((p) => p.marryCount))
+    const maxSmash = Math.max(1, ...tally.map((p) => p.killCount))
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -669,7 +692,7 @@ export default function HostPage() {
         <div className="grid grid-cols-3 gap-3">
           <StatCard emoji="💍" label="Most Married" name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
           <StatCard emoji="❤️" label="Most Kissed"  name={mostKissed?.name}  count={mostKissed?.kissCount}  color="pink" />
-          <StatCard emoji="🔥" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red" />
+          <StatCard emoji="💀" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red" />
         </div>
 
         {/* Full breakdown */}
@@ -683,9 +706,9 @@ export default function HostPage() {
                 <p className="text-white font-bold text-lg">{p.name}</p>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <MiniStat emoji="❤️" label="Kiss"  count={p.kissCount}  total={players.length} color="#f472b6" />
-                <MiniStat emoji="💍" label="Marry" count={p.marryCount} total={players.length} color="#fbbf24" />
-                <MiniStat emoji="🔥" label="Smash" count={p.killCount}  total={players.length} color="#f87171" />
+                <VoteCountStat emoji="❤️" label="Kiss" count={p.kissCount} max={maxKiss} color="#f472b6" isWinner={p.kissCount === maxKiss && maxKiss > 0} />
+                <VoteCountStat emoji="💍" label="Marry" count={p.marryCount} max={maxMarry} color="#fbbf24" isWinner={p.marryCount === maxMarry && maxMarry > 0} />
+                <VoteCountStat emoji="💀" label="Smash" count={p.killCount} max={maxSmash} color="#f87171" isWinner={p.killCount === maxSmash && maxSmash > 0} />
               </div>
             </div>
           ))}
@@ -740,19 +763,6 @@ function StatCard({ emoji, label, name, count, color }: { emoji: string; label: 
       <p className="text-muted text-xs mt-1 leading-tight">{label}</p>
       <p className="text-white font-bold text-sm mt-1 truncate">{name ?? '—'}</p>
       {count !== undefined && <p className="text-muted text-xs">{count}v</p>}
-    </div>
-  )
-}
-
-function MiniStat({ emoji, label, count, total, color }: { emoji: string; label: string; count: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.min((count / total) * 100, 100) : 0
-  return (
-    <div className="text-center">
-      <p className="text-sm">{emoji} <span className="text-white font-bold">{count}</span></p>
-      <p className="text-faint text-xs">{label}</p>
-      <div className="h-1 bg-white/8 rounded-full mt-1.5 overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-      </div>
     </div>
   )
 }
