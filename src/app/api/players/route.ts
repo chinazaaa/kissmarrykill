@@ -8,7 +8,7 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  const { gameCode, playerName, gender: rawGender } = await req.json()
+  const { gameCode, playerName, gender: rawGender, pollGender: rawPollGender } = await req.json()
 
   if (!gameCode || !playerName?.trim()) {
     return NextResponse.json({ error: 'gameCode and playerName are required' }, { status: 400 })
@@ -43,9 +43,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (game.participant_mode === 'joiners') {
-    if (gender === 'both') {
+    const pollGender =
+      gender === 'both' ? normalizeGender(String(rawPollGender ?? '')) : gender
+    if (!pollGender) {
       return NextResponse.json(
-        { error: 'Pick male or female to join the game — both is for voters only' },
+        { error: gender === 'both' ? 'Pick which poll you appear in (male or female)' : 'Please select male or female' },
         { status: 400 }
       )
     }
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
       .insert({
         game_id: id,
         name,
-        gender,
+        gender: pollGender,
         display_order: displayOrder,
       })
       .select()

@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import { roundGenderLabel, playerGenderLabel, getRoundParticipantGender, canPlayerVoteInRound, eligibleVotersForRound, roundVoterLabel, spectatorMessage } from '@/lib/participants'
-import type { PlayerGender } from '@/types'
+import type { ParticipantGender, PlayerGender } from '@/types'
 import { tallyRoundVotes, VOTE_CATEGORY_META, ASSIGNMENT_ACTION_META, assignmentEmoji } from '@/lib/vote-stats'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
@@ -44,7 +44,12 @@ export default function GamePage() {
   const [myPlayerGender, setMyPlayerGender] = useState<PlayerGender | null>(null)
   const [nameInput, setNameInput] = useState('')
   const [joinGender, setJoinGender] = useState<PlayerGender>('female')
+  const [joinPollGender, setJoinPollGender] = useState<ParticipantGender>('female')
   const [joining, setJoining] = useState(false)
+
+  const isJoinersMode = game?.participant_mode === 'joiners'
+  const joinPollGenderForBallot: ParticipantGender =
+    joinGender === 'both' ? joinPollGender : joinGender
 
   // ── Refs that are always up-to-date (avoid stale closures in timer/auto-submit) ──
   const submittedRef = useRef(false)
@@ -465,7 +470,12 @@ export default function GamePage() {
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerName: nameInput.trim(), gender: joinGender }),
+        body: JSON.stringify({
+          gameCode,
+          playerName: nameInput.trim(),
+          gender: joinGender,
+          ...(isJoinersMode && joinGender === 'both' ? { pollGender: joinPollGender } : {}),
+        }),
       })
       const data = await res.json()
       if (data.playerId) {
@@ -523,10 +533,8 @@ export default function GamePage() {
             className={inputCls}
           />
           <div>
-            <p className="text-faint text-xs mb-2 text-center">
-              {game?.participant_mode === 'joiners' ? 'I am (for the poll)' : 'I am'}
-            </p>
-            <div className={`flex gap-2 ${game?.participant_mode !== 'joiners' ? 'flex-wrap' : ''}`}>
+            <p className="text-faint text-xs mb-2 text-center">I am</p>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setJoinGender('female')}
@@ -541,23 +549,42 @@ export default function GamePage() {
               >
                 Male
               </button>
-              {game?.participant_mode !== 'joiners' && (
-                <button
-                  type="button"
-                  onClick={() => setJoinGender('both')}
-                  className={`flex-1 chip min-w-[5rem] ${joinGender === 'both' ? 'chip-active' : ''}`}
-                >
-                  Both
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setJoinGender('both')}
+                className={`flex-1 chip min-w-[5rem] ${joinGender === 'both' ? 'chip-active' : ''}`}
+              >
+                Both
+              </button>
             </div>
           </div>
+          {isJoinersMode && joinGender === 'both' && (
+            <div>
+              <p className="text-faint text-xs mb-2 text-center">I appear in the</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setJoinPollGender('female')}
+                  className={`flex-1 chip ${joinPollGender === 'female' ? 'chip-active' : ''}`}
+                >
+                  Women&apos;s poll
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setJoinPollGender('male')}
+                  className={`flex-1 chip ${joinPollGender === 'male' ? 'chip-active' : ''}`}
+                >
+                  Men&apos;s poll
+                </button>
+              </div>
+            </div>
+          )}
           <p className="text-faint text-xs text-center">
-            {game?.participant_mode === 'joiners'
-              ? `You'll vote on the ${joinGender === 'male' ? "women's" : "men's"} polls only`
-              : joinGender === 'both'
-                ? "You'll vote on every round — men's and women's polls"
-                : `You'll vote on the ${joinGender === 'male' ? "women's" : "men's"} polls only`}
+            {joinGender === 'both'
+              ? isJoinersMode
+                ? `You'll vote on every round — your name appears in the ${joinPollGenderForBallot === 'male' ? "men's" : "women's"} poll`
+                : "You'll vote on every round — men's and women's polls"
+              : `You'll vote on the ${joinGender === 'male' ? "women's" : "men's"} polls only${isJoinersMode ? ` — your name appears in the ${joinGender === 'male' ? "men's" : "women's"} poll` : ''}`}
           </p>
           <button onClick={joinGame} disabled={!nameInput.trim() || joining} className={primaryBtnCls}>
             {joining ? 'Joining...' : 'Join Game'}
