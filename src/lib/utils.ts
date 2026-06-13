@@ -1,4 +1,5 @@
 import type { PlayerGender } from '@/types'
+import { parsePlayerGenderFromDb } from '@/lib/participants'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -115,7 +116,8 @@ export function getPlayerSession(gameCode: string): {
     const parsed = JSON.parse(raw)
     if (!parsed?.playerId || !parsed?.playerName) return null
     const g = parsed.playerGender
-    const playerGender: PlayerGender = g === 'male' || g === 'both' ? g : 'female'
+    const playerGender = parsePlayerGenderFromDb(g)
+    if (!playerGender) return null
     return { playerId: parsed.playerId, playerName: parsed.playerName, playerGender }
   } catch {
     return null
@@ -133,6 +135,11 @@ export function setPlayerSession(
     `kmk_player_${gameCode.toUpperCase()}`,
     JSON.stringify({ playerId, playerName, playerGender })
   )
+}
+
+export function clearPlayerSession(gameCode: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(`kmk_player_${gameCode.toUpperCase()}`)
 }
 
 export function getInitial(name: string): string {

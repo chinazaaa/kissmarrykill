@@ -36,7 +36,12 @@ export interface Player {
   id: string
   game_id: string
   name: string
+  /** Who can vote: opposite-gender rule; `both` = every round. */
   gender: PlayerGender
+  /** Male or female — shown in lobby, separate from vote preference. */
+  identity_gender: ParticipantGender | null
+  /** Import mode: which list name was claimed. */
+  participant_id: string | null
   joined_at: string
 }
 

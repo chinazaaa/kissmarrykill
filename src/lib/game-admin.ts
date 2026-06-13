@@ -1,0 +1,49 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
+
+export async function assertHostGame(
+  supabase: SupabaseClient,
+  gameCode: string,
+  hostToken: string
+) {
+  const id = gameCode.toUpperCase()
+  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
+  if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
+  if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
+  if (game.status !== 'waiting') {
+    return { error: 'Game has already started', status: 400 as const, game: null, id }
+  }
+  return { error: null, status: 200 as const, game, id }
+}
+
+export async function findJoinerParticipant(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerName: string
+) {
+  const { data } = await supabase
+    .from('participants')
+    .select('*')
+    .eq('game_id', gameId)
+    .eq('name', playerName)
+    .maybeSingle()
+  return data
+}
+
+export async function deleteJoinerPair(
+  supabase: SupabaseClient,
+  gameId: string,
+  player: { id: string; name: string }
+) {
+  await supabase.from('participants').delete().eq('game_id', gameId).eq('name', player.name)
+  await supabase.from('players').delete().eq('id', player.id)
+}
+
+export function pollGenderForPlayer(
+  voteGender: 'male' | 'female' | 'both',
+  rawPollGender: string | undefined,
+  fallback: ParticipantGender
+): ParticipantGender | null {
+  if (voteGender === 'both') return normalizeGender(String(rawPollGender ?? ''))
+  return voteGender
+}

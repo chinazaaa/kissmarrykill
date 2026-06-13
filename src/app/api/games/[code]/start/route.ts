@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateRoundsByGender } from '@/lib/utils'
+import { hasVotersForPolls, parseParticipantGenderFromDb, participantsWhoJoined } from '@/lib/participants'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,25 +19,51 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: participantsData } = await supabase
     .from('participants')
-    .select('id, gender')
+    .select('id, gender, name')
     .eq('game_id', code.toUpperCase())
     .order('display_order')
 
   if (!participantsData || participantsData.length < 3) {
-    return NextResponse.json({ error: 'Need at least 3 participants' }, { status: 400 })
+    return NextResponse.json({ error: 'Need at least 3 names on the list' }, { status: 400 })
   }
 
-  const participants = participantsData.map((p) => ({
+  const { data: playersData } = await supabase
+    .from('players')
+    .select('gender, participant_id, name')
+    .eq('game_id', code.toUpperCase())
+
+  if (!playersData?.length) {
+    return NextResponse.json({ error: 'Need at least one player to start' }, { status: 400 })
+  }
+
+  const isImportMode = (game.participant_mode ?? 'import') === 'import'
+  const roundPool = isImportMode
+    ? participantsWhoJoined(participantsData, playersData)
+    : participantsData
+
+  if (roundPool.length < 3) {
+    return NextResponse.json(
+      { error: 'Need at least 3 people to join before starting — only joined names appear in rounds' },
+      { status: 400 }
+    )
+  }
+
+  const participants = roundPool.map((p) => ({
     id: p.id,
-    gender: p.gender === 'male' ? 'male' as const : 'female' as const,
+    gender: parseParticipantGenderFromDb(p.gender) ?? ('female' as const),
   }))
 
   const trios = generateRoundsByGender(participants, game.rounds_count)
   if (trios.length === 0) {
     return NextResponse.json(
-      { error: 'Need at least 3 people of the same gender to start' },
+      { error: 'Need at least 3 joined people of the same gender to start' },
       { status: 400 }
     )
+  }
+
+  const voterCheck = hasVotersForPolls(participants, playersData)
+  if (!voterCheck.ok) {
+    return NextResponse.json({ error: voterCheck.message }, { status: 400 })
   }
 
   const now = new Date().toISOString()

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { canPlayerVoteInRound, getRoundParticipantGender } from '@/lib/participants'
-import type { ParticipantGender } from '@/types'
+import { canPlayerVoteInRound, getRoundParticipantGender, parsePlayerGenderFromDb } from '@/lib/participants'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,12 +31,14 @@ export async function POST(req: NextRequest) {
     round.participant_ids,
     (participants ?? []).map((p) => ({
       id: p.id,
-      gender: p.gender as ParticipantGender,
+      gender: p.gender,
     }))
   )
 
-  const playerGender =
-    player.gender === 'male' ? 'male' : player.gender === 'both' ? 'both' : 'female'
+  const playerGender = parsePlayerGenderFromDb(player.gender)
+  if (!playerGender) {
+    return NextResponse.json({ error: 'Invalid player gender' }, { status: 400 })
+  }
 
   if (roundGender && !canPlayerVoteInRound(playerGender, roundGender)) {
     return NextResponse.json(

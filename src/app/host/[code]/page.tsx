@@ -3,7 +3,8 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
-import { roundGenderLabel, genderLabel, playerGenderLabel, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel, hasEnoughForRounds, countByGender } from '@/lib/participants'
+import { roundGenderLabel, genderLabel, resolvePlayerIdentity, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel, hasEnoughForRounds, countByGender, hasVotersForPolls, participantsWhoJoined } from '@/lib/participants'
+import type { ParticipantGender } from '@/types'
 import { tallyRoundVotes, VOTE_CATEGORY_META } from '@/lib/vote-stats'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
@@ -32,6 +33,7 @@ export default function HostPage() {
   const [ending, setEnding] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
+  const [adminBusy, setAdminBusy] = useState<string | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
@@ -159,10 +161,34 @@ export default function HostPage() {
           setPlayers((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p])
         }
       )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.new as Player
+          setPlayers((prev) => prev.map((x) => x.id === p.id ? p : x))
+        }
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.old as Player
+          setPlayers((prev) => prev.filter((x) => x.id !== p.id))
+        }
+      )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const p = payload.new as Participant
           setParticipants((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p])
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.new as Participant
+          setParticipants((prev) => prev.map((x) => x.id === p.id ? p : x))
+        }
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.old as Participant
+          setParticipants((prev) => prev.filter((x) => x.id !== p.id))
         }
       )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `game_id=eq.${gameCode}` },
@@ -384,6 +410,98 @@ export default function HostPage() {
     navigator.clipboard.writeText(url).catch(() => null)
   }
 
+  async function refreshLobbyLists() {
+    const [{ data: plrs }, { data: parts }] = await Promise.all([
+      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+    ])
+    if (plrs) setPlayers(plrs)
+    if (parts) setParticipants(parts)
+  }
+
+  async function hostUpdateParticipant(participantId: string, gender: ParticipantGender) {
+    setAdminBusy(participantId)
+    try {
+      const res = await fetch('/api/participants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, hostToken, participantId, gender }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to update')
+        return
+      }
+      await refreshLobbyLists()
+    } finally {
+      setAdminBusy(null)
+    }
+  }
+
+  async function hostRemoveParticipant(participantId: string, name: string) {
+    if (!confirm(`Remove ${name} from the list?`)) return
+    setAdminBusy(participantId)
+    try {
+      const res = await fetch('/api/participants', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, hostToken, participantId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to remove')
+        return
+      }
+      await refreshLobbyLists()
+    } finally {
+      setAdminBusy(null)
+    }
+  }
+
+  async function hostUpdatePlayerIdentity(playerId: string, identityGender: ParticipantGender) {
+    setAdminBusy(playerId)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameCode,
+          hostToken,
+          playerId,
+          identityGender,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to update')
+        return
+      }
+      await refreshLobbyLists()
+    } finally {
+      setAdminBusy(null)
+    }
+  }
+
+  async function hostRemovePlayer(playerId: string, name: string) {
+    if (!confirm(`Remove ${name}?`)) return
+    setAdminBusy(playerId)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, hostToken, playerId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to remove')
+        return
+      }
+      await refreshLobbyLists()
+    } finally {
+      setAdminBusy(null)
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -411,12 +529,21 @@ export default function HostPage() {
   // ── WAITING ───────────────────────────────────────────────────────────────
   if (game?.status === 'waiting') {
     const isJoinersMode = (game.participant_mode ?? 'import') === 'joiners'
-    const participantInputs = participants.map((p) => ({ name: p.name, gender: p.gender }))
+    const roundParticipants = isJoinersMode
+      ? participants
+      : participantsWhoJoined(participants, players)
+    const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
-    const canStart =
-      players.length > 0 &&
-      participants.length >= 3 &&
-      hasEnoughForRounds(participantInputs)
+    const voterCheck = hasVotersForPolls(roundParticipants, players)
+    const canStart = isJoinersMode
+      ? players.length > 0 &&
+        participants.length >= 3 &&
+        hasEnoughForRounds(participantInputs) &&
+        voterCheck.ok
+      : players.length > 0 &&
+        roundParticipants.length >= 3 &&
+        hasEnoughForRounds(participantInputs) &&
+        voterCheck.ok
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -450,24 +577,116 @@ export default function HostPage() {
             </p>
             <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">{players.length}</span>
           </div>
-          {players.length === 0 ? (
-            <p className="text-faint text-sm">
-              {isJoinersMode ? 'Waiting for people to join...' : 'Waiting for players to join...'}
+          {!isJoinersMode && (
+            <p className="text-faint text-xs">
+              {roundParticipants.length} of {participants.length} on the list have joined — only joined names appear in rounds
             </p>
+          )}
+          {!isJoinersMode && (
+            <p className="text-faint text-xs">Tap Male/Female to fix identity · Remove to kick someone out</p>
+          )}
+          {isJoinersMode && participants.length > 0 && (
+            <p className="text-faint text-xs">Tap to fix poll placement or gender · Remove to kick out</p>
+          )}
+          {isJoinersMode ? (
+            participants.length === 0 ? (
+              <p className="text-faint text-sm">Waiting for people to join...</p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {participants.map((part) => {
+                  const player = players.find((p) => p.name === part.name)
+                  if (!player) return null
+                  const busy = adminBusy === part.id || adminBusy === player.id
+                  const identity = resolvePlayerIdentity(player, participants)
+                  return (
+                    <div key={part.id} className="surface-inset border border-white/8 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="avatar w-6 h-6 text-xs shrink-0">{getInitial(part.name)}</div>
+                        <span className="text-white/90 text-sm font-medium truncate flex-1">{part.name}</span>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => hostRemoveParticipant(part.id, part.name)}
+                          className="text-red-400/80 text-xs shrink-0 hover:text-red-300 disabled:opacity-40"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        <span className="text-[10px] uppercase text-faint w-10 shrink-0">Poll</span>
+                        {(['female', 'male'] as const).map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            disabled={busy}
+                            onClick={() => hostUpdateParticipant(part.id, g)}
+                            className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                              part.gender === g ? 'chip-active' : 'chip'
+                            }`}
+                          >
+                            {g === 'male' ? 'Men' : 'Women'}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        <span className="text-[10px] uppercase text-faint w-10 shrink-0">Gender</span>
+                        {(['female', 'male'] as const).map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            disabled={busy}
+                            onClick={() => hostUpdatePlayerIdentity(player.id, g)}
+                            className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                              identity === g ? 'chip-active' : 'chip'
+                            }`}
+                          >
+                            {genderLabel(g)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          ) : players.length === 0 ? (
+            <p className="text-faint text-sm">Waiting for players to join...</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {players.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 min-w-0">
-                  <div className="avatar w-6 h-6 text-xs shrink-0">
-                    {getInitial(p.name)}
-                  </div>
+            <div className="space-y-2 max-h-52 overflow-y-auto">
+              {players.map((p) => {
+                const identity = resolvePlayerIdentity(p, participants)
+                return (
+                <div key={p.id} className="flex items-center gap-2 min-w-0 surface-inset border border-white/8 rounded-xl px-3 py-2">
+                  <div className="avatar w-6 h-6 text-xs shrink-0">{getInitial(p.name)}</div>
                   <span className="text-white/80 text-sm truncate flex-1">{p.name}</span>
-                  <span className="text-[9px] uppercase text-faint shrink-0">{playerGenderLabel(p.gender)}</span>
+                  <div className="flex gap-1 shrink-0">
+                    {(['female', 'male'] as const).map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        disabled={adminBusy === p.id}
+                        onClick={() => hostUpdatePlayerIdentity(p.id, g)}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                          identity === g ? 'chip-active' : 'chip'
+                        }`}
+                      >
+                        {g === 'male' ? 'M' : 'F'}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={adminBusy === p.id}
+                    onClick={() => hostRemovePlayer(p.id, p.name)}
+                    className="text-red-400/80 text-xs shrink-0 hover:text-red-300 disabled:opacity-40"
+                  >
+                    Remove
+                  </button>
                 </div>
-              ))}
+              )})}
             </div>
           )}
-          {isJoinersMode && players.length > 0 && (
+          {isJoinersMode && participants.length > 0 && (
             <p className="text-faint text-xs text-center">
               {genderCounts.female} female · {genderCounts.male} male
             </p>
@@ -477,17 +696,49 @@ export default function HostPage() {
               Need at least 3 people of the same gender to start
             </p>
           )}
+          {!voterCheck.ok && players.length > 0 && roundParticipants.length >= 3 && (
+            <p className="text-amber-200/90 text-xs text-center">{voterCheck.message}</p>
+          )}
+          {!isJoinersMode && roundParticipants.length < 3 && players.length > 0 && (
+            <p className="text-amber-200/90 text-xs text-center">
+              Need at least 3 people to join before starting ({roundParticipants.length}/3 joined)
+            </p>
+          )}
         </div>
 
         {/* Participants preview (import mode only) */}
         {!isJoinersMode && (
-        <div className="glass-card p-4 space-y-2">
+        <div className="glass-card p-4 space-y-3">
           <p className="text-muted text-xs uppercase tracking-wider">On the list ({participants.length})</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="text-faint text-xs">Tap gender to correct · Remove if someone shouldn&apos;t be in the poll</p>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
             {participants.map((p) => (
-              <span key={p.id} className="surface-inset border border-white/8 text-white/80 text-sm px-3 py-1 rounded-full">
-                {p.name}
-              </span>
+              <div key={p.id} className="flex items-center gap-2 min-w-0 surface-inset border border-white/8 rounded-xl px-3 py-2">
+                <span className="text-white/80 text-sm truncate flex-1">{p.name}</span>
+                <div className="flex gap-1 shrink-0">
+                  {(['female', 'male'] as const).map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      disabled={adminBusy === p.id}
+                      onClick={() => hostUpdateParticipant(p.id, g)}
+                      className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                        p.gender === g ? 'chip-active' : 'chip'
+                      }`}
+                    >
+                      {g === 'male' ? 'M' : 'F'}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  disabled={adminBusy === p.id}
+                  onClick={() => hostRemoveParticipant(p.id, p.name)}
+                  className="text-red-400/80 text-xs shrink-0 hover:text-red-300 disabled:opacity-40"
+                >
+                  Remove
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -507,7 +758,11 @@ export default function HostPage() {
                   : 'Need 3+ of one gender to start'
                 : players.length === 0
                   ? 'Waiting for players...'
-                  : 'Need 3+ participants on the list'
+                  : roundParticipants.length < 3
+                    ? `Need ${3 - roundParticipants.length} more to join (${roundParticipants.length}/3)`
+                  : !voterCheck.ok
+                    ? 'Need voters for each list'
+                  : 'Need 3+ joined of one gender'
               : `Start Game (${players.length} players)`}
         </button>
       </div>

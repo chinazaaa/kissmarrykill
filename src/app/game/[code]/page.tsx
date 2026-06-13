@@ -1,13 +1,14 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getPlayerSession, setPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
-import { roundGenderLabel, playerGenderLabel, getRoundParticipantGender, canPlayerVoteInRound, eligibleVotersForRound, roundVoterLabel, spectatorMessage } from '@/lib/participants'
+import { getPlayerSession, setPlayerSession, clearPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
+import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, eligibleVotersForRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, playerGenderFromJoin, joinChoicesFromPlayerGender, joinGenderHint } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
 import { tallyRoundVotes, VOTE_CATEGORY_META, ASSIGNMENT_ACTION_META, assignmentEmoji } from '@/lib/vote-stats'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
+import { NameSearchPicker } from '@/components/NameSearchPicker'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
@@ -43,15 +44,69 @@ export default function GamePage() {
   const [myPlayerName, setMyPlayerName] = useState<string | null>(null)
   const [myPlayerGender, setMyPlayerGender] = useState<PlayerGender | null>(null)
   const [nameInput, setNameInput] = useState('')
-  const [joinGender, setJoinGender] = useState<PlayerGender>('female')
+  const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
+  const [joinIdentityGender, setJoinIdentityGender] = useState<ParticipantGender>('female')
+  const [voteBothGenders, setVoteBothGenders] = useState(false)
   const [joinPollGender, setJoinPollGender] = useState<ParticipantGender>('female')
   const [joining, setJoining] = useState(false)
+  const [editingJoin, setEditingJoin] = useState(false)
 
   const isJoinersMode = game?.participant_mode === 'joiners'
-  const joinPollGenderForBallot: ParticipantGender =
-    joinGender === 'both' ? joinPollGender : joinGender
+  const joinPlayerGender: PlayerGender = playerGenderFromJoin(joinIdentityGender, voteBothGenders)
 
-  // ── Refs that are always up-to-date (avoid stale closures in timer/auto-submit) ──
+  const setJoinIdentity = (gender: ParticipantGender) => {
+    setJoinIdentityGender(gender)
+    if (isJoinersMode && !voteBothGenders) setJoinPollGender(gender)
+  }
+
+  const namePickerOptions = useMemo(() => {
+    if (isJoinersMode) return []
+    const claimedParticipantIds = new Set(
+      players
+        .filter((p) => p.id !== myPlayerId && p.participant_id)
+        .map((p) => p.participant_id as string)
+    )
+    const takenNames = new Set(
+      players.filter((p) => p.id !== myPlayerId).map((p) => p.name.toLowerCase())
+    )
+    return participants
+      .filter(
+        (p) =>
+          !claimedParticipantIds.has(p.id) &&
+          !takenNames.has(p.name.toLowerCase())
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        subtitle: genderLabel(p.gender),
+      }))
+  }, [isJoinersMode, participants, players, myPlayerId])
+
+  const handleSelectParticipant = (id: string, name: string) => {
+    setSelectedParticipantId(id)
+    setNameInput(name)
+    const p = participants.find((x) => x.id === id)
+    if (p && !isJoinersMode) {
+      setJoinIdentityGender(p.gender)
+      setVoteBothGenders(false)
+      setJoinPollGender(p.gender)
+    }
+  }
+
+  const canSubmitJoin = isJoinersMode
+    ? nameInput.trim().length > 0
+    : selectedParticipantId !== null
+
+  // If someone else claims this name while you're still on the join screen, clear your pick
+  useEffect(() => {
+    if (isJoinersMode || view !== 'join' || !selectedParticipantId) return
+    const stillAvailable = namePickerOptions.some((o) => o.id === selectedParticipantId)
+    if (!stillAvailable) {
+      setSelectedParticipantId(null)
+      setNameInput('')
+    }
+  }, [namePickerOptions, selectedParticipantId, isJoinersMode, view])
   const submittedRef = useRef(false)
   const assignmentRef = useRef(assignment)
   assignmentRef.current = assignment
@@ -170,8 +225,11 @@ export default function GamePage() {
           setGame(newGame)
 
           if (newGame.status === 'active' && myPlayerIdRef.current) {
-            const { data: activeRound } = await supabase
-              .from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle()
+            const [{ data: activeRound }, { data: parts }] = await Promise.all([
+              supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+              supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+            ])
+            if (parts) setParticipants(parts)
             if (activeRound) {
               setCurrentRound(activeRound)
               submittedRef.current = false
@@ -192,9 +250,12 @@ export default function GamePage() {
 
       // First round is inserted (not updated) when the host starts the game
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
+        async (payload) => {
           const round = payload.new as Round
           if (round.status === 'active' && myPlayerIdRef.current) {
+            const { data: parts } = await supabase
+              .from('participants').select('*').eq('game_id', gameCode).order('display_order')
+            if (parts) setParticipants(parts)
             setCurrentRound(round)
             submittedRef.current = false
             setSubmitted(false)
@@ -258,6 +319,43 @@ export default function GamePage() {
           setPlayers((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p])
         }
       )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.new as Player
+          setPlayers((prev) => prev.map((x) => x.id === p.id ? p : x))
+          if (p.id === myPlayerIdRef.current) {
+            setMyPlayerName(p.name)
+            setMyPlayerGender(p.gender)
+            setPlayerSession(gameCode, p.id, p.name, p.gender)
+          }
+        }
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.old as Player
+          setPlayers((prev) => prev.filter((x) => x.id !== p.id))
+          if (p.id === myPlayerIdRef.current) {
+            clearPlayerSession(gameCode)
+            setMyPlayerId(null)
+            setMyPlayerName(null)
+            setMyPlayerGender(null)
+            setEditingJoin(false)
+            setView('join')
+          }
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.new as Participant
+          setParticipants((prev) => prev.map((x) => x.id === p.id ? p : x))
+        }
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.old as Participant
+          setParticipants((prev) => prev.filter((x) => x.id !== p.id))
+        }
+      )
 
       // New confession (live hot takes)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'confessions', filter: `game_id=eq.${gameCode}` },
@@ -274,9 +372,9 @@ export default function GamePage() {
     return () => { supabase.removeChannel(ch) }
   }, [gameCode])
 
-  // Poll lobby while waiting — fallback if realtime is slow or unavailable
+  // Poll lobby / join — keep claimed names in sync if realtime is slow
   useEffect(() => {
-    if (view !== 'waiting') return
+    if (view !== 'waiting' && view !== 'join') return
 
     async function refreshLobby() {
       const [{ data: plrs }, { data: gameData }] = await Promise.all([
@@ -286,7 +384,7 @@ export default function GamePage() {
       if (plrs) setPlayers(plrs)
       if (gameData) setGame(gameData)
 
-      if (gameData?.status === 'active' && myPlayerIdRef.current) {
+      if (view === 'waiting' && gameData?.status === 'active' && myPlayerIdRef.current) {
         const { data: activeRound } = await supabase
           .from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle()
         if (activeRound) {
@@ -362,7 +460,8 @@ export default function GamePage() {
   useEffect(() => {
     if (!myPlayerId) return
     const me = players.find((p) => p.id === myPlayerId)
-    if (me?.gender) setMyPlayerGender(me.gender)
+    const parsed = me ? parsePlayerGenderFromDb(me.gender) : null
+    if (parsed) setMyPlayerGender(parsed)
   }, [myPlayerId, players])
 
   // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
@@ -380,7 +479,7 @@ export default function GamePage() {
         currentRound.participant_ids,
         participantsRef.current
       )
-      const playerGender = myPlayerGenderRef.current
+      const playerGender = myPlayerGenderRef.current ?? getPlayerSession(gameCode)?.playerGender ?? null
       const canVote =
         !!roundGender &&
         !!playerGender &&
@@ -464,18 +563,27 @@ export default function GamePage() {
   }
 
   const joinGame = async () => {
-    if (joining || !nameInput.trim()) return
+    if (joining) return
+    if (isJoinersMode ? !nameInput.trim() : !selectedParticipantId) return
     setJoining(true)
     try {
+      const body = {
+        gameCode,
+        playerName: nameInput.trim(),
+        gender: joinPlayerGender,
+        identityGender: joinIdentityGender,
+        ...(!isJoinersMode && selectedParticipantId ? { participantId: selectedParticipantId } : {}),
+        ...(isJoinersMode && voteBothGenders ? { pollGender: joinPollGender } : {}),
+      }
+
       const res = await fetch('/api/players', {
-        method: 'POST',
+        method: editingJoin && myPlayerId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameCode,
-          playerName: nameInput.trim(),
-          gender: joinGender,
-          ...(isJoinersMode && joinGender === 'both' ? { pollGender: joinPollGender } : {}),
-        }),
+        body: JSON.stringify(
+          editingJoin && myPlayerId
+            ? { ...body, playerId: myPlayerId }
+            : body
+        ),
       })
       const data = await res.json()
       if (data.playerId) {
@@ -483,12 +591,72 @@ export default function GamePage() {
         setMyPlayerId(data.playerId)
         setMyPlayerName(data.playerName)
         setMyPlayerGender(data.playerGender)
-        const { data: plrs } = await supabase
-          .from('players').select('*').eq('game_id', gameCode).order('joined_at')
+        setEditingJoin(false)
+        const [{ data: plrs }, { data: parts }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+        ])
         setPlayers(plrs || [])
+        setParticipants(parts || [])
         setView('waiting')
       } else {
-        alert(data.error || 'Failed to join')
+        const msg = data.error ?? 'Failed to join'
+        alert(msg.toLowerCase().includes('taken') ? 'That name was just taken — pick another' : msg)
+      }
+    } finally {
+      setJoining(false)
+    }
+  }
+
+  const openEditJoin = () => {
+    const gender = myPlayerGender ?? getPlayerSession(gameCode)?.playerGender ?? 'female'
+    const me = players.find((p) => p.id === myPlayerId)
+    const { identity, voteBoth } = joinChoicesFromPlayerGender(
+      gender,
+      me?.identity_gender ?? undefined
+    )
+    setNameInput(myPlayerName ?? '')
+    const part =
+      participants.find((p) => p.id === me?.participant_id) ??
+      participants.find((p) => p.name === myPlayerName)
+    setSelectedParticipantId(part?.id ?? null)
+    setJoinIdentityGender(me?.identity_gender ?? part?.gender ?? identity)
+    setVoteBothGenders(voteBoth)
+    setJoinPollGender(part?.gender ?? identity)
+    setEditingJoin(true)
+    setView('join')
+  }
+
+  const cancelEditJoin = () => {
+    setEditingJoin(false)
+    if (myPlayerId) setView('waiting')
+  }
+
+  const leaveGame = async () => {
+    if (!myPlayerId || joining) return
+    if (!confirm('Leave this game? You can rejoin with a new name or gender.')) return
+    setJoining(true)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, playerId: myPlayerId }),
+      })
+      if (res.ok) {
+        clearPlayerSession(gameCode)
+        setMyPlayerId(null)
+        setMyPlayerName(null)
+        setMyPlayerGender(null)
+        setNameInput('')
+        setSelectedParticipantId(null)
+        setJoinIdentityGender('female')
+        setVoteBothGenders(false)
+        setJoinPollGender('female')
+        setEditingJoin(false)
+        setView('join')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to leave')
       }
     } finally {
       setJoining(false)
@@ -520,47 +688,62 @@ export default function GamePage() {
         </div>
         <div className="space-y-4">
           <p className="text-muted font-medium text-center">
-            {game?.participant_mode === 'joiners'
-              ? 'Join the game — your name goes in the poll'
-              : 'Enter your name and gender to vote'}
+            {editingJoin
+              ? 'Update your name or vote preference'
+              : isJoinersMode
+                ? 'Join the game — your name goes in the poll'
+                : 'Select your name from the list'}
           </p>
-          <input
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && joinGame()}
-            placeholder="Your name"
-            autoFocus
-            className={inputCls}
-          />
+          {isJoinersMode ? (
+            <input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && canSubmitJoin && joinGame()}
+              placeholder="Your name"
+              autoFocus
+              className={inputCls}
+            />
+          ) : (
+            <NameSearchPicker
+              options={namePickerOptions}
+              valueId={selectedParticipantId}
+              onChange={handleSelectParticipant}
+              searchPlaceholder="Search your name…"
+              emptyMessage={namePickerOptions.length === 0 ? 'All names have been claimed' : 'No names match your search'}
+            />
+          )}
           <div>
             <p className="text-faint text-xs mb-2 text-center">I am</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setJoinGender('female')}
-                className={`flex-1 chip min-w-[5rem] ${joinGender === 'female' ? 'chip-active' : ''}`}
-              >
-                Female
-              </button>
-              <button
-                type="button"
-                onClick={() => setJoinGender('male')}
-                className={`flex-1 chip min-w-[5rem] ${joinGender === 'male' ? 'chip-active' : ''}`}
-              >
-                Male
-              </button>
-              <button
-                type="button"
-                onClick={() => setJoinGender('both')}
-                className={`flex-1 chip min-w-[5rem] ${joinGender === 'both' ? 'chip-active' : ''}`}
-              >
-                Both
-              </button>
+            <div className="flex gap-2">
+              {(['female', 'male'] as const).map((gender) => (
+                <button
+                  key={gender}
+                  type="button"
+                  onClick={() => setJoinIdentity(gender)}
+                  className={`flex-1 chip ${joinIdentityGender === gender ? 'chip-active' : ''}`}
+                >
+                  {genderLabel(gender)}
+                </button>
+              ))}
             </div>
           </div>
-          {isJoinersMode && joinGender === 'both' && (
+          <label className="flex items-start gap-3 surface-inset border border-white/10 rounded-xl px-4 py-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={voteBothGenders}
+              onChange={(e) => setVoteBothGenders(e.target.checked)}
+              className="mt-0.5 accent-[var(--primary)]"
+            />
+            <span className="text-sm text-white/85 leading-snug">
+              Vote on both genders
+              <span className="block text-faint text-xs mt-0.5">
+                You&apos;ll vote on men&apos;s and women&apos;s rounds
+              </span>
+            </span>
+          </label>
+          {isJoinersMode && voteBothGenders && (
             <div>
-              <p className="text-faint text-xs mb-2 text-center">I appear in the</p>
+              <p className="text-faint text-xs mb-2 text-center">Your name appears in the</p>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -580,15 +763,18 @@ export default function GamePage() {
             </div>
           )}
           <p className="text-faint text-xs text-center">
-            {joinGender === 'both'
-              ? isJoinersMode
-                ? `You'll vote on every round — your name appears in the ${joinPollGenderForBallot === 'male' ? "men's" : "women's"} poll`
-                : "You'll vote on every round — men's and women's polls"
-              : `You'll vote on the ${joinGender === 'male' ? "women's" : "men's"} polls only${isJoinersMode ? ` — your name appears in the ${joinGender === 'male' ? "men's" : "women's"} poll` : ''}`}
+            {joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode, joinPollGender)}
           </p>
-          <button onClick={joinGame} disabled={!nameInput.trim() || joining} className={primaryBtnCls}>
-            {joining ? 'Joining...' : 'Join Game'}
+          <button onClick={joinGame} disabled={!canSubmitJoin || joining} className={primaryBtnCls}>
+            {joining
+              ? editingJoin ? 'Saving...' : 'Joining...'
+              : editingJoin ? 'Save changes' : 'Join Game'}
           </button>
+          {editingJoin ? (
+            <button type="button" onClick={cancelEditJoin} className="w-full text-faint text-sm hover:text-white transition-colors">
+              Cancel
+            </button>
+          ) : null}
         </div>
       </CenteredCard>
     )
@@ -613,11 +799,19 @@ export default function GamePage() {
                   {p.name}{p.name === myPlayerName ? ' (you)' : ''}
                 </span>
                 <span className="text-[10px] uppercase tracking-wider text-faint shrink-0">
-                  {playerGenderLabel(p.gender)}
+                  {playerIdentityLabel(p, participants)}
                 </span>
               </div>
             ))}
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <button type="button" onClick={openEditJoin} className="btn-secondary text-sm py-2.5">
+            Change name or gender
+          </button>
+          <button type="button" onClick={leaveGame} disabled={joining} className="text-faint text-xs hover:text-red-300 transition-colors">
+            Leave game
+          </button>
         </div>
         <p className="text-faint text-xs text-center">Keep this tab open</p>
       </CenteredCard>
@@ -630,11 +824,13 @@ export default function GamePage() {
     const roundParticipantGender = getRoundParticipantGender(currentRound.participant_ids, participants)
     const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
     const voterHint = roundVoterLabel(roundParticipantGender)
+    const effectiveGender = myPlayerGender ?? getPlayerSession(gameCode)?.playerGender ?? null
     const canVote = !!(
-      myPlayerGender &&
+      effectiveGender &&
       roundParticipantGender &&
-      canPlayerVoteInRound(myPlayerGender, roundParticipantGender)
+      canPlayerVoteInRound(effectiveGender, roundParticipantGender)
     )
+    const voteBanner = canVote ? activeVoteBanner(effectiveGender) : null
     const allAssigned = !!(assignment.kiss && assignment.marry && assignment.kill)
 
     return (
@@ -653,6 +849,9 @@ export default function GamePage() {
             {voterHint && (
               <p className="text-muted text-xs mt-0.5">{voterHint}</p>
             )}
+            {voteBanner && (
+              <p className="text-green-400/90 text-xs font-medium mt-1">{voteBanner}</p>
+            )}
           </div>
           {canVote ? (
             <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
@@ -665,7 +864,7 @@ export default function GamePage() {
 
         {!canVote && (
           <div className="glass-card border border-white/12 px-4 py-3 mb-4 text-center">
-            <p className="text-white/90 text-sm">{spectatorMessage(roundParticipantGender)}</p>
+            <p className="text-white/90 text-sm">{spectatorMessage(roundParticipantGender, effectiveGender)}</p>
           </div>
         )}
 

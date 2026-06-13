@@ -89,13 +89,129 @@ export function normalizePlayerGender(raw: string): PlayerGender | null {
   return normalizeGender(raw)
 }
 
+/** Read participant gender from DB / realtime payloads (handles casing and aliases). */
+export function parseParticipantGenderFromDb(raw: unknown): ParticipantGender | null {
+  if (raw === 'male' || raw === 'female') return raw
+  return normalizeGender(String(raw ?? ''))
+}
+
+/** Read player gender from DB / realtime payloads. */
+export function parsePlayerGenderFromDb(raw: unknown): PlayerGender | null {
+  if (raw === 'male' || raw === 'female' || raw === 'both') return raw
+  return normalizePlayerGender(String(raw ?? ''))
+}
+
+/** Which list this player votes on (opposite-gender rule). */
+export type VoteTarget = 'women' | 'men' | 'both'
+
+export function playerGenderForVoteTarget(target: VoteTarget): PlayerGender {
+  if (target === 'women') return 'male'
+  if (target === 'men') return 'female'
+  return 'both'
+}
+
+export function voteTargetForPlayerGender(gender: PlayerGender): VoteTarget {
+  if (gender === 'male') return 'women'
+  if (gender === 'female') return 'men'
+  return 'both'
+}
+
+export function voteTargetLabel(target: VoteTarget): string {
+  if (target === 'women') return "Women's list"
+  if (target === 'men') return "Men's list"
+  return 'Both lists'
+}
+
+export function voteTargetHint(target: VoteTarget, isJoinersMode: boolean, pollGender?: ParticipantGender): string {
+  if (target === 'both') {
+    return isJoinersMode
+      ? `You vote on every list — your name appears in the ${pollGender === 'male' ? "men's" : "women's"} poll`
+      : 'You vote on both the men\'s and women\'s lists each round'
+  }
+  const voteList = voteTargetLabel(target)
+  if (!isJoinersMode) return `You'll vote on the ${voteList.toLowerCase()} each round`
+  const poll = target === 'women' ? "men's" : "women's"
+  return `You'll vote on the ${voteList.toLowerCase()} — your name appears in the ${poll} poll`
+}
+
+/** Default ballot gender in joiners mode for a vote target. */
+export function defaultPollGenderForVoteTarget(target: VoteTarget): ParticipantGender {
+  if (target === 'women') return 'male'
+  if (target === 'men') return 'female'
+  return 'female'
+}
+
 export function genderLabel(gender: ParticipantGender): string {
   return gender === 'male' ? 'Male' : 'Female'
 }
 
 export function playerGenderLabel(gender: PlayerGender): string {
-  if (gender === 'both') return 'Both'
+  if (gender === 'both') return 'Both genders'
   return genderLabel(gender)
+}
+
+export function resolvePlayerIdentity(
+  player: {
+    gender: PlayerGender | string
+    identity_gender?: ParticipantGender | string | null
+    name: string
+  },
+  participants?: { name: string; gender: ParticipantGender }[]
+): ParticipantGender {
+  const stored = parseParticipantGenderFromDb(player.identity_gender)
+  if (stored) return stored
+  const vote = parsePlayerGenderFromDb(player.gender)
+  if (vote && vote !== 'both') return vote
+  const part = participants?.find((p) => p.name === player.name)
+  if (part) return part.gender
+  return 'female'
+}
+
+export function playerIdentityLabel(
+  player: {
+    gender: PlayerGender | string
+    identity_gender?: ParticipantGender | string | null
+    name: string
+  },
+  participants?: { name: string; gender: ParticipantGender }[]
+): string {
+  return genderLabel(resolvePlayerIdentity(player, participants))
+}
+
+export function playerGenderFromJoin(identity: ParticipantGender, voteBoth: boolean): PlayerGender {
+  return voteBoth ? 'both' : identity
+}
+
+export function joinChoicesFromPlayerGender(
+  gender: PlayerGender,
+  identityGender?: ParticipantGender | null
+): {
+  identity: ParticipantGender
+  voteBoth: boolean
+} {
+  if (gender === 'both') {
+    return { identity: identityGender ?? 'female', voteBoth: true }
+  }
+  return { identity: gender, voteBoth: false }
+}
+
+export function joinGenderHint(
+  identity: ParticipantGender,
+  voteBoth: boolean,
+  isJoinersMode: boolean,
+  pollGender?: ParticipantGender
+): string {
+  if (voteBoth) {
+    return isJoinersMode
+      ? `You'll vote every round — your name is in the ${pollGender === 'male' ? "men's" : "women's"} poll`
+      : "You'll vote on both men's and women's rounds"
+  }
+  const opposite = identity === 'male' ? "women's" : "men's"
+  if (!isJoinersMode) {
+    return `${genderLabel(identity)} — you vote on the ${opposite} rounds`
+  }
+  const poll = identity === 'male' ? "men's" : "women's"
+  return `${genderLabel(identity)} — you vote on ${opposite} rounds, your name is in the ${poll} poll`
 }
 
 export function roundGenderLabel(genders: ParticipantGender[]): string | null {
@@ -106,11 +222,14 @@ export function roundGenderLabel(genders: ParticipantGender[]): string | null {
 
 export function getRoundParticipantGender(
   participantIds: string[],
-  participants: { id: string; gender: ParticipantGender }[]
+  participants: { id: string; gender: ParticipantGender | string }[]
 ): ParticipantGender | null {
   const genders = participantIds
-    .map((id) => participants.find((p) => p.id === id)?.gender)
-    .filter((g): g is ParticipantGender => g === 'male' || g === 'female')
+    .map((id) => {
+      const p = participants.find((item) => item.id === id)
+      return p ? parseParticipantGenderFromDb(p.gender) : null
+    })
+    .filter((g): g is ParticipantGender => g !== null)
   const unique = [...new Set(genders)]
   if (unique.length !== 1) return null
   return unique[0]
@@ -129,25 +248,84 @@ export function voterGenderForRound(roundGender: ParticipantGender): Participant
   return roundGender === 'male' ? 'female' : 'male'
 }
 
-export function eligibleVotersForRound<T extends { id: string; gender: PlayerGender }>(
+export function eligibleVotersForRound<T extends { id: string; gender: PlayerGender | string }>(
   roundGender: ParticipantGender | null,
   players: T[]
 ): T[] {
-  if (!roundGender) return players
-  return players.filter((p) => canPlayerVoteInRound(p.gender, roundGender))
+  if (!roundGender) return []
+  return players.filter((p) => {
+    const g = parsePlayerGenderFromDb(p.gender)
+    return g && canPlayerVoteInRound(g, roundGender)
+  })
 }
 
 export function roundVoterLabel(roundGender: ParticipantGender | null): string | null {
-  if (roundGender === 'male') return 'Women & both vote on the men'
-  if (roundGender === 'female') return 'Men & both vote on the women'
+  if (roundGender === 'male') return "Men's list — women & both vote now"
+  if (roundGender === 'female') return "Women's list — men & both vote now"
   return null
+}
+
+export function activeVoteBanner(playerGender: PlayerGender | null | undefined): string | null {
+  if (!playerGender) return null
+  if (playerGender === 'both') return 'You vote on both genders'
+  return `You're voting this round`
 }
 
 export function spectatorMessage(roundGender: ParticipantGender | null, playerGender?: PlayerGender | null): string {
   if (playerGender === 'both') return ''
-  if (roundGender === 'male') return "This is the men's poll — you're watching this round."
-  if (roundGender === 'female') return "This is the women's poll — you're watching this round."
-  return "You're spectating this round."
+  if (!roundGender || !playerGender) return "You're spectating this round."
+  if (playerGender === roundGender) {
+    const thisRound = roundGender === 'male' ? "men's" : "women's"
+    return `This is the ${thisRound} round — as ${genderLabel(playerGender).toLowerCase()} you sit this one out.`
+  }
+  return ''
+}
+
+/** Import mode: only participants claimed by a joined player can appear in rounds. */
+export function participantsWhoJoined<T extends { id: string; name: string }>(
+  participants: T[],
+  players: { participant_id?: string | null; name: string }[]
+): T[] {
+  const claimedIds = new Set<string>()
+  const claimedNames = new Set<string>()
+
+  for (const player of players) {
+    if (player.participant_id) claimedIds.add(player.participant_id)
+    if (player.name) claimedNames.add(player.name.toLowerCase())
+  }
+
+  return participants.filter(
+    (p) => claimedIds.has(p.id) || claimedNames.has(p.name.toLowerCase())
+  )
+}
+
+/** Every poll gender needs at least one eligible voter before the game starts. */
+export function hasVotersForPolls(
+  participants: { gender: ParticipantGender | string }[],
+  players: { gender: PlayerGender | string }[]
+): { ok: boolean; message?: string } {
+  const pollGenders = new Set<ParticipantGender>()
+  for (const p of participants) {
+    const g = parseParticipantGenderFromDb(p.gender)
+    if (g) pollGenders.add(g)
+  }
+
+  for (const pollGender of pollGenders) {
+    const voters = players.filter((p) => {
+      const g = parsePlayerGenderFromDb(p.gender)
+      return g && canPlayerVoteInRound(g, pollGender)
+    })
+    if (voters.length === 0) {
+      const list = pollGender === 'male' ? "men's" : "women's"
+      const need = pollGender === 'male' ? "women's" : "men's"
+      return {
+        ok: false,
+        message: `No one can vote on the ${list} list — need someone voting on the ${need} list (or Both)`,
+      }
+    }
+  }
+
+  return { ok: true }
 }
 
 export function participantsInGenderRounds<T extends { id: string; gender: ParticipantGender }>(

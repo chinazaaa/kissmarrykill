@@ -42,13 +42,19 @@ create table if not exists players (
   game_id text not null references games(id) on delete cascade,
   name text not null,
   gender text not null default 'female' check (gender in ('male', 'female', 'both')),
+  identity_gender text check (identity_gender in ('male', 'female')),
+  participant_id uuid references participants(id) on delete set null,
   joined_at timestamptz not null default now()
 );
 create index if not exists idx_players_game_id on players(game_id);
+create unique index if not exists idx_players_participant_claim on players(game_id, participant_id) where participant_id is not null;
 
 -- If upgrading an existing database, run:
 -- alter table players drop constraint if exists players_gender_check;
 -- alter table players add constraint players_gender_check check (gender in ('male', 'female', 'both'));
+-- alter table players add column if not exists identity_gender text check (identity_gender in ('male', 'female'));
+-- alter table players add column if not exists participant_id uuid references participants(id) on delete set null;
+-- create unique index if not exists idx_players_participant_claim on players(game_id, participant_id) where participant_id is not null;
 
 -- Rounds
 create table if not exists rounds (
