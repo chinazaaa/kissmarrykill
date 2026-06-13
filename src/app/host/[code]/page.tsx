@@ -64,6 +64,7 @@ export default function HostPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
   const autoFinishTriggeredRef = useRef(false)
+  const autoAdvanceScheduledRef = useRef<string | null>(null)
 
   const betweenRounds =
     game?.status === 'active' && !currentRound && !!lastFinishedRound
@@ -163,6 +164,7 @@ export default function HostPage() {
     setVotes([])
     setConfessions([])
     autoFinishTriggeredRef.current = false
+    autoAdvanceScheduledRef.current = null
     advancingRef.current = false
     setEnding(false)
     setAdvancing(false)
@@ -358,9 +360,17 @@ export default function HostPage() {
 
   // Auto-advance: start the next round if the host doesn't within 30s
   useEffect(() => {
-    if (game?.status !== 'active' || currentRound || !lastFinishedRound || advancing) return
+    if (currentRound) {
+      autoAdvanceScheduledRef.current = null
+      return
+    }
+    if (game?.status !== 'active' || !lastFinishedRound || advancingRef.current) return
     const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
     if (isLastRound) return
+
+    const roundKey = lastFinishedRound.id
+    if (autoAdvanceScheduledRef.current === roundKey) return
+    autoAdvanceScheduledRef.current = roundKey
 
     const delay = msUntilDeadline(lastFinishedRound.ended_at, ROUND_RESULTS_AUTO_ADVANCE_SECONDS)
     const timer = setTimeout(() => {
@@ -375,7 +385,6 @@ export default function HostPage() {
     currentRound?.id,
     lastFinishedRound?.id,
     lastFinishedRound?.ended_at,
-    advancing,
   ])
 
   // ── Timer (host) ──────────────────────────────────────────────────────────
@@ -484,7 +493,8 @@ export default function HostPage() {
   }
 
   const handleNextRound = async () => {
-    if (advancing) return
+    if (advancingRef.current) return
+    advancingRef.current = true
     setAdvancing(true)
     try {
       const res = await fetch(`/api/games/${gameCode}/next-round`, {
@@ -492,15 +502,26 @@ export default function HostPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hostToken }),
       })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const d = await res.json()
-        toast.error(d.error || 'Failed to start next round')
+        const msg = typeof data.error === 'string' ? data.error : 'Failed to start next round'
+        if (res.status === 400 && msg.includes('must be ended')) {
+          await syncGameState()
+        } else {
+          toast.error(msg)
+          autoAdvanceScheduledRef.current = null
+        }
+        advancingRef.current = false
         setAdvancing(false)
         return
       }
       await syncGameState()
+      autoAdvanceScheduledRef.current = null
+      advancingRef.current = false
       setAdvancing(false)
     } catch {
+      autoAdvanceScheduledRef.current = null
+      advancingRef.current = false
       setAdvancing(false)
     }
   }
