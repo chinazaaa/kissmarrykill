@@ -176,6 +176,51 @@ export function generatePairRounds(participantIds: string[], roundCount: number)
   return rounds
 }
 
+/** Generate rounds with N participants each (for custom games with 2-5 slots). */
+export function generateNRounds(
+  participantIds: string[],
+  roundCount: number,
+  poolSize: number,
+): string[][] {
+  if (participantIds.length < poolSize || poolSize < 2) return []
+
+  const rounds: string[][] = []
+  const appearances = new Map<string, number>()
+  for (const id of participantIds) appearances.set(id, 0)
+  const seen = new Set<string>()
+
+  for (let r = 0; r < roundCount; r++) {
+    const sorted = [...participantIds].sort((a, b) => {
+      const diff = (appearances.get(a) ?? 0) - (appearances.get(b) ?? 0)
+      if (diff !== 0) return diff
+      return Math.random() - 0.5
+    })
+
+    const group = sorted.slice(0, poolSize)
+    const key = [...group].sort().join(',')
+
+    if (seen.has(key) && r < roundCount - 1) {
+      const shuffled = [...participantIds].sort(() => Math.random() - 0.5)
+      const alt = shuffled.slice(0, poolSize)
+      const altKey = [...alt].sort().join(',')
+      if (!seen.has(altKey)) {
+        group.length = 0
+        group.push(...alt)
+      }
+    }
+
+    const finalKey = [...group].sort().join(',')
+    seen.add(finalKey)
+    rounds.push(group)
+
+    for (const id of group) {
+      appearances.set(id, (appearances.get(id) ?? 0) + 1)
+    }
+  }
+
+  return rounds
+}
+
 export type ParticipantForRounds = { id: string; gender: 'male' | 'female' }
 
 /** Each round uses same-gender people; alternates when both pools qualify. */
