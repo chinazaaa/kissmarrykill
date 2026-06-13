@@ -517,7 +517,7 @@ function CreateGameInner() {
                       <Chip
                         key={n}
                         active={settings.rounds_count === n}
-                        onClick={() => setSettings({ ...settings, rounds_count: n })}
+                        onClick={() => setSettings((prev) => ({ ...prev, rounds_count: n }))}
                         className="!px-0 w-full"
                       >
                         {n}

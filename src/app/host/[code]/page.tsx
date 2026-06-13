@@ -826,6 +826,8 @@ export default function HostPage() {
 
   async function hostUpdateRounds(roundsCount: number) {
     if (updatingRounds || game?.rounds_count === roundsCount) return
+    const previousCount = game!.rounds_count
+    setGame((g) => (g ? { ...g, rounds_count: roundsCount } : g))
     setUpdatingRounds(true)
     try {
       const res = await fetch(`/api/games/${gameCode}`, {
@@ -835,6 +837,7 @@ export default function HostPage() {
       })
       const data = await res.json()
       if (!res.ok) {
+        setGame((g) => (g ? { ...g, rounds_count: previousCount } : g))
         toast.error(data.error || 'Failed to update rounds')
         return
       }
@@ -1134,9 +1137,9 @@ export default function HostPage() {
                   <button
                     key={n}
                     type="button"
-                    disabled={updatingRounds || n > maxRounds}
+                    disabled={n > maxRounds}
                     onClick={() => hostUpdateRounds(n)}
-                    className={`min-w-[2.5rem] px-3 py-2 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-40 ${
+                    className={`min-w-[2.5rem] px-3 py-2 rounded-xl border text-sm font-semibold disabled:opacity-40 ${
                       game.rounds_count === n ? 'chip-active' : 'chip'
                     }`}
                   >

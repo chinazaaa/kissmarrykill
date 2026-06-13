@@ -440,20 +440,24 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--muted);
+  -webkit-tap-highlight-color: transparent;
   transition: border-color 0.12s, color 0.12s, background-color 0.12s;
 }
 
-.chip:hover {
+.chip:not(.chip-active):hover {
   border-color: var(--border-strong);
   color: var(--foreground);
   background: var(--card-hover);
 }
 
-.chip-active {
+.chip-active,
+.chip-active:hover,
+.chip-active:focus-visible {
   border-color: var(--chip-active-border);
   background: var(--chip-active-bg);
   color: var(--chip-active-text);
   font-weight: 600;
+  transition: none;
 }
 
 /* ── Avatar ─────────────────────────────────────────────────────── */
