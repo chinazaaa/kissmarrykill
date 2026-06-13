@@ -6,6 +6,14 @@ import { parseGameType, roundPoolSize, isWouldYouRather, isMostLikelyTo } from '
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
 import { fetchMltQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
+import {
+  parseQuestionSource,
+  parseStoredWyrQuestions,
+  parseStoredMltQuestions,
+  pickCustomWyrQuestions,
+  pickCustomMltQuestions,
+  questionPoolCap,
+} from '@/lib/custom-questions'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -56,7 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       return NextResponse.json({ error: 'Need at least 2 players to start' }, { status: 400 })
     }
 
-    const maxRounds = maxRecommendedRounds([], gameType)
+    const maxRounds = questionPoolCap(game)
     if (game.rounds_count > maxRounds) {
       return NextResponse.json(
         { error: `Too many rounds — lower to ${maxRounds} or fewer before starting` },
@@ -64,10 +72,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       )
     }
 
-    const mltUsage = await fetchMltQuestionUsage(supabase)
-    const questions = pickMltQuestions(game.rounds_count, mltUsage)
+    const useCustom = parseQuestionSource(game.question_source, gameType) === 'custom'
+    const customPool = useCustom ? parseStoredMltQuestions(game.custom_questions) : []
+    const questions = useCustom
+      ? pickCustomMltQuestions(customPool, game.rounds_count)
+      : pickMltQuestions(game.rounds_count, await fetchMltQuestionUsage(supabase))
     if (questions.length === 0) {
-      return NextResponse.json({ error: 'No prompts available' }, { status: 400 })
+      return NextResponse.json(
+        { error: useCustom ? 'No custom prompts available' : 'No prompts available' },
+        { status: 400 }
+      )
     }
 
     const roundRows = questions.map((question, index) => ({
@@ -94,7 +108,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isWouldYouRather(gameType)) {
-    const maxRounds = maxRecommendedRounds([], gameType)
+    const maxRounds = questionPoolCap(game)
     if (game.rounds_count > maxRounds) {
       return NextResponse.json(
         { error: `Too many rounds — lower to ${maxRounds} or fewer before starting` },
@@ -102,10 +116,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       )
     }
 
-    const wyrUsage = await fetchWyrQuestionUsage(supabase)
-    const questions = pickWyrQuestions(game.rounds_count, wyrUsage)
+    const useCustom = parseQuestionSource(game.question_source, gameType) === 'custom'
+    const customPool = useCustom ? parseStoredWyrQuestions(game.custom_questions) : []
+    const questions = useCustom
+      ? pickCustomWyrQuestions(customPool, game.rounds_count)
+      : pickWyrQuestions(game.rounds_count, await fetchWyrQuestionUsage(supabase))
     if (questions.length === 0) {
-      return NextResponse.json({ error: 'No questions available' }, { status: 400 })
+      return NextResponse.json(
+        { error: useCustom ? 'No custom questions available' : 'No questions available' },
+        { status: 400 }
+      )
     }
 
     const roundRows = questions.map((q, index) => ({

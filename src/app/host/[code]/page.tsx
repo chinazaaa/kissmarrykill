@@ -10,6 +10,7 @@ import { parseGameType, roundPoolSize, isPairGame, isWouldYouRather, isMostLikel
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
+import { questionPoolCap, parseQuestionSource, customQuestionCount } from '@/lib/custom-questions'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
@@ -659,13 +660,21 @@ export default function HostPage() {
       : participantsWhoJoined(participants, players)
     const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
-    const maxRounds = maxRecommendedRounds(participantInputs, gameType)
-    const roundsHint = roundLimitHint(participantInputs, gameType)
+    const lobbyQuestionMax = isWyr || isMlt ? questionPoolCap(game) : maxRecommendedRounds(participantInputs, gameType)
+    const maxRounds = isWyr || isMlt ? lobbyQuestionMax : maxRecommendedRounds(participantInputs, gameType)
+    const roundsHint =
+      isWyr || isMlt
+        ? parseQuestionSource(game.question_source, gameType) === 'custom' && customQuestionCount(game) > 0
+          ? `${customQuestionCount(game)} custom questions → up to ${lobbyQuestionMax} rounds`
+          : isWyr
+            ? `Platform pool → up to ${lobbyQuestionMax} rounds`
+            : `Platform prompts → up to ${lobbyQuestionMax} rounds`
+        : roundLimitHint(participantInputs, gameType)
     const roundsTooHigh = maxRounds > 0 && game.rounds_count > maxRounds
     const roundOptions = isWyr
-      ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= WYR_QUESTION_COUNT)
+      ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
       : isMlt
-      ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= MLT_QUESTION_COUNT)
+      ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
       : [1, 2, 3, 4, 5, 6, 8, 10].filter((n) => n <= Math.max(maxRounds, 1))
     const voterCheck = hasVotersForPolls(roundParticipants, players)
     const canStart = isMltImport
@@ -693,6 +702,9 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider">Host Panel</p>
             <h1 className="text-2xl font-black text-white mt-1">{game.title}</h1>
             <p className="text-muted text-sm">{game.rounds_count} rounds · {game.timer_seconds}s each</p>
+            {(isWyr || isMlt) && parseQuestionSource(game.question_source, gameType) === 'custom' && customQuestionCount(game) > 0 && (
+              <p className="text-faint text-xs mt-1">{customQuestionCount(game)} custom questions loaded</p>
+            )}
             <p className="text-[var(--primary)] text-xs mt-1 font-medium">
               {isMltImport
                 ? 'Most Likely To — everyone on the list is in the poll; players join to vote'

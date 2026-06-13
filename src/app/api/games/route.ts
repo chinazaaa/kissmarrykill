@@ -5,7 +5,13 @@ import { normalizeGender, hasEnoughForRounds, participantsNeedGender, type Parti
 import { parseGameType, roundPoolSize, isLobbyGame, isWouldYouRather, isMostLikelyTo, isAnonymousGame, isPairGame, parsePairVoteMode } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
-import type { ParticipantMode } from '@/types'
+import {
+  parseQuestionSource,
+  parseStoredWyrQuestions,
+  parseStoredMltQuestions,
+} from '@/lib/custom-questions'
+import type { WyrQuestion } from '@/lib/would-you-rather-questions'
+import type { ParticipantMode, QuestionSource } from '@/types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,10 +39,35 @@ function parseParticipants(raw: unknown, gameType: ReturnType<typeof parseGameTy
   return parsed
 }
 
-function lobbyMaxRounds(gameType: ReturnType<typeof parseGameType>): number {
+function lobbyMaxRounds(
+  gameType: ReturnType<typeof parseGameType>,
+  questionSource: QuestionSource,
+  customQuestions: unknown[] | null
+): number {
+  if (questionSource === 'custom') {
+    if (isWouldYouRather(gameType)) return parseStoredWyrQuestions(customQuestions).length
+    if (isMostLikelyTo(gameType)) return parseStoredMltQuestions(customQuestions).length
+    return 20
+  }
   if (isWouldYouRather(gameType)) return WYR_QUESTION_COUNT
   if (isMostLikelyTo(gameType)) return MLT_QUESTION_COUNT
   return 20
+}
+
+function parseCustomQuestionsBody(
+  raw: unknown,
+  gameType: ReturnType<typeof parseGameType>
+): WyrQuestion[] | string[] | null {
+  if (!Array.isArray(raw)) return null
+  if (isWouldYouRather(gameType)) {
+    const parsed = parseStoredWyrQuestions(raw)
+    return parsed.length > 0 ? parsed : null
+  }
+  if (isMostLikelyTo(gameType)) {
+    const parsed = parseStoredMltQuestions(raw)
+    return parsed.length > 0 ? parsed : null
+  }
+  return null
 }
 
 export async function POST(req: NextRequest) {
@@ -50,6 +81,8 @@ export async function POST(req: NextRequest) {
     auto_submit_behavior,
     participant_mode: rawMode,
     pair_vote_mode: rawPairVoteMode,
+    question_source: rawQuestionSource,
+    custom_questions: rawCustomQuestions,
     game_type: rawGameType,
     participants: rawParticipants,
   } = body
@@ -59,6 +92,17 @@ export async function POST(req: NextRequest) {
   }
 
   const game_type = parseGameType(rawGameType)
+  const question_source = parseQuestionSource(rawQuestionSource, game_type)
+  let custom_questions: unknown[] | null = null
+
+  if (question_source === 'custom' && (isWouldYouRather(game_type) || isMostLikelyTo(game_type))) {
+    const parsed = parseCustomQuestionsBody(rawCustomQuestions, game_type)
+    if (!parsed) {
+      return NextResponse.json({ error: 'Upload at least one custom question' }, { status: 400 })
+    }
+    custom_questions = parsed
+  }
+
   const participant_mode: ParticipantMode = isLobbyGame(game_type)
     ? 'joiners'
     : rawMode === 'joiners'
@@ -88,7 +132,19 @@ export async function POST(req: NextRequest) {
     participants = parsed
   }
 
-  const maxRounds = lobbyMaxRounds(game_type)
+  const maxRounds = lobbyMaxRounds(game_type, question_source, custom_questions)
+  const roundsCount = Math.min(Math.max(Number(rounds_count) || 3, 1), Math.min(maxRounds, 20))
+
+  if (question_source === 'custom' && custom_questions && roundsCount > custom_questions.length) {
+    return NextResponse.json(
+      { error: `Need at least ${roundsCount} custom questions for ${roundsCount} rounds` },
+      { status: 400 }
+    )
+  }
+
+  if (question_source === 'custom' && custom_questions && custom_questions.length < 1) {
+    return NextResponse.json({ error: 'Upload at least one custom question' }, { status: 400 })
+  }
 
   let gameCode = generateGameCode()
   for (let i = 0; i < 10; i++) {
@@ -103,13 +159,15 @@ export async function POST(req: NextRequest) {
     id: gameCode,
     title: title.trim(),
     host_token: hostToken,
-    rounds_count: Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds),
+    rounds_count: roundsCount,
     timer_seconds: [15, 30, 60].includes(Number(timer_seconds)) ? Number(timer_seconds) : 30,
     anonymous: isAnonymousGame(game_type) ? true : Boolean(anonymous),
     auto_reveal: Boolean(auto_reveal),
     auto_submit_behavior: auto_submit_behavior === 'no_answer' ? 'no_answer' : 'random',
     participant_mode,
     pair_vote_mode: isPairGame(game_type) ? parsePairVoteMode(rawPairVoteMode) : 'any',
+    question_source: isWouldYouRather(game_type) || isMostLikelyTo(game_type) ? question_source : 'platform',
+    custom_questions,
     game_type,
     status: 'waiting',
     current_round_number: 0,

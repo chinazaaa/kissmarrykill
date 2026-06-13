@@ -4,6 +4,8 @@ export type AutoSubmitBehavior = 'random' | 'no_answer'
 export type ParticipantMode = 'import' | 'joiners'
 /** Pair games: `any` = 2 smash OK; `one_each` = must pick one of each option. */
 export type PairVoteMode = 'any' | 'one_each'
+/** WYR / MLT: built-in pool vs host-uploaded CSV questions. */
+export type QuestionSource = 'platform' | 'custom'
 export type GameType = 'smash_marry_kill' | 'red_flag_green_flag' | 'smash_or_pass' | 'would_you_rather' | 'most_likely_to'
 export type WyrChoice = 'a' | 'b'
 
@@ -22,6 +24,8 @@ export interface Game {
   auto_submit_behavior: AutoSubmitBehavior
   participant_mode: ParticipantMode
   pair_vote_mode: PairVoteMode
+  question_source?: QuestionSource
+  custom_questions?: unknown[] | null
   game_type: GameType
   status: GameStatus
   current_round_number: number

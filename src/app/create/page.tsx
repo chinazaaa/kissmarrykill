@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { ParticipantGender, ParticipantMode, GameType, PairVoteMode } from '@/types'
+import type { ParticipantGender, ParticipantMode, GameType, PairVoteMode, QuestionSource } from '@/types'
 import {
   type ParticipantInput,
   parseParticipantsForGame,
@@ -27,7 +27,19 @@ import {
   pairVoteModeOptions,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
+import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
+import {
+  parseWyrQuestionRows,
+  parseMltQuestionRows,
+  parseExcelWyrQuestions,
+  parseExcelMltQuestions,
+  mergeWyrQuestions,
+  mergeMltQuestions,
+  questionSampleFile,
+  questionUploadHint,
+  questionSourceOptions,
+} from '@/lib/custom-questions'
 import { GameTypeModal } from '@/components/GameTypeModal'
 import { GameTypeCard } from '@/components/GameTypeCard'
 import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/components/ui/PageShell'
@@ -47,6 +59,7 @@ interface Settings {
 
 type Step = 'settings' | 'participants' | 'done'
 type ParticipantTab = 'upload' | 'manual'
+type QuestionTab = 'upload' | 'manual'
 
 function CreateGameInner() {
   const router = useRouter()
@@ -73,7 +86,17 @@ function CreateGameInner() {
   const [result, setResult] = useState<{ gameCode: string; hostToken: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const questionsFileRef = useRef<HTMLInputElement>(null)
   const [bulkPaste, setBulkPaste] = useState('')
+  const [questionSource, setQuestionSource] = useState<QuestionSource>('platform')
+  const [questionTab, setQuestionTab] = useState<QuestionTab>('upload')
+  const [customWyrQuestions, setCustomWyrQuestions] = useState<WyrQuestion[]>([])
+  const [customMltQuestions, setCustomMltQuestions] = useState<string[]>([])
+  const [questionsUploadError, setQuestionsUploadError] = useState<string | null>(null)
+  const [wyrOptionA, setWyrOptionA] = useState('')
+  const [wyrOptionB, setWyrOptionB] = useState('')
+  const [mltQuestionInput, setMltQuestionInput] = useState('')
+  const [questionsBulkPaste, setQuestionsBulkPaste] = useState('')
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -96,16 +119,39 @@ function CreateGameInner() {
   const minPool = roundPoolSize(settings.game_type)
   const canCreateImport = participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type)
   const canCreateJoiners = !!settings.title.trim()
-  const canCreateQuickLobby = !!settings.title.trim()
+  const isLobbyQuestions = isWyr || isMlt
+  const customQuestionCount = isWyr ? customWyrQuestions.length : customMltQuestions.length
+  const questionCap =
+    questionSource === 'custom' && customQuestionCount > 0
+      ? customQuestionCount
+      : isWyr
+        ? WYR_QUESTION_COUNT
+        : isMlt
+          ? MLT_QUESTION_COUNT
+          : 10
+  const mltRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
+  const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
+  const roundOptions = isWyr ? wyrRoundOptions : isMlt ? mltRoundOptions : [2, 3, 4, 5, 6, 8, 10]
+  const hasEnoughCustomQuestions =
+    questionSource === 'platform' ||
+    (isLobbyQuestions && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
+  const canCreateQuickLobby = !!settings.title.trim() && hasEnoughCustomQuestions
+
   const needsParticipantStep = !isWyr && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
 
-  const mltRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= MLT_QUESTION_COUNT)
-  const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= WYR_QUESTION_COUNT)
-  const roundOptions = isWyr ? wyrRoundOptions : isMlt ? mltRoundOptions : [2, 3, 4, 5, 6, 8, 10]
+  useEffect(() => {
+    if (questionSource === 'custom' && customQuestionCount > 0 && settings.rounds_count > customQuestionCount) {
+      setSettings((prev) => ({ ...prev, rounds_count: customQuestionCount }))
+    }
+  }, [customQuestionCount, questionSource, settings.rounds_count])
 
   const selectGameType = (type: GameType) => {
+    setQuestionSource('platform')
+    setCustomWyrQuestions([])
+    setCustomMltQuestions([])
+    setQuestionsUploadError(null)
     setSettings({
       ...settings,
       game_type: type,
@@ -209,6 +255,115 @@ function CreateGameInner() {
 
   const removeParticipant = (i: number) => setParticipants((prev) => prev.filter((_, idx) => idx !== i))
 
+  const addCustomQuestionsFromRows = (wyrRows: WyrQuestion[], mltRows: string[]) => {
+    if (isWyr && wyrRows.length > 0) {
+      setCustomWyrQuestions((prev) => mergeWyrQuestions(prev, wyrRows))
+    }
+    if (isMlt && mltRows.length > 0) {
+      setCustomMltQuestions((prev) => mergeMltQuestions(prev, mltRows))
+    }
+  }
+
+  const addManualQuestion = () => {
+    setQuestionsUploadError(null)
+    if (isWyr) {
+      const optionA = wyrOptionA.trim()
+      const optionB = wyrOptionB.trim()
+      if (!optionA || !optionB) return
+      addCustomQuestionsFromRows([{ optionA, optionB }], [])
+      setWyrOptionA('')
+      setWyrOptionB('')
+      return
+    }
+    if (isMlt) {
+      const question = mltQuestionInput.trim()
+      if (!question) return
+      addCustomQuestionsFromRows([], [question])
+      setMltQuestionInput('')
+    }
+  }
+
+  const addBulkQuestions = () => {
+    if (!questionsBulkPaste.trim()) return
+    setQuestionsUploadError(null)
+    if (isWyr) {
+      const rows = parseWyrQuestionRows(questionsBulkPaste)
+      if (rows.length === 0) {
+        setQuestionsUploadError('Use two columns: option_a and option_b')
+        return
+      }
+      addCustomQuestionsFromRows(rows, [])
+    } else if (isMlt) {
+      const rows = parseMltQuestionRows(questionsBulkPaste)
+      if (rows.length === 0) {
+        setQuestionsUploadError('Add one question per line')
+        return
+      }
+      addCustomQuestionsFromRows([], rows)
+    }
+    setQuestionsBulkPaste('')
+  }
+
+  const handleQuestionsFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setQuestionsUploadError(null)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+
+    try {
+      if (ext === 'csv') {
+        const text = await file.text()
+        if (isWyr) {
+          const rows = parseWyrQuestionRows(text)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Use option_a and option_b columns.')
+            return
+          }
+          addCustomQuestionsFromRows(rows, [])
+        } else if (isMlt) {
+          const rows = parseMltQuestionRows(text)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Add one question per line.')
+            return
+          }
+          addCustomQuestionsFromRows([], rows)
+        }
+        return
+      }
+
+      if (ext === 'xlsx' || ext === 'xls') {
+        const buffer = await file.arrayBuffer()
+        if (isWyr) {
+          const rows = await parseExcelWyrQuestions(buffer)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Use option_a and option_b columns.')
+            return
+          }
+          addCustomQuestionsFromRows(rows, [])
+        } else if (isMlt) {
+          const rows = await parseExcelMltQuestions(buffer)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Add one question per line.')
+            return
+          }
+          addCustomQuestionsFromRows([], rows)
+        }
+        return
+      }
+
+      setQuestionsUploadError('Please upload a .csv or .xlsx file')
+    } catch {
+      setQuestionsUploadError('Could not read that file. Try the sample CSV.')
+    }
+  }
+
+  const removeCustomQuestion = (index: number) => {
+    if (isWyr) setCustomWyrQuestions((prev) => prev.filter((_, i) => i !== index))
+    if (isMlt) setCustomMltQuestions((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const createGame = async () => {
     if (loading) return
     if (isJoinersMode ? !canCreateJoiners : !canCreateImport) return
@@ -219,6 +374,13 @@ function CreateGameInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...settings,
+          question_source: isLobbyQuestions ? questionSource : 'platform',
+          custom_questions:
+            isLobbyQuestions && questionSource === 'custom'
+              ? isWyr
+                ? customWyrQuestions
+                : customMltQuestions
+              : null,
           participants: isJoinersMode ? [] : participants,
         }),
       })
@@ -275,6 +437,12 @@ function CreateGameInner() {
           <div className="glass-card p-5 space-y-5">
             <SettingsGroup title="Round settings">
               <Field label="Rounds">
+                {isLobbyQuestions && questionSource === 'custom' && customQuestionCount === 0 && (
+                  <p className="text-faint text-xs mb-2">Upload questions below to set how many rounds you can play.</p>
+                )}
+                {isLobbyQuestions && questionSource === 'custom' && customQuestionCount > 0 && (
+                  <p className="text-faint text-xs mb-2">{customQuestionCount} custom questions loaded — up to {customQuestionCount} rounds.</p>
+                )}
                 <ChipGrid>
                   {roundOptions.map((n) => (
                     <Chip
@@ -311,6 +479,167 @@ function CreateGameInner() {
                 </Field>
               )}
             </SettingsGroup>
+
+            {isLobbyQuestions && (
+              <SettingsGroup title="Questions">
+                <SegmentedControl
+                  value={questionSource}
+                  onChange={(v) => {
+                    setQuestionSource(v)
+                    if (v === 'platform') {
+                      setCustomWyrQuestions([])
+                      setCustomMltQuestions([])
+                      setQuestionsUploadError(null)
+                    }
+                  }}
+                  options={questionSourceOptions(settings.game_type)}
+                />
+
+                {questionSource === 'custom' && (
+                  <div className="space-y-4 pt-1">
+                    <SegmentedControl
+                      value={questionTab}
+                      onChange={setQuestionTab}
+                      options={[
+                        {
+                          value: 'upload',
+                          label: 'Upload file',
+                          hint: questionUploadHint(settings.game_type),
+                        },
+                        {
+                          value: 'manual',
+                          label: 'Add manually',
+                          hint: isWyr
+                            ? 'Type or paste option pairs.'
+                            : 'Type or paste one question per line.',
+                        },
+                      ]}
+                    />
+
+                    {questionTab === 'upload' ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => questionsFileRef.current?.click()}
+                            className="btn-secondary !py-3"
+                          >
+                            Choose file
+                          </button>
+                          <a
+                            href={questionSampleFile(settings.game_type).href}
+                            download={questionSampleFile(settings.game_type).download}
+                            className="btn-secondary !py-3 text-center no-underline flex items-center justify-center"
+                          >
+                            Sample CSV
+                          </a>
+                        </div>
+                        <input
+                          ref={questionsFileRef}
+                          type="file"
+                          accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          className="hidden"
+                          onChange={handleQuestionsFileUpload}
+                        />
+                        <p className="text-faint text-xs text-center">{questionUploadHint(settings.game_type)}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {isWyr ? (
+                          <div className="space-y-2">
+                            <input
+                              value={wyrOptionA}
+                              onChange={(e) => setWyrOptionA(e.target.value)}
+                              placeholder="Option A"
+                              className="input-field py-2.5 text-sm"
+                            />
+                            <input
+                              value={wyrOptionB}
+                              onChange={(e) => setWyrOptionB(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
+                              placeholder="Option B"
+                              className="input-field py-2.5 text-sm"
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            value={mltQuestionInput}
+                            onChange={(e) => setMltQuestionInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
+                            placeholder="Who is most likely to…"
+                            className="input-field py-2.5 text-sm"
+                          />
+                        )}
+                        <button type="button" onClick={addManualQuestion} className="btn-secondary w-full text-sm py-2.5">
+                          Add question
+                        </button>
+                        <textarea
+                          value={questionsBulkPaste}
+                          onChange={(e) => setQuestionsBulkPaste(e.target.value)}
+                          placeholder={
+                            isWyr
+                              ? 'Paste from Excel:\nNever have pizza,Never have tacos\nLive without music,Live without movies'
+                              : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
+                          }
+                          rows={4}
+                          className="input-field resize-none font-medium text-sm"
+                        />
+                        {questionsBulkPaste.trim() && (
+                          <button type="button" onClick={addBulkQuestions} className="btn-secondary w-full text-sm py-2.5">
+                            Import pasted list
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {questionsUploadError && <p className="text-red-400 text-sm">{questionsUploadError}</p>}
+
+                    {customQuestionCount > 0 && (
+                      <div className="surface-inset border border-white/10 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                        <p className="text-muted text-xs uppercase tracking-wider">
+                          Loaded ({customQuestionCount})
+                        </p>
+                        {isWyr
+                          ? customWyrQuestions.map((q, i) => (
+                              <div key={i} className="flex items-start gap-2 text-sm">
+                                <p className="text-white/85 flex-1 min-w-0">
+                                  <span className="text-violet-300">A:</span> {q.optionA}
+                                  <span className="text-faint mx-1">·</span>
+                                  <span className="text-sky-300">B:</span> {q.optionB}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => removeCustomQuestion(i)}
+                                  className="text-faint hover:text-red-300 text-xs shrink-0"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))
+                          : customMltQuestions.map((q, i) => (
+                              <div key={i} className="flex items-start gap-2 text-sm">
+                                <p className="text-white/85 flex-1 min-w-0">{q}</p>
+                                <button
+                                  type="button"
+                                  onClick={() => removeCustomQuestion(i)}
+                                  className="text-faint hover:text-red-300 text-xs shrink-0"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                      </div>
+                    )}
+
+                    {questionSource === 'custom' && customQuestionCount > 0 && customQuestionCount < settings.rounds_count && (
+                      <p className="text-amber-200/90 text-xs">
+                        Need at least {settings.rounds_count} questions for {settings.rounds_count} rounds.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </SettingsGroup>
+            )}
 
             {!isWyr && (
               <SettingsGroup title="Who's in the poll">

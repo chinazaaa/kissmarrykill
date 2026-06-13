@@ -13,6 +13,8 @@ create table if not exists games (
   auto_submit_behavior text not null default 'random',
   participant_mode text not null default 'import' check (participant_mode in ('import', 'joiners')),
   pair_vote_mode text not null default 'any' check (pair_vote_mode in ('any', 'one_each')),
+  question_source text not null default 'platform' check (question_source in ('platform', 'custom')),
+  custom_questions jsonb,
   game_type text not null default 'smash_marry_kill' check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass', 'would_you_rather', 'most_likely_to')),
   status text not null default 'waiting',
   current_round_number integer not null default 0,
@@ -26,6 +28,8 @@ create table if not exists games (
 -- alter table games add constraint games_game_type_check check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass', 'would_you_rather', 'most_likely_to'));
 
 -- alter table games add column if not exists pair_vote_mode text not null default 'any' check (pair_vote_mode in ('any', 'one_each'));
+-- alter table games add column if not exists question_source text not null default 'platform' check (question_source in ('platform', 'custom'));
+-- alter table games add column if not exists custom_questions jsonb;
 
 -- Participants (people being voted on)
 create table if not exists participants (
