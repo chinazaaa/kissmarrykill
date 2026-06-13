@@ -15,28 +15,91 @@ export function generateToken(): string {
   ).join('')
 }
 
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+function trioKey(trio: string[]): string {
+  return [...trio].sort().join('|')
+}
+
 /**
- * Generates round trios with minimal participant repetition.
- * With enough participants (>= roundCount * 3) nobody appears twice.
- * When the pool runs out it refills, pushing the most-recently-seen
- * participants to the back so repeats are spread as far apart as possible.
+ * Builds same-gender round trios with fair rotation:
+ * - Prefer people who have appeared least often
+ * - Avoid back-to-back rounds for the same person when possible
+ * - Avoid repeating the exact same trio when possible
  */
 export function generateRounds(participantIds: string[], roundCount: number): string[][] {
-  if (participantIds.length < 3) return []
+  if (participantIds.length < 3 || roundCount <= 0) return []
 
+  const ids = [...participantIds]
+  const appearanceCount = new Map<string, number>(ids.map((id) => [id, 0]))
+  const lastRound = new Map<string, number>(ids.map((id) => [id, Number.NEGATIVE_INFINITY]))
+  const usedTrios = new Set<string>()
   const rounds: string[][] = []
-  let pool = [...participantIds].sort(() => Math.random() - 0.5)
 
   for (let r = 0; r < roundCount; r++) {
-    if (pool.length < 3) {
-      const lastUsed = rounds[rounds.length - 1] ?? []
-      const notRecent = participantIds
-        .filter((id) => !lastUsed.includes(id))
-        .sort(() => Math.random() - 0.5)
-      const recent = lastUsed.sort(() => Math.random() - 0.5)
-      pool = [...notRecent, ...recent]
+    const ranked = [...ids].sort((a, b) => {
+      const countDiff = (appearanceCount.get(a) ?? 0) - (appearanceCount.get(b) ?? 0)
+      if (countDiff !== 0) return countDiff
+
+      const la = lastRound.get(a) ?? Number.NEGATIVE_INFINITY
+      const lb = lastRound.get(b) ?? Number.NEGATIVE_INFINITY
+      const backToBackA = la === r - 1 ? 1 : 0
+      const backToBackB = lb === r - 1 ? 1 : 0
+      if (backToBackA !== backToBackB) return backToBackA - backToBackB
+
+      return la - lb
+    })
+
+    const minCount = appearanceCount.get(ranked[0]) ?? 0
+    const topTier = shuffleInPlace(ranked.filter((id) => (appearanceCount.get(id) ?? 0) === minCount))
+    const rest = ranked.filter((id) => (appearanceCount.get(id) ?? 0) > minCount)
+    const ordered = [...topTier, ...rest]
+
+    let trio: string[] | null = null
+
+    outer: for (let i = 0; i < ordered.length - 2; i++) {
+      for (let j = i + 1; j < ordered.length - 1; j++) {
+        for (let k = j + 1; k < ordered.length; k++) {
+          const candidate = [ordered[i], ordered[j], ordered[k]]
+          const key = trioKey(candidate)
+          const hasBackToBack = candidate.some((id) => lastRound.get(id) === r - 1)
+          if (usedTrios.has(key) || hasBackToBack) continue
+          trio = candidate
+          break outer
+        }
+      }
     }
-    rounds.push(pool.splice(0, 3))
+
+    if (!trio) {
+      outer2: for (let i = 0; i < ordered.length - 2; i++) {
+        for (let j = i + 1; j < ordered.length - 1; j++) {
+          for (let k = j + 1; k < ordered.length; k++) {
+            const candidate = [ordered[i], ordered[j], ordered[k]]
+            if (!usedTrios.has(trioKey(candidate))) {
+              trio = candidate
+              break outer2
+            }
+          }
+        }
+      }
+    }
+
+    if (!trio) {
+      trio = ordered.slice(0, 3)
+    }
+
+    rounds.push(trio)
+    usedTrios.add(trioKey(trio))
+    for (const id of trio) {
+      appearanceCount.set(id, (appearanceCount.get(id) ?? 0) + 1)
+      lastRound.set(id, r)
+    }
   }
 
   return rounds
