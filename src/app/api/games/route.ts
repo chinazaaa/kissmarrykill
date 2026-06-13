@@ -186,6 +186,7 @@ export async function POST(req: NextRequest) {
     theme,
     status: 'waiting',
     current_round_number: 0,
+    wst_quote_source: parsed.data.wst_quote_source ?? 'player',
   })
 
   if (gameError) {

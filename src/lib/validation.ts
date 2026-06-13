@@ -50,6 +50,7 @@ const participantModeEnum = z.enum(['import', 'joiners'])
 const autoSubmitBehaviorEnum = z.enum(['random', 'no_answer'])
 const pairVoteModeEnum = z.enum(['any', 'one_each'])
 const questionSourceEnum = z.enum(['platform', 'custom'])
+const wstQuoteSourceEnum = z.enum(['player', 'anime', 'both'])
 const wyrChoiceEnum = z.enum(['a', 'b'])
 const participantGenderEnum = z.enum(['male', 'female'])
 const playerGenderEnum = z.enum(['male', 'female', 'both'])
@@ -82,6 +83,7 @@ export const createGameSchema = z.object({
   custom_questions: z.array(z.unknown()).optional().nullable(),
   game_type: gameTypeEnum.optional(),
   theme: themeEnum.optional(),
+  wst_quote_source: wstQuoteSourceEnum.optional(),
   participants: z.array(participantItemSchema).optional(),
 })
 
@@ -215,6 +217,7 @@ export const createVoteSchema = z.object({
   wyrChoice: wyrChoiceEnum.optional().nullable(),
   targetPlayerId: z.string().optional().nullable(),
   targetParticipantId: z.string().optional().nullable(),
+  animeChoice: z.string().max(200).optional().nullable(),
 })
 
 export type CreateVoteInput = z.infer<typeof createVoteSchema>
@@ -246,6 +249,30 @@ export const createQuoteSchema = z.object({
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>
 
 // ---------------------------------------------------------------------------
+// Anime quotes (POST /api/anime-quotes)
+// ---------------------------------------------------------------------------
+
+export const fetchAnimeQuotesSchema = z.object({
+  count: z.coerce.number().int().min(1).max(30),
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+})
+
+export type FetchAnimeQuotesInput = z.infer<typeof fetchAnimeQuotesSchema>
+
+// ---------------------------------------------------------------------------
+// Anime quote reroll (POST /api/anime-quotes/reroll)
+// ---------------------------------------------------------------------------
+
+export const rerollAnimeQuoteSchema = z.object({
+  gameId: gameCodeString(),
+  quoteId: uuidString('quoteId'),
+  hostToken: hostTokenString(),
+})
+
+export type RerollAnimeQuoteInput = z.infer<typeof rerollAnimeQuoteSchema>
+
+// ---------------------------------------------------------------------------
 // Re-exports for convenience
 // ---------------------------------------------------------------------------
 
@@ -255,6 +282,7 @@ export {
   autoSubmitBehaviorEnum,
   pairVoteModeEnum,
   questionSourceEnum,
+  wstQuoteSourceEnum,
   wyrChoiceEnum,
   participantGenderEnum,
   playerGenderEnum,

@@ -70,6 +70,7 @@ import {
   WyrRoundResults,
   MltRoundResults,
   WstRoundResults,
+  AnimeWstRoundResults,
 } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { NameSearchPicker } from '@/components/NameSearchPicker'
@@ -85,10 +86,13 @@ import {
   mergeActiveRound,
   dedupeWstPool,
   mergeWstPoolEntry,
+  isAnimeRound,
+  tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
 import { ShareResults } from '@/components/ShareResults'
 import { AchievementBadges } from '@/components/AchievementBadges'
 import { computeAchievements } from '@/lib/achievements'
+import { ShareRoundResults } from '@/components/ShareRoundResults'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { ConfessionsTicker } from '@/components/ConfessionsTicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
@@ -137,6 +141,7 @@ export default function GamePage() {
   const [pairAssignment, setPairAssignment] = useState<PairAssignmentMap>({})
   const [wyrChoice, setWyrChoice] = useState<WyrChoice | null>(null)
   const [mltTargetPlayerId, setMltTargetPlayerId] = useState<string | null>(null)
+  const [animeChoice, setAnimeChoice] = useState<string | null>(null)
   const [quoteInput, setQuoteInput] = useState('')
   const [quoteAuthorParticipantId, setQuoteAuthorParticipantId] = useState<string | null>(null)
   const [quoteSubmitting, setQuoteSubmitting] = useState(false)
@@ -182,6 +187,10 @@ export default function GamePage() {
     }[]
   >([])
   const [pqOpen, setPqOpen] = useState(false)
+
+  // Photo upload (people-based modes)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const roundResultsActive = view === 'round_results' && !!lastFinishedRound
   const roundResultsIsLast = roundResultsActive && (lastFinishedRound?.round_number ?? 0) >= (game?.rounds_count ?? 0)
@@ -262,6 +271,8 @@ export default function GamePage() {
   wyrChoiceRef.current = wyrChoice
   const mltTargetPlayerIdRef = useRef(mltTargetPlayerId)
   mltTargetPlayerIdRef.current = mltTargetPlayerId
+  const animeChoiceRef = useRef(animeChoice)
+  animeChoiceRef.current = animeChoice
   const playersRef = useRef(players)
   playersRef.current = players
   const currentRoundRef = useRef(currentRound)
@@ -444,6 +455,7 @@ export default function GamePage() {
     setPairAssignment({})
     setWyrChoice(null)
     setMltTargetPlayerId(null)
+    setAnimeChoice(null)
     setQuoteInput('')
     setQuoteAuthorParticipantId(null)
     setQuoteSubmitting(false)
@@ -840,6 +852,7 @@ export default function GamePage() {
   // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current)
+
     if (view !== 'round' || !currentRound?.started_at || !game) return
 
     const gameType = parseGameType(game.game_type)
@@ -852,6 +865,7 @@ export default function GamePage() {
 
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((endMs - Date.now()) / 1000))
+
       setTimeLeft(remaining)
 
       const roundGender = getRoundParticipantGender(currentRound.participant_ids, participantsRef.current)
@@ -908,14 +922,33 @@ export default function GamePage() {
     const roundParts = parts.filter((p) => r.participant_ids.includes(p.id))
     const roundIds = roundParts.map((p) => p.id)
     const useRandom = g.auto_submit_behavior === 'random'
+    let animeCh = animeChoiceRef.current
+    const isAnimeWst = isWhoSaidThis(gameType) && !!r.anime_metadata
 
-    if (useRandom) {
+    // Only auto-fill random choices if the player has started voting
+    // (picked at least one option). If they haven't touched anything, skip.
+    const hasStartedVoting = isWouldYouRather(gameType)
+      ? !!wyr
+      : isAnimeWst
+        ? !!animeCh
+        : isMostLikelyTo(gameType) || isWhoSaidThis(gameType)
+          ? !!mltTarget
+          : isPairGame(gameType)
+            ? Object.values(pa).some(Boolean)
+            : Object.values(a).some(Boolean)
+
+    if (useRandom && hasStartedVoting) {
       if (isWouldYouRather(gameType)) {
         wyr = Math.random() < 0.5 ? 'a' : 'b'
       } else if (isMostLikelyTo(gameType)) {
         const targets = mltVoteTargets(g, parts, plrs)
         if (targets.length > 0) {
           mltTarget = targets[Math.floor(Math.random() * targets.length)].id
+        }
+      } else if (isAnimeWst) {
+        const choices = (r.anime_metadata as { choices: string[] }).choices
+        if (choices.length > 0) {
+          animeCh = choices[Math.floor(Math.random() * choices.length)]
         }
       } else if (isWhoSaidThis(gameType)) {
         const targets = wstVoteTargets(parts)
@@ -951,8 +984,13 @@ export default function GamePage() {
     } else if (isWhoSaidThis(gameType)) {
       if (r.submitter_player_id === pid) return
       if (!r.quote_text) return
-      if (!mltTarget) return
-      voteBody = { targetParticipantId: mltTarget }
+      if (isAnimeWst) {
+        if (!animeCh) return
+        voteBody = { animeChoice: animeCh }
+      } else {
+        if (!mltTarget) return
+        voteBody = { targetParticipantId: mltTarget }
+      }
     } else if (isPairGame(gameType)) {
       const pairMode = parsePairVoteMode(g.pair_vote_mode)
       if (!isPairAssignmentValid(pa, roundIds, pairMode)) return
@@ -1072,7 +1110,9 @@ export default function GamePage() {
           ? { targetParticipantId: mltTargetPlayerId }
           : { targetPlayerId: mltTargetPlayerId }
         : isWhoSaidThis(submitGameType)
-          ? { targetParticipantId: mltTargetPlayerId }
+          ? currentRound?.anime_metadata
+            ? { animeChoice: animeChoiceRef.current }
+            : { targetParticipantId: mltTargetPlayerId }
           : isPairGame(submitGameType)
             ? {
                 pairAssignments: Object.fromEntries(
@@ -1364,6 +1404,68 @@ export default function GamePage() {
     const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
     const myPoolEntry = isWst && myPlayerId ? wstPool.find((e) => e.player_id === myPlayerId) : null
     const canSubmitPoolQuote = !!me?.participant_id
+    const isPeopleMode = !isWouldYouRather(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst
+    const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
+    const canUploadPhoto = isPeopleMode && !!me?.participant_id
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file || !me?.participant_id || photoUploading) return
+      e.target.value = ''
+
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Photo must be under 2MB')
+        return
+      }
+
+      setPhotoUploading(true)
+      try {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('gameId', gameCode)
+        fd.append('participantId', me.participant_id)
+        fd.append('playerId', me.id)
+
+        const res = await fetch('/api/photos', { method: 'POST', body: fd })
+        const data = await res.json()
+        if (!res.ok) {
+          toast.error(data.error || 'Failed to upload photo')
+          return
+        }
+        const url = data.photoUrl + '?t=' + Date.now()
+        setParticipants((prev) => prev.map((p) => (p.id === me.participant_id ? { ...p, photo_url: url } : p)))
+      } catch {
+        toast.error('Upload failed — try again')
+      } finally {
+        setPhotoUploading(false)
+      }
+    }
+
+    const handlePhotoDelete = async () => {
+      if (!me?.participant_id || photoUploading) return
+      setPhotoUploading(true)
+      try {
+        const res = await fetch('/api/photos', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameId: gameCode,
+            participantId: me.participant_id,
+            playerId: me.id,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          toast.error(data.error || 'Failed to remove photo')
+          return
+        }
+        setParticipants((prev) => prev.map((p) => (p.id === me.participant_id ? { ...p, photo_url: null } : p)))
+      } catch {
+        toast.error('Could not remove photo — try again')
+      } finally {
+        setPhotoUploading(false)
+      }
+    }
 
     return (
       <CenteredCard>
@@ -1375,94 +1477,157 @@ export default function GamePage() {
           <p className="text-muted">Waiting for the host to start...</p>
         </div>
 
-        {isWst && (
-          <div className="space-y-4">
-            <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-muted text-xs uppercase tracking-wider">Quote pool</p>
-                <span className="text-sm font-bold text-body">{wstPool.length} submitted</span>
-              </div>
-              <p className="text-faint text-xs">
-                Submit your quote and the correct answer now. Only people in the pool get a round — if 5 of 10 submit,
-                that&apos;s 5 rounds.
-              </p>
+        {isWst &&
+          (game?.wst_quote_source === 'anime' ? (
+            <div className="glass-card px-4 py-8 text-center space-y-2">
+              <p className="text-body text-lg font-semibold">Anime Quote Mode</p>
+              <p className="text-muted text-sm">The host is loading anime quotes — sit tight!</p>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-muted text-xs uppercase tracking-wider">Quote pool</p>
+                  <span className="text-sm font-bold text-body">{wstPool.length} submitted</span>
+                </div>
+                <p className="text-faint text-xs">
+                  Submit your quote and the correct answer now. Only people in the pool get a round — if 5 of 10 submit,
+                  that&apos;s 5 rounds.
+                </p>
+              </div>
 
-            {canSubmitPoolQuote ? (
-              <div className="glass-card p-5 space-y-4">
-                {myPoolEntry && poolQuoteSaved ? (
-                  <div className="text-center space-y-1">
-                    <p className="text-green-400 text-sm font-semibold">✓ Your quote is in the pool</p>
-                    <p className="text-faint text-xs">You can edit it below until the host starts.</p>
-                  </div>
-                ) : (
-                  <p className="font-semibold text-body text-center">Add your quote to the pool</p>
-                )}
-                <textarea
-                  value={quoteInput}
-                  onChange={(e) => {
-                    setQuoteInput(e.target.value)
-                    setPoolQuoteSaved(false)
-                  }}
-                  placeholder="e.g. Roses are red"
-                  maxLength={500}
-                  rows={3}
-                  className="input-field resize-none"
-                  disabled={quoteSubmitting}
-                />
-                <div className="space-y-2">
-                  <p className="text-faint text-xs uppercase tracking-wider text-center">Who said this?</p>
-                  <NameSearchPicker
-                    options={wstTargets.map((p) => ({ id: p.id, name: p.name }))}
-                    valueId={quoteAuthorParticipantId}
-                    onChange={(id) => {
-                      setQuoteAuthorParticipantId(id)
+              {canSubmitPoolQuote ? (
+                <div className="glass-card p-5 space-y-4">
+                  {myPoolEntry && poolQuoteSaved ? (
+                    <div className="text-center space-y-1">
+                      <p className="text-green-400 text-sm font-semibold">✓ Your quote is in the pool</p>
+                      <p className="text-faint text-xs">You can edit it below until the host starts.</p>
+                    </div>
+                  ) : (
+                    <p className="font-semibold text-body text-center">Add your quote to the pool</p>
+                  )}
+                  <textarea
+                    value={quoteInput}
+                    onChange={(e) => {
+                      setQuoteInput(e.target.value)
                       setPoolQuoteSaved(false)
                     }}
-                    searchPlaceholder="Search names…"
-                    emptyMessage="No names match"
+                    placeholder="e.g. Roses are red"
+                    maxLength={500}
+                    rows={3}
+                    className="input-field resize-none"
                     disabled={quoteSubmitting}
                   />
+                  <div className="space-y-2">
+                    <p className="text-faint text-xs uppercase tracking-wider text-center">Who said this?</p>
+                    <NameSearchPicker
+                      options={wstTargets.map((p) => ({ id: p.id, name: p.name }))}
+                      valueId={quoteAuthorParticipantId}
+                      onChange={(id) => {
+                        setQuoteAuthorParticipantId(id)
+                        setPoolQuoteSaved(false)
+                      }}
+                      searchPlaceholder="Search names…"
+                      emptyMessage="No names match"
+                      disabled={quoteSubmitting}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSubmitPoolQuote}
+                    disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
+                    className={
+                      quoteInput.trim() && quoteAuthorParticipantId
+                        ? 'btn-primary w-full'
+                        : 'btn-secondary w-full opacity-60 cursor-not-allowed'
+                    }
+                  >
+                    {quoteSubmitting ? 'Saving…' : myPoolEntry ? 'Update Quote' : 'Add to Pool →'}
+                  </button>
                 </div>
-                <button
-                  onClick={handleSubmitPoolQuote}
-                  disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
-                  className={
-                    quoteInput.trim() && quoteAuthorParticipantId
-                      ? 'btn-primary w-full'
-                      : 'btn-secondary w-full opacity-60 cursor-not-allowed'
-                  }
-                >
-                  {quoteSubmitting ? 'Saving…' : myPoolEntry ? 'Update Quote' : 'Add to Pool →'}
-                </button>
-              </div>
-            ) : (
-              <p className="text-faint text-xs text-center">Claim your name when joining to submit a quote.</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-faint text-xs text-center">Claim your name when joining to submit a quote.</p>
+              )}
+            </div>
+          ))}
+
+        {canUploadPhoto && (
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={handlePhotoUpload}
+          />
         )}
 
         <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
           <p className="text-muted text-xs uppercase tracking-wider">Players Joined ({players.length})</p>
           <div className="space-y-1.5 max-h-52 overflow-y-auto">
-            {players.map((p) => (
-              <div key={p.id} className="flex items-center gap-2">
-                <div
-                  className={`w-2 h-2 rounded-full shrink-0 ${p.name === myPlayerName ? 'bg-[var(--primary)]' : 'bg-[var(--border-strong)]'}`}
-                />
-                <span
-                  className={`text-sm flex-1 min-w-0 truncate ${p.name === myPlayerName ? 'text-[var(--primary)] font-semibold' : 'text-body-muted'}`}
-                >
-                  {p.name}
-                  {p.name === myPlayerName ? ' (you)' : ''}
-                </span>
-                {!joinNeedsGender ? null : (
-                  <span className="text-[10px] uppercase tracking-wider text-faint shrink-0">
-                    {playerIdentityLabel(p, participants, game?.game_type)}
+            {players.map((p) => {
+              const isMe = p.name === myPlayerName
+              const myPart = isMe ? myParticipant : null
+              const hasPhoto = isMe && !!myPart?.photo_url
+
+              return (
+                <div key={p.id} className="flex items-center gap-2">
+                  {isMe && canUploadPhoto ? (
+                    photoUploading ? (
+                      <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : hasPhoto ? (
+                      <div className="relative shrink-0">
+                        <button type="button" onClick={() => photoInputRef.current?.click()} className="block">
+                          <Avatar name={p.name} photoUrl={myPart!.photo_url} size="sm" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePhotoDelete}
+                          className="absolute -top-1 -right-1 w-4 h-4 min-w-[24px] min-h-[24px] flex items-center justify-center rounded-full bg-red-500/90 text-white text-[10px] leading-none hover:bg-red-400 transition-colors"
+                          style={{ padding: 0 }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center bg-[var(--surface-inset)] border border-dashed border-[var(--border-strong)] text-faint hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="w-3.5 h-3.5"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M1 8a2 2 0 0 1 2-2h.93a2 2 0 0 0 1.664-.89l.812-1.22A2 2 0 0 1 8.07 3h3.86a2 2 0 0 1 1.664.89l.812 1.22A2 2 0 0 0 16.07 6H17a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm13.5 3a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM10 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    )
+                  ) : (
+                    <div
+                      className={`w-2 h-2 rounded-full shrink-0 ${isMe ? 'bg-[var(--primary)]' : 'bg-[var(--border-strong)]'}`}
+                    />
+                  )}
+                  <span
+                    className={`text-sm flex-1 min-w-0 truncate ${isMe ? 'text-[var(--primary)] font-semibold' : 'text-body-muted'}`}
+                  >
+                    {p.name}
+                    {isMe ? ' (you)' : ''}
                   </span>
-                )}
-              </div>
-            ))}
+                  {!joinNeedsGender ? null : (
+                    <span className="text-[10px] uppercase tracking-wider text-faint shrink-0">
+                      {playerIdentityLabel(p, participants, game?.game_type)}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
         {/* Player question submission for WYR / MLT */}
@@ -1688,6 +1853,11 @@ export default function GamePage() {
         ) : quote ? (
           <div className="glass-card border border-teal-500/30 px-4 py-5 mb-6 text-center">
             <p className="text-faint text-xs uppercase tracking-wider mb-2">Who said this?</p>
+            {currentRound.anime_metadata && (
+              <p className="text-teal-400 text-xs font-semibold mb-1">
+                {(currentRound.anime_metadata as { anime_name: string }).anime_name}
+              </p>
+            )}
             <p className="text-body text-xl font-medium italic leading-snug">&ldquo;{quote}&rdquo;</p>
           </div>
         ) : (
@@ -1698,22 +1868,49 @@ export default function GamePage() {
         )}
 
         {canVote && !submitted ? (
-          <>
-            <NameSearchPicker
-              options={targets.map((p) => ({ id: p.id, name: p.name }))}
-              valueId={mltTargetPlayerId}
-              onChange={(id) => setMltTargetPlayerId(id)}
-              searchPlaceholder="Search names…"
-              emptyMessage="No names match"
-            />
-            <button
-              onClick={handleSubmit}
-              disabled={!mltTargetPlayerId}
-              className={`mt-6 ${mltTargetPlayerId ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}`}
-            >
-              {mltTargetPlayerId ? 'Submit Guess ✓' : 'Pick who said it'}
-            </button>
-          </>
+          currentRound.anime_metadata ? (
+            <>
+              <div className="grid grid-cols-1 gap-2 mt-4">
+                {(currentRound.anime_metadata as { choices: string[] }).choices.map((choice) => (
+                  <button
+                    key={choice}
+                    onClick={() => setAnimeChoice(choice)}
+                    className={`text-left px-4 py-3 rounded-xl border transition-all ${
+                      animeChoice === choice
+                        ? 'border-teal-400 bg-teal-500/15 text-body'
+                        : 'border-white/10 bg-white/5 text-muted hover:border-white/20 hover:bg-white/8'
+                    }`}
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleSubmit}
+                disabled={!animeChoice}
+                className={`mt-6 ${animeChoice ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}`}
+              >
+                {animeChoice ? 'Submit Guess ✓' : 'Pick a character'}
+              </button>
+            </>
+          ) : (
+            <>
+              <NameSearchPicker
+                options={targets.map((p) => ({ id: p.id, name: p.name }))}
+                valueId={mltTargetPlayerId}
+                onChange={(id) => setMltTargetPlayerId(id)}
+                searchPlaceholder="Search names…"
+                emptyMessage="No names match"
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={!mltTargetPlayerId}
+                className={`mt-6 ${mltTargetPlayerId ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}`}
+              >
+                {mltTargetPlayerId ? 'Submit Guess ✓' : 'Pick who said it'}
+              </button>
+            </>
+          )
         ) : canVote && submitted ? (
           <div className="glass-card border border-emerald-500/30 px-4 py-4 text-center mt-4">
             <p className="text-green-400 font-semibold">✓ Guess submitted!</p>
@@ -2023,6 +2220,13 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
+          <ShareRoundResults
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2037,14 +2241,64 @@ export default function GamePage() {
 
     if (isWhoSaidThis(gameType) && game) {
       const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
+      const myPickName = lastFinishedRound.anime_metadata
+        ? (myVote?.anime_choice ?? null)
+        : myVote?.target_participant_id
+          ? (participants.find((p) => p.id === myVote.target_participant_id)?.name ?? null)
+          : null
+      const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
+
+      if (isAnimeRound(lastFinishedRound)) {
+        const meta = lastFinishedRound.anime_metadata as {
+          anime_name: string
+          correct_character: string
+          choices: string[]
+        }
+        const animeTally = tallyAnimeWstVotes(lastRoundVotes, meta.choices, meta.correct_character)
+        return (
+          <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+            <PlayerNameBar name={myPlayerName} />
+            <div className="text-center">
+              <p className="text-muted text-xs uppercase tracking-wider">
+                Round {lastFinishedRound.round_number} of {game?.rounds_count}
+              </p>
+              <GameTypeBadge gameType={gameType} className="mt-2" />
+              <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🕵️</h2>
+            </div>
+            <AnimeWstRoundResults
+              quote={lastFinishedRound.quote_text ?? '(no quote)'}
+              animeName={meta.anime_name}
+              rows={animeTally.rows}
+              voterCount={animeTally.voterCount}
+              maxCount={animeTally.maxCount}
+              topGuesses={animeTally.topGuesses}
+              correctCharacter={meta.correct_character}
+              correctCount={animeTally.correctCount}
+              myPickName={myPickName}
+            />
+            <ShareRoundResults
+              game={game!}
+              round={lastFinishedRound}
+              votes={lastRoundVotes}
+              participants={participants}
+              players={players}
+            />
+            <p className="text-faint text-sm text-center">
+              {roundResultsWaitMessage({
+                isLastRound,
+                autoReveal: !!game?.auto_reveal,
+                nextRoundSecondsLeft: nextRoundCountdown,
+                finalRevealSecondsLeft: finalRevealCountdown,
+              })}
+            </p>
+          </div>
+        )
+      }
+
       const targets = wstVoteTargets(participants)
       const correctName = wstCorrectNameFromRound(lastFinishedRound, players, participants)
       const correctId = wstCorrectParticipantIdFromRound(lastFinishedRound, players)
       const { rows, voterCount, maxCount, topGuesses, correctCount } = tallyWstVotes(lastRoundVotes, targets, correctId)
-      const myPickName = myVote?.target_participant_id
-        ? (participants.find((p) => p.id === myVote.target_participant_id)?.name ?? null)
-        : null
-      const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
 
       return (
         <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
@@ -2068,6 +2322,13 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
+          <ShareRoundResults
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2109,6 +2370,13 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
+          <ShareRoundResults
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2258,6 +2526,14 @@ export default function GamePage() {
         <ConfessionsTicker confessions={roundConfessions} />
 
         <ReactionBar className="pt-1" />
+
+        <ShareRoundResults
+          game={game!}
+          round={lastFinishedRound}
+          votes={lastRoundVotes}
+          participants={participants}
+          players={players}
+        />
 
         <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-[var(--primary)]' : 'text-faint'}`}>
           {roundResultsWaitMessage({
@@ -2412,6 +2688,31 @@ function FinalResultsView({
             }
 
             if (isWst) {
+              if (isAnimeRound(round)) {
+                const meta = round.anime_metadata as {
+                  anime_name: string
+                  correct_character: string
+                  choices: string[]
+                }
+                const animeTally = tallyAnimeWstVotes(roundVotes, meta.choices, meta.correct_character)
+                const myPickName = myVote?.anime_choice ?? null
+                return (
+                  <div key={round.id}>
+                    <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                    <AnimeWstRoundResults
+                      quote={round.quote_text ?? '(no quote)'}
+                      animeName={meta.anime_name}
+                      rows={animeTally.rows}
+                      voterCount={animeTally.voterCount}
+                      maxCount={animeTally.maxCount}
+                      topGuesses={animeTally.topGuesses}
+                      correctCharacter={meta.correct_character}
+                      correctCount={animeTally.correctCount}
+                      myPickName={myPickName}
+                    />
+                  </div>
+                )
+              }
               const targets = wstVoteTargets(participants)
               const correctName = wstCorrectNameFromRound(round, players, participants)
               const correctId = wstCorrectParticipantIdFromRound(round, players)
