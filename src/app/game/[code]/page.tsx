@@ -391,6 +391,7 @@ export default function GamePage() {
       }
     }
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- polling on mount only
   }, [gameCode])
 
   useEffect(() => {
@@ -665,6 +666,7 @@ export default function GamePage() {
     return () => {
       supabase.removeChannel(ch)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- realtime subscription, deps intentionally limited
   }, [gameCode])
 
   // Poll during final results — return to lobby when host resets
@@ -718,6 +720,7 @@ export default function GamePage() {
     refreshLobby()
     const id = setInterval(refreshLobby, 3000)
     return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- polling interval, deps intentionally limited
   }, [view, gameCode])
 
   // Poll player-submitted questions in lobby (WYR/MLT only)
@@ -1033,62 +1036,6 @@ export default function GamePage() {
       await fetchWstPool()
     } catch {
       toast.error('Could not submit quote — try again')
-    } finally {
-      setQuoteSubmitting(false)
-    }
-  }
-
-  const _handleSubmitQuote = async () => {
-    if (!currentRound || !myPlayerId || quoteSubmitting) return
-    const text = quoteInput.trim()
-    if (!text || !quoteAuthorParticipantId) return
-    const roundId = currentRound.id
-    const authorId = quoteAuthorParticipantId
-    setQuoteSubmitting(true)
-    try {
-      const controller = new AbortController()
-      const timeout = window.setTimeout(() => controller.abort(), 15000)
-      const res = await fetch('/api/quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerId: myPlayerId,
-          roundId,
-          gameId: gameCode,
-          quoteText: text,
-          authorParticipantId: authorId,
-        }),
-        signal: controller.signal,
-      })
-      window.clearTimeout(timeout)
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        const msg = typeof data.error === 'string' ? data.error : 'Failed to submit quote'
-        if (msg.includes('already submitted')) {
-          await fetchActiveRound()
-          setQuoteInput('')
-          setQuoteAuthorParticipantId(null)
-          return
-        }
-        toast.error(msg)
-        await fetchActiveRound()
-        return
-      }
-      setCurrentRound((prev) =>
-        prev && prev.id === roundId
-          ? {
-              ...prev,
-              quote_text: data.quoteText ?? text,
-              quote_author_participant_id: data.authorParticipantId ?? authorId,
-              quote_submitted_at: new Date().toISOString(),
-            }
-          : prev
-      )
-      setQuoteInput('')
-      setQuoteAuthorParticipantId(null)
-    } catch {
-      toast.error('Could not submit quote — checking if it saved…')
-      await fetchActiveRound()
     } finally {
       setQuoteSubmitting(false)
     }
