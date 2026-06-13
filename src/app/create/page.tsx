@@ -11,7 +11,7 @@ import {
   hasEnoughForRounds,
   genderLabel,
 } from '@/lib/participants'
-import { GAME_TYPE_OPTIONS, gameTypeConfig, roundPoolSize, isLobbyGame, isMostLikelyTo } from '@/lib/game-types'
+import { GAME_TYPE_OPTIONS, gameTypeConfig, roundPoolSize, isLobbyGame, isMostLikelyTo, isWouldYouRather, isAnonymousGame } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 
@@ -53,14 +53,16 @@ export default function CreateGame() {
 
   const genderCounts = countByGender(participants)
   const isJoinersMode = settings.participant_mode === 'joiners'
+  const isWyr = isWouldYouRather(settings.game_type)
+  const isMlt = isMostLikelyTo(settings.game_type)
   const isLobby = isLobbyGame(settings.game_type)
   const minPool = roundPoolSize(settings.game_type)
   const canCreateImport = participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type)
   const canCreateJoiners = !!settings.title.trim()
-  const canCreateLobby = !!settings.title.trim()
-  const lobbyQuestionCount = isMostLikelyTo(settings.game_type) ? MLT_QUESTION_COUNT : WYR_QUESTION_COUNT
-  const lobbyRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionCount)
-  const roundOptions = isLobby ? lobbyRoundOptions : [2, 3, 4, 5, 6, 8, 10]
+  const canCreateQuickLobby = !!settings.title.trim()
+  const mltRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= MLT_QUESTION_COUNT)
+  const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= WYR_QUESTION_COUNT)
+  const roundOptions = isWyr ? wyrRoundOptions : isMlt ? mltRoundOptions : [2, 3, 4, 5, 6, 8, 10]
 
   const addParticipantsFromRows = (rows: ParticipantInput[]) => {
     if (rows.length === 0) return 0
@@ -221,7 +223,7 @@ export default function CreateGame() {
             </div>
           </Field>
 
-          {!isLobby && (
+          {!isWyr && (
           <Field label="Who Joins">
             <div className="grid gap-2">
               <button
@@ -305,7 +307,7 @@ export default function CreateGame() {
           </Field>
 
           <div className="space-y-2 pt-1">
-            {!isLobby && (
+            {!isAnonymousGame(settings.game_type) && (
             <Toggle
               label="Anonymous Responses"
               description="Hide who voted for what"
@@ -313,8 +315,8 @@ export default function CreateGame() {
               onChange={(v) => setSettings({ ...settings, anonymous: v })}
             />
             )}
-            {isLobby && (
-              <p className="text-faint text-xs px-1">Lobby games are always anonymous — only totals are shown.</p>
+            {isAnonymousGame(settings.game_type) && (
+              <p className="text-faint text-xs px-1">Would You Rather and Most Likely To are always anonymous — only totals are shown.</p>
             )}
             <Toggle
               label="Auto-Reveal Results"
@@ -325,8 +327,8 @@ export default function CreateGame() {
           </div>
         </div>
 
-        {isLobby ? (
-          <PrimaryBtn onClick={createGame} disabled={!canCreateLobby || loading}>
+        {isWyr || (isMlt && isJoinersMode) ? (
+          <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading}>
             {loading ? 'Creating...' : 'Create Game'}
           </PrimaryBtn>
         ) : isJoinersMode ? (
@@ -353,7 +355,9 @@ export default function CreateGame() {
           <p className="label-caps mb-2">Almost there</p>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Add Participants</h1>
           <p className="text-muted text-sm mt-2">
-            Each round picks 3 people of the <strong className="text-white/90">same gender</strong> — upload a sheet with name + gender, or add manually.
+            {isMlt
+              ? 'Upload names for the poll — players join separately to vote. Gender is only used for the import sheet.'
+              : 'Each round picks 3 people of the <strong className="text-white/90">same gender</strong> — upload a sheet with name + gender, or add manually.'}
           </p>
         </div>
 
@@ -472,12 +476,17 @@ export default function CreateGame() {
             </p>
           )}
 
-          {!hasEnoughForRounds(participants, settings.game_type) && participants.length > 0 && (
+          {!isMlt && !hasEnoughForRounds(participants, settings.game_type) && participants.length > 0 && (
             <p className="text-amber-200/90 text-sm text-center">
               Need at least {minPool} people of the same gender to run rounds
             </p>
           )}
-          {participants.length < minPool && participants.length > 0 && (
+          {participants.length < minPool && participants.length > 0 && isMlt && (
+            <p className="text-faint text-sm text-center">
+              Add {minPool - participants.length} more name{minPool - participants.length === 1 ? '' : 's'} to continue
+            </p>
+          )}
+          {participants.length < minPool && participants.length > 0 && !isMlt && (
             <p className="text-faint text-sm text-center">
               Add {minPool - participants.length} more to continue
             </p>

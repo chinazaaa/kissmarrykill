@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import { normalizeGender, hasEnoughForRounds, type ParticipantInput } from '@/lib/participants'
-import { parseGameType, roundPoolSize, isLobbyGame, isWouldYouRather, isMostLikelyTo } from '@/lib/game-types'
+import { parseGameType, roundPoolSize, isLobbyGame, isWouldYouRather, isMostLikelyTo, isAnonymousGame } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import type { ParticipantMode } from '@/types'
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       : 'import'
 
   let participants: ParticipantInput[] = []
-  if (!isLobbyGame(game_type) && participant_mode === 'import') {
+  if (participant_mode === 'import') {
     const parsed = parseParticipants(rawParticipants)
     if (!parsed || parsed.length < roundPoolSize(game_type)) {
       return NextResponse.json(
@@ -71,7 +71,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
-    if (!hasEnoughForRounds(parsed, game_type)) {
+    if (isMostLikelyTo(game_type)) {
+      if (parsed.length < 2) {
+        return NextResponse.json({ error: 'Need at least 2 names on the list' }, { status: 400 })
+      }
+    } else if (!hasEnoughForRounds(parsed, game_type)) {
       const min = roundPoolSize(game_type)
       return NextResponse.json(
         { error: `Need at least ${min} people of the same gender (male or female) for rounds` },
@@ -98,7 +102,7 @@ export async function POST(req: NextRequest) {
     host_token: hostToken,
     rounds_count: Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds),
     timer_seconds: [15, 30, 60].includes(Number(timer_seconds)) ? Number(timer_seconds) : 30,
-    anonymous: isLobbyGame(game_type) ? true : Boolean(anonymous),
+    anonymous: isAnonymousGame(game_type) ? true : Boolean(anonymous),
     auto_reveal: Boolean(auto_reveal),
     auto_submit_behavior: auto_submit_behavior === 'no_answer' ? 'no_answer' : 'random',
     participant_mode,

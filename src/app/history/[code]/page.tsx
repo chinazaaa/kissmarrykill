@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { roundGenderLabel } from '@/lib/participants'
 import { assignmentEmojiFor, tallyRoundVotes, getVoteCategories, flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { parseGameType, slotMeta, voteSlots, isPairGame, isWouldYouRather, isMostLikelyTo } from '@/lib/game-types'
+import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { ParticipantRoundResults, WyrRoundResults, MltRoundResults } from '@/components/VoteResults'
 import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
 
@@ -212,7 +213,9 @@ export default function GameHistoryPage() {
                   })()
                 ) : isMostLikelyTo(gameType) ? (
                   (() => {
-                    const mltTally = tallyMltVotes(roundVotes, players)
+                    const mltKind = isMltImportGame(game) ? 'participant' : 'player'
+                    const mltTargets = mltVoteTargets(game, participants, players)
+                    const mltTally = tallyMltVotes(roundVotes, mltTargets, mltKind)
                     return (
                       <MltRoundResults
                         question={round.mlt_question ?? ''}

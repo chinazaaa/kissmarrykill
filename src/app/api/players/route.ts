@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isLobbyGame } from '@/lib/game-types'
+import { parseGameType, isLobbyGame, isNameOnlyPlayerJoin } from '@/lib/game-types'
 import { assertHostGame, deleteJoinerPair, findJoinerParticipant, pollGenderForPlayer, syncImportParticipantBallot } from '@/lib/game-admin'
 
 const supabase = createClient(
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
   const { game, id } = waiting
   const gameType = parseGameType(game!.game_type)
 
-  if (isLobbyGame(gameType)) {
+  if (isNameOnlyPlayerJoin(gameType)) {
     if (!name) {
       return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
     }
@@ -304,7 +304,7 @@ export async function PATCH(req: NextRequest) {
 
   const gameType = parseGameType((game as { game_type?: string }).game_type)
 
-  if (isLobbyGame(gameType)) {
+  if (isNameOnlyPlayerJoin(gameType)) {
     if (rawName === undefined) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }

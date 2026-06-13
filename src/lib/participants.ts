@@ -1,4 +1,4 @@
-import { roundPoolSize, isWouldYouRather, isMostLikelyTo, isLobbyGame } from '@/lib/game-types'
+import { roundPoolSize, isWouldYouRather, isMostLikelyTo, isLobbyGame, isNameOnlyPlayerJoin } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import type { GameType } from '@/types'
@@ -86,7 +86,8 @@ export function hasEnoughForRounds(
   participants: ParticipantInput[],
   gameType?: GameType | string
 ): boolean {
-  if (isLobbyGame(gameType)) return true
+  if (isWouldYouRather(gameType)) return true
+  if (isMostLikelyTo(gameType)) return participants.length >= roundPoolSize(gameType)
   const min = roundPoolSize(gameType)
   const counts = countByGender(participants)
   return counts.male >= min || counts.female >= min
@@ -226,7 +227,7 @@ export function playerIdentityLabel(
   participants?: { name: string; gender: ParticipantGender }[],
   gameType?: GameType | string
 ): string {
-  if (isLobbyGame(gameType)) return ''
+  if (isLobbyGame(gameType) || isNameOnlyPlayerJoin(gameType)) return ''
   return genderLabel(resolvePlayerIdentity(player, participants))
 }
 
@@ -327,7 +328,7 @@ export function eligibleVotersForRound<
     name: string
   }
 >(roundGender: ParticipantGender | null, players: T[], gameType?: GameType | string): T[] {
-  if (isLobbyGame(gameType)) return players
+  if (isLobbyGame(gameType) || isMostLikelyTo(gameType)) return players
   if (!roundGender) return []
   return players.filter((p) => {
     const g = playerVoteGenderForRound(p)

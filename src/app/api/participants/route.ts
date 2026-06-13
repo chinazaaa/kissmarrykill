@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeGender, type ParticipantInput } from '@/lib/participants'
+import { parseGameType, isMostLikelyTo } from '@/lib/game-types'
 import { assertHostGame, deleteJoinerPair } from '@/lib/game-admin'
 
 const supabase = createClient(
@@ -97,6 +98,7 @@ export async function PATCH(req: NextRequest) {
     participantId,
     name: rawName,
     gender: rawGender,
+    inMltPoll: rawInMltPoll,
   } = await req.json()
 
   if (!gameCode || !hostToken || !participantId) {
@@ -115,7 +117,7 @@ export async function PATCH(req: NextRequest) {
 
   if (!participant) return NextResponse.json({ error: 'Participant not found' }, { status: 404 })
 
-  const updates: { name?: string; gender?: 'male' | 'female' } = {}
+  const updates: { name?: string; gender?: 'male' | 'female'; in_mlt_poll?: boolean } = {}
 
   if (rawName !== undefined) {
     const name = String(rawName).trim()
@@ -139,6 +141,13 @@ export async function PATCH(req: NextRequest) {
     const gender = normalizeGender(String(rawGender))
     if (!gender) return NextResponse.json({ error: 'Gender must be male or female' }, { status: 400 })
     updates.gender = gender
+  }
+
+  if (rawInMltPoll !== undefined) {
+    if (!isMostLikelyTo(auth.game!.game_type) || auth.game!.participant_mode !== 'import') {
+      return NextResponse.json({ error: 'Poll placement only applies to imported Most Likely To lists' }, { status: 400 })
+    }
+    updates.in_mlt_poll = Boolean(rawInMltPoll)
   }
 
   if (Object.keys(updates).length === 0) {

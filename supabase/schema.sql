@@ -33,6 +33,7 @@ create table if not exists participants (
   photo_url text,
   description text,
   display_order integer not null default 0,
+  in_mlt_poll boolean not null default false,
   created_at timestamptz not null default now()
 );
 create index if not exists idx_participants_game_id on participants(game_id);
@@ -89,6 +90,7 @@ create table if not exists votes (
   pair_assignments jsonb,
   wyr_choice text check (wyr_choice in ('a', 'b')),
   target_player_id uuid references players(id),
+  target_participant_id uuid references participants(id),
   created_at timestamptz not null default now(),
   unique(player_id, round_id)
 );
@@ -101,6 +103,8 @@ create index if not exists idx_votes_round_id on votes(round_id);
 -- alter table votes add column if not exists wyr_choice text check (wyr_choice in ('a', 'b'));
 -- alter table rounds add column if not exists mlt_question text;
 -- alter table votes add column if not exists target_player_id uuid references players(id);
+-- alter table participants add column if not exists in_mlt_poll boolean not null default false;
+-- alter table votes add column if not exists target_participant_id uuid references participants(id);
 
 -- Confessions (anonymous post-round messages)
 create table if not exists confessions (

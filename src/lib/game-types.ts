@@ -228,10 +228,19 @@ export function isMostLikelyTo(gameType: GameType | string | undefined): boolean
   return parseGameType(gameType) === 'most_likely_to'
 }
 
-/** Join-with-name games — no import list, always anonymous, no gender rules. */
+/** Would You Rather only — forced joiners, no gender, always anonymous. */
 export function isLobbyGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'would_you_rather'
+}
+
+/** WYR + MLT player join: name only, no gender picker. */
+export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
   return type === 'would_you_rather' || type === 'most_likely_to'
+}
+
+export function isAnonymousGame(gameType: GameType | string | undefined): boolean {
+  return isNameOnlyPlayerJoin(gameType)
 }
 
 export function isThreeChoiceGame(gameType: GameType | string | undefined): boolean {
@@ -239,7 +248,7 @@ export function isThreeChoiceGame(gameType: GameType | string | undefined): bool
 }
 
 export function roundPoolSize(gameType: GameType | string | undefined): 2 | 3 {
-  if (isLobbyGame(gameType)) return 2
+  if (isWouldYouRather(gameType) || isMostLikelyTo(gameType)) return 2
   return isPairGame(gameType) ? 2 : 3
 }
 

@@ -5,6 +5,7 @@ import { hasVotersForPolls, parseParticipantGenderFromDb, participantsWhoJoined,
 import { parseGameType, roundPoolSize, isWouldYouRather, isMostLikelyTo } from '@/lib/game-types'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
+import { fetchMltQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +35,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const now = new Date().toISOString()
 
   if (isMostLikelyTo(gameType)) {
-    if (playersData.length < 2) {
+    const isImport = (game.participant_mode ?? 'import') === 'import'
+
+    if (isImport) {
+      const { data: participantsData } = await supabase
+        .from('participants')
+        .select('id, in_mlt_poll')
+        .eq('game_id', code.toUpperCase())
+
+      const pollCount = (participantsData ?? []).filter((p) => p.in_mlt_poll).length
+      if (pollCount < 2) {
+        return NextResponse.json(
+          { error: 'Add at least 2 names from the list to the game before starting' },
+          { status: 400 }
+        )
+      }
+      if (!playersData?.length) {
+        return NextResponse.json({ error: 'Need at least one player joined to vote' }, { status: 400 })
+      }
+    } else if (playersData.length < 2) {
       return NextResponse.json({ error: 'Need at least 2 players to start' }, { status: 400 })
     }
 
@@ -46,7 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       )
     }
 
-    const questions = pickMltQuestions(game.rounds_count)
+    const mltUsage = await fetchMltQuestionUsage(supabase)
+    const questions = pickMltQuestions(game.rounds_count, mltUsage)
     if (questions.length === 0) {
       return NextResponse.json({ error: 'No prompts available' }, { status: 400 })
     }
@@ -83,7 +103,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       )
     }
 
-    const questions = pickWyrQuestions(game.rounds_count)
+    const wyrUsage = await fetchWyrQuestionUsage(supabase)
+    const questions = pickWyrQuestions(game.rounds_count, wyrUsage)
     if (questions.length === 0) {
       return NextResponse.json({ error: 'No questions available' }, { status: 400 })
     }

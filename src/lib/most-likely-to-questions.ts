@@ -1,5 +1,7 @@
 /** Built-in Most Likely To prompts — 80 questions (party / spicy tone) */
 
+import { pickLeastUsed } from '@/lib/question-picker'
+
 export const MLT_QUESTIONS: string[] = [
   'Who is most likely to hook up with someone from this friend group?',
   'Who is most likely to send a booty call text to the wrong group chat?',
@@ -89,15 +91,9 @@ export const MLT_QUESTIONS: string[] = [
 
 export const MLT_QUESTION_COUNT = MLT_QUESTIONS.length
 
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr
-}
-
-export function pickMltQuestions(count: number): string[] {
-  if (count <= 0) return []
-  return shuffleInPlace([...MLT_QUESTIONS]).slice(0, Math.min(count, MLT_QUESTIONS.length))
+export function pickMltQuestions(
+  count: number,
+  usageCounts: Map<string, number> = new Map()
+): string[] {
+  return pickLeastUsed(MLT_QUESTIONS, (question) => question, usageCounts, count)
 }

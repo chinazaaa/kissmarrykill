@@ -1,5 +1,7 @@
 /** Built-in Would You Rather prompts — 100 questions */
 
+import { pickLeastUsed } from '@/lib/question-picker'
+
 export interface WyrQuestion {
   optionA: string
   optionB: string
@@ -410,16 +412,19 @@ export const WYR_QUESTIONS: WyrQuestion[] = [
 
 export const WYR_QUESTION_COUNT = WYR_QUESTIONS.length
 
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr
+export function wyrQuestionKey(optionA: string, optionB: string): string {
+  return `${optionA}\0${optionB}`
 }
 
-/** Pick `count` random unique questions for a game. */
-export function pickWyrQuestions(count: number): WyrQuestion[] {
-  if (count <= 0) return []
-  return shuffleInPlace([...WYR_QUESTIONS]).slice(0, Math.min(count, WYR_QUESTIONS.length))
+/** Pick `count` unique questions, preferring those played least often globally. */
+export function pickWyrQuestions(
+  count: number,
+  usageCounts: Map<string, number> = new Map()
+): WyrQuestion[] {
+  return pickLeastUsed(
+    WYR_QUESTIONS,
+    (q) => wyrQuestionKey(q.optionA, q.optionB),
+    usageCounts,
+    count
+  )
 }

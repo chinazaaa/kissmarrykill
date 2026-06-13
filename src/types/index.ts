@@ -33,6 +33,8 @@ export interface Participant {
   photo_url: string | null
   description: string | null
   display_order: number
+  /** MLT import mode: host adds names from the list into the poll. */
+  in_mlt_poll?: boolean | null
 }
 
 export interface Player {
@@ -75,6 +77,7 @@ export interface Vote {
   pair_assignments: Record<string, PairFlag> | null
   wyr_choice: WyrChoice | null
   target_player_id: string | null
+  target_participant_id: string | null
   created_at: string
 }
 

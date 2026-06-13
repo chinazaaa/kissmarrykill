@@ -1,4 +1,5 @@
 import type { GameType, PairFlag, WyrChoice } from '@/types'
+import type { MltTargetKind } from '@/lib/mlt'
 import {
   type VoteCategory,
   categoryMeta,
@@ -65,13 +66,18 @@ export interface MltTally {
 }
 
 export function tallyMltVotes(
-  votes: { target_player_id?: string | null }[],
-  players: { id: string; name: string }[]
+  votes: { target_player_id?: string | null; target_participant_id?: string | null }[],
+  targets: { id: string; name: string }[],
+  targetKind: MltTargetKind = 'player'
 ): MltTally {
-  const rows = players.map((p) => ({
-    playerId: p.id,
-    name: p.name,
-    count: votes.filter((v) => v.target_player_id === p.id).length,
+  const rows = targets.map((t) => ({
+    playerId: t.id,
+    name: t.name,
+    count: votes.filter((v) =>
+      targetKind === 'participant'
+        ? v.target_participant_id === t.id
+        : v.target_player_id === t.id
+    ).length,
   }))
   const maxCount = Math.max(0, ...rows.map((r) => r.count))
   const winnerNames =

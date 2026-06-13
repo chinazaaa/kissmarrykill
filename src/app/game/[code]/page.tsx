@@ -20,7 +20,7 @@ import {
   isPairGame,
   isWouldYouRather,
   isMostLikelyTo,
-  isLobbyGame,
+  isNameOnlyPlayerJoin,
   isPairAssignmentComplete,
   pairAssignedCount,
   pairAssignmentFromVote,
@@ -29,6 +29,7 @@ import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResult
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { MltPlayerPicker } from '@/components/MltPlayerPicker'
+import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap, WyrChoice } from '@/types'
 
@@ -76,8 +77,10 @@ export default function GamePage() {
   const [editingJoin, setEditingJoin] = useState(false)
 
   const isJoinersMode = game?.participant_mode === 'joiners'
-  const isLobby = isLobbyGame(game?.game_type)
-  const joinPlayerGender: PlayerGender = isLobby
+  const isNameOnlyJoin = isNameOnlyPlayerJoin(game?.game_type)
+  const isWyrGame = isWouldYouRather(game?.game_type)
+  const isMltImport = game ? isMltImportGame(game) : false
+  const joinPlayerGender: PlayerGender = isNameOnlyJoin
     ? 'both'
     : playerGenderFromJoin(joinIdentityGender, voteBothGenders)
 
@@ -201,7 +204,10 @@ export default function GamePage() {
               if (isWouldYouRather(gameType)) {
                 setWyrChoice(existingVote.wyr_choice)
               } else if (isMostLikelyTo(gameType)) {
-                setMltTargetPlayerId(existingVote.target_player_id)
+                const targetId = isMltImportGame(gameData)
+                  ? existingVote.target_participant_id
+                  : existingVote.target_player_id
+                setMltTargetPlayerId(targetId)
               } else if (isPairGame(gameType)) {
                 setPairAssignment(pairAssignmentFromVote(existingVote, activeRound.participant_ids))
               } else {
@@ -572,7 +578,7 @@ export default function GamePage() {
       )
       const gameType = parseGameType(gameRef.current?.game_type)
       const playerGender = myPlayerGenderRef.current ?? getPlayerSession(gameCode)?.playerGender ?? null
-      const canVote = isLobbyGame(gameType)
+      const canVote = isNameOnlyPlayerJoin(gameType)
         ? !!myPlayerIdRef.current
         : !!roundGender &&
           !!playerGender &&
@@ -614,8 +620,12 @@ export default function GamePage() {
       if (isWouldYouRather(gameType)) {
         wyr = Math.random() < 0.5 ? 'a' : 'b'
       } else if (isMostLikelyTo(gameType)) {
-        if (plrs.length > 0) {
-          mltTarget = plrs[Math.floor(Math.random() * plrs.length)].id
+        const g = gameRef.current
+        const targets = g
+          ? mltVoteTargets(g, participantsRef.current, plrs)
+          : plrs.map((p) => ({ id: p.id, name: p.name, kind: 'player' as const }))
+        if (targets.length > 0) {
+          mltTarget = targets[Math.floor(Math.random() * targets.length)].id
         }
       } else if (isPairGame(gameType)) {
         for (const p of roundParts) {
@@ -632,7 +642,9 @@ export default function GamePage() {
     const voteBody = isWouldYouRather(gameType)
       ? { wyrChoice: wyr ?? (Math.random() < 0.5 ? 'a' : 'b') }
       : isMostLikelyTo(gameType)
-      ? { targetPlayerId: mltTarget ?? plrs[0]?.id }
+      ? isMltImportGame(g!)
+        ? { targetParticipantId: mltTarget ?? participantsRef.current.find((p) => p.in_mlt_poll)?.id }
+        : { targetPlayerId: mltTarget ?? plrs[0]?.id }
       : isPairGame(gameType)
       ? {
           pairAssignments: Object.fromEntries(
@@ -686,7 +698,9 @@ export default function GamePage() {
     const voteBody = isWouldYouRather(submitGameType)
       ? { wyrChoice }
       : isMostLikelyTo(submitGameType)
-      ? { targetPlayerId: mltTargetPlayerId }
+      ? isMltImportGame(game!)
+        ? { targetParticipantId: mltTargetPlayerId }
+        : { targetPlayerId: mltTargetPlayerId }
       : isPairGame(submitGameType)
       ? {
           pairAssignments: Object.fromEntries(
@@ -718,7 +732,7 @@ export default function GamePage() {
     unlockAudio()
     setJoining(true)
     try {
-      const body = isLobby
+      const body = isNameOnlyJoin
         ? { gameCode, playerName: nameInput.trim() }
         : {
         gameCode,
@@ -850,8 +864,8 @@ export default function GamePage() {
         <div className="space-y-4">
           <p className="text-muted font-medium text-center">
             {editingJoin
-              ? isLobby ? 'Update your name' : 'Update your name or vote preference'
-              : isLobby
+              ? isNameOnlyJoin ? 'Update your name' : 'Update your name or vote preference'
+              : isNameOnlyJoin
                 ? 'Enter your name to join'
               : isJoinersMode
                 ? 'Join the game — your name goes in the poll'
@@ -875,7 +889,7 @@ export default function GamePage() {
               emptyMessage={namePickerOptions.length === 0 ? 'All names have been claimed' : 'No names match your search'}
             />
           )}
-          {!isLobby && (
+          {!isNameOnlyJoin && (
           <>
           <div>
             <p className="text-faint text-xs mb-2 text-center">I am</p>
@@ -928,8 +942,10 @@ export default function GamePage() {
             </div>
           )}
           <p className="text-faint text-xs text-center">
-            {isLobby
-              ? isMostLikelyTo(game?.game_type)
+            {isNameOnlyJoin
+              ? isMltImport
+                ? 'Join to vote — pick from the names the host added to the game'
+                : isMostLikelyTo(game?.game_type)
                 ? 'Vote for who fits each prompt — your choice stays anonymous'
                 : 'Pick between two options each round — your choice stays anonymous'
               : joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode, joinPollGender)}
@@ -971,7 +987,7 @@ export default function GamePage() {
                 <span className={`text-sm flex-1 min-w-0 truncate ${p.name === myPlayerName ? 'text-[var(--primary)] font-semibold' : 'text-white/80'}`}>
                   {p.name}{p.name === myPlayerName ? ' (you)' : ''}
                 </span>
-                {!isLobby && (
+                {!isNameOnlyJoin && (
                   <span className="text-[10px] uppercase tracking-wider text-faint shrink-0">
                     {playerIdentityLabel(p, participants, game?.game_type)}
                   </span>
@@ -982,7 +998,7 @@ export default function GamePage() {
         </div>
         <div className="flex flex-col gap-2">
           <button type="button" onClick={openEditJoin} className="btn-secondary text-sm py-2.5">
-            {isLobby ? 'Change name' : 'Change name or gender'}
+            {isNameOnlyJoin ? 'Change name' : 'Change name or gender'}
           </button>
           <button type="button" onClick={leaveGame} disabled={joining} className="text-faint text-xs hover:text-red-300 transition-colors">
             Leave game
@@ -998,7 +1014,16 @@ export default function GamePage() {
     const gameType = parseGameType(game?.game_type)
     const question = currentRound.mlt_question ?? ''
     const canVote = !!myPlayerId
-    const voteTargets = players
+    const mltTargets = game ? mltVoteTargets(game, participants, players) : []
+    const mltTargetKind = isMltImport ? 'participant' : 'player'
+    const mltSelfId = isMltImport
+      ? participants.find(
+          (p) =>
+            p.in_mlt_poll &&
+            myPlayerName &&
+            p.name.toLowerCase() === myPlayerName.toLowerCase()
+        )?.id ?? null
+      : myPlayerId
     const borderCls = mltTargetPlayerId ? 'border-amber-500/40' : 'border-white/10'
 
     return (
@@ -1022,11 +1047,11 @@ export default function GamePage() {
           <p className="text-muted text-xs uppercase tracking-wider text-center mb-3">Most likely to…</p>
           <p className="text-white/90 text-base text-center leading-snug font-medium mb-4">{question}</p>
           <MltPlayerPicker
-            players={voteTargets.map((p) => ({ id: p.id, name: p.name }))}
+            players={mltTargets.map((p) => ({ id: p.id, name: p.name }))}
             selectedId={mltTargetPlayerId}
             onSelect={setMltTargetPlayerId}
             disabled={submitted || !canVote}
-            selfId={myPlayerId}
+            selfId={mltSelfId}
           />
         </div>
 
@@ -1295,11 +1320,14 @@ export default function GamePage() {
       )
     }
 
-    if (isMostLikelyTo(gameType)) {
+    if (isMostLikelyTo(gameType) && game) {
       const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
-      const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(lastRoundVotes, players)
-      const myPickName = myVote?.target_player_id
-        ? players.find((p) => p.id === myVote.target_player_id)?.name ?? null
+      const mltKind = isMltImportGame(game) ? 'participant' : 'player'
+      const mltTargets = mltVoteTargets(game, participants, players)
+      const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(lastRoundVotes, mltTargets, mltKind)
+      const pickedId = myVote ? mltTargetIdFromVote(myVote, mltKind) : null
+      const myPickName = pickedId
+        ? mltTargets.find((t) => t.id === pickedId)?.name ?? null
         : null
       const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
 
@@ -1582,9 +1610,9 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
 }) {
   const gameType = parseGameType(game.game_type)
   const playedParticipants = filterParticipantsInRounds(participants, rounds)
-  const isLobby = isLobbyGame(gameType)
-  const isMlt = isMostLikelyTo(gameType)
   const isWyr = isWouldYouRather(gameType)
+  const isMlt = isMostLikelyTo(gameType)
+  const isMltImport = isMltImportGame(game)
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -1595,11 +1623,15 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
         <GameTypeBadge gameType={gameType} className="mt-2" />
         <p className="text-muted mt-2">
           {players.length} players · {rounds.length} rounds
-          {!isLobby ? ` · ${playedParticipants.length} in game` : ''}
+          {isMltImport
+            ? ` · ${mltVoteTargets(game, participants, players).length} in poll`
+            : !isWyr && !isMlt
+              ? ` · ${playedParticipants.length} in game`
+              : ''}
         </p>
       </div>
 
-      {!isLobby && (
+      {!isWyr && !isMlt && (
         <>
           <FinalGenderLeaderboards
             gameType={gameType}
@@ -1639,9 +1671,12 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
         }
 
         if (isMlt) {
-          const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(roundVotes, players)
-          const myPickName = myVote?.target_player_id
-            ? players.find((p) => p.id === myVote.target_player_id)?.name ?? null
+          const mltKind = isMltImport ? 'participant' : 'player'
+          const mltTargets = mltVoteTargets(game, participants, players)
+          const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(roundVotes, mltTargets, mltKind)
+          const pickedId = myVote ? mltTargetIdFromVote(myVote, mltKind) : null
+          const myPickName = pickedId
+            ? mltTargets.find((t) => t.id === pickedId)?.name ?? null
             : null
           return (
             <div key={round.id}>

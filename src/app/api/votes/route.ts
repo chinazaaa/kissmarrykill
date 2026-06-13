@@ -9,6 +9,7 @@ import {
   isWouldYouRather,
   isMostLikelyTo,
   isLobbyGame,
+  isNameOnlyPlayerJoin,
   parseGameType,
   voteSlots,
 } from '@/lib/game-types'
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
     pairAssignments: rawPairAssignments,
     wyrChoice: rawWyrChoice,
     targetPlayerId: rawTargetPlayerId,
+    targetParticipantId: rawTargetParticipantId,
   } = await req.json()
 
   if (!playerId || !roundId || !gameId) {
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
   const [{ data: player }, { data: round }, { data: game }] = await Promise.all([
     supabase.from('players').select('id, gender, identity_gender, name').eq('id', playerId).maybeSingle(),
     supabase.from('rounds').select('participant_ids').eq('id', roundId).maybeSingle(),
-    supabase.from('games').select('game_type').eq('id', gameId.toUpperCase()).maybeSingle(),
+    supabase.from('games').select('game_type, participant_mode').eq('id', gameId.toUpperCase()).maybeSingle(),
   ])
 
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
@@ -66,32 +68,65 @@ export async function POST(req: NextRequest) {
     pair_assignments: Record<string, PairFlag> | null
     wyr_choice: WyrChoice | null
     target_player_id: string | null
+    target_participant_id: string | null
   }
 
   if (isMostLikelyTo(gameType)) {
-    const targetPlayerId = typeof rawTargetPlayerId === 'string' ? rawTargetPlayerId : null
-    if (!targetPlayerId) {
-      return NextResponse.json({ error: 'Pick someone from the group' }, { status: 400 })
-    }
+    const isImport = game.participant_mode === 'import'
 
-    const { data: targetPlayer } = await supabase
-      .from('players')
-      .select('id')
-      .eq('id', targetPlayerId)
-      .eq('game_id', gameId.toUpperCase())
-      .maybeSingle()
+    if (isImport) {
+      const targetParticipantId =
+        typeof rawTargetParticipantId === 'string' ? rawTargetParticipantId : null
+      if (!targetParticipantId) {
+        return NextResponse.json({ error: 'Pick someone from the group' }, { status: 400 })
+      }
 
-    if (!targetPlayer) {
-      return NextResponse.json({ error: 'Invalid pick — player not in this game' }, { status: 400 })
-    }
+      const { data: targetParticipant } = await supabase
+        .from('participants')
+        .select('id, in_mlt_poll')
+        .eq('id', targetParticipantId)
+        .eq('game_id', gameId.toUpperCase())
+        .maybeSingle()
 
-    row = {
-      kiss_participant_id: null,
-      marry_participant_id: null,
-      kill_participant_id: null,
-      pair_assignments: null,
-      wyr_choice: null,
-      target_player_id: targetPlayerId,
+      if (!targetParticipant || !targetParticipant.in_mlt_poll) {
+        return NextResponse.json({ error: 'Invalid pick — name not in the game' }, { status: 400 })
+      }
+
+      row = {
+        kiss_participant_id: null,
+        marry_participant_id: null,
+        kill_participant_id: null,
+        pair_assignments: null,
+        wyr_choice: null,
+        target_player_id: null,
+        target_participant_id: targetParticipantId,
+      }
+    } else {
+      const targetPlayerId = typeof rawTargetPlayerId === 'string' ? rawTargetPlayerId : null
+      if (!targetPlayerId) {
+        return NextResponse.json({ error: 'Pick someone from the group' }, { status: 400 })
+      }
+
+      const { data: targetPlayer } = await supabase
+        .from('players')
+        .select('id')
+        .eq('id', targetPlayerId)
+        .eq('game_id', gameId.toUpperCase())
+        .maybeSingle()
+
+      if (!targetPlayer) {
+        return NextResponse.json({ error: 'Invalid pick — player not in this game' }, { status: 400 })
+      }
+
+      row = {
+        kiss_participant_id: null,
+        marry_participant_id: null,
+        kill_participant_id: null,
+        pair_assignments: null,
+        wyr_choice: null,
+        target_player_id: targetPlayerId,
+        target_participant_id: null,
+      }
     }
   } else if (isWouldYouRather(gameType)) {
     const wyrChoice = rawWyrChoice === 'a' || rawWyrChoice === 'b' ? rawWyrChoice : null
@@ -105,6 +140,7 @@ export async function POST(req: NextRequest) {
       pair_assignments: null,
       wyr_choice: wyrChoice,
       target_player_id: null,
+      target_participant_id: null,
     }
   } else if (isPairGame(gameType)) {
     const pairAssignments = parsePairAssignments(rawPairAssignments)
@@ -124,6 +160,7 @@ export async function POST(req: NextRequest) {
       pair_assignments: pairAssignments,
       wyr_choice: null,
       target_player_id: null,
+      target_participant_id: null,
     }
   } else {
     const assignment = { kiss: kiss || null, marry: marry || null, kill: kill || null }
@@ -151,10 +188,11 @@ export async function POST(req: NextRequest) {
       pair_assignments: null,
       wyr_choice: null,
       target_player_id: null,
+      target_participant_id: null,
     }
   }
 
-  if (!isLobbyGame(gameType)) {
+  if (!isLobbyGame(gameType) && !isMostLikelyTo(gameType)) {
     const { data: participants } = await supabase
       .from('participants')
       .select('id, gender')

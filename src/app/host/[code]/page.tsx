@@ -6,9 +6,10 @@ import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import { roundGenderLabel, genderLabel, resolvePlayerIdentity, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel, hasEnoughForRounds, countByGender, hasVotersForPolls, participantsWhoJoined, maxRecommendedRounds, roundLimitHint } from '@/lib/participants'
 import type { ParticipantGender } from '@/types'
 import { tallyRoundVotes, getCategoryMeta, getVoteCategories, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
-import { parseGameType, roundPoolSize, isPairGame, isWouldYouRather, isMostLikelyTo, isLobbyGame } from '@/lib/game-types'
+import { parseGameType, roundPoolSize, isPairGame, isWouldYouRather, isMostLikelyTo, isNameOnlyPlayerJoin } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
+import { isMltImportGame, mltPollParticipants, mltVoteTargets } from '@/lib/mlt'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
@@ -472,6 +473,25 @@ export default function HostPage() {
     }
   }
 
+  async function hostToggleMltPoll(participantId: string, inPoll: boolean) {
+    setAdminBusy(participantId)
+    try {
+      const res = await fetch('/api/participants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, hostToken, participantId, inMltPoll: inPoll }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to update')
+        return
+      }
+      await refreshLobbyLists()
+    } finally {
+      setAdminBusy(null)
+    }
+  }
+
   async function hostAddParticipant() {
     const name = addName.trim()
     if (!name || adding) return
@@ -605,27 +625,33 @@ export default function HostPage() {
   // ── WAITING ───────────────────────────────────────────────────────────────
   if (game?.status === 'waiting') {
     const gameType = parseGameType(game.game_type)
-    const isLobby = isLobbyGame(gameType)
-    const isMlt = isMostLikelyTo(gameType)
     const isWyr = isWouldYouRather(gameType)
+    const isMlt = isMostLikelyTo(gameType)
+    const isMltImport = isMltImportGame(game)
     const minPool = roundPoolSize(gameType)
     const isJoinersMode = (game.participant_mode ?? 'import') === 'joiners'
+    const pollParticipants = isMltImport ? mltPollParticipants(participants) : []
     const roundParticipants = isJoinersMode
       ? participants
+      : isMltImport
+      ? pollParticipants
       : participantsWhoJoined(participants, players)
     const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
     const maxRounds = maxRecommendedRounds(participantInputs, gameType)
     const roundsHint = roundLimitHint(participantInputs, gameType)
     const roundsTooHigh = maxRounds > 0 && game.rounds_count > maxRounds
-    const lobbyQuestionCount = isMlt ? MLT_QUESTION_COUNT : WYR_QUESTION_COUNT
-    const roundOptions = isLobby
-      ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionCount)
+    const roundOptions = isWyr
+      ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= WYR_QUESTION_COUNT)
+      : isMlt
+      ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= MLT_QUESTION_COUNT)
       : [1, 2, 3, 4, 5, 6, 8, 10].filter((n) => n <= Math.max(maxRounds, 1))
     const voterCheck = hasVotersForPolls(roundParticipants, players)
-    const canStart = isMlt
+    const canStart = isMltImport
+      ? pollParticipants.length >= 2 && players.length > 0 && !roundsTooHigh
+      : isMlt
       ? players.length >= 2 && !roundsTooHigh
-      : isLobby
+      : isWyr
       ? players.length > 0 && !roundsTooHigh
       : isJoinersMode
       ? players.length > 0 &&
@@ -647,7 +673,9 @@ export default function HostPage() {
             <h1 className="text-2xl font-black text-white mt-1">{game.title}</h1>
             <p className="text-muted text-sm">{game.rounds_count} rounds · {game.timer_seconds}s each</p>
             <p className="text-[var(--primary)] text-xs mt-1 font-medium">
-              {isMlt
+              {isMltImport
+                ? 'Most Likely To — import a list, add names to the poll, players join to vote'
+                : isMlt
                 ? 'Most Likely To — players join and vote for a friend each round'
                 : isWyr
                 ? 'Would You Rather — players join and pick A or B each round'
@@ -667,7 +695,7 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider">Rounds</p>
             <span className="text-faint text-xs">{game.timer_seconds}s each</span>
           </div>
-          {isLobby || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
+          {isWyr || isMlt || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
             <>
               {roundsHint && (
                 <p className="text-faint text-xs">{roundsHint}</p>
@@ -695,7 +723,7 @@ export default function HostPage() {
             </>
           ) : (
             <p className="text-faint text-xs">
-              {isLobby ? 'Set how many questions to play' : `Need at least ${minPool} joined people of one gender before you can set rounds`}
+              {isWyr || isMlt ? 'Set how many questions to play' : `Need at least ${minPool} joined people of one gender before you can set rounds`}
             </p>
           )}
         </div>
@@ -711,7 +739,7 @@ export default function HostPage() {
         <div className="glass-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-muted text-xs uppercase tracking-wider">
-              {isJoinersMode ? 'In the game' : 'Players joined'}
+              {isMltImport ? 'Voters joined' : isJoinersMode ? 'In the game' : 'Players joined'}
             </p>
             <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">{players.length}</span>
           </div>
@@ -758,7 +786,7 @@ export default function HostPage() {
               )}
             </div>
           )}
-          {isLobby ? (
+          {isWyr || (isMlt && isJoinersMode) ? (
             filteredPlayers.length === 0 ? (
               <p className="text-faint text-sm">Waiting for people to join...</p>
             ) : (
@@ -873,12 +901,12 @@ export default function HostPage() {
               )})}
             </div>
           )}
-          {isJoinersMode && !isLobby && participants.length > 0 && (
+          {isJoinersMode && !isWyr && !isMlt && participants.length > 0 && (
             <p className="text-faint text-xs text-center">
               {genderCounts.female} female · {genderCounts.male} male
             </p>
           )}
-          {isJoinersMode && !isLobby && participants.length > 0 && !hasEnoughForRounds(participantInputs, gameType) && (
+          {isJoinersMode && !isWyr && !isMlt && participants.length > 0 && !hasEnoughForRounds(participantInputs, gameType) && (
             <p className="text-amber-200/90 text-xs text-center">
               Need at least {minPool} people of the same gender to start
             </p>
@@ -935,7 +963,16 @@ export default function HostPage() {
             </div>
             {addError && <p className="text-red-300/90 text-xs">{addError}</p>}
           </div>
-          <p className="text-faint text-xs">Tap gender to correct · Remove if someone shouldn&apos;t be in the poll</p>
+          <p className="text-faint text-xs">
+            {isMltImport
+              ? 'Add names to the poll — players join separately to vote'
+              : 'Tap gender to correct · Remove if someone shouldn\'t be in the poll'}
+          </p>
+          {isMltImport && (
+            <p className="text-faint text-xs text-center">
+              {pollParticipants.length} in the poll · {players.length} voter{players.length === 1 ? '' : 's'} joined
+            </p>
+          )}
           {participants.length > 8 && (
             <div className="space-y-1">
               <div className="relative">
@@ -975,7 +1012,28 @@ export default function HostPage() {
             ) : (
             filteredListParticipants.map((p) => (
               <div key={p.id} className="flex items-center gap-2 min-w-0 surface-inset border border-white/8 rounded-xl px-3 py-2">
-                <span className="text-white/80 text-sm truncate flex-1">{p.name}</span>
+                <span className={`text-sm truncate flex-1 ${p.in_mlt_poll ? 'text-amber-100 font-medium' : 'text-white/80'}`}>
+                  {p.name}
+                </span>
+                {isMltImport ? (
+                  <>
+                    {p.in_mlt_poll ? (
+                      <span className="text-[10px] uppercase tracking-wider text-amber-200/80 shrink-0">In poll</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={adminBusy === p.id}
+                      onClick={() => hostToggleMltPoll(p.id, !p.in_mlt_poll)}
+                      className={`text-xs shrink-0 px-2 py-1 rounded-lg border transition-colors disabled:opacity-40 ${
+                        p.in_mlt_poll
+                          ? 'border-white/15 text-faint hover:text-white'
+                          : 'border-amber-400/40 text-amber-200 hover:bg-amber-500/10'
+                      }`}
+                    >
+                      {p.in_mlt_poll ? 'Remove' : 'Add to game'}
+                    </button>
+                  </>
+                ) : (
                 <div className="flex gap-1 shrink-0">
                   {(['female', 'male'] as const).map((g) => (
                     <button
@@ -991,6 +1049,7 @@ export default function HostPage() {
                     </button>
                   ))}
                 </div>
+                )}
                 <button
                   type="button"
                   disabled={adminBusy === p.id}
@@ -1014,9 +1073,13 @@ export default function HostPage() {
           {starting
             ? 'Starting...'
             : !canStart
-              ? isMlt && players.length < 2
+              ? isMltImport && pollParticipants.length < 2
+                ? `Add ${2 - pollParticipants.length} more to the poll (${pollParticipants.length}/2)`
+              : isMltImport && players.length === 0
+                ? 'Waiting for voters to join...'
+              : isMlt && !isMltImport && players.length < 2
                 ? `Need at least 2 players (${players.length}/2)`
-              : isLobby && players.length === 0
+              : isWyr && players.length === 0
                 ? 'Waiting for players...'
               : isJoinersMode
                 ? participants.length < minPool
@@ -1042,7 +1105,7 @@ export default function HostPage() {
   // ── ACTIVE ────────────────────────────────────────────────────────────────
   if (game?.status === 'active' && currentRound) {
     const gameType = parseGameType(game.game_type)
-    const isLobby = isLobbyGame(gameType)
+    const isNameOnly = isNameOnlyPlayerJoin(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWyr = isWouldYouRather(gameType)
     const roundVotes = votes.filter((v) => v.round_id === currentRound.id)
@@ -1052,10 +1115,10 @@ export default function HostPage() {
     const voterHint = roundVoterLabel(roundParticipantGender)
     const eligible = eligibleVotersForRound(roundParticipantGender, players, gameType)
     const eligibleIds = new Set(eligible.map((p) => p.id))
-    const eligibleVotes = isLobby
+    const eligibleVotes = isNameOnly
       ? roundVotes
       : roundVotes.filter((v) => eligibleIds.has(v.player_id))
-    const voteDenominator = isLobby ? players.length : eligible.length
+    const voteDenominator = isNameOnly ? players.length : eligible.length
     const allVoted = eligibleVotes.length >= voteDenominator && voteDenominator > 0
 
     if (isMlt) {
@@ -1274,23 +1337,25 @@ export default function HostPage() {
   // ── BETWEEN ROUNDS (results) ──────────────────────────────────────────────
   if (game?.status === 'active' && !currentRound && lastFinishedRound) {
     const gameType = parseGameType(game.game_type)
-    const isLobby = isLobbyGame(gameType)
-    const isMlt = isMostLikelyTo(gameType)
     const isWyr = isWouldYouRather(gameType)
+    const isMlt = isMostLikelyTo(gameType)
+    const isMltImport = isMltImportGame(game)
     const roundVotes = votes.filter((v) => v.round_id === lastFinishedRound.id)
     const roundParts = participants.filter((p) => lastFinishedRound.participant_ids.includes(p.id))
     const roundConfessions = confessions.filter((c) => c.round_id === lastFinishedRound.id)
     const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
     const isLastRound = lastFinishedRound.round_number >= game.rounds_count
     const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
-    const mltTally = tallyMltVotes(roundVotes, players)
+    const mltKind = isMltImport ? 'participant' : 'player'
+    const mltTargets = mltVoteTargets(game, participants, players)
+    const mltTally = tallyMltVotes(roundVotes, mltTargets, mltKind)
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
         <div className="text-center">
           <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game.rounds_count}
-            {!isLobby && roundGender ? ` · ${roundGender}` : ''}
+            {!isWyr && !isMlt && roundGender ? ` · ${roundGender}` : ''}
           </p>
           <h1 className="text-3xl font-black tracking-tight mt-1">Results are in! 🗳️</h1>
           <p className="text-muted text-sm mt-1">Players can see these results on their screens</p>
@@ -1404,10 +1469,11 @@ export default function HostPage() {
   // ── FINISHED ──────────────────────────────────────────────────────────────
   if (game?.status === 'finished') {
     const gameType = parseGameType(game.game_type)
-    const isLobby = isLobbyGame(gameType)
-    const isMlt = isMostLikelyTo(gameType)
     const isWyr = isWouldYouRather(gameType)
+    const isMlt = isMostLikelyTo(gameType)
+    const isMltImport = isMltImportGame(game)
     const playedParticipants = filterParticipantsInRounds(participants, allRounds)
+    const pollCount = mltVoteTargets(game, participants, players).length
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -1416,7 +1482,11 @@ export default function HostPage() {
           <h1 className="text-3xl font-black text-white">{game.title}</h1>
           <p className="text-muted">
             {players.length} players · {allRounds.length} rounds
-            {!isLobby ? ` · ${playedParticipants.length} in game` : ''}
+            {isMltImport
+              ? ` · ${pollCount} in poll`
+              : !isWyr && !isMlt
+                ? ` · ${playedParticipants.length} in game`
+                : ''}
           </p>
         </div>
 
@@ -1445,7 +1515,13 @@ export default function HostPage() {
           <div className="space-y-8">
             {allRounds.map((round) => {
               const roundVotes = votes.filter((v) => v.round_id === round.id)
-              const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(roundVotes, players)
+              const mltKind = isMltImport ? 'participant' : 'player'
+              const mltTargets = mltVoteTargets(game, participants, players)
+              const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(
+                roundVotes,
+                mltTargets,
+                mltKind
+              )
               return (
                 <div key={round.id}>
                   <h2 className="text-muted text-xs uppercase tracking-wider mb-3">
