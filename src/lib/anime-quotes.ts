@@ -84,17 +84,23 @@ function formatCharacterName(name: string): string {
 // ---------------------------------------------------------------------------
 
 const JIKAN_DELAY_MS = 350
+const JIKAN_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+function cacheMinDate(): string {
+  return new Date(Date.now() - JIKAN_CACHE_TTL_MS).toISOString()
+}
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function searchAnimeId(showName: string): Promise<number | null> {
-  // Check cache first
+  // Check cache first (with TTL)
   const { data: cached } = await supabase
     .from('jikan_search_cache')
     .select('mal_id')
     .eq('show_name', showName)
+    .gt('cached_at', cacheMinDate())
     .maybeSingle()
 
   if (cached !== null) {
@@ -166,11 +172,12 @@ async function searchAnimeId(showName: string): Promise<number | null> {
 }
 
 async function fetchCharacters(malId: number, showName: string): Promise<JikanCharacter[]> {
-  // Check cache first
+  // Check cache first (with TTL)
   const { data: cached } = await supabase
     .from('jikan_anime_cache')
     .select('characters')
     .eq('mal_id', malId)
+    .gt('cached_at', cacheMinDate())
     .maybeSingle()
 
   if (cached) {
