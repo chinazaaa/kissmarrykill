@@ -2,6 +2,8 @@ export type GameStatus = 'waiting' | 'active' | 'finished'
 export type RoundStatus = 'pending' | 'active' | 'finished'
 export type AutoSubmitBehavior = 'random' | 'no_answer'
 
+export type ParticipantGender = 'male' | 'female'
+
 export interface Game {
   id: string
   title: string
@@ -20,6 +22,7 @@ export interface Participant {
   id: string
   game_id: string
   name: string
+  gender: ParticipantGender
   photo_url: string | null
   description: string | null
   display_order: number

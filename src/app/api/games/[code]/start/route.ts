@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { generateRounds } from '@/lib/utils'
+import { generateRoundsByGender } from '@/lib/utils'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: participantsData } = await supabase
     .from('participants')
-    .select('id')
+    .select('id, gender')
     .eq('game_id', code.toUpperCase())
     .order('display_order')
 
@@ -26,8 +26,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Need at least 3 participants' }, { status: 400 })
   }
 
-  const participantIds = participantsData.map((p) => p.id)
-  const trios = generateRounds(participantIds, game.rounds_count)
+  const participants = participantsData.map((p) => ({
+    id: p.id,
+    gender: p.gender === 'male' ? 'male' as const : 'female' as const,
+  }))
+
+  const trios = generateRoundsByGender(participants, game.rounds_count)
+  if (trios.length === 0) {
+    return NextResponse.json(
+      { error: 'Need at least 3 people of the same gender to start' },
+      { status: 400 }
+    )
+  }
+
   const now = new Date().toISOString()
 
   const roundRows = trios.map((trio, index) => ({

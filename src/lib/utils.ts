@@ -22,12 +22,10 @@ export function generateRounds(participantIds: string[], roundCount: number): st
   if (participantIds.length < 3) return []
 
   const rounds: string[][] = []
-  // Start with a full shuffle
   let pool = [...participantIds].sort(() => Math.random() - 0.5)
 
   for (let r = 0; r < roundCount; r++) {
     if (pool.length < 3) {
-      // Refill: put the previous round's people at the very end
       const lastUsed = rounds[rounds.length - 1] ?? []
       const notRecent = participantIds
         .filter((id) => !lastUsed.includes(id))
@@ -39,6 +37,51 @@ export function generateRounds(participantIds: string[], roundCount: number): st
   }
 
   return rounds
+}
+
+export type ParticipantForRounds = { id: string; gender: 'male' | 'female' }
+
+/** Each round uses three people of the same gender; alternates when both pools qualify. */
+export function generateRoundsByGender(
+  participants: ParticipantForRounds[],
+  roundCount: number
+): string[][] {
+  if (roundCount <= 0) return []
+
+  const byGender: Record<'male' | 'female', string[]> = { male: [], female: [] }
+  for (const p of participants) {
+    byGender[p.gender].push(p.id)
+  }
+
+  const eligible = (['male', 'female'] as const).filter((g) => byGender[g].length >= 3)
+  if (eligible.length === 0) return []
+
+  if (eligible.length === 1) {
+    return generateRounds(byGender[eligible[0]], roundCount)
+  }
+
+  const maleCount = Math.ceil(roundCount / 2)
+  const femaleCount = Math.floor(roundCount / 2)
+  const maleTrios = generateRounds(byGender.male, maleCount)
+  const femaleTrios = generateRounds(byGender.female, femaleCount)
+
+  const result: string[][] = []
+  let mi = 0
+  let fi = 0
+  const startWithMale = byGender.male.length >= byGender.female.length
+
+  for (let r = 0; r < roundCount; r++) {
+    const preferMale = startWithMale ? r % 2 === 0 : r % 2 === 1
+    if (preferMale) {
+      if (mi < maleTrios.length) result.push(maleTrios[mi++])
+      else if (fi < femaleTrios.length) result.push(femaleTrios[fi++])
+    } else {
+      if (fi < femaleTrios.length) result.push(femaleTrios[fi++])
+      else if (mi < maleTrios.length) result.push(maleTrios[mi++])
+    }
+  }
+
+  return result
 }
 
 /** Participant IDs that appeared in at least one round. */

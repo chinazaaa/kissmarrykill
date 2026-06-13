@@ -1,24 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
+import { normalizeGender, hasEnoughForRounds, type ParticipantInput } from '@/lib/participants'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+function parseParticipants(raw: unknown): ParticipantInput[] | null {
+  if (!Array.isArray(raw)) return null
+
+  const parsed: ParticipantInput[] = []
+  for (const item of raw) {
+    if (typeof item === 'string') {
+      const name = item.trim()
+      if (name) parsed.push({ name, gender: 'female' })
+      continue
+    }
+    if (item && typeof item === 'object' && typeof item.name === 'string') {
+      const name = item.name.trim()
+      const gender = normalizeGender(String(item.gender ?? ''))
+      if (name && gender) parsed.push({ name, gender })
+    }
+  }
+  return parsed
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { title, rounds_count, timer_seconds, anonymous, auto_reveal, auto_submit_behavior, participants } = body
+  const { title, rounds_count, timer_seconds, anonymous, auto_reveal, auto_submit_behavior, participants: rawParticipants } = body
 
   if (!title?.trim()) {
     return NextResponse.json({ error: 'Game name is required' }, { status: 400 })
   }
-  if (!Array.isArray(participants) || participants.length < 3) {
+
+  const participants = parseParticipants(rawParticipants)
+  if (!participants || participants.length < 3) {
     return NextResponse.json({ error: 'At least 3 participants required' }, { status: 400 })
   }
+  if (!hasEnoughForRounds(participants)) {
+    return NextResponse.json(
+      { error: 'Need at least 3 people of the same gender (male or female) for rounds' },
+      { status: 400 }
+    )
+  }
 
-  // Generate a unique code
   let gameCode = generateGameCode()
   for (let i = 0; i < 10; i++) {
     const { data } = await supabase.from('games').select('id').eq('id', gameCode).maybeSingle()
@@ -45,9 +72,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: gameError.message }, { status: 500 })
   }
 
-  const participantRows = (participants as string[]).map((name, index) => ({
+  const participantRows = participants.map((p, index) => ({
     game_id: gameCode,
-    name: name.trim(),
+    name: p.name,
+    gender: p.gender,
     display_order: index,
   }))
 

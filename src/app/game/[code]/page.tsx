@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
+import { roundGenderLabel } from '@/lib/participants'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
@@ -529,6 +530,7 @@ export default function GamePage() {
   // ROUND — voting
   if (view === 'round' && currentRound) {
     const roundParts = participants.filter((p) => currentRound.participant_ids.includes(p.id))
+    const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
     const roundVoteCount = lastRoundVotes.length // approximate; not perfect but fine
     const allAssigned = !!(assignment.kiss && assignment.marry && assignment.kill)
 
@@ -542,6 +544,9 @@ export default function GamePage() {
               Round {currentRound.round_number}
               <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
             </p>
+            {roundGender && (
+              <p className="text-[var(--primary)] text-sm font-medium mt-0.5">{roundGender}</p>
+            )}
           </div>
           <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
         </div>

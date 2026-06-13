@@ -1,6 +1,16 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  type ParticipantGender,
+  type ParticipantInput,
+  parseParticipantRows,
+  parseExcelParticipants,
+  mergeParticipants,
+  countByGender,
+  hasEnoughForRounds,
+  genderLabel,
+} from '@/lib/participants'
 
 type Step = 'settings' | 'participants' | 'done'
 
@@ -24,50 +34,42 @@ export default function CreateGame() {
     auto_reveal: true,
     auto_submit_behavior: 'random',
   })
-  const [participants, setParticipants] = useState<string[]>([])
+  const [participants, setParticipants] = useState<ParticipantInput[]>([])
   const [nameInput, setNameInput] = useState('')
+  const [defaultGender, setDefaultGender] = useState<ParticipantGender>('female')
   const [loading, setLoading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [result, setResult] = useState<{ gameCode: string; hostToken: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const [bulkPaste, setBulkPaste] = useState('')
 
-  function parseNamesFromText(text: string): string[] {
-    return text
-      .split(/[\n\r\t,;]+/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-  }
+  const genderCounts = countByGender(participants)
+  const canCreate = participants.length >= 3 && hasEnoughForRounds(participants)
 
-  function mergeParticipants(existing: string[], incoming: string[]): string[] {
-    const seen = new Set(existing.map((n) => n.toLowerCase()))
-    const merged = [...existing]
-    for (const name of incoming) {
-      const key = name.toLowerCase()
-      if (!seen.has(key)) {
-        seen.add(key)
-        merged.push(name)
-      }
-    }
-    return merged
-  }
-
-  const addParticipantsFromText = (text: string) => {
-    const names = parseNamesFromText(text)
-    if (names.length === 0) return 0
-    setParticipants((prev) => mergeParticipants(prev, names))
-    return names.length
+  const addParticipantsFromRows = (rows: ParticipantInput[]) => {
+    if (rows.length === 0) return 0
+    setParticipants((prev) => mergeParticipants(prev, rows))
+    return rows.length
   }
 
   const addParticipant = () => {
-    const added = addParticipantsFromText(nameInput)
-    if (added === 0) return
+    const name = nameInput.trim()
+    if (!name) return
+    addParticipantsFromRows([{ name, gender: defaultGender }])
     setNameInput('')
     inputRef.current?.focus()
   }
 
   const addBulkParticipants = () => {
     if (!bulkPaste.trim()) return
-    addParticipantsFromText(bulkPaste)
+    setUploadError(null)
+    const rows = parseParticipantRows(bulkPaste)
+    if (rows.length === 0) {
+      setUploadError('Use two columns: name and gender (e.g. Sarah,female)')
+      return
+    }
+    addParticipantsFromRows(rows)
     setBulkPaste('')
   }
 
@@ -75,14 +77,58 @@ export default function CreateGame() {
     const text = e.clipboardData.getData('text')
     if (!/[\n\r\t,;]/.test(text)) return
     e.preventDefault()
-    addParticipantsFromText(text)
-    setNameInput('')
+    const rows = parseParticipantRows(text)
+    if (rows.length > 0) {
+      addParticipantsFromRows(rows)
+      setNameInput('')
+    } else {
+      const names = text.split(/[\n\r\t,;]+/).map((s) => s.trim()).filter(Boolean)
+      addParticipantsFromRows(names.map((name) => ({ name, gender: defaultGender })))
+      setNameInput('')
+    }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setUploadError(null)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+
+    try {
+      if (ext === 'csv') {
+        const text = await file.text()
+        const rows = parseParticipantRows(text)
+        if (rows.length === 0) {
+          setUploadError('No valid rows found. First column: name. Second column: gender (male/female).')
+          return
+        }
+        addParticipantsFromRows(rows)
+        return
+      }
+
+      if (ext === 'xlsx' || ext === 'xls') {
+        const buffer = await file.arrayBuffer()
+        const rows = await parseExcelParticipants(buffer)
+        if (rows.length === 0) {
+          setUploadError('No valid rows found. First column: name. Second column: gender (male/female).')
+          return
+        }
+        addParticipantsFromRows(rows)
+        return
+      }
+
+      setUploadError('Please upload a .csv or .xlsx file')
+    } catch {
+      setUploadError('Could not read that file. Try the sample CSV format.')
+    }
   }
 
   const removeParticipant = (i: number) => setParticipants((prev) => prev.filter((_, idx) => idx !== i))
 
   const createGame = async () => {
-    if (loading) return
+    if (loading || !canCreate) return
     setLoading(true)
     try {
       const res = await fetch('/api/games', {
@@ -117,7 +163,7 @@ export default function CreateGame() {
               value={settings.title}
               onChange={(e) => setSettings({ ...settings, title: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && settings.title.trim() && setStep('participants')}
-              placeholder="Friday Night FMK"
+              placeholder="Friday Night KMS"
               autoFocus
               className="input-field"
             />
@@ -204,10 +250,62 @@ export default function CreateGame() {
         <div>
           <p className="label-caps mb-2">Almost there</p>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Add Participants</h1>
-          <p className="text-muted text-sm mt-2">People being voted on — need at least 3. Paste from a sheet (one name per line).</p>
+          <p className="text-muted text-sm mt-2">
+            Each round picks 3 people of the <strong className="text-white/90">same gender</strong> — upload a sheet with name + gender, or add manually.
+          </p>
         </div>
 
         <div className="glass-card p-5 space-y-4">
+          <Field label="Upload CSV or Excel">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="btn-secondary flex-1"
+              >
+                Choose file (.csv / .xlsx)
+              </button>
+              <a
+                href="/participants-sample.csv"
+                download="participants-sample.csv"
+                className="btn-secondary flex-1 text-center no-underline"
+              >
+                Download sample
+              </a>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <p className="text-faint text-xs mt-2">
+              Column 1: name · Column 2: gender (<span className="text-white/50">male</span> or <span className="text-white/50">female</span>)
+            </p>
+          </Field>
+
+          {uploadError && (
+            <p className="text-red-300 text-sm">{uploadError}</p>
+          )}
+
+          <div className="flex items-center gap-3">
+            <div className="divider-soft" />
+            <span className="text-faint text-xs shrink-0">or add manually</span>
+            <div className="divider-soft" />
+          </div>
+
+          <Field label="Gender for single names">
+            <div className="flex gap-2">
+              <Chip active={defaultGender === 'female'} onClick={() => setDefaultGender('female')} wide>
+                Female
+              </Chip>
+              <Chip active={defaultGender === 'male'} onClick={() => setDefaultGender('male')} wide>
+                Male
+              </Chip>
+            </div>
+          </Field>
+
           <div className="flex gap-2">
             <input
               ref={inputRef}
@@ -228,17 +326,12 @@ export default function CreateGame() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="divider-soft" />
-              <span className="text-faint text-xs shrink-0">or paste a list</span>
-              <div className="divider-soft" />
-            </div>
             <textarea
               value={bulkPaste}
               onChange={(e) => setBulkPaste(e.target.value)}
-              placeholder={'Sarah\nJames\nAlex\n…one name per line'}
-              rows={5}
-              className="input-field resize-y min-h-[120px] font-medium"
+              placeholder={'name,gender\nSarah,female\nJames,male\n…or paste from Excel'}
+              rows={4}
+              className="input-field resize-y min-h-[96px] font-medium"
             />
             <button
               onClick={addBulkParticipants}
@@ -247,22 +340,20 @@ export default function CreateGame() {
             >
               Add all from paste
             </button>
-            <p className="text-faint text-xs text-center">
-              Works with Google Sheets, Excel, Notes — new lines, tabs, or commas
-            </p>
           </div>
 
           {participants.length > 0 ? (
-            <div className="space-y-2">
-              {participants.map((name, i) => (
-                <div key={i} className="surface-inset flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={name} />
-                    <span className="font-medium">{name}</span>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {participants.map((p, i) => (
+                <div key={`${p.name}-${p.gender}-${i}`} className="surface-inset flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar name={p.name} />
+                    <span className="font-medium truncate">{p.name}</span>
+                    <GenderBadge gender={p.gender} />
                   </div>
                   <button
                     onClick={() => removeParticipant(i)}
-                    className="text-faint hover:text-[var(--kill)] text-2xl leading-none transition-colors"
+                    className="text-faint hover:text-[var(--kill)] text-2xl leading-none transition-colors shrink-0 ml-2"
                   >
                     ×
                   </button>
@@ -273,14 +364,25 @@ export default function CreateGame() {
             <div className="text-center py-8 text-faint">No participants yet</div>
           )}
 
-          {participants.length < 3 && (
+          {participants.length > 0 && (
+            <p className="text-faint text-sm text-center">
+              {genderCounts.female} female · {genderCounts.male} male
+            </p>
+          )}
+
+          {!hasEnoughForRounds(participants) && participants.length > 0 && (
+            <p className="text-amber-200/90 text-sm text-center">
+              Need at least 3 people of the same gender to run rounds
+            </p>
+          )}
+          {participants.length < 3 && participants.length > 0 && (
             <p className="text-faint text-sm text-center">
               Add {3 - participants.length} more to continue
             </p>
           )}
         </div>
 
-        <PrimaryBtn onClick={createGame} disabled={participants.length < 3 || loading}>
+        <PrimaryBtn onClick={createGame} disabled={!canCreate || loading}>
           {loading ? 'Creating...' : `Create Game (${participants.length} participants)`}
         </PrimaryBtn>
       </PageShell>
@@ -314,6 +416,20 @@ export default function CreateGame() {
 
       <p className="text-faint text-xs text-center">The host link won&apos;t be shown again — save it now</p>
     </PageShell>
+  )
+}
+
+function GenderBadge({ gender }: { gender: ParticipantGender }) {
+  return (
+    <span
+      className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shrink-0 ${
+        gender === 'male'
+          ? 'bg-sky-500/15 text-sky-200 border border-sky-400/25'
+          : 'bg-pink-500/15 text-pink-200 border border-pink-400/25'
+      }`}
+    >
+      {genderLabel(gender)}
+    </span>
   )
 }
 

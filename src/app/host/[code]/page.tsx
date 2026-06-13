@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
+import { roundGenderLabel } from '@/lib/participants'
 import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
 
 export default function HostPage() {
@@ -462,6 +463,7 @@ export default function HostPage() {
   if (game?.status === 'active' && currentRound) {
     const roundVotes = votes.filter((v) => v.round_id === currentRound.id)
     const roundParts = participants.filter((p) => currentRound.participant_ids.includes(p.id))
+    const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
     const allVoted = roundVotes.length >= players.length && players.length > 0
 
     return (
@@ -477,7 +479,9 @@ export default function HostPage() {
 
         {/* Current trio */}
         <div>
-          <p className="text-muted text-xs uppercase tracking-wider mb-2">This Round</p>
+          <p className="text-muted text-xs uppercase tracking-wider mb-2">
+            This Round{roundGender ? ` · ${roundGender}` : ''}
+          </p>
           <div className="flex gap-2">
             {roundParts.map((p) => (
               <div key={p.id} className="flex-1 glass-card p-3 text-center">
@@ -562,6 +566,7 @@ export default function HostPage() {
     const roundVotes = votes.filter((v) => v.round_id === lastFinishedRound.id)
     const roundParts = participants.filter((p) => lastFinishedRound.participant_ids.includes(p.id))
     const roundConfessions = confessions.filter((c) => c.round_id === lastFinishedRound.id)
+    const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
     const isLastRound = lastFinishedRound.round_number >= game.rounds_count
 
     return (
@@ -569,6 +574,7 @@ export default function HostPage() {
         <div className="text-center">
           <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game.rounds_count}
+            {roundGender ? ` · ${roundGender}` : ''}
           </p>
           <h1 className="text-3xl font-black tracking-tight mt-1">Results are in! 🗳️</h1>
           <p className="text-muted text-sm mt-1">Players can see these results on their screens</p>
