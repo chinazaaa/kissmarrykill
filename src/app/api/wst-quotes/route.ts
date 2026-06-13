@@ -60,18 +60,24 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString()
+
+  // Remove any existing rows for this player (handles duplicate rows if unique index is missing).
+  await supabase
+    .from('wst_quote_pool')
+    .delete()
+    .eq('game_id', gameIdUpper)
+    .eq('player_id', playerId)
+
   const { data, error } = await supabase
     .from('wst_quote_pool')
-    .upsert(
-      {
-        game_id: gameIdUpper,
-        player_id: playerId,
-        quote_text: quote,
-        author_participant_id: authorId,
-        updated_at: now,
-      },
-      { onConflict: 'game_id,player_id' }
-    )
+    .insert({
+      game_id: gameIdUpper,
+      player_id: playerId,
+      quote_text: quote,
+      author_participant_id: authorId,
+      created_at: now,
+      updated_at: now,
+    })
     .select()
     .single()
 

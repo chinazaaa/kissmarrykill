@@ -36,7 +36,7 @@ import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/Fina
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { MltPlayerPicker } from '@/components/MltPlayerPicker'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
-import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound, dedupeWstPool, mergeWstPoolEntry } from '@/lib/who-said-this'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { useToast } from '@/components/ui/Toast'
@@ -210,6 +210,7 @@ export default function GamePage() {
   const suppressRoundSoundRef = useRef(true)
   const joinGenderTouchedRef = useRef(false)
   const roundFormIdRef = useRef<string | null>(null)
+  const poolFormSyncedRef = useRef<string | null>(null)
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -307,6 +308,14 @@ export default function GamePage() {
       }
 
       setView(session ? 'waiting' : 'join')
+      if (gameData.status === 'waiting' && isWhoSaidThis(parseGameType(gameData.game_type))) {
+        const { data: pool } = await supabase
+          .from('wst_quote_pool')
+          .select('*')
+          .eq('game_id', gameCode)
+          .order('created_at')
+        setWstPool(dedupeWstPool(pool ?? []))
+      }
       } finally {
         suppressRoundSoundRef.current = false
       }
@@ -374,7 +383,12 @@ export default function GamePage() {
     setAllConfessions([])
     setLastRoundVotes([])
     roundFormIdRef.current = null
+    poolFormSyncedRef.current = null
     resetRoundPlayerState()
+    setWstPool([])
+    setQuoteInput('')
+    setQuoteAuthorParticipantId(null)
+    setPoolQuoteSaved(false)
     announcedRoundIdRef.current = null
     setView(hasSession ? 'waiting' : 'join')
   }
@@ -525,19 +539,19 @@ export default function GamePage() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const entry = payload.new as WstQuotePoolEntry
-          setWstPool((prev) => prev.some((x) => x.id === entry.id) ? prev : [...prev, entry])
+          setWstPool((prev) => mergeWstPoolEntry(prev, entry))
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const entry = payload.new as WstQuotePoolEntry
-          setWstPool((prev) => prev.map((x) => x.id === entry.id ? entry : x))
+          setWstPool((prev) => mergeWstPoolEntry(prev, entry))
         }
       )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const entry = payload.old as WstQuotePoolEntry
-          setWstPool((prev) => prev.filter((x) => x.id !== entry.id))
+          setWstPool((prev) => prev.filter((x) => x.id !== entry.id && x.player_id !== entry.player_id))
         }
       )
 
@@ -669,10 +683,18 @@ export default function GamePage() {
   useEffect(() => {
     if (view !== 'waiting' || !myPlayerId) return
     const entry = wstPool.find((e) => e.player_id === myPlayerId)
+    const syncKey = entry ? `${entry.id}:${entry.updated_at}` : 'none'
+    if (poolFormSyncedRef.current === syncKey) return
+    poolFormSyncedRef.current = syncKey
+
     if (entry) {
       setQuoteInput(entry.quote_text)
       setQuoteAuthorParticipantId(entry.author_participant_id)
       setPoolQuoteSaved(true)
+    } else {
+      setQuoteInput('')
+      setQuoteAuthorParticipantId(null)
+      setPoolQuoteSaved(false)
     }
   }, [view, myPlayerId, wstPool])
 
@@ -867,8 +889,9 @@ export default function GamePage() {
       .select('*')
       .eq('game_id', gameCode)
       .order('created_at')
-    if (data) setWstPool(data)
-    return data ?? []
+    const pool = dedupeWstPool(data ?? [])
+    setWstPool(pool)
+    return pool
   }
 
   const handleSubmitPoolQuote = async () => {
@@ -892,6 +915,10 @@ export default function GamePage() {
       if (!res.ok) {
         toast.error(typeof data.error === 'string' ? data.error : 'Failed to submit quote')
         return
+      }
+      if (data.entry) {
+        setWstPool((prev) => mergeWstPoolEntry(prev, data.entry as WstQuotePoolEntry))
+        poolFormSyncedRef.current = `${data.entry.id}:${data.entry.updated_at}`
       }
       setPoolQuoteSaved(true)
       await fetchWstPool()

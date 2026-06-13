@@ -129,6 +129,23 @@ export function buildRoundsFromQuotePool({
   }))
 }
 
+export function dedupeWstPool(entries: WstQuotePoolEntry[]): WstQuotePoolEntry[] {
+  const byPlayer = new Map<string, WstQuotePoolEntry>()
+  for (const entry of entries) {
+    const existing = byPlayer.get(entry.player_id)
+    if (!existing || entry.updated_at > existing.updated_at) {
+      byPlayer.set(entry.player_id, entry)
+    }
+  }
+  return [...byPlayer.values()].sort(
+    (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)
+  )
+}
+
+export function mergeWstPoolEntry(prev: WstQuotePoolEntry[], entry: WstQuotePoolEntry): WstQuotePoolEntry[] {
+  return dedupeWstPool([...prev.filter((x) => x.player_id !== entry.player_id), entry])
+}
+
 export function wstPoolPlayerName(entry: WstQuotePoolEntry, players: Player[]): string | null {
   return players.find((p) => p.id === entry.player_id)?.name ?? null
 }

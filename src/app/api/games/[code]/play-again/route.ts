@@ -31,7 +31,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { error: roundsError } = await supabase.from('rounds').delete().eq('game_id', gameId)
   if (roundsError) return NextResponse.json({ error: roundsError.message }, { status: 500 })
 
-  await supabase.from('wst_quote_pool').delete().eq('game_id', gameId)
+  const { error: poolError } = await supabase.from('wst_quote_pool').delete().eq('game_id', gameId)
+  if (poolError) return NextResponse.json({ error: poolError.message }, { status: 500 })
 
   const { data: updated, error: gameError } = await supabase
     .from('games')

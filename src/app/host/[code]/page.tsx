@@ -11,7 +11,7 @@ import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
 import { questionPoolCap, parseQuestionSource, customQuestionCount } from '@/lib/custom-questions'
-import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound, wstQuotePoolStatus } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound, wstQuotePoolStatus, dedupeWstPool, mergeWstPoolEntry } from '@/lib/who-said-this'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -131,7 +131,7 @@ export default function HostPage() {
           .select('*')
           .eq('game_id', gameCode)
           .order('created_at')
-        setWstPool(pool || [])
+        setWstPool(dedupeWstPool(pool || []))
       }
 
       if (gameData.status === 'active') {
@@ -176,6 +176,7 @@ export default function HostPage() {
     setAllRounds([])
     setVotes([])
     setConfessions([])
+    setWstPool([])
     autoFinishTriggeredRef.current = false
     autoAdvanceScheduledRef.current = null
     advancingRef.current = false
@@ -316,19 +317,19 @@ export default function HostPage() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const entry = payload.new as WstQuotePoolEntry
-          setWstPool((prev) => prev.some((x) => x.id === entry.id) ? prev : [...prev, entry])
+          setWstPool((prev) => mergeWstPoolEntry(prev, entry))
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const entry = payload.new as WstQuotePoolEntry
-          setWstPool((prev) => prev.map((x) => x.id === entry.id ? entry : x))
+          setWstPool((prev) => mergeWstPoolEntry(prev, entry))
         }
       )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const entry = payload.old as WstQuotePoolEntry
-          setWstPool((prev) => prev.filter((x) => x.id !== entry.id))
+          setWstPool((prev) => prev.filter((x) => x.id !== entry.id && x.player_id !== entry.player_id))
         }
       )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'confessions', filter: `game_id=eq.${gameCode}` },
@@ -356,7 +357,7 @@ export default function HostPage() {
       ])
       if (plrs) setPlayers(plrs)
       if (parts) setParticipants(parts)
-      if (pool) setWstPool(pool)
+      if (pool) setWstPool(dedupeWstPool(pool))
     }
 
     refreshLobby()
@@ -635,7 +636,7 @@ export default function HostPage() {
     ])
     if (plrs) setPlayers(plrs)
     if (parts) setParticipants(parts)
-    if (pool) setWstPool(pool)
+    if (pool) setWstPool(dedupeWstPool(pool))
   }
 
   async function hostUpdateRounds(roundsCount: number) {
