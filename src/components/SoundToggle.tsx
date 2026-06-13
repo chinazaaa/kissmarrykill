@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { stopTimerMusic } from '@/lib/sounds'
 
 const STORAGE_KEY = 'kmk-sound-muted'
 
@@ -16,7 +15,7 @@ export function SoundToggle() {
     const next = !muted
     setMuted(next)
     localStorage.setItem(STORAGE_KEY, String(next))
-    if (next) stopTimerMusic()
+    // Muting is handled by isSoundMuted() checks in sound functions
   }
 
   return (
