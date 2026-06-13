@@ -38,12 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
-  const { data: game, error } = await supabase
-    .from('games')
-    .update(updatePayload)
-    .eq('id', auth.id)
-    .select()
-    .single()
+  const { data: game, error } = await supabase.from('games').update(updatePayload).eq('id', auth.id).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
