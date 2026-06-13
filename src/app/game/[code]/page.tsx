@@ -924,7 +924,17 @@ export default function GamePage() {
     const roundIds = roundParts.map((p) => p.id)
     const useRandom = g.auto_submit_behavior === 'random'
 
-    if (useRandom) {
+    // Only auto-fill random choices if the player has started voting
+    // (picked at least one option). If they haven't touched anything, skip.
+    const hasStartedVoting = isWouldYouRather(gameType)
+      ? !!wyr
+      : isMostLikelyTo(gameType) || isWhoSaidThis(gameType)
+        ? !!mltTarget
+        : isPairGame(gameType)
+          ? Object.values(pa).some(Boolean)
+          : Object.values(a).some(Boolean)
+
+    if (useRandom && hasStartedVoting) {
       if (isWouldYouRather(gameType)) {
         wyr = Math.random() < 0.5 ? 'a' : 'b'
       } else if (isMostLikelyTo(gameType)) {
