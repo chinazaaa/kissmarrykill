@@ -7,7 +7,7 @@ import type { VoteSlot } from '@/lib/game-types'
 
 function PlaceholderSilhouette({ name }: { name: string }) {
   return (
-    <div className="w-full aspect-[3/4] rounded-xl bg-[var(--surface-inset-bg)] flex flex-col items-center justify-center gap-2">
+    <div className="w-full aspect-square rounded-xl bg-[var(--surface-inset-bg)] flex flex-col items-center justify-center gap-2">
       <svg
         viewBox="0 0 24 24"
         fill="none"

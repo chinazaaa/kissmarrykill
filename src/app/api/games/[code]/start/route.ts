@@ -8,7 +8,7 @@ import {
   maxRecommendedRounds,
 } from '@/lib/participants'
 import { parseGameType, roundPoolSize, isWouldYouRather, isMostLikelyTo, isWhoSaidThis } from '@/lib/game-types'
-import { buildRoundsFromQuotePool, wstAutoRoundCount } from '@/lib/who-said-this'
+import { buildRoundsFromQuotePool, buildRoundsFromAnimePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
 import { fetchMltQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
@@ -53,46 +53,119 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const now = new Date().toISOString()
 
   if (isWhoSaidThis(gameType)) {
+    const wstQuoteSource = (game.wst_quote_source ?? 'player') as string
+
     const { data: participantsData } = await supabase
       .from('participants')
       .select('id')
       .eq('game_id', code.toUpperCase())
       .order('display_order')
 
-    if ((participantsData ?? []).length < 2) {
-      return NextResponse.json({ error: 'Need at least 2 names on the list' }, { status: 400 })
-    }
-
-    const submitters = playersData.filter((p) => p.participant_id)
-    if (submitters.length < 2) {
-      return NextResponse.json({ error: 'Need at least 2 players who claimed a name from the list' }, { status: 400 })
-    }
-
-    const { data: poolEntries } = await supabase.from('wst_quote_pool').select('*').eq('game_id', code.toUpperCase())
-
-    const quotes = poolEntries ?? []
-    if (quotes.length < 2) {
-      return NextResponse.json(
-        { error: 'Need at least 2 quotes in the pool before starting — players submit quotes in the lobby' },
-        { status: 400 }
-      )
-    }
-
-    const roundsCount = wstAutoRoundCount(quotes.length)
     const participantIds = (participantsData ?? []).map((p) => p.id)
-    const roundRows = buildRoundsFromQuotePool({
-      gameId: code.toUpperCase(),
-      participantIds,
-      poolEntries: quotes.slice(0, roundsCount),
-      now,
+
+    let playerRoundRows: ReturnType<typeof buildRoundsFromQuotePool> = []
+    let animeRoundRows: ReturnType<typeof buildRoundsFromAnimePool> = []
+
+    if (wstQuoteSource === 'player' || wstQuoteSource === 'both') {
+      if (wstQuoteSource === 'player') {
+        if (participantIds.length < 2) {
+          return NextResponse.json({ error: 'Need at least 2 names on the list' }, { status: 400 })
+        }
+        const submitters = playersData.filter((p) => p.participant_id)
+        if (submitters.length < 2) {
+          return NextResponse.json(
+            {
+              error: 'Need at least 2 players who claimed a name from the list',
+            },
+            { status: 400 }
+          )
+        }
+      }
+
+      const { data: poolEntries } = await supabase.from('wst_quote_pool').select('*').eq('game_id', code.toUpperCase())
+
+      const quotes = poolEntries ?? []
+      if (wstQuoteSource === 'player' && quotes.length < 2) {
+        return NextResponse.json(
+          {
+            error: 'Need at least 2 quotes in the pool before starting — players submit quotes in the lobby',
+          },
+          { status: 400 }
+        )
+      }
+
+      if (quotes.length > 0) {
+        const count = wstAutoRoundCount(quotes.length)
+        playerRoundRows = buildRoundsFromQuotePool({
+          gameId: code.toUpperCase(),
+          participantIds,
+          poolEntries: quotes.slice(0, count),
+          now,
+        })
+      }
+    }
+
+    if (wstQuoteSource === 'anime' || wstQuoteSource === 'both') {
+      const { data: animePool } = await supabase
+        .from('anime_quote_pool')
+        .select('*')
+        .eq('game_id', code.toUpperCase())
+        .eq('removed', false)
+        .order('created_at')
+
+      const animeQuotes = animePool ?? []
+      if (wstQuoteSource === 'anime' && animeQuotes.length < 2) {
+        return NextResponse.json(
+          {
+            error: 'Need at least 2 anime quotes before starting — fetch quotes in the lobby',
+          },
+          { status: 400 }
+        )
+      }
+
+      if (animeQuotes.length > 0) {
+        animeRoundRows = buildRoundsFromAnimePool({
+          gameId: code.toUpperCase(),
+          participantIds,
+          animeQuotes: animeQuotes.map((q) => ({
+            quote_text: q.quote_text,
+            anime_name: q.anime_name,
+            correct_character: q.correct_character,
+            choices: q.choices as string[],
+          })),
+          startIndex: playerRoundRows.length,
+          now,
+        })
+      }
+    }
+
+    const allRoundRows = [...playerRoundRows, ...animeRoundRows]
+    if (allRoundRows.length < 2) {
+      return NextResponse.json({ error: 'Need at least 2 total quotes to start' }, { status: 400 })
+    }
+
+    // Shuffle all rounds together, then re-number
+    for (let i = allRoundRows.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[allRoundRows[i], allRoundRows[j]] = [allRoundRows[j], allRoundRows[i]]
+    }
+    allRoundRows.forEach((r, i) => {
+      r.round_number = i + 1
+      r.status = i === 0 ? 'active' : 'pending'
+      r.started_at = i === 0 ? now : null
+      r.quote_submitted_at = i === 0 ? now : null
     })
 
-    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    const { error: roundError } = await supabase.from('rounds').insert(allRoundRows)
     if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
 
     const { error: gameError } = await supabase
       .from('games')
-      .update({ status: 'active', current_round_number: 1, rounds_count: roundsCount })
+      .update({
+        status: 'active',
+        current_round_number: 1,
+        rounds_count: allRoundRows.length,
+      })
       .eq('id', code.toUpperCase())
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
