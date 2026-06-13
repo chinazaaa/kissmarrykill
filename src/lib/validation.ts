@@ -57,6 +57,7 @@ const participantGenderEnum = z.enum(['male', 'female'])
 const playerGenderEnum = z.enum(['male', 'female', 'both'])
 const pairFlagEnum = z.enum(['kiss', 'kill'])
 const themeEnum = z.enum(['default', 'neon', 'retro', 'elegant', 'tropical'])
+const participantFilterEnum = z.enum(['all', 'joined'])
 const timerSecondsEnum = z.union([z.literal(15), z.literal(30), z.literal(60)])
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,7 @@ export const createGameSchema = z.object({
   game_type: gameTypeEnum.optional(),
   theme: themeEnum.optional(),
   wst_quote_source: wstQuoteSourceEnum.optional(),
+  participant_filter: participantFilterEnum.optional(),
   participants: z.array(participantItemSchema).optional(),
 })
 
@@ -96,7 +98,8 @@ export type CreateGameInput = z.infer<typeof createGameSchema>
 
 export const updateGameSchema = z.object({
   hostToken: hostTokenString(),
-  rounds_count: z.coerce.number().int().min(1, 'rounds_count is required'),
+  rounds_count: z.coerce.number().int().min(1, 'rounds_count is required').optional(),
+  participant_filter: participantFilterEnum.optional(),
 })
 
 export type UpdateGameInput = z.infer<typeof updateGameSchema>

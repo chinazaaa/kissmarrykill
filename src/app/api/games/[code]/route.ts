@@ -14,24 +14,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { hostToken, rounds_count: rawRoundsCount } = parsed.data
+  const { hostToken, rounds_count: rawRoundsCount, participant_filter } = parsed.data
 
   const auth = await assertHostGame(supabase, code, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const cap = questionPoolCap(auth.game!)
-  const rounds_count = Math.min(Math.max(rawRoundsCount, 1), cap)
+  const updatePayload: Record<string, unknown> = {}
 
-  if (rawRoundsCount > cap) {
-    return NextResponse.json({ error: `Too many rounds — pick ${cap} or fewer` }, { status: 400 })
+  if (rawRoundsCount !== undefined) {
+    const cap = questionPoolCap(auth.game!)
+    const rounds_count = Math.min(Math.max(rawRoundsCount, 1), cap)
+    if (rawRoundsCount > cap) {
+      return NextResponse.json({ error: `Too many rounds — pick ${cap} or fewer` }, { status: 400 })
+    }
+    updatePayload.rounds_count = rounds_count
   }
 
-  const { data: game, error } = await supabase
-    .from('games')
-    .update({ rounds_count })
-    .eq('id', auth.id)
-    .select()
-    .single()
+  if (participant_filter !== undefined) {
+    updatePayload.participant_filter = participant_filter === 'joined' ? 'joined' : 'all'
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  }
+
+  const { data: game, error } = await supabase.from('games').update(updatePayload).eq('id', auth.id).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

@@ -375,7 +375,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   const isImportMode = (game.participant_mode ?? 'import') === 'import'
-  const roundPool = isImportMode ? participantsWhoJoined(participantsData, playersData) : participantsData
+  const useAllParticipants = !isImportMode || game.participant_filter === 'all'
+  const roundPool = useAllParticipants ? participantsData : participantsWhoJoined(participantsData, playersData)
 
   if (roundPool.length < minPool) {
     return NextResponse.json(
