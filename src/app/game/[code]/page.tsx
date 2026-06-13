@@ -13,6 +13,8 @@ import {
   playGameFinishedSound,
   playConfessionSound,
   unlockAudio,
+  playTimerMusic,
+  stopTimerMusic,
 } from '@/lib/sounds'
 import {
   roundGenderLabel,
@@ -90,6 +92,8 @@ import {
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
 import { ShareResults } from '@/components/ShareResults'
+import { ShareRoundResults } from '@/components/ShareRoundResults'
+import { RematchHistory } from '@/components/RematchHistory'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { ConfessionsTicker } from '@/components/ConfessionsTicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
@@ -849,6 +853,7 @@ export default function GamePage() {
   // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current)
+    stopTimerMusic()
     if (view !== 'round' || !currentRound?.started_at || !game) return
 
     const gameType = parseGameType(game.game_type)
@@ -861,6 +866,7 @@ export default function GamePage() {
 
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((endMs - Date.now()) / 1000))
+      playTimerMusic(remaining, game.timer_seconds)
       setTimeLeft(remaining)
 
       const roundGender = getRoundParticipantGender(currentRound.participant_ids, participantsRef.current)
@@ -886,6 +892,7 @@ export default function GamePage() {
     timerRef.current = setInterval(tick, 500)
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
+      stopTimerMusic()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -2190,6 +2197,7 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
+          <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2239,6 +2247,7 @@ export default function GamePage() {
               correctCount={animeTally.correctCount}
               myPickName={myPickName}
             />
+            <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
             <p className="text-faint text-sm text-center">
               {roundResultsWaitMessage({
                 isLastRound,
@@ -2278,6 +2287,7 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
+          <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2319,6 +2329,7 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
+          <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2468,6 +2479,8 @@ export default function GamePage() {
         <ConfessionsTicker confessions={roundConfessions} />
 
         <ReactionBar className="pt-1" />
+
+        <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
 
         <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-[var(--primary)]' : 'text-faint'}`}>
           {roundResultsWaitMessage({
@@ -2794,6 +2807,15 @@ function FinalResultsView({
             ))}
           </div>
         </div>
+      )}
+
+      {!isWyr && !isMlt && !isWst && (
+        <RematchHistory
+          gameId={game.id}
+          currentParticipants={playedParticipants}
+          currentVotes={votes}
+          gameType={gameType}
+        />
       )}
 
       <p className="text-faint text-xs text-center">
