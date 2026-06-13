@@ -30,6 +30,7 @@ export interface Game {
   auto_reveal: boolean
   auto_submit_behavior: AutoSubmitBehavior
   participant_mode: ParticipantMode
+  participant_filter: 'all' | 'joined'
   pair_vote_mode: PairVoteMode
   question_source?: QuestionSource
   custom_questions?: unknown[] | null

@@ -12,6 +12,7 @@ create table if not exists games (
   auto_reveal boolean not null default true,
   auto_submit_behavior text not null default 'no_answer',
   participant_mode text not null default 'import' check (participant_mode in ('import', 'joiners')),
+  participant_filter text not null default 'all' check (participant_filter in ('all', 'joined')),
   pair_vote_mode text not null default 'any' check (pair_vote_mode in ('any', 'one_each')),
   question_source text not null default 'platform' check (question_source in ('platform', 'custom')),
   custom_questions jsonb,
