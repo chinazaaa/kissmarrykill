@@ -64,6 +64,7 @@ import {
   pairDisabledSlots,
   completeRandomPairAssignment,
   isHotSeat,
+  isCustomGame,
 } from '@/lib/game-types'
 import {
   ParticipantRoundResults,
@@ -90,6 +91,9 @@ import {
   isAnimeRound,
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
+import { getCustomSlots, getCustomSlotKeys, tallyCustomVotes, completeRandomCustomAssignment, buildCustomLeaderboard } from '@/lib/custom-game'
+import { CustomVoteCard } from '@/components/CustomVoteCard'
+import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { ShareResults } from '@/components/ShareResults'
 import { AchievementBadges } from '@/components/AchievementBadges'
 import { computeAchievements } from '@/lib/achievements'
@@ -149,6 +153,7 @@ export default function GamePage() {
   const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
   const [poolQuoteSaved, setPoolQuoteSaved] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [customAssignments, setCustomAssignments] = useState<Record<string, string>>({})
   const [confessionText, setConfessionText] = useState('')
   const [confessionSent, setConfessionSent] = useState(false)
 
@@ -276,6 +281,8 @@ export default function GamePage() {
   assignmentRef.current = assignment
   const pairAssignmentRef = useRef(pairAssignment)
   pairAssignmentRef.current = pairAssignment
+  const customAssignmentsRef = useRef(customAssignments)
+  customAssignmentsRef.current = customAssignments
   const wyrChoiceRef = useRef(wyrChoice)
   wyrChoiceRef.current = wyrChoice
   const mltTargetPlayerIdRef = useRef(mltTargetPlayerId)
@@ -477,6 +484,7 @@ export default function GamePage() {
     setPairAssignment({})
     setWyrChoice(null)
     setMltTargetPlayerId(null)
+    setCustomAssignments({})
     setAnimeChoice(null)
     setQuoteInput('')
     setQuoteAuthorParticipantId(null)
@@ -959,9 +967,11 @@ export default function GamePage() {
         ? !!animeCh
         : isMostLikelyTo(gameType) || isWhoSaidThis(gameType)
           ? !!mltTarget
-          : isPairGame(gameType)
-            ? Object.values(pa).some(Boolean)
-            : Object.values(a).some(Boolean)
+          : isCustomGame(gameType)
+            ? Object.keys(customAssignmentsRef.current).length > 0
+            : isPairGame(gameType)
+              ? Object.values(pa).some(Boolean)
+              : Object.values(a).some(Boolean)
 
     if (useRandom && hasStartedVoting) {
       if (isWouldYouRather(gameType)) {
@@ -981,6 +991,12 @@ export default function GamePage() {
         if (targets.length > 0) {
           mltTarget = targets[Math.floor(Math.random() * targets.length)].id
         }
+      } else if (isCustomGame(gameType) && g) {
+        const slotKeys = getCustomSlotKeys(g)
+        const ca = { ...customAssignmentsRef.current }
+        const filled = completeRandomCustomAssignment(ca, roundIds, slotKeys)
+        Object.assign(ca, filled)
+        setCustomAssignments(ca)
       } else if (isPairGame(gameType)) {
         const pairMode = parsePairVoteMode(g.pair_vote_mode)
         if (pairMode === 'one_each' && roundIds.length === 2) {
@@ -1017,6 +1033,10 @@ export default function GamePage() {
         if (!mltTarget) return
         voteBody = { targetParticipantId: mltTarget }
       }
+    } else if (isCustomGame(gameType)) {
+      const ca = customAssignmentsRef.current
+      if (Object.keys(ca).length === 0) return
+      voteBody = { customAssignments: ca }
     } else if (isPairGame(gameType)) {
       const pairMode = parsePairVoteMode(g.pair_vote_mode)
       if (!isPairAssignmentValid(pa, roundIds, pairMode)) return
@@ -1139,7 +1159,9 @@ export default function GamePage() {
           ? currentRound?.anime_metadata
             ? { animeChoice: animeChoiceRef.current }
             : { targetParticipantId: mltTargetPlayerId }
-          : isPairGame(submitGameType)
+          : isCustomGame(submitGameType)
+            ? { customAssignments }
+            : isPairGame(submitGameType)
             ? {
                 pairAssignments: Object.fromEntries(
                   roundIds
@@ -2206,13 +2228,19 @@ export default function GamePage() {
     const isPair = isPairGame(gameType)
     const roundPartIds = roundParts.map((p) => p.id)
     const pairMode = parsePairVoteMode(game?.pair_vote_mode)
-    const allAssigned = isPair
-      ? isPairAssignmentValid(pairAssignment, roundPartIds, pairMode)
-      : isAssignmentComplete(assignment, gameType)
-    const assignTarget = assignmentTargetCount(gameType, roundParts.length)
-    const assignProgress = isPair
-      ? pairAssignedCount(pairAssignment, roundPartIds)
-      : assignedCount(assignment, gameType)
+    const isCustom = isCustomGame(gameType)
+    const customComplete = isCustom && game ? Object.keys(customAssignments).length === getCustomSlots(game).length : false
+    const allAssigned = isCustom
+      ? customComplete
+      : isPair
+        ? isPairAssignmentValid(pairAssignment, roundPartIds, pairMode)
+        : isAssignmentComplete(assignment, gameType)
+    const assignTarget = isCustom && game ? getCustomSlots(game).length : assignmentTargetCount(gameType, roundParts.length)
+    const assignProgress = isCustom
+      ? Object.keys(customAssignments).length
+      : isPair
+        ? pairAssignedCount(pairAssignment, roundPartIds)
+        : assignedCount(assignment, gameType)
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
@@ -2250,8 +2278,35 @@ export default function GamePage() {
           </div>
         )}
 
+        {/* Custom game voting UI */}
+        {isCustomGame(gameType) && game && currentRound ? (() => {
+          const slots = getCustomSlots(game)
+          const roundPartsCustom = participants.filter((p) => currentRound.participant_ids.includes(p.id))
+          return (
+            <div className="flex-1 mb-6">
+              <CustomVoteCard
+                participants={roundPartsCustom}
+                slots={slots}
+                assignments={customAssignments}
+                onAssign={(pid, slotKey) => {
+                  if (!canVote || submitted) return
+                  setCustomAssignments((prev) => {
+                    const cleaned: Record<string, string> = {}
+                    for (const [id, key] of Object.entries(prev)) {
+                      if (key !== slotKey && id !== pid) cleaned[id] = key
+                    }
+                    cleaned[pid] = slotKey
+                    return cleaned
+                  })
+                }}
+                disabled={submitted || !canVote}
+              />
+            </div>
+          )
+        })() : null}
+
         {/* Participant photo cards — side-by-side grid */}
-        <div
+        {!isCustomGame(gameType) && <div
           className={`flex-1 grid gap-3 mb-6 ${roundParts.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}
         >
           {roundParts.map((p) => {
@@ -2276,7 +2331,7 @@ export default function GamePage() {
               />
             )
           })}
-        </div>
+        </div>}
 
         {/* Submit / submitted / spectating */}
         {!canVote ? (
@@ -2661,7 +2716,15 @@ export default function GamePage() {
         )}
 
         {/* Per-person vote counts */}
-        {(() => {
+        {isCustomGame(gameType) && game ? (() => {
+          const slots = getCustomSlots(game)
+          const slotKeys = slots.map((s) => s.key)
+          const roundPartsIds = lastFinishedRound.participant_ids
+          const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+          const tally = tallyCustomVotes(lastRoundVotes, roundPartsIds, nameMap, slotKeys)
+          const myAssignment = myVote?.pair_assignments as Record<string, string> | null
+          return <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
+        })() : (() => {
           const tallies = tallyRoundVotes(
             roundParts.map((p) => p.id),
             lastRoundVotes
@@ -2855,7 +2918,29 @@ function FinalResultsView({
         />
       )}
 
-      {!isWyr && !isMlt && !isWst && (
+      {isCustomGame(gameType) && game ? (() => {
+        const slots = getCustomSlots(game)
+        const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+        return (
+          <div className="glass-card border border-theme-strong p-4 space-y-4">
+            <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
+            {leaderboard.map((entry: { slot: { key: string; emoji: string; label: string; color: string }; entries: { name: string; count: number }[] }) => (
+              <div key={entry.slot.key} className="space-y-1">
+                <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
+                  {entry.slot.emoji} Most {entry.slot.label}
+                </p>
+                {entry.entries.slice(0, 3).map((e: { name: string; count: number }, i: number) => (
+                  <p key={e.name} className="text-body text-sm pl-6">
+                    {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
+        )
+      })() : null}
+
+      {!isWyr && !isMlt && !isWst && !isCustomGame(gameType) && (
         <>
           <FinalGenderLeaderboards
             gameType={gameType}
@@ -2876,6 +2961,20 @@ function FinalResultsView({
           {rounds.map((round) => {
             const roundVotes = votes.filter((v) => v.round_id === round.id)
             const myVote = roundVotes.find((v) => v.player_id === myPlayerId)
+
+            if (isCustomGame(gameType) && game) {
+              const slots = getCustomSlots(game)
+              const slotKeys = slots.map((s) => s.key)
+              const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+              const tally = tallyCustomVotes(roundVotes, round.participant_ids, nameMap, slotKeys)
+              const myAssignment = myVote?.pair_assignments as Record<string, string> | null
+              return (
+                <div key={round.id}>
+                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                  <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
+                </div>
+              )
+            }
 
             if (isWyr) {
               const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
