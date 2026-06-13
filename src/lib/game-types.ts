@@ -1,4 +1,4 @@
-import type { GameType, VoteAssignment, PairFlag, PairAssignmentMap, PairVoteMode } from '@/types'
+import type { GameType, VoteAssignment, PairFlag, PairAssignmentMap, PairVoteMode, ParticipantMode } from '@/types'
 
 export type VoteSlot = 'kiss' | 'marry' | 'kill'
 /** Tally keys — `smash` counts the kill slot (Red Flag / Kill). */
@@ -303,6 +303,39 @@ export function parseGameType(raw: unknown): GameType {
 
 export function gameTypeConfig(gameType: GameType | string | undefined): GameTypeConfig {
   return GAME_TYPE_CONFIG[parseGameType(gameType)]
+}
+
+/** Short setup blurb for the create-game screen. */
+export function gameHowItWorks(
+  gameType: GameType | string | undefined,
+  participantMode: ParticipantMode = 'import'
+): string {
+  const type = parseGameType(gameType)
+  const joiners = participantMode === 'joiners'
+
+  switch (type) {
+    case 'who_said_this':
+      return "Upload everyone's names on the next step. Players claim their name when joining. Each round one person writes a quote and picks who said it — everyone else guesses."
+    case 'would_you_rather':
+      return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
+    case 'most_likely_to':
+      return joiners
+        ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
+        : "Upload everyone's names on the next step. Players claim their name when joining. Each round shows a \"most likely to…\" prompt — vote for who fits best. Votes stay anonymous."
+    case 'red_flag_green_flag':
+      return joiners
+        ? 'Players add their name to the poll when joining. Each round, two names appear — everyone rates each person green flag or red flag.'
+        : "Add everyone's names on the next step. Players claim their name when joining. Each round, two names appear — everyone rates each person green flag or red flag."
+    case 'smash_or_pass':
+      return joiners
+        ? 'Players add their name to the poll when joining. Each round, two names appear — everyone picks smash or pass for each.'
+        : "Add everyone's names on the next step. Players claim their name when joining. Each round, two names appear — everyone picks smash or pass for each."
+    case 'smash_marry_kill':
+    default:
+      return joiners
+        ? 'Players add their name to the poll when joining. Each round, three names appear — everyone picks one to smash, one to marry, and one to kill.'
+        : "Add everyone's names on the next step. Players claim their name when joining. Each round, three names appear — everyone picks one to smash, one to marry, and one to kill."
+  }
 }
 
 /** Two names per round, two vote buttons (no middle slot). */

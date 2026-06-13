@@ -26,6 +26,7 @@ import {
   parseGameType,
   isPairGame,
   pairVoteModeOptions,
+  gameHowItWorks,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -656,14 +657,11 @@ function CreateGameInner() {
               </SettingsGroup>
             )}
 
-            {isWst && (
-              <SettingsGroup title="How it works">
-                <p className="text-faint text-sm leading-relaxed">
-                  Upload everyone's names on the next step. Players claim their name when joining.
-                  Each round one person writes a quote and picks who said it — everyone else guesses.
-                </p>
-              </SettingsGroup>
-            )}
+            <SettingsGroup title="How it works">
+              <p className="text-faint text-sm leading-relaxed">
+                {gameHowItWorks(settings.game_type, settings.participant_mode)}
+              </p>
+            </SettingsGroup>
 
             {!isWyr && !isWst && (
               <SettingsGroup title="Who's in the poll">

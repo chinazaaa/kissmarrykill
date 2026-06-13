@@ -36,7 +36,7 @@ import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/Fina
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { MltPlayerPicker } from '@/components/MltPlayerPicker'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
-import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound } from '@/lib/who-said-this'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { useToast } from '@/components/ui/Toast'
@@ -206,6 +206,7 @@ export default function GamePage() {
   const announcedRoundIdRef = useRef<string | null>(null)
   const suppressRoundSoundRef = useRef(true)
   const joinGenderTouchedRef = useRef(false)
+  const roundFormIdRef = useRef<string | null>(null)
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -238,6 +239,7 @@ export default function GamePage() {
           .from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle()
 
         if (activeRound) {
+          roundFormIdRef.current = activeRound.id
           setCurrentRound(activeRound)
           announcedRoundIdRef.current = activeRound.id
           if (session) {
@@ -327,13 +329,7 @@ export default function GamePage() {
     setAllConfessions(confs || [])
   }
 
-  function resetPlayerForLobby(hasSession: boolean) {
-    setCurrentRound(null)
-    setLastFinishedRound(null)
-    setAllRounds([])
-    setAllVotes([])
-    setAllConfessions([])
-    setLastRoundVotes([])
+  function resetRoundPlayerState() {
     submittedRef.current = false
     setSubmitted(false)
     setAssignment(emptyAssignment())
@@ -345,6 +341,37 @@ export default function GamePage() {
     setQuoteSubmitting(false)
     setConfessionText('')
     setConfessionSent(false)
+  }
+
+  function applyActiveRound(round: Round, options?: { switchView?: boolean }) {
+    setCurrentRound((prev) => mergeActiveRound(prev, round))
+    if (roundFormIdRef.current !== round.id) {
+      roundFormIdRef.current = round.id
+      resetRoundPlayerState()
+      if (options?.switchView !== false) setView('round')
+    }
+  }
+
+  async function fetchActiveRound() {
+    const { data } = await supabase
+      .from('rounds')
+      .select('*')
+      .eq('game_id', gameCode)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (data) applyActiveRound(data, { switchView: false })
+    return data
+  }
+
+  function resetPlayerForLobby(hasSession: boolean) {
+    setCurrentRound(null)
+    setLastFinishedRound(null)
+    setAllRounds([])
+    setAllVotes([])
+    setAllConfessions([])
+    setLastRoundVotes([])
+    roundFormIdRef.current = null
+    resetRoundPlayerState()
     announcedRoundIdRef.current = null
     setView(hasSession ? 'waiting' : 'join')
   }
@@ -367,19 +394,7 @@ export default function GamePage() {
             ])
             if (parts) setParticipants(parts)
             if (activeRound) {
-              setCurrentRound(activeRound)
-              submittedRef.current = false
-              setSubmitted(false)
-              setAssignment(emptyAssignment())
-              setPairAssignment({})
-              setWyrChoice(null)
-              setMltTargetPlayerId(null)
-    setQuoteInput('')
-    setQuoteAuthorParticipantId(null)
-    setQuoteSubmitting(false)
-              setConfessionText('')
-              setConfessionSent(false)
-              setView('round')
+              applyActiveRound(activeRound)
             }
           }
 
@@ -402,19 +417,7 @@ export default function GamePage() {
             const { data: parts } = await supabase
               .from('participants').select('*').eq('game_id', gameCode).order('display_order')
             if (parts) setParticipants(parts)
-            setCurrentRound(round)
-            submittedRef.current = false
-            setSubmitted(false)
-            setAssignment(emptyAssignment())
-            setPairAssignment({})
-              setWyrChoice(null)
-              setMltTargetPlayerId(null)
-    setQuoteInput('')
-    setQuoteAuthorParticipantId(null)
-    setQuoteSubmitting(false)
-              setConfessionText('')
-            setConfessionSent(false)
-            setView('round')
+            applyActiveRound(round)
           }
         }
       )
@@ -425,38 +428,8 @@ export default function GamePage() {
           const round = payload.new as Round
 
           if (round.status === 'active') {
-            setCurrentRound((prev) => {
-              if (
-                prev?.id === round.id &&
-                round.quote_text &&
-                (prev.quote_text !== round.quote_text ||
-                  prev.quote_author_participant_id !== round.quote_author_participant_id)
-              ) {
-                return {
-                  ...prev,
-                  quote_text: round.quote_text,
-                  quote_author_participant_id: round.quote_author_participant_id,
-                  quote_submitted_at: round.quote_submitted_at,
-                }
-              }
-              return round
-            })
-
-            if (announcedRoundIdRef.current !== round.id) {
-              announcedRoundIdRef.current = round.id
-              submittedRef.current = false
-              setSubmitted(false)
-              setAssignment(emptyAssignment())
-              setPairAssignment({})
-              setWyrChoice(null)
-              setMltTargetPlayerId(null)
-              setQuoteInput('')
-    setQuoteAuthorParticipantId(null)
-              setQuoteSubmitting(false)
-              setConfessionText('')
-              setConfessionSent(false)
-              setView('round')
-            }
+            const priorId = roundFormIdRef.current
+            applyActiveRound(round, { switchView: priorId !== round.id })
           }
 
           if (round.status === 'finished') {
@@ -597,17 +570,7 @@ export default function GamePage() {
         const { data: activeRound } = await supabase
           .from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle()
         if (activeRound) {
-          setCurrentRound(activeRound)
-          submittedRef.current = false
-          setSubmitted(false)
-          setAssignment(emptyAssignment())
-          setPairAssignment({})
-          setWyrChoice(null)
-          setMltTargetPlayerId(null)
-    setQuoteInput('')
-    setQuoteAuthorParticipantId(null)
-    setQuoteSubmitting(false)
-          setView('round')
+          applyActiveRound(activeRound)
         }
       }
     }
@@ -642,21 +605,9 @@ export default function GamePage() {
       }
 
       if (activeRound && myPlayerIdRef.current) {
-        setCurrentRound(activeRound)
-        if (view === 'round_results' || activeRound.id !== currentRoundRef.current?.id) {
-          submittedRef.current = false
-          setSubmitted(false)
-          setAssignment(emptyAssignment())
-          setPairAssignment({})
-              setWyrChoice(null)
-              setMltTargetPlayerId(null)
-    setQuoteInput('')
-    setQuoteAuthorParticipantId(null)
-    setQuoteSubmitting(false)
-              setConfessionText('')
-          setConfessionSent(false)
-          setView('round')
-        }
+        applyActiveRound(activeRound, {
+          switchView: view === 'round_results' || activeRound.id !== roundFormIdRef.current,
+        })
         return
       }
 
@@ -695,7 +646,13 @@ export default function GamePage() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (view !== 'round' || !currentRound?.started_at || !game) return
 
-    const endMs = new Date(currentRound.started_at).getTime() + game.timer_seconds * 1000
+    const gameType = parseGameType(game.game_type)
+    const isWst = isWhoSaidThis(gameType)
+    const timerStartMs =
+      isWst && currentRound.quote_text && currentRound.quote_submitted_at
+        ? new Date(currentRound.quote_submitted_at).getTime()
+        : new Date(currentRound.started_at).getTime()
+    const endMs = timerStartMs + game.timer_seconds * 1000
 
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((endMs - Date.now()) / 1000))
@@ -729,7 +686,15 @@ export default function GamePage() {
     timerRef.current = setInterval(tick, 500)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, currentRound?.id, currentRound?.started_at, game?.timer_seconds])
+  }, [
+    view,
+    currentRound?.id,
+    currentRound?.started_at,
+    currentRound?.quote_text,
+    currentRound?.quote_submitted_at,
+    game?.timer_seconds,
+    game?.game_type,
+  ])
   // Note: `submitted` intentionally excluded — the timer always counts to zero
 
   // Uses only refs so it never causes stale closure issues
@@ -863,33 +828,53 @@ export default function GamePage() {
     if (!currentRound || !myPlayerId || quoteSubmitting) return
     const text = quoteInput.trim()
     if (!text || !quoteAuthorParticipantId) return
+    const roundId = currentRound.id
+    const authorId = quoteAuthorParticipantId
     setQuoteSubmitting(true)
     try {
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => controller.abort(), 15000)
       const res = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerId: myPlayerId,
-          roundId: currentRound.id,
+          roundId,
           gameId: gameCode,
           quoteText: text,
-          authorParticipantId: quoteAuthorParticipantId,
+          authorParticipantId: authorId,
         }),
+        signal: controller.signal,
       })
+      window.clearTimeout(timeout)
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to submit quote')
+        const msg = typeof data.error === 'string' ? data.error : 'Failed to submit quote'
+        if (msg.includes('already submitted')) {
+          await fetchActiveRound()
+          setQuoteInput('')
+          setQuoteAuthorParticipantId(null)
+          return
+        }
+        toast.error(msg)
+        await fetchActiveRound()
         return
       }
-      const data = await res.json()
-      setCurrentRound({
-        ...currentRound,
-        quote_text: data.quoteText ?? text,
-        quote_author_participant_id: data.authorParticipantId ?? quoteAuthorParticipantId,
-        quote_submitted_at: new Date().toISOString(),
-      })
+      setCurrentRound((prev) =>
+        prev && prev.id === roundId
+          ? {
+              ...prev,
+              quote_text: data.quoteText ?? text,
+              quote_author_participant_id: data.authorParticipantId ?? authorId,
+              quote_submitted_at: new Date().toISOString(),
+            }
+          : prev
+      )
       setQuoteInput('')
       setQuoteAuthorParticipantId(null)
+    } catch {
+      toast.error('Could not submit quote — checking if it saved…')
+      await fetchActiveRound()
     } finally {
       setQuoteSubmitting(false)
     }
@@ -905,8 +890,6 @@ export default function GamePage() {
     ) {
       return
     }
-    submittedRef.current = true
-    setSubmitted(true)
     const voteBody = isWouldYouRather(submitGameType)
       ? { wyrChoice }
       : isMostLikelyTo(submitGameType)
@@ -928,16 +911,27 @@ export default function GamePage() {
           marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
           kill: assignment.kill,
         }
-    await fetch('/api/votes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerId: myPlayerId,
-        roundId: currentRound.id,
-        gameId: gameCode,
-        ...voteBody,
-      }),
-    })
+    try {
+      const res = await fetch('/api/votes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: myPlayerId,
+          roundId: currentRound.id,
+          gameId: gameCode,
+          ...voteBody,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to submit vote')
+        return
+      }
+      submittedRef.current = true
+      setSubmitted(true)
+    } catch {
+      toast.error('Could not submit — try again')
+    }
   }
 
   const joinGame = async () => {
@@ -1248,7 +1242,11 @@ export default function GamePage() {
               <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
             </p>
             <p className="label-teal text-sm font-medium mt-1">
-              {isSubmitter ? 'Your turn to write' : `${submitterName ?? 'Someone'}'s turn`}
+              {isSubmitter
+                ? quote
+                  ? 'Waiting for guesses…'
+                  : 'Your turn to write'
+                : `${submitterName ?? 'Someone'}'s turn`}
             </p>
           </div>
           <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
@@ -1305,8 +1303,11 @@ export default function GamePage() {
             <p className="text-body text-xl font-medium italic leading-snug">&ldquo;{quote}&rdquo;</p>
           </div>
         ) : (
-          <div className="glass-card px-4 py-8 mb-6 text-center">
+          <div className="glass-card px-4 py-8 mb-6 text-center space-y-2">
             <p className="text-muted text-sm">Waiting for {submitterName ?? 'the writer'} to submit a quote…</p>
+            {timeLeft === 0 && (
+              <p className="text-muted text-xs">Time&apos;s up — this round will end shortly.</p>
+            )}
           </div>
         )}
 

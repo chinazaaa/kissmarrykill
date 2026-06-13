@@ -1,4 +1,4 @@
-import type { Participant, Player, Vote } from '@/types'
+import type { Participant, Player, Round, Vote } from '@/types'
 
 export interface WstVoteTarget {
   id: string
@@ -9,6 +9,19 @@ export function wstVoteTargets(participants: Participant[]): WstVoteTarget[] {
   return [...participants]
     .sort((a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
     .map((p) => ({ id: p.id, name: p.name }))
+}
+
+/** Merge a realtime/poll round update without dropping a quote that was already saved. */
+export function mergeActiveRound(prev: Round | null, incoming: Round): Round {
+  if (!prev || prev.id !== incoming.id) return incoming
+  return {
+    ...prev,
+    ...incoming,
+    quote_text: incoming.quote_text ?? prev.quote_text,
+    quote_author_participant_id:
+      incoming.quote_author_participant_id ?? prev.quote_author_participant_id,
+    quote_submitted_at: incoming.quote_submitted_at ?? prev.quote_submitted_at,
+  }
 }
 
 export function wstEligibleSubmitters(players: Player[]): Player[] {

@@ -11,7 +11,7 @@ import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
 import { questionPoolCap, parseQuestionSource, customQuestionCount } from '@/lib/custom-questions'
-import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound } from '@/lib/who-said-this'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -203,7 +203,7 @@ export default function HostPage() {
     }
 
     if (activeRound) {
-      setCurrentRound(activeRound)
+      setCurrentRound((prev) => mergeActiveRound(prev, activeRound))
       setLastFinishedRound(null)
       return
     }
@@ -228,7 +228,10 @@ export default function HostPage() {
           if (g.status === 'active') {
             const { data: roundData } = await supabase
               .from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle()
-            if (roundData) { setCurrentRound(roundData); advancingRef.current = false }
+            if (roundData) {
+              setCurrentRound((prev) => mergeActiveRound(prev, roundData))
+              advancingRef.current = false
+            }
           }
           if (g.status === 'finished') {
             await loadResults()
@@ -284,7 +287,7 @@ export default function HostPage() {
         (payload) => {
           const r = payload.new as Round
           if (r.status === 'active') {
-            setCurrentRound(r)
+            setCurrentRound((prev) => mergeActiveRound(prev, r))
             setLastFinishedRound(null)
             advancingRef.current = false
             setAdvancing(false)
@@ -392,21 +395,33 @@ export default function HostPage() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (!currentRound?.started_at || !game || game.status !== 'active') return
 
-    const endMs = new Date(currentRound.started_at).getTime() + game.timer_seconds * 1000
+    const gameType = parseGameType(game.game_type)
+    const isWst = isWhoSaidThis(gameType)
+    const timerStartMs =
+      isWst && currentRound.quote_text && currentRound.quote_submitted_at
+        ? new Date(currentRound.quote_submitted_at).getTime()
+        : new Date(currentRound.started_at).getTime()
+    const endMs = timerStartMs + game.timer_seconds * 1000
 
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((endMs - Date.now()) / 1000))
       setTimeLeft(remaining)
       if (remaining === 0) {
-        const gameType = parseGameType(game?.game_type)
-        if (isWhoSaidThis(gameType) && !currentRound?.quote_text) return
         handleEndRound()
       }
     }
     tick()
     timerRef.current = setInterval(tick, 500)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [currentRound?.id, currentRound?.started_at, game?.timer_seconds, game?.status])
+  }, [
+    currentRound?.id,
+    currentRound?.started_at,
+    currentRound?.quote_text,
+    currentRound?.quote_submitted_at,
+    game?.timer_seconds,
+    game?.status,
+    game?.game_type,
+  ])
 
   // Auto-end round as soon as every eligible voter has voted; timer is the fallback
   useEffect(() => {
@@ -1301,6 +1316,11 @@ export default function HostPage() {
             ) : (
               <p className="text-muted text-sm text-center">Waiting for {submitterName ?? 'writer'} to submit a quote…</p>
             )}
+            {!quote && timeLeft === 0 && (
+              <p className="callout-warning text-sm text-center">
+                Writer didn&apos;t submit in time — skipping to the next round…
+              </p>
+            )}
           </div>
 
           <div className="glass-card p-4 space-y-3">
@@ -1323,10 +1343,10 @@ export default function HostPage() {
 
           <button
             onClick={handleEndRound}
-            disabled={ending || !quote || voterVotes.length === 0}
+            disabled={ending || (quote ? voterVotes.length === 0 : timeLeft > 0)}
             className="btn-secondary"
           >
-            {ending ? 'Ending...' : 'End Round Early'}
+            {ending ? 'Ending...' : quote ? 'End Round Early' : timeLeft === 0 ? 'Skip Round (no quote)' : 'End Round Early'}
           </button>
         </div>
       )
