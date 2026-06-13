@@ -9,6 +9,7 @@ import { ParticipantGallery } from '@/components/ParticipantGallery'
 import { useQueryClient as __useQueryClient } from '@tanstack/react-query'
 import { usePlayerQuestions } from '@/hooks/queries/usePlayerQuestions'
 import { useHotSeatSubmissions } from '@/hooks/queries/useHotSeatSubmissions'
+import { useGameRealtime } from '@/hooks/useGameRealtime'
 import { gameKeys } from '@/lib/query-keys'
 import {
   playRoundStartSound,
@@ -134,6 +135,9 @@ export default function GamePage() {
   const { confirm } = useConfirm()
   const queryClient = __useQueryClient()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
+
+  // Realtime → React Query cache bridge (runs alongside existing setState handlers)
+  useGameRealtime(gameCode)
 
   const [view, setView] = useState<View>('loading')
   const [game, setGame] = useState<Game | null>(null)
