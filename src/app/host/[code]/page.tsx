@@ -1325,7 +1325,11 @@ export default function HostPage() {
               <SegmentedControl
                 value={game.participant_filter ?? 'all'}
                 onChange={async (v: string) => {
-                  await supabase.from('games').update({ participant_filter: v }).eq('id', game.id)
+                  await fetch(`/api/games/${game.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hostToken, participant_filter: v }),
+                  })
                 }}
                 options={[
                   { value: 'all', label: 'Everyone' },
