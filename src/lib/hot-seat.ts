@@ -14,10 +14,11 @@ export function buildHotSeatSequence(players: Player[], roundCount: number): Pla
   return sequence
 }
 
-/** Chip options for the admin max-rounds cap (3 … 20). */
-export function hotSeatMaxRoundOptions(upperBound = HOT_SEAT_MAX_ROUNDS_CAP): number[] {
-  const cap = Math.min(HOT_SEAT_MAX_ROUNDS_CAP, Math.max(upperBound, HOT_SEAT_MIN_PLAYERS))
-  return Array.from({ length: cap - HOT_SEAT_MIN_PLAYERS + 1 }, (_, i) => i + HOT_SEAT_MIN_PLAYERS)
+/** Clamp admin max-rounds cap to a valid integer in range. */
+export function clampHotSeatMaxCap(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10)
+  if (!Number.isFinite(n)) return HOT_SEAT_MIN_PLAYERS
+  return Math.min(HOT_SEAT_MAX_ROUNDS_CAP, Math.max(HOT_SEAT_MIN_PLAYERS, Math.floor(n)))
 }
 
 /** Playable rounds = one turn per joined player, capped by admin max. */

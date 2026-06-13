@@ -15,6 +15,7 @@ import {
   parsePairVoteMode,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
+import { clampHotSeatMaxCap, HOT_SEAT_MAX_ROUNDS_CAP } from '@/lib/hot-seat'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { parseQuestionSource, parseStoredWyrQuestions, parseStoredMltQuestions } from '@/lib/custom-questions'
@@ -153,7 +154,9 @@ export async function POST(req: NextRequest) {
   const maxRounds = lobbyMaxRounds(game_type, question_source, custom_questions)
   const roundsCount = isWhoSaidThis(game_type)
     ? wstAutoRoundCount(participants.length)
-    : Math.min(Math.max(Number(rounds_count) || 3, 1), Math.min(maxRounds, 20))
+    : isHotSeat(game_type)
+      ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MAX_ROUNDS_CAP)
+      : Math.min(Math.max(Number(rounds_count) || 3, 1), Math.min(maxRounds, 20))
 
   if (question_source === 'custom' && custom_questions && roundsCount > custom_questions.length) {
     return NextResponse.json(

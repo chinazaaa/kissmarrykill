@@ -57,7 +57,7 @@ import { GameTypeCard } from '@/components/GameTypeCard'
 import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/components/ui/PageShell'
 import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGrid } from '@/components/ui/CreateWizard'
 import {
-  hotSeatMaxRoundOptions,
+  clampHotSeatMaxCap,
   HOT_SEAT_MAX_ROUNDS_CAP,
   HOT_SEAT_MIN_PLAYERS,
 } from '@/lib/hot-seat'
@@ -167,9 +167,6 @@ function CreateGameInner() {
   const mltRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
   const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
   const wstRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= Math.max(participants.length, 2))
-  const hotSeatMaxOptions = hotSeatMaxRoundOptions(
-    Math.max(participants.length, HOT_SEAT_MIN_PLAYERS)
-  )
   const roundOptions = isWyr
     ? wyrRoundOptions
     : isMlt
@@ -528,20 +525,28 @@ function CreateGameInner() {
                 <Field label="Max rounds">
                   <p className="text-faint text-xs mb-2">
                     One hot seat turn per player who joins and claims a name. The actual round count is set
-                    automatically in the lobby — this is the cap.
+                    automatically in the lobby — enter the max cap ({HOT_SEAT_MIN_PLAYERS}–{HOT_SEAT_MAX_ROUNDS_CAP}).
                   </p>
-                  <ChipGrid>
-                    {hotSeatMaxOptions.map((n) => (
-                      <Chip
-                        key={n}
-                        active={settings.rounds_count === n}
-                        onClick={() => setSettings((prev) => ({ ...prev, rounds_count: n }))}
-                        className="!px-0 w-full"
-                      >
-                        {n}
-                      </Chip>
-                    ))}
-                  </ChipGrid>
+                  <input
+                    type="number"
+                    min={HOT_SEAT_MIN_PLAYERS}
+                    max={HOT_SEAT_MAX_ROUNDS_CAP}
+                    step={1}
+                    value={settings.rounds_count}
+                    onChange={(e) => {
+                      const n = Number.parseInt(e.target.value, 10)
+                      if (!Number.isNaN(n)) {
+                        setSettings((prev) => ({ ...prev, rounds_count: n }))
+                      }
+                    }}
+                    onBlur={(e) => {
+                      setSettings((prev) => ({
+                        ...prev,
+                        rounds_count: clampHotSeatMaxCap(e.target.value),
+                      }))
+                    }}
+                    className="input-field w-28"
+                  />
                 </Field>
               ) : (
                 <Field label="Rounds">

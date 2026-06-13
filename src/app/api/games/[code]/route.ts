@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { assertHostGame } from '@/lib/game-admin'
 import { questionPoolCap } from '@/lib/custom-questions'
 import { updateGameSchema } from '@/lib/validation'
+import { parseGameType, isHotSeat } from '@/lib/game-types'
+import { clampHotSeatMaxCap, HOT_SEAT_MAX_ROUNDS_CAP } from '@/lib/hot-seat'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -22,9 +24,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
   const updatePayload: Record<string, unknown> = {}
 
   if (rawRoundsCount !== undefined) {
-    const cap = questionPoolCap(auth.game!)
-    const rounds_count = Math.min(Math.max(rawRoundsCount, 1), cap)
-    if (rawRoundsCount > cap) {
+    const gameType = parseGameType(auth.game!.game_type)
+    const cap = isHotSeat(gameType) ? HOT_SEAT_MAX_ROUNDS_CAP : questionPoolCap(auth.game!)
+    const min = isHotSeat(gameType) ? 3 : 1
+    const rounds_count = isHotSeat(gameType)
+      ? clampHotSeatMaxCap(rawRoundsCount)
+      : Math.min(Math.max(rawRoundsCount, min), cap)
+    if (!isHotSeat(gameType) && rawRoundsCount > cap) {
       return NextResponse.json({ error: `Too many rounds — pick ${cap} or fewer` }, { status: 400 })
     }
     updatePayload.rounds_count = rounds_count

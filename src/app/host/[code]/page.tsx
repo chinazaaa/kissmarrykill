@@ -62,10 +62,11 @@ import {
   AnimeWstRoundResults,
 } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
+import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import {
   hotSeatEffectiveRounds,
-  hotSeatMaxRoundOptions,
   hotSeatLobbyRoundsHint,
+  clampHotSeatMaxCap,
   HOT_SEAT_MIN_PLAYERS,
   HOT_SEAT_MAX_ROUNDS_CAP,
 } from '@/lib/hot-seat'
@@ -1074,19 +1075,14 @@ export default function HostPage() {
         : roundLimitHint(participantInputs, gameType)
     const hotSeatJoinedCount = hotSeatLegacyJoiners ? players.length : roundParticipants.length
     const hotSeatEffective = hotSeatLobby ? hotSeatEffectiveRounds(hotSeatJoinedCount, game.rounds_count) : 0
-    const hotSeatMaxOptions = hotSeatMaxRoundOptions(
-      Math.max(participants.length, hotSeatJoinedCount, HOT_SEAT_MIN_PLAYERS)
-    )
     const roundsTooHigh = hotSeatLobby ? false : maxRounds > 0 && game.rounds_count > maxRounds
     const roundOptions = isWyr
       ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
       : isMlt
         ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
-        : isWst
+          : isWst
           ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
-          : hotSeatLobby
-            ? hotSeatMaxOptions
-            : kmkRoundPickerOptions(maxRounds)
+          : kmkRoundPickerOptions(maxRounds)
     const voterCheck = hasVotersForPolls(roundParticipants, players)
     const wstSource = game?.wst_quote_source ?? 'player'
     const animeQuoteCount = animePool.length
@@ -1170,25 +1166,27 @@ export default function HostPage() {
             <>
               <p className="font-bold text-body text-2xl">{hotSeatEffective > 0 ? hotSeatEffective : '—'}</p>
               <p className="text-faint text-xs">{hotSeatLobbyRoundsHint(hotSeatJoinedCount, game.rounds_count)}</p>
-              {participants.length >= HOT_SEAT_MIN_PLAYERS && (
-                <div className="space-y-2 pt-2">
-                  <p className="text-muted text-[10px] uppercase tracking-wider">Max rounds (cap)</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {hotSeatMaxOptions.map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => hostUpdateRounds(n)}
-                        className={`min-w-[2.5rem] px-3 py-2 rounded-xl border text-sm font-semibold ${
-                          game.rounds_count === n ? 'chip-active' : 'chip'
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="space-y-2 pt-2">
+                <p className="text-muted text-[10px] uppercase tracking-wider">Max rounds (cap)</p>
+                <input
+                  type="number"
+                  min={HOT_SEAT_MIN_PLAYERS}
+                  max={HOT_SEAT_MAX_ROUNDS_CAP}
+                  step={1}
+                  defaultValue={game.rounds_count}
+                  key={game.rounds_count}
+                  disabled={updatingRounds}
+                  onBlur={(e) => {
+                    const n = clampHotSeatMaxCap(e.target.value)
+                    e.target.value = String(n)
+                    if (n !== game.rounds_count) hostUpdateRounds(n)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                  }}
+                  className="input-field w-28 py-2 text-sm disabled:opacity-50"
+                />
+              </div>
             </>
           ) : isWyr || isMlt || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
             <>
