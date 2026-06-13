@@ -100,16 +100,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const identityGender =
-      resolveIdentityGender(rawIdentityGender, 'both', 'female') ?? 'female'
-
     const { data: player, error } = await supabase
       .from('players')
       .insert({
         game_id: id,
         name,
         gender: 'both',
-        identity_gender: identityGender,
+        identity_gender: null,
         participant_id: null,
       })
       .select()
@@ -304,6 +301,34 @@ export async function PATCH(req: NextRequest) {
     .maybeSingle()
 
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+
+  const gameType = parseGameType((game as { game_type?: string }).game_type)
+
+  if (isWouldYouRather(gameType)) {
+    if (rawName === undefined) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    }
+    const name = String(rawName).trim()
+    if (!name) return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 })
+    if (await nameTaken(id, name, playerId)) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    const { data: updatedPlayer, error } = await supabase
+      .from('players')
+      .update({ name })
+      .eq('id', playerId)
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({
+      playerId: updatedPlayer.id,
+      playerName: updatedPlayer.name,
+      playerGender: updatedPlayer.gender,
+    })
+  }
 
   const updates: {
     name?: string

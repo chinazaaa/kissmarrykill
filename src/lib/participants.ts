@@ -218,8 +218,10 @@ export function playerIdentityLabel(
     identity_gender?: ParticipantGender | string | null
     name: string
   },
-  participants?: { name: string; gender: ParticipantGender }[]
+  participants?: { name: string; gender: ParticipantGender }[],
+  gameType?: GameType | string
 ): string {
+  if (isWouldYouRather(gameType)) return ''
   return genderLabel(resolvePlayerIdentity(player, participants))
 }
 

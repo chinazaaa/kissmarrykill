@@ -868,12 +868,12 @@ export default function HostPage() {
               )})}
             </div>
           )}
-          {isJoinersMode && participants.length > 0 && (
+          {isJoinersMode && !isWyr && participants.length > 0 && (
             <p className="text-faint text-xs text-center">
               {genderCounts.female} female · {genderCounts.male} male
             </p>
           )}
-          {isJoinersMode && participants.length > 0 && !hasEnoughForRounds(participantInputs, gameType) && (
+          {isJoinersMode && !isWyr && participants.length > 0 && !hasEnoughForRounds(participantInputs, gameType) && (
             <p className="text-amber-200/90 text-xs text-center">
               Need at least {minPool} people of the same gender to start
             </p>

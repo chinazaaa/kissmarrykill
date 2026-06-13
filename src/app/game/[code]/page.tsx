@@ -693,7 +693,9 @@ export default function GamePage() {
     unlockAudio()
     setJoining(true)
     try {
-      const body = {
+      const body = isWyrGame
+        ? { gameCode, playerName: nameInput.trim() }
+        : {
         gameCode,
         playerName: nameInput.trim(),
         gender: joinPlayerGender,
@@ -823,7 +825,9 @@ export default function GamePage() {
         <div className="space-y-4">
           <p className="text-muted font-medium text-center">
             {editingJoin
-              ? 'Update your name or vote preference'
+              ? isWyrGame ? 'Update your name' : 'Update your name or vote preference'
+              : isWyrGame
+                ? 'Enter your name to join'
               : isJoinersMode
                 ? 'Join the game — your name goes in the poll'
                 : 'Select your name from the list'}
@@ -940,16 +944,18 @@ export default function GamePage() {
                 <span className={`text-sm flex-1 min-w-0 truncate ${p.name === myPlayerName ? 'text-[var(--primary)] font-semibold' : 'text-white/80'}`}>
                   {p.name}{p.name === myPlayerName ? ' (you)' : ''}
                 </span>
-                <span className="text-[10px] uppercase tracking-wider text-faint shrink-0">
-                  {playerIdentityLabel(p, participants)}
-                </span>
+                {!isWyrGame && (
+                  <span className="text-[10px] uppercase tracking-wider text-faint shrink-0">
+                    {playerIdentityLabel(p, participants, game?.game_type)}
+                  </span>
+                )}
               </div>
             ))}
           </div>
         </div>
         <div className="flex flex-col gap-2">
           <button type="button" onClick={openEditJoin} className="btn-secondary text-sm py-2.5">
-            Change name or gender
+            {isWyrGame ? 'Change name' : 'Change name or gender'}
           </button>
           <button type="button" onClick={leaveGame} disabled={joining} className="text-faint text-xs hover:text-red-300 transition-colors">
             Leave game
