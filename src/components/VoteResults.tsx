@@ -45,7 +45,7 @@ function PairParticipantResultCard({
       <div className="flex items-center gap-3 mb-4">
         <div className="avatar w-10 h-10 text-lg shrink-0">{getInitial(name)}</div>
         <div className="min-w-0 flex-1">
-          <p className="text-white font-bold text-lg leading-tight truncate">{name}</p>
+          <p className="text-body font-bold text-lg leading-tight truncate">{name}</p>
           {myFlag && (
             <p className="text-faint text-xs mt-0.5">
               You: {assignmentEmojiFor(gameType, myFlag)}
@@ -94,7 +94,7 @@ export function RoundWinnersSummary({
   const categories = getVoteCategories(gameType)
 
   return (
-    <div className="glass-card border border-white/12 p-4 space-y-3">
+    <div className="glass-card border border-theme-strong p-4 space-y-3">
       <p className="text-muted text-xs uppercase tracking-wider text-center">
         Round winners · {voterCount} {voterCount === 1 ? 'vote' : 'votes'}
       </p>
@@ -107,7 +107,7 @@ export function RoundWinnersSummary({
             <div key={category} className="surface-inset rounded-xl px-2 py-3 text-center">
               <p className="text-lg">{meta.emoji}</p>
               <p className="text-faint text-[10px] uppercase tracking-wider mt-0.5">{meta.label}</p>
-              <p className="text-white font-semibold text-sm mt-1 leading-tight truncate">
+              <p className="text-body font-semibold text-sm mt-1 leading-tight truncate">
                 {winners.length > 0 ? winners.join(' & ') : '—'}
               </p>
               {max > 0 && <p className="text-faint text-[10px] mt-0.5">{max} votes</p>}
@@ -139,18 +139,18 @@ export function VoteCountStat({
   return (
     <div
       className={`text-center rounded-xl px-2 py-3 transition-colors ${
-        isWinner ? 'bg-white/8 ring-1 ring-white/15' : 'surface-inset'
+        isWinner ? 'result-row-winner' : 'surface-inset'
       }`}
     >
       {isWinner && (
-        <p className="text-[9px] uppercase tracking-wider font-bold text-white/70 mb-1">Winner</p>
+        <p className="text-[9px] uppercase tracking-wider font-bold text-muted mb-1">Winner</p>
       )}
       <p className="text-base leading-none">
         {emoji}{' '}
-        <span className={`font-black ${isWinner ? 'text-white' : 'text-white/90'}`}>{count}</span>
+        <span className={`font-black ${isWinner ? 'text-body' : 'text-body'}`}>{count}</span>
       </p>
       <p className="text-faint text-xs mt-1.5">{label}</p>
-      <div className="h-2 bg-white/8 rounded-full mt-2.5 overflow-hidden">
+      <div className="bar-track-sm mt-2.5">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
@@ -262,19 +262,19 @@ function WyrOptionStat({
   return (
     <div
       className={`rounded-xl px-3 py-3 transition-colors ${
-        isWinner ? 'bg-white/8 ring-1 ring-white/15' : 'surface-inset'
+        isWinner ? 'result-row-winner' : 'surface-inset'
       }`}
     >
       {isWinner && (
-        <p className="text-[9px] uppercase tracking-wider font-bold text-white/70 mb-1 text-center">Winner</p>
+        <p className="text-[9px] uppercase tracking-wider font-bold text-muted mb-1 text-center">Winner</p>
       )}
       <p className="text-[10px] uppercase tracking-wider text-faint text-center">{label}</p>
-      <p className="text-white/90 text-xs mt-2 leading-snug line-clamp-4 min-h-[3rem]">{text}</p>
+      <p className="text-body text-xs mt-2 leading-snug line-clamp-4 min-h-[3rem]">{text}</p>
       <p className="text-center mt-3">
-        <span className="font-black text-lg text-white">{count}</span>
+        <span className="font-black text-lg text-body">{count}</span>
         <span className="text-faint text-xs ml-1">votes</span>
       </p>
-      <div className="h-2 bg-white/8 rounded-full mt-2 overflow-hidden">
+      <div className="bar-track-sm mt-2">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
@@ -303,7 +303,7 @@ export function WyrRoundResults({
   const aWins = countA > countB
   const bWins = countB > countA
   const borderCls =
-    myChoice === 'a' ? 'border-violet-500/40' : myChoice === 'b' ? 'border-sky-500/40' : 'border-white/10'
+    myChoice === 'a' ? 'border-violet-500/40' : myChoice === 'b' ? 'border-sky-500/40' : 'border-theme'
 
   return (
     <div className="space-y-4">
@@ -311,11 +311,11 @@ export function WyrRoundResults({
         Round results · {voterCount} {voterCount === 1 ? 'vote' : 'votes'}
       </p>
       <div className={`glass-card border-2 ${borderCls} rounded-2xl p-4 space-y-4`}>
-        <p className="text-white/80 text-sm text-center leading-relaxed">
+        <p className="text-body-muted text-sm text-center leading-relaxed">
           Would you rather{' '}
-          <span className="text-violet-200 font-medium">{optionA}</span>
+          <span className="label-violet font-medium">{optionA}</span>
           {' '}or{' '}
-          <span className="text-sky-200 font-medium">{optionB}</span>?
+          <span className="label-sky font-medium">{optionB}</span>?
         </p>
         <div className="grid grid-cols-2 gap-3">
           <WyrOptionStat
@@ -350,7 +350,7 @@ export function MltRoundResults({
   rows,
   voterCount,
   maxCount,
-  winnerNames,
+  winnerNames: winners,
   myPickName,
 }: {
   question: string
@@ -368,12 +368,12 @@ export function MltRoundResults({
         Round results · {voterCount} {voterCount === 1 ? 'vote' : 'votes'}
       </p>
       <div className="glass-card border-2 border-amber-500/30 rounded-2xl p-5 space-y-4">
-        <p className="text-white/90 text-base text-center leading-snug font-medium">{question}</p>
+        <p className="text-body text-base text-center leading-snug font-medium">{question}</p>
 
-        {winnerNames.length > 0 && (
+        {winners.length > 0 && (
           <div className="surface-inset rounded-xl px-4 py-4 text-center ring-1 ring-amber-400/20">
-            <p className="text-[10px] uppercase tracking-wider text-amber-200/80 mb-1">Most likely</p>
-            <p className="text-2xl font-black text-white">{winnerNames.join(' & ')}</p>
+            <p className="text-[10px] uppercase tracking-wider label-amber mb-1">Most likely</p>
+            <p className="text-2xl font-black text-body">{winners.join(' & ')}</p>
             <p className="text-faint text-xs mt-1">
               {maxCount} {maxCount === 1 ? 'vote' : 'votes'}
             </p>
@@ -393,15 +393,15 @@ export function MltRoundResults({
             return (
               <div
                 key={row.playerId}
-                className={`rounded-xl px-3 py-2.5 ${isWinner ? 'bg-white/8 ring-1 ring-amber-400/20' : 'surface-inset'}`}
+                className={`rounded-xl px-3 py-2.5 ${isWinner ? 'result-row-winner-amber' : 'result-row'}`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <p className={`text-sm truncate ${isWinner ? 'text-white font-semibold' : 'text-white/85'}`}>
+                  <p className={`text-sm truncate ${isWinner ? 'text-body font-semibold' : 'text-body'}`}>
                     {row.name}
                   </p>
-                  <span className="text-sm font-bold text-white shrink-0">{row.count}</span>
+                  <span className="text-sm font-bold text-body shrink-0">{row.count}</span>
                 </div>
-                <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+                <div className="bar-track-xs">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{ width: `${pct}%`, backgroundColor: isWinner ? '#fbbf24' : '#64748b' }}
@@ -449,14 +449,14 @@ export function WstRoundResults({
       </p>
       <div className="glass-card border-2 border-teal-500/30 rounded-2xl p-5 space-y-4">
         <div className="text-center space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-teal-200/80">The quote</p>
-          <p className="text-white/90 text-base leading-snug font-medium italic">&ldquo;{quote}&rdquo;</p>
+          <p className="text-[10px] uppercase tracking-wider label-teal">The quote</p>
+          <p className="text-body text-base leading-snug font-medium italic">&ldquo;{quote}&rdquo;</p>
         </div>
 
         {correctName && (
           <div className="surface-inset rounded-xl px-4 py-4 text-center ring-1 ring-teal-400/20">
-            <p className="text-[10px] uppercase tracking-wider text-teal-200/80 mb-1">Actually said by</p>
-            <p className="text-2xl font-black text-white">{correctName}</p>
+            <p className="text-[10px] uppercase tracking-wider label-teal mb-1">Actually said by</p>
+            <p className="text-2xl font-black text-body">{correctName}</p>
             <p className="text-faint text-xs mt-1">
               {correctCount} of {voterCount} guessed right
             </p>
@@ -477,15 +477,17 @@ export function WstRoundResults({
             return (
               <div
                 key={row.participantId}
-                className={`rounded-xl px-3 py-2.5 ${isCorrect ? 'bg-teal-500/10 ring-1 ring-teal-400/30' : isTop ? 'bg-white/8 ring-1 ring-white/10' : 'surface-inset'}`}
+                className={`rounded-xl px-3 py-2.5 ${
+                  isCorrect ? 'result-row-winner-teal' : isTop ? 'result-row-winner' : 'result-row'
+                }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <p className={`text-sm truncate ${isCorrect ? 'text-teal-100 font-semibold' : 'text-white/85'}`}>
+                  <p className={`text-sm truncate ${isCorrect ? 'text-accent-correct' : 'text-body'}`}>
                     {row.name}{isCorrect ? ' ✓' : ''}
                   </p>
-                  <span className="text-sm font-bold text-white shrink-0">{row.count}</span>
+                  <span className="text-sm font-bold text-body shrink-0">{row.count}</span>
                 </div>
-                <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+                <div className="bar-track-xs">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{ width: `${pct}%`, backgroundColor: isCorrect ? '#2dd4bf' : '#64748b' }}

@@ -38,6 +38,7 @@ import { MltPlayerPicker } from '@/components/MltPlayerPicker'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
 import { wstVoteTargets, wstCorrectName, wstSubmitterName, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
+import { useToast } from '@/components/ui/Toast'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap, WyrChoice } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
@@ -45,6 +46,7 @@ type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_resu
 export default function GamePage() {
   const { code } = useParams<{ code: string }>()
   const router = useRouter()
+  const toast = useToast()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
 
   const [view, setView] = useState<View>('loading')
@@ -833,7 +835,7 @@ export default function GamePage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error || 'Failed to submit quote')
+        toast.error(data.error || 'Failed to submit quote')
         return
       }
       const data = await res.json()
@@ -947,7 +949,7 @@ export default function GamePage() {
         setView('waiting')
       } else {
         const msg = data.error ?? 'Failed to join'
-        alert(msg.toLowerCase().includes('taken') ? 'That name was just taken — pick another' : msg)
+        toast.error(msg.toLowerCase().includes('taken') ? 'That name was just taken — pick another' : msg)
       }
     } finally {
       setJoining(false)
@@ -1003,7 +1005,7 @@ export default function GamePage() {
         setView('join')
       } else {
         const data = await res.json()
-        alert(data.error || 'Failed to leave')
+        toast.error(data.error || 'Failed to leave')
       }
     } finally {
       setJoining(false)
@@ -1079,14 +1081,14 @@ export default function GamePage() {
               ))}
             </div>
           </div>
-          <label className="flex items-start gap-3 surface-inset border border-white/10 rounded-xl px-4 py-3 cursor-pointer">
+          <label className="flex items-start gap-3 surface-inset border border-theme rounded-xl px-4 py-3 cursor-pointer">
             <input
               type="checkbox"
               checked={voteBothGenders}
               onChange={(e) => setVoteBothGenders(e.target.checked)}
               className="mt-0.5 accent-[var(--primary)]"
             />
-            <span className="text-sm text-white/85 leading-snug">
+            <span className="text-sm text-body leading-snug">
               Vote on both genders
               <span className="block text-faint text-xs mt-0.5">
                 You&apos;ll vote on men&apos;s and women&apos;s rounds
@@ -1133,7 +1135,7 @@ export default function GamePage() {
               : editingJoin ? 'Save changes' : 'Join Game'}
           </button>
           {editingJoin ? (
-            <button type="button" onClick={cancelEditJoin} className="w-full text-faint text-sm hover:text-white transition-colors">
+            <button type="button" onClick={cancelEditJoin} className="w-full text-faint text-sm hover:text-body transition-colors">
               Cancel
             </button>
           ) : null}
@@ -1153,13 +1155,13 @@ export default function GamePage() {
           <GameTypeBadge gameType={game?.game_type} />
           <p className="text-muted">Waiting for the host to start...</p>
         </div>
-        <div className="surface-inset border border-white/10 rounded-2xl p-4 space-y-2">
+        <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
           <p className="text-muted text-xs uppercase tracking-wider">Players Joined ({players.length})</p>
           <div className="space-y-1.5 max-h-52 overflow-y-auto">
             {players.map((p) => (
               <div key={p.id} className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${p.name === myPlayerName ? 'bg-[var(--primary)]' : 'bg-white/20'}`} />
-                <span className={`text-sm flex-1 min-w-0 truncate ${p.name === myPlayerName ? 'text-[var(--primary)] font-semibold' : 'text-white/80'}`}>
+                <div className={`w-2 h-2 rounded-full shrink-0 ${p.name === myPlayerName ? 'bg-[var(--primary)]' : 'bg-[var(--border-strong)]'}`} />
+                <span className={`text-sm flex-1 min-w-0 truncate ${p.name === myPlayerName ? 'text-[var(--primary)] font-semibold' : 'text-body-muted'}`}>
                   {p.name}{p.name === myPlayerName ? ' (you)' : ''}
                 </span>
                 {!joinNeedsGender ? null : (
@@ -1201,11 +1203,11 @@ export default function GamePage() {
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
             <GameTypeBadge gameType={gameType} className="mt-1 mb-1" />
-            <p className="text-white font-black text-2xl">
+            <p className="font-black text-body text-2xl">
               Round {currentRound.round_number}
               <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
             </p>
-            <p className="text-teal-300/90 text-sm font-medium mt-1">
+            <p className="label-teal text-sm font-medium mt-1">
               {isSubmitter ? 'Your turn to write' : `${submitterName ?? 'Someone'}&apos;s turn`}
             </p>
           </div>
@@ -1216,12 +1218,12 @@ export default function GamePage() {
           quote ? (
             <div className="glass-card border border-teal-500/30 px-4 py-5 mb-6 text-center space-y-2">
               <p className="text-faint text-xs uppercase tracking-wider">Your quote</p>
-              <p className="text-white text-lg font-medium italic">&ldquo;{quote}&rdquo;</p>
+              <p className="text-body text-lg font-medium italic">&ldquo;{quote}&rdquo;</p>
               <p className="text-muted text-sm">Everyone else is guessing who said it…</p>
             </div>
           ) : (
             <div className="glass-card p-5 mb-6 space-y-3">
-              <p className="text-white font-semibold text-center">Write something someone in the group might say</p>
+              <p className="font-semibold text-body text-center">Write something someone in the group might say</p>
               <textarea
                 value={quoteInput}
                 onChange={(e) => setQuoteInput(e.target.value)}
@@ -1243,7 +1245,7 @@ export default function GamePage() {
         ) : quote ? (
           <div className="glass-card border border-teal-500/30 px-4 py-5 mb-6 text-center">
             <p className="text-faint text-xs uppercase tracking-wider mb-2">Who said this?</p>
-            <p className="text-white text-xl font-medium italic leading-snug">&ldquo;{quote}&rdquo;</p>
+            <p className="text-body text-xl font-medium italic leading-snug">&ldquo;{quote}&rdquo;</p>
           </div>
         ) : (
           <div className="glass-card px-4 py-8 mb-6 text-center">
@@ -1291,7 +1293,7 @@ export default function GamePage() {
             p.name.toLowerCase() === myPlayerName.toLowerCase()
         )?.id ?? null
       : myPlayerId
-    const borderCls = mltTargetPlayerId ? 'border-amber-500/40' : 'border-white/10'
+    const borderCls = mltTargetPlayerId ? 'border-amber-500/40' : 'border-theme'
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
@@ -1300,7 +1302,7 @@ export default function GamePage() {
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
             <GameTypeBadge gameType={gameType} className="mt-1 mb-1" />
-            <p className="text-white font-black text-2xl">
+            <p className="font-black text-body text-2xl">
               Round {currentRound.round_number}
               <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
             </p>
@@ -1312,7 +1314,7 @@ export default function GamePage() {
 
         <div className={`glass-card border-2 ${borderCls} rounded-2xl p-5 mb-6 flex-1`}>
           <p className="text-muted text-xs uppercase tracking-wider text-center mb-3">Most likely to…</p>
-          <p className="text-white/90 text-base text-center leading-snug font-medium mb-4">{question}</p>
+          <p className="text-body text-base text-center leading-snug font-medium mb-4">{question}</p>
           <MltPlayerPicker
             players={mltTargets.map((p) => ({ id: p.id, name: p.name }))}
             selectedId={mltTargetPlayerId}
@@ -1347,7 +1349,7 @@ export default function GamePage() {
     const optionB = currentRound.wyr_option_b ?? ''
     const canVote = !!myPlayerId
     const borderCls =
-      wyrChoice === 'a' ? 'border-violet-500/40' : wyrChoice === 'b' ? 'border-sky-500/40' : 'border-white/10'
+      wyrChoice === 'a' ? 'border-violet-500/40' : wyrChoice === 'b' ? 'border-sky-500/40' : 'border-theme'
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
@@ -1356,7 +1358,7 @@ export default function GamePage() {
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
             <GameTypeBadge gameType={gameType} className="mt-1 mb-1" />
-            <p className="text-white font-black text-2xl">
+            <p className="font-black text-body text-2xl">
               Round {currentRound.round_number}
               <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
             </p>
@@ -1376,7 +1378,7 @@ export default function GamePage() {
               className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
                 wyrChoice === 'a'
                   ? 'border-violet-400 bg-violet-500/15 text-violet-100'
-                  : 'border-white/10 surface-inset text-white/85 hover:border-white/25'
+                  : 'border-theme surface-inset text-body hover:border-theme-strong'
               } disabled:cursor-not-allowed`}
             >
               <p className="text-[10px] uppercase tracking-wider text-faint mb-1">Option A</p>
@@ -1389,7 +1391,7 @@ export default function GamePage() {
               className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
                 wyrChoice === 'b'
                   ? 'border-sky-400 bg-sky-500/15 text-sky-100'
-                  : 'border-white/10 surface-inset text-white/85 hover:border-white/25'
+                  : 'border-theme surface-inset text-body hover:border-theme-strong'
               } disabled:cursor-not-allowed`}
             >
               <p className="text-[10px] uppercase tracking-wider text-faint mb-1">Option B</p>
@@ -1450,7 +1452,7 @@ export default function GamePage() {
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
             <GameTypeBadge gameType={gameType} className="mt-1 mb-1" />
-            <p className="text-white font-black text-2xl">
+            <p className="font-black text-body text-2xl">
               Round {currentRound.round_number}
               <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
             </p>
@@ -1479,8 +1481,8 @@ export default function GamePage() {
         </div>
 
         {!canVote && (
-          <div className="glass-card border border-white/12 px-4 py-3 mb-4 text-center">
-            <p className="text-white/90 text-sm">{spectatorMessage(roundParticipantGender, effectiveGender)}</p>
+          <div className="glass-card border border-theme-strong px-4 py-3 mb-4 text-center">
+            <p className="text-body text-sm">{spectatorMessage(roundParticipantGender, effectiveGender)}</p>
           </div>
         )}
 
@@ -1782,7 +1784,7 @@ export default function GamePage() {
                       <div className="avatar w-10 h-10 text-lg shrink-0">
                         {getInitial(name)}
                       </div>
-                      <p className="text-white font-bold text-lg">{name}</p>
+                      <p className="font-bold text-body text-lg">{name}</p>
                       {myAction && (
                         <span className="ml-auto text-xs text-muted italic">
                           you: {assignmentEmojiFor(gameType, myAction)}
@@ -1819,7 +1821,7 @@ export default function GamePage() {
             <div className="space-y-2">
               {roundConfessions.map((c) => (
                 <div key={c.id} className="glass-card px-4 py-3">
-                  <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                  <p className="text-body-muted text-sm italic">&ldquo;{c.text}&rdquo;</p>
                 </div>
               ))}
             </div>
@@ -1866,13 +1868,13 @@ function ParticipantCard({ gameType, participant, action, onAssign, disabled, di
 }) {
   const cfg = action ? slotMeta(gameType, action) : null
   return (
-    <div className={`rounded-2xl border-2 p-4 transition-all backdrop-blur-sm ${cfg ? cfg.borderClass : 'glass-card border-white/10'}`}>
+    <div className={`rounded-2xl border-2 p-4 transition-all backdrop-blur-sm ${cfg ? cfg.borderClass : 'glass-card border-theme'}`}>
       <div className="flex items-center gap-3 mb-3">
         <div className="avatar w-10 h-10 text-lg shrink-0">
           {getInitial(participant.name)}
         </div>
         <div>
-          <p className="text-white font-bold text-lg leading-tight">{participant.name}</p>
+          <p className="font-bold text-body text-lg leading-tight">{participant.name}</p>
           {action && cfg && (
             <p className="text-sm font-medium" style={{ color: cfg.textColor }}>
               {cfg.emoji} {cfg.label}
@@ -1892,7 +1894,7 @@ function ParticipantCard({ gameType, participant, action, onAssign, disabled, di
             className={`flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
               action === a
                 ? slot.activeClass
-                : `surface-inset border-white/8 text-muted ${!slotDisabled ? 'hover:border-zinc-500 hover:text-white/80' : ''}`
+                : `surface-inset border-theme text-muted ${!slotDisabled ? 'hover:border-theme-strong hover:text-body-muted' : ''}`
             } disabled:cursor-not-allowed disabled:opacity-40`}
           >
             {slot.emoji}
@@ -1945,7 +1947,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
       <PlayerNameBar name={myPlayerName} />
       <div className="text-center">
         <div className="text-4xl mb-2">🎊</div>
-        <h1 className="text-3xl font-black text-white">{game.title}</h1>
+        <h1 className="text-3xl font-black text-body">{game.title}</h1>
         <GameTypeBadge gameType={gameType} className="mt-2" />
         <p className="text-muted mt-2">
           {players.length} players · {rounds.length} rounds
@@ -1965,7 +1967,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
           <div className="space-y-2">
             {wstScores.slice(0, 5).map((row, i) => (
               <div key={row.playerId} className="flex items-center justify-between text-sm">
-                <span className={row.playerId === myPlayerId ? 'text-teal-300 font-semibold' : 'text-white/85'}>
+                <span className={row.playerId === myPlayerId ? 'label-teal font-semibold' : 'text-body'}>
                   {i + 1}. {row.name}{row.playerId === myPlayerId ? ' (you)' : ''}
                 </span>
                 <span className="text-muted">{row.correctGuesses} correct</span>
@@ -2129,7 +2131,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
                           <div className="avatar w-8 h-8 shrink-0">
                             {getInitial(name)}
                           </div>
-                          <p className="text-white font-bold">{name}</p>
+                          <p className="font-bold text-body">{name}</p>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           {getVoteCategories(gameType).map((category) => {
@@ -2166,7 +2168,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
           <div className="space-y-2">
             {confessions.map((c) => (
               <div key={c.id} className="glass-card px-4 py-3">
-                <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                <p className="text-body-muted text-sm italic">&ldquo;{c.text}&rdquo;</p>
               </div>
             ))}
           </div>
@@ -2190,7 +2192,7 @@ function LeaderCard({ emoji, label, name, count, accentColor }: {
     >
       <p className="text-2xl">{emoji}</p>
       <p className="text-muted text-xs mt-1 leading-tight">{label}</p>
-      <p className="text-white font-bold text-sm mt-1 truncate">{name ?? '—'}</p>
+      <p className="font-bold text-body text-sm mt-1 truncate">{name ?? '—'}</p>
       {count !== undefined && <p className="text-muted text-xs">{count} votes</p>}
     </div>
   )

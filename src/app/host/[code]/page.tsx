@@ -14,12 +14,15 @@ import { questionPoolCap, parseQuestionSource, customQuestionCount } from '@/lib
 import { wstVoteTargets, wstCorrectName, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
+import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { useToast } from '@/components/ui/Toast'
 import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
 
 export default function HostPage() {
   const { code } = useParams<{ code: string }>()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const toast = useToast()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
   const hostToken = searchParams.get('token') ?? ''
 
@@ -391,7 +394,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const d = await res.json()
-        alert(d.error || 'Failed to start')
+        toast.error(d.error || 'Failed to start')
         return
       }
 
@@ -418,7 +421,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const d = await res.json()
-        alert(d.error || 'Failed to end round')
+        toast.error(d.error || 'Failed to end round')
         advancingRef.current = false
         setEnding(false)
         return
@@ -443,7 +446,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const d = await res.json()
-        alert(d.error || 'Failed to start next round')
+        toast.error(d.error || 'Failed to start next round')
         setAdvancing(false)
         return
       }
@@ -465,7 +468,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const d = await res.json()
-        alert(d.error || 'Failed to show final results')
+        toast.error(d.error || 'Failed to show final results')
         setFinishing(false)
         return
       }
@@ -487,23 +490,21 @@ export default function HostPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        alert(data.error || 'Failed to reset for another game')
+        toast.error(data.error || 'Failed to reset for another game')
         return
       }
       resetHostLobbyState()
       if (data.game) setGame(data.game)
       await refreshLobbyLists()
     } catch {
-      alert('Failed to reset for another game')
+      toast.error('Failed to reset for another game')
     } finally {
       setPlayingAgain(false)
     }
   }
 
-  const copyPlayerLink = () => {
-    const url = `${window.location.origin}/game/${gameCode}`
-    navigator.clipboard.writeText(url).catch(() => null)
-  }
+  const playerLinkUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/game/${gameCode}` : `/game/${gameCode}`
 
   async function refreshLobbyLists() {
     const [{ data: plrs }, { data: parts }] = await Promise.all([
@@ -525,7 +526,7 @@ export default function HostPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        alert(data.error || 'Failed to update rounds')
+        toast.error(data.error || 'Failed to update rounds')
         return
       }
       if (data.game) setGame(data.game)
@@ -579,7 +580,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error || 'Failed to update')
+        toast.error(data.error || 'Failed to update')
         return
       }
       await refreshLobbyLists()
@@ -599,7 +600,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error || 'Failed to remove')
+        toast.error(data.error || 'Failed to remove')
         return
       }
       await refreshLobbyLists()
@@ -623,7 +624,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error || 'Failed to update')
+        toast.error(data.error || 'Failed to update')
         return
       }
       await refreshLobbyLists()
@@ -643,7 +644,7 @@ export default function HostPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error || 'Failed to remove')
+        toast.error(data.error || 'Failed to remove')
         return
       }
       await refreshLobbyLists()
@@ -666,7 +667,7 @@ export default function HostPage() {
       <div className="page-wrap flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <p className="text-6xl">🔒</p>
-          <h1 className="text-2xl font-black text-white">Access Denied</h1>
+          <h1 className="text-2xl font-black text-body">Access Denied</h1>
           <p className="text-muted">Invalid or missing host token</p>
           <button onClick={() => router.push('/')} className="btn-secondary px-6 py-3">
             Go Home
@@ -743,7 +744,7 @@ export default function HostPage() {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">Host Panel</p>
-            <h1 className="text-2xl font-black text-white mt-1">{game.title}</h1>
+            <h1 className="text-2xl font-black text-body mt-1">{game.title}</h1>
             <p className="text-muted text-sm">{game.rounds_count} rounds · {game.timer_seconds}s each</p>
             {(isWyr || isMlt) && parseQuestionSource(game.question_source, gameType) === 'custom' && customQuestionCount(game) > 0 && (
               <p className="text-faint text-xs mt-1">{customQuestionCount(game)} custom questions loaded</p>
@@ -764,7 +765,7 @@ export default function HostPage() {
           </div>
           <div className="text-right">
             <p className="text-muted text-xs uppercase tracking-wider">Code</p>
-            <p className="text-white font-mono font-black text-2xl tracking-[0.2em]">{gameCode}</p>
+            <p className="text-body font-mono font-black text-2xl tracking-[0.2em]">{gameCode}</p>
           </div>
         </div>
 
@@ -775,7 +776,7 @@ export default function HostPage() {
           </div>
           {isWst ? (
             <>
-              <p className="text-white font-bold text-2xl">{game.rounds_count}</p>
+              <p className="font-bold text-body text-2xl">{game.rounds_count}</p>
               <p className="text-faint text-xs">{roundsHint}</p>
             </>
           ) : isWyr || isMlt || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
@@ -814,8 +815,8 @@ export default function HostPage() {
         {/* Share link */}
         <div className="glass-card p-4 space-y-2">
           <p className="text-muted text-xs uppercase tracking-wider">Player Link</p>
-          <p className="text-white font-mono text-sm break-all">{typeof window !== 'undefined' ? `${window.location.origin}/game/${gameCode}` : ''}</p>
-          <button onClick={copyPlayerLink} className="text-[var(--primary)] text-sm font-semibold hover:text-white transition-colors">Copy Link →</button>
+          <p className="text-body font-mono text-sm break-all">{playerLinkUrl}</p>
+          <CopyLinkButton value={playerLinkUrl} successMessage="Player link copied" />
         </div>
 
         {/* Players / in-the-game list */}
@@ -854,7 +855,7 @@ export default function HostPage() {
                   <button
                     type="button"
                     onClick={() => setPlayersSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-white text-sm"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-body text-sm"
                     aria-label="Clear search"
                   >
                     ✕
@@ -875,9 +876,9 @@ export default function HostPage() {
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {filteredPlayers.map((player) => (
-                  <div key={player.id} className="surface-inset border border-white/8 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <div key={player.id} className="surface-inset border border-theme rounded-xl px-3 py-2 flex items-center gap-2">
                     <div className="avatar w-6 h-6 text-xs shrink-0">{getInitial(player.name)}</div>
-                    <span className="text-white/90 text-sm font-medium truncate flex-1">{player.name}</span>
+                    <span className="text-body text-sm font-medium truncate flex-1">{player.name}</span>
                   </div>
                 ))}
               </div>
@@ -895,10 +896,10 @@ export default function HostPage() {
                   const busy = adminBusy === part.id || adminBusy === player.id
                   const identity = resolvePlayerIdentity(player, participants)
                   return (
-                    <div key={part.id} className="surface-inset border border-white/8 rounded-xl p-3 space-y-2">
+                    <div key={part.id} className="surface-inset border border-theme rounded-xl p-3 space-y-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="avatar w-6 h-6 text-xs shrink-0">{getInitial(part.name)}</div>
-                        <span className="text-white/90 text-sm font-medium truncate flex-1">{part.name}</span>
+                        <span className="text-body text-sm font-medium truncate flex-1">{part.name}</span>
                         <button
                           type="button"
                           disabled={busy}
@@ -954,9 +955,9 @@ export default function HostPage() {
               {filteredPlayers.map((p) => {
                 const identity = resolvePlayerIdentity(p, participants)
                 return (
-                <div key={p.id} className="flex items-center gap-2 min-w-0 surface-inset border border-white/8 rounded-xl px-3 py-2">
+                <div key={p.id} className="flex items-center gap-2 min-w-0 surface-inset border border-theme rounded-xl px-3 py-2">
                   <div className="avatar w-6 h-6 text-xs shrink-0">{getInitial(p.name)}</div>
-                  <span className="text-white/80 text-sm truncate flex-1">{p.name}</span>
+                  <span className="text-body-muted text-sm truncate flex-1">{p.name}</span>
                   <div className="flex gap-1 shrink-0">
                     {(['female', 'male'] as const).map((g) => (
                       <button
@@ -1008,7 +1009,7 @@ export default function HostPage() {
         {!isJoinersMode && (
         <div className="glass-card p-4 space-y-3">
           <p className="text-muted text-xs uppercase tracking-wider">On the list ({participants.length})</p>
-          <div className="surface-inset border border-white/10 rounded-xl p-3 space-y-2">
+          <div className="surface-inset border border-theme rounded-xl p-3 space-y-2">
             <p className="text-faint text-xs">Add someone to the list</p>
             <div className="flex gap-2">
               <input
@@ -1075,7 +1076,7 @@ export default function HostPage() {
                   <button
                     type="button"
                     onClick={() => setListSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-white text-sm"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-body text-sm"
                     aria-label="Clear search"
                   >
                     ✕
@@ -1096,8 +1097,8 @@ export default function HostPage() {
               </p>
             ) : (
             filteredListParticipants.map((p) => (
-              <div key={p.id} className="flex items-center gap-2 min-w-0 surface-inset border border-white/8 rounded-xl px-3 py-2">
-                <span className="text-white/80 text-sm truncate flex-1">{p.name}</span>
+              <div key={p.id} className="flex items-center gap-2 min-w-0 surface-inset border border-theme rounded-xl px-3 py-2">
+                <span className="text-body-muted text-sm truncate flex-1">{p.name}</span>
                 {!isMltImport && (
                 <div className="flex gap-1 shrink-0">
                   {(['female', 'male'] as const).map((g) => (
@@ -1205,11 +1206,11 @@ export default function HostPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
-              <p className="text-white font-black text-3xl">
+              <p className="font-black text-body text-3xl">
                 {currentRound.round_number}
                 <span className="text-faint font-normal text-lg"> / {game.rounds_count}</span>
               </p>
-              <p className="text-teal-300/90 text-sm mt-1">{submitterName ?? 'Player'}&apos;s turn to write</p>
+              <p className="label-teal text-sm mt-1">{submitterName ?? 'Player'}&apos;s turn to write</p>
             </div>
             <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
           </div>
@@ -1218,7 +1219,7 @@ export default function HostPage() {
             {quote ? (
               <>
                 <p className="text-muted text-xs uppercase tracking-wider text-center">Current quote</p>
-                <p className="text-white/90 text-base leading-snug text-center font-medium italic">&ldquo;{quote}&rdquo;</p>
+                <p className="text-body text-base leading-snug text-center font-medium italic">&ldquo;{quote}&rdquo;</p>
               </>
             ) : (
               <p className="text-muted text-sm text-center">Waiting for {submitterName ?? 'writer'} to submit a quote…</p>
@@ -1228,13 +1229,13 @@ export default function HostPage() {
           <div className="glass-card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-muted text-xs uppercase tracking-wider">Guesses In</p>
-              <span className={`text-sm font-bold ${allVotedWst ? 'text-green-400' : 'text-white/80'}`}>
+              <span className={`text-sm font-bold ${allVotedWst ? 'text-green-400' : 'text-body-muted'}`}>
                 {quote ? `${voterVotes.length} / ${voterTotal}` : '—'}
                 {allVotedWst && ' · ending round...'}
               </span>
             </div>
             {quote && (
-              <div className="h-2 bg-white/8 rounded-full overflow-hidden">
+              <div className="h-2 bg-[var(--border-strong)] rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${allVotedWst ? 'bg-emerald-500' : 'bg-[var(--primary-strong)]'}`}
                   style={{ width: voterTotal > 0 ? `${(voterVotes.length / voterTotal) * 100}%` : '0%' }}
@@ -1260,7 +1261,7 @@ export default function HostPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
-              <p className="text-white font-black text-3xl">
+              <p className="font-black text-body text-3xl">
                 {currentRound.round_number}
                 <span className="text-faint font-normal text-lg"> / {game.rounds_count}</span>
               </p>
@@ -1270,7 +1271,7 @@ export default function HostPage() {
 
           <div className="glass-card p-5 space-y-3">
             <p className="text-muted text-xs uppercase tracking-wider text-center">Most likely to…</p>
-            <p className="text-white/90 text-base leading-snug text-center font-medium">
+            <p className="text-body text-base leading-snug text-center font-medium">
               {currentRound.mlt_question}
             </p>
           </div>
@@ -1278,12 +1279,12 @@ export default function HostPage() {
           <div className="glass-card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-muted text-xs uppercase tracking-wider">Votes In</p>
-              <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-white/80'}`}>
+              <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-body-muted'}`}>
                 {eligibleVotes.length} / {players.length}
                 {allVoted && ' · ending round...'}
               </span>
             </div>
-            <div className="h-2 bg-white/8 rounded-full overflow-hidden">
+            <div className="h-2 bg-[var(--border-strong)] rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${allVoted ? 'bg-emerald-500' : 'bg-[var(--primary-strong)]'}`}
                 style={{ width: players.length > 0 ? `${(eligibleVotes.length / players.length) * 100}%` : '0%' }}
@@ -1309,7 +1310,7 @@ export default function HostPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
-              <p className="text-white font-black text-3xl">
+              <p className="font-black text-body text-3xl">
                 {currentRound.round_number}
                 <span className="text-faint font-normal text-lg"> / {game.rounds_count}</span>
               </p>
@@ -1319,22 +1320,22 @@ export default function HostPage() {
 
           <div className="glass-card p-5 space-y-3">
             <p className="text-muted text-xs uppercase tracking-wider text-center">Would you rather…</p>
-            <p className="text-white/90 text-sm leading-relaxed text-center">
-              <span className="text-violet-200 font-medium">{currentRound.wyr_option_a}</span>
+            <p className="text-body text-sm leading-relaxed text-center">
+              <span className="label-violet font-medium">{currentRound.wyr_option_a}</span>
               {' '}or{' '}
-              <span className="text-sky-200 font-medium">{currentRound.wyr_option_b}</span>?
+              <span className="label-sky font-medium">{currentRound.wyr_option_b}</span>?
             </p>
           </div>
 
           <div className="glass-card p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-muted text-xs uppercase tracking-wider">Votes In</p>
-              <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-white/80'}`}>
+              <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-body-muted'}`}>
                 {eligibleVotes.length} / {players.length}
                 {allVoted && ' · ending round...'}
               </span>
             </div>
-            <div className="h-2 bg-white/8 rounded-full overflow-hidden">
+            <div className="h-2 bg-[var(--border-strong)] rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${allVoted ? 'bg-emerald-500' : 'bg-[var(--primary-strong)]'}`}
                 style={{ width: players.length > 0 ? `${(eligibleVotes.length / players.length) * 100}%` : '0%' }}
@@ -1360,7 +1361,7 @@ export default function HostPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">Round</p>
-            <p className="text-white font-black text-3xl">{currentRound.round_number}<span className="text-faint font-normal text-lg"> / {game.rounds_count}</span></p>
+            <p className="font-black text-body text-3xl">{currentRound.round_number}<span className="text-faint font-normal text-lg"> / {game.rounds_count}</span></p>
           </div>
           <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
         </div>
@@ -1379,7 +1380,7 @@ export default function HostPage() {
                 <div className="avatar w-10 h-10 mx-auto mb-1">
                   {getInitial(p.name)}
                 </div>
-                <p className="text-white text-sm font-semibold truncate">{p.name}</p>
+                <p className="text-body text-sm font-semibold truncate">{p.name}</p>
               </div>
             ))}
           </div>
@@ -1389,12 +1390,12 @@ export default function HostPage() {
         <div className="glass-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-muted text-xs uppercase tracking-wider">Votes In</p>
-            <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-white/80'}`}>
+            <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-body-muted'}`}>
               {eligibleVotes.length} / {eligible.length || 0}
               {allVoted && ' · ending round...'}
             </span>
           </div>
-          <div className="h-2 bg-white/8 rounded-full overflow-hidden">
+          <div className="h-2 bg-[var(--border-strong)] rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${allVoted ? 'bg-emerald-500' : 'bg-[var(--primary-strong)]'}`}
               style={{ width: eligible.length > 0 ? `${(eligibleVotes.length / eligible.length) * 100}%` : '0%' }}
@@ -1408,7 +1409,7 @@ export default function HostPage() {
                 <div
                   key={pl.id}
                   className={`flex items-center gap-1.5 text-xs ${
-                    !canVote ? 'text-faint' : voted ? 'text-green-400' : 'text-white/50'
+                    !canVote ? 'text-faint' : voted ? 'text-green-400' : 'text-faint'
                   }`}
                 >
                   <span>{!canVote ? '—' : voted ? '✓' : '○'}</span>
@@ -1437,7 +1438,7 @@ export default function HostPage() {
                 })
                 return (
                   <div key={p.id} className="glass-card px-4 py-3 flex items-center gap-4">
-                    <p className="text-white font-semibold w-24 truncate">{p.name}</p>
+                    <p className="font-semibold text-body w-24 truncate">{p.name}</p>
                     <div className="flex gap-3 text-sm">
                       {counts.map(({ meta, count }) => (
                         <span key={meta.label} style={{ color: meta.color }}>
@@ -1553,7 +1554,7 @@ export default function HostPage() {
                     <div className="avatar w-9 h-9 shrink-0">
                       {getInitial(name)}
                     </div>
-                    <p className="text-white font-bold text-lg">{name}</p>
+                    <p className="font-bold text-body text-lg">{name}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {getVoteCategories(gameType).map((category) => {
@@ -1584,7 +1585,7 @@ export default function HostPage() {
             <div className="space-y-2">
               {roundConfessions.map((c) => (
                 <div key={c.id} className="glass-card px-4 py-3">
-                  <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                  <p className="text-body-muted text-sm italic">&ldquo;{c.text}&rdquo;</p>
                 </div>
               ))}
             </div>
@@ -1633,7 +1634,7 @@ export default function HostPage() {
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
         <div className="text-center">
           <div className="text-4xl mb-2">🏆</div>
-          <h1 className="text-3xl font-black text-white">{game.title}</h1>
+          <h1 className="text-3xl font-black text-body">{game.title}</h1>
           <p className="text-muted">
             {players.length} players · {allRounds.length} rounds
             {isMltImport
@@ -1652,7 +1653,7 @@ export default function HostPage() {
             <div className="space-y-2">
               {wstScores.slice(0, 5).map((row, i) => (
                 <div key={row.playerId} className="flex items-center justify-between text-sm">
-                  <span className="text-white/85">{i + 1}. {row.name}</span>
+                  <span className="text-body">{i + 1}. {row.name}</span>
                   <span className="text-muted">{row.correctGuesses} correct</span>
                 </div>
               ))}
@@ -1758,7 +1759,7 @@ export default function HostPage() {
             <div className="space-y-2">
               {confessions.map((c) => (
                 <div key={c.id} className="glass-card px-4 py-3">
-                  <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                  <p className="text-body-muted text-sm italic">&ldquo;{c.text}&rdquo;</p>
                 </div>
               ))}
             </div>
@@ -1766,7 +1767,7 @@ export default function HostPage() {
         )}
 
         <div className="glass-card p-5 space-y-3 text-center">
-          <p className="text-white font-semibold">Same room, fresh game</p>
+          <p className="font-semibold text-body">Same room, fresh game</p>
           <p className="text-faint text-sm">
             Send everyone back to the lobby with the same link and settings. Players stay joined — you start when ready.
           </p>
@@ -1810,7 +1811,7 @@ function StatCard({ emoji, label, name, count, accentColor }: { emoji: string; l
     >
       <p className="text-2xl">{emoji}</p>
       <p className="text-muted text-xs mt-1 leading-tight">{label}</p>
-      <p className="text-white font-bold text-sm mt-1 truncate">{name ?? '—'}</p>
+      <p className="font-bold text-body text-sm mt-1 truncate">{name ?? '—'}</p>
       {count !== undefined && <p className="text-muted text-xs">{count}v</p>}
     </div>
   )

@@ -160,7 +160,7 @@ export function myActionBorderClass(
   gameType: GameType | string | undefined,
   action: 'kiss' | 'marry' | 'kill' | null
 ): string {
-  if (!action) return 'border-white/10'
+  if (!action) return 'border-theme'
   const type = parseGameType(gameType)
   if (action === 'kiss') {
     return type === 'red_flag_green_flag' ? 'border-emerald-500/40' : 'border-pink-500/40'

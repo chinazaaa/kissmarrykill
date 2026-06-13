@@ -45,6 +45,8 @@ import { GameTypeModal } from '@/components/GameTypeModal'
 import { GameTypeCard } from '@/components/GameTypeCard'
 import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/components/ui/PageShell'
 import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGrid } from '@/components/ui/CreateWizard'
+import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { useToast } from '@/components/ui/Toast'
 
 interface Settings {
   title: string
@@ -65,6 +67,7 @@ type QuestionTab = 'upload' | 'manual'
 function CreateGameInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const toast = useToast()
   const [step, setStep] = useState<Step>('settings')
   const [showGameTypes, setShowGameTypes] = useState(false)
   const [participantTab, setParticipantTab] = useState<ParticipantTab>('upload')
@@ -395,7 +398,7 @@ function CreateGameInner() {
         setResult(data)
         setStep('done')
       } else {
-        alert(data.error || 'Failed to create game')
+        toast.error(data.error || 'Failed to create game')
       }
     } finally {
       setLoading(false)
@@ -607,14 +610,14 @@ function CreateGameInner() {
                     {questionsUploadError && <p className="text-red-400 text-sm">{questionsUploadError}</p>}
 
                     {customQuestionCount > 0 && (
-                      <div className="surface-inset border border-white/10 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                      <div className="surface-inset border border-theme rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
                         <p className="text-muted text-xs uppercase tracking-wider">
                           Loaded ({customQuestionCount})
                         </p>
                         {isWyr
                           ? customWyrQuestions.map((q, i) => (
                               <div key={i} className="flex items-start gap-2 text-sm">
-                                <p className="text-white/85 flex-1 min-w-0">
+                                <p className="text-body flex-1 min-w-0">
                                   <span className="text-violet-300">A:</span> {q.optionA}
                                   <span className="text-faint mx-1">·</span>
                                   <span className="text-sky-300">B:</span> {q.optionB}
@@ -630,7 +633,7 @@ function CreateGameInner() {
                             ))
                           : customMltQuestions.map((q, i) => (
                               <div key={i} className="flex items-start gap-2 text-sm">
-                                <p className="text-white/85 flex-1 min-w-0">{q}</p>
+                                <p className="text-body flex-1 min-w-0">{q}</p>
                                 <button
                                   type="button"
                                   onClick={() => removeCustomQuestion(i)}
@@ -935,13 +938,12 @@ function CreateGameInner() {
       <div className="glass-card-strong p-6 text-center space-y-2">
         <span className="label-caps">Game code</span>
         <p className="font-mono text-5xl font-black tracking-[0.2em]">{result?.gameCode}</p>
-        <button
-          type="button"
-          onClick={() => navigator.clipboard.writeText(result?.gameCode ?? '').catch(() => null)}
-          className="text-sm font-semibold text-[var(--primary)] hover:opacity-80 transition-opacity"
-        >
-          Copy code
-        </button>
+        <CopyLinkButton
+          value={result?.gameCode ?? ''}
+          label="Copy code"
+          copiedLabel="Copied ✓"
+          successMessage="Game code copied"
+        />
       </div>
 
       <CopyCard label="Player link" value={gameUrl} />
@@ -991,18 +993,14 @@ function Avatar({ name }: { name: string }) {
 }
 
 function CopyCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  const copy = () => navigator.clipboard.writeText(value).catch(() => null)
   return (
     <div className={`glass-card p-4 space-y-2 ${accent ? 'border-[var(--primary)]/35' : ''}`}>
       <p className={`label-caps ${accent ? 'text-[var(--primary)]' : ''}`}>{label}</p>
       <p className="font-mono text-xs break-all text-muted">{value}</p>
-      <button
-        type="button"
-        onClick={copy}
-        className={`text-sm font-semibold transition-colors ${accent ? 'text-[var(--primary)] hover:opacity-80' : 'text-muted hover:text-[var(--foreground)]'}`}
-      >
-        Copy link →
-      </button>
+      <CopyLinkButton
+        value={value}
+        successMessage={accent ? 'Host link copied' : 'Player link copied'}
+      />
     </div>
   )
 }

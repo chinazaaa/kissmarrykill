@@ -189,7 +189,7 @@ export default function GameHistoryPage() {
             return (
               <section key={round.id} className="space-y-3">
                 <div>
-                  <h2 className="text-lg font-bold text-white">
+                  <h2 className="text-lg font-bold text-body">
                     Round {round.round_number}
                     {roundGender ? ` · ${roundGender}` : ''}
                   </h2>
@@ -256,14 +256,14 @@ export default function GameHistoryPage() {
                     />
                     {!game.anonymous && (
                       <details className="text-faint text-xs">
-                        <summary className="cursor-pointer hover:text-white/70 transition-colors">
+                        <summary className="cursor-pointer hover:text-muted transition-colors">
                           Who voted what
                         </summary>
                         <div className="mt-2 glass-card overflow-hidden">
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm min-w-[24rem]">
                               <thead>
-                                <tr className="border-b border-white/10 text-left">
+                                <tr className="border-b border-theme text-left">
                                   <th className="px-4 py-3 text-faint text-xs uppercase tracking-wider font-medium">
                                     Voter
                                   </th>
@@ -276,8 +276,8 @@ export default function GameHistoryPage() {
                               </thead>
                               <tbody>
                                 {roundVotes.map((vote) => (
-                                  <tr key={vote.id} className="border-b border-white/5 last:border-0">
-                                    <td className="px-4 py-3 font-medium text-white/90">
+                                  <tr key={vote.id} className="border-b border-[var(--border)] last:border-0">
+                                    <td className="px-4 py-3 font-medium text-body">
                                       {playerNameById.get(vote.player_id) ?? 'Unknown'}
                                     </td>
                                     {roundParts.map((p) => {
@@ -309,7 +309,7 @@ export default function GameHistoryPage() {
                     <div className="overflow-x-auto">
                       <table className={`w-full text-sm ${voteColumns.length === 2 ? 'min-w-[24rem]' : 'min-w-[32rem]'}`}>
                         <thead>
-                          <tr className="border-b border-white/10 text-left">
+                          <tr className="border-b border-theme text-left">
                             <th className="px-4 py-3 text-faint text-xs uppercase tracking-wider font-medium">
                               Voter
                             </th>
@@ -322,8 +322,8 @@ export default function GameHistoryPage() {
                         </thead>
                         <tbody>
                           {roundVotes.map((vote) => (
-                            <tr key={vote.id} className="border-b border-white/5 last:border-0">
-                              <td className="px-4 py-3 font-medium text-white/90">
+                            <tr key={vote.id} className="border-b border-[var(--border)] last:border-0">
+                              <td className="px-4 py-3 font-medium text-body">
                                 {playerNameById.get(vote.player_id) ?? 'Unknown'}
                               </td>
                               {voteColumns.map(({ slot, meta, field }) => (
@@ -342,7 +342,7 @@ export default function GameHistoryPage() {
                     <div className="overflow-x-auto">
                       <table className={`w-full text-sm ${tallyCategories.length === 2 ? 'min-w-[16rem]' : 'min-w-[20rem]'}`}>
                         <thead>
-                          <tr className="border-b border-white/10 text-left">
+                          <tr className="border-b border-theme text-left">
                             <th className="px-4 py-3 text-faint text-xs uppercase tracking-wider font-medium">
                               Name
                             </th>
@@ -355,12 +355,12 @@ export default function GameHistoryPage() {
                         </thead>
                         <tbody>
                           {tallies.map((t) => (
-                            <tr key={t.id} className="border-b border-white/5 last:border-0">
-                              <td className="px-4 py-3 font-medium text-white/90">
+                            <tr key={t.id} className="border-b border-[var(--border)] last:border-0">
+                              <td className="px-4 py-3 font-medium text-body">
                                 {participantName(participants, t.id)}
                               </td>
                               {tallyCategories.map((category) => (
-                                <td key={category} className="px-4 py-3 text-center text-white/80">
+                                <td key={category} className="px-4 py-3 text-center text-body-muted">
                                   {t[category]}
                                 </td>
                               ))}
@@ -374,14 +374,14 @@ export default function GameHistoryPage() {
 
                 {!game.anonymous && !isPairGame(gameType) && (
                   <details className="text-faint text-xs">
-                    <summary className="cursor-pointer hover:text-white/70 transition-colors">
+                    <summary className="cursor-pointer hover:text-muted transition-colors">
                       Round totals
                     </summary>
                     <div className="mt-2 glass-card overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className={`w-full text-sm ${tallyCategories.length === 2 ? 'min-w-[16rem]' : 'min-w-[20rem]'}`}>
                           <thead>
-                            <tr className="border-b border-white/10">
+                            <tr className="border-b border-theme">
                               <th className="px-4 py-2 text-left text-xs uppercase tracking-wider">Name</th>
                               {tallyCategories.map((category) => (
                                 <th key={category} className="px-4 py-2 text-center w-16">
@@ -392,10 +392,10 @@ export default function GameHistoryPage() {
                           </thead>
                           <tbody>
                             {tallies.map((t) => (
-                              <tr key={t.id} className="border-b border-white/5 last:border-0">
-                                <td className="px-4 py-2 text-white/80">{participantName(participants, t.id)}</td>
+                              <tr key={t.id} className="border-b border-[var(--border)] last:border-0">
+                                <td className="px-4 py-2 text-body-muted">{participantName(participants, t.id)}</td>
                                 {tallyCategories.map((category) => (
-                                  <td key={category} className="px-4 py-2 text-center text-white/80">
+                                  <td key={category} className="px-4 py-2 text-center text-body-muted">
                                     {t[category]}
                                   </td>
                                 ))}
@@ -421,7 +421,7 @@ export default function GameHistoryPage() {
               const round = rounds.find((r) => r.id === c.round_id)
               return (
                 <div key={c.id} className="glass-card px-4 py-3">
-                  <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                  <p className="text-body-muted text-sm italic">&ldquo;{c.text}&rdquo;</p>
                   {round && (
                     <p className="text-faint text-xs mt-1">Round {round.round_number}</p>
                   )}
@@ -433,7 +433,7 @@ export default function GameHistoryPage() {
       )}
 
       <p className="text-center pb-4">
-        <Link href="/" className="text-faint text-sm hover:text-white transition-colors">
+        <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
           ← Back home
         </Link>
       </p>

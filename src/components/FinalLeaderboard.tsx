@@ -132,7 +132,7 @@ export function FinalGenderBreakdown({
                   <div key={p.id} className="glass-card p-4">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="avatar w-9 h-9 shrink-0">{getInitial(p.name)}</div>
-                      <p className="text-white font-bold text-lg">{p.name}</p>
+                      <p className="font-bold text-body text-lg">{p.name}</p>
                       <span className="ml-auto text-[10px] uppercase tracking-wider text-faint">{genderLabel(gender)}</span>
                     </div>
                     <div className={`grid gap-2 ${categories.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
