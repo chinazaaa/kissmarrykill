@@ -29,7 +29,10 @@ import {
   isMostLikelyTo,
   isWhoSaidThis,
   isNameOnlyPlayerJoin,
+  isCustomGame,
 } from '@/lib/game-types'
+import { getCustomSlots, tallyCustomVotes, buildCustomLeaderboard } from '@/lib/custom-game'
+import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
@@ -1951,7 +1954,36 @@ export default function HostPage() {
         </div>
 
         {/* Live vote counts (if not anonymous) */}
-        {!game.anonymous && roundVotes.length > 0 && (
+        {isCustomGame(gameType) && game && !game.anonymous && roundVotes.length > 0 && (
+          <div>
+            <p className="text-muted text-xs uppercase tracking-wider mb-2">Live Tally</p>
+            <div className="space-y-2">
+              {roundParts.map((p) => {
+                const slots = getCustomSlots(game)
+                const counts = slots.map((slot) => ({
+                  slot,
+                  count: roundVotes.filter((v) => {
+                    const assignments = v.pair_assignments as Record<string, string> | null
+                    return assignments?.[p.id] === slot.key
+                  }).length,
+                }))
+                return (
+                  <div key={p.id} className="glass-card px-4 py-3 flex items-center gap-4">
+                    <p className="font-semibold text-body w-24 truncate">{p.name}</p>
+                    <div className="flex gap-3 text-sm">
+                      {counts.map(({ slot, count }) => (
+                        <span key={slot.key} style={{ color: slot.color }}>
+                          {slot.emoji} {count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {!isCustomGame(gameType) && !game.anonymous && roundVotes.length > 0 && (
           <div>
             <p className="text-muted text-xs uppercase tracking-wider mb-2">Live Tally</p>
             <div className="space-y-2">
@@ -2087,6 +2119,14 @@ export default function HostPage() {
             countB={countB}
             voterCount={voterCount}
           />
+        ) : isCustomGame(gameType) && game ? (
+          (() => {
+            const slots = getCustomSlots(game)
+            const slotKeys = slots.map((s) => s.key)
+            const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+            const tally = tallyCustomVotes(roundVotes, lastFinishedRound.participant_ids, nameMap, slotKeys)
+            return <CustomRoundResults tally={tally} slots={slots} />
+          })()
         ) : (
           (() => {
             const tallies = tallyRoundVotes(
@@ -2315,6 +2355,43 @@ export default function HostPage() {
                     maxCount={maxCount}
                     winnerNames={winnerNames}
                   />
+                </div>
+              )
+            })}
+          </div>
+        ) : isCustomGame(gameType) && game ? (
+          <div className="space-y-8">
+            {(() => {
+              const slots = getCustomSlots(game)
+              const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+              return (
+                <div className="glass-card border border-theme-strong p-4 space-y-4">
+                  <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
+                  {leaderboard.map((entry) => (
+                    <div key={entry.slot.key} className="space-y-1">
+                      <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
+                        {entry.slot.emoji} Most {entry.slot.label}
+                      </p>
+                      {entry.entries.slice(0, 3).map((e, i) => (
+                        <p key={e.name} className="text-body text-sm pl-6">
+                          {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
+                        </p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+            {allRounds.map((round) => {
+              const roundVotesForRound = votes.filter((v) => v.round_id === round.id)
+              const slots = getCustomSlots(game)
+              const slotKeys = slots.map((s) => s.key)
+              const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+              const tally = tallyCustomVotes(roundVotesForRound, round.participant_ids, nameMap, slotKeys)
+              return (
+                <div key={round.id}>
+                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                  <CustomRoundResults tally={tally} slots={slots} />
                 </div>
               )
             })}

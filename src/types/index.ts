@@ -14,12 +14,25 @@ export type GameType =
   | 'most_likely_to'
   | 'who_said_this'
   | 'hot_seat'
+  | 'custom'
 export type ThemeId = 'default' | 'neon' | 'retro' | 'elegant' | 'tropical'
 export type WyrChoice = 'a' | 'b'
 
 export type ParticipantGender = 'male' | 'female'
 /** Gender selected when joining — `both` means vote on every round. */
 export type PlayerGender = 'male' | 'female' | 'both'
+
+export interface CustomSlot {
+  key: string
+  label: string
+  emoji: string
+  color: string
+}
+
+export interface CustomSlotsConfig {
+  slots: CustomSlot[]
+  title: string
+}
 
 export interface Game {
   id: string
@@ -41,6 +54,7 @@ export interface Game {
   current_round_number: number
   created_at: string
   wst_quote_source?: WstQuoteSource
+  custom_slots?: CustomSlotsConfig | null
 }
 
 export interface Participant {

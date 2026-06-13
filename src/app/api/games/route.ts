@@ -12,6 +12,7 @@ import {
   isAnonymousGame,
   isPairGame,
   parsePairVoteMode,
+  isCustomGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
@@ -189,6 +190,7 @@ export async function POST(req: NextRequest) {
     status: 'waiting',
     current_round_number: 0,
     wst_quote_source: parsed.data.wst_quote_source ?? 'player',
+    ...(isCustomGame(game_type) && parsed.data.custom_slots ? { custom_slots: parsed.data.custom_slots } : {}),
   })
 
   if (gameError) {

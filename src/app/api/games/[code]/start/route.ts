@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { generateRoundsByGender } from '@/lib/utils'
+import { generateRoundsByGender, generateNRounds } from '@/lib/utils'
 import {
   hasVotersForPolls,
   parseParticipantGenderFromDb,
@@ -14,7 +14,9 @@ import {
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
+  isCustomGame,
 } from '@/lib/game-types'
+import { getCustomSlotCount } from '@/lib/custom-game'
 import { buildRoundsFromQuotePool, buildRoundsFromAnimePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
@@ -354,6 +356,62 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: gameError } = await supabase
       .from('games')
       .update({ status: 'active', current_round_number: 1 })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  }
+
+  if (isCustomGame(gameType)) {
+    const slotCount = getCustomSlotCount(game)
+    if (slotCount < 2) {
+      return NextResponse.json({ error: 'Custom game needs at least 2 slots configured' }, { status: 400 })
+    }
+
+    const { data: participantsData } = await supabase
+      .from('participants')
+      .select('id, gender, name')
+      .eq('game_id', code.toUpperCase())
+      .order('display_order')
+
+    if (!participantsData || participantsData.length < slotCount) {
+      return NextResponse.json(
+        { error: `Need at least ${slotCount} names on the list (one per slot)` },
+        { status: 400 }
+      )
+    }
+
+    const isImportMode = (game.participant_mode ?? 'import') === 'import'
+    const useAllParticipants = !isImportMode || game.participant_filter === 'all'
+    const roundPool = useAllParticipants ? participantsData : participantsWhoJoined(participantsData, playersData)
+
+    if (roundPool.length < slotCount) {
+      return NextResponse.json({ error: `Need at least ${slotCount} people to join before starting` }, { status: 400 })
+    }
+
+    const participantIds = roundPool.map((p) => p.id)
+    const groups = generateNRounds(participantIds, game.rounds_count, slotCount)
+
+    if (groups.length === 0) {
+      return NextResponse.json({ error: `Need at least ${slotCount} people to start` }, { status: 400 })
+    }
+
+    const roundRows = groups.map((group, index) => ({
+      game_id: code.toUpperCase(),
+      round_number: index + 1,
+      participant_ids: group,
+      status: index === 0 ? 'active' : 'pending',
+      started_at: index === 0 ? now : null,
+      ended_at: null,
+    }))
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({ status: 'active', current_round_number: 1, rounds_count: groups.length })
       .eq('id', code.toUpperCase())
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
