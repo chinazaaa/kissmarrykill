@@ -36,6 +36,7 @@ export default function HostPage() {
   const [advancing, setAdvancing] = useState(false)
   const [ending, setEnding] = useState(false)
   const [finishing, setFinishing] = useState(false)
+  const [playingAgain, setPlayingAgain] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
   const [adminBusy, setAdminBusy] = useState<string | null>(null)
   const [addName, setAddName] = useState('')
@@ -125,6 +126,19 @@ export default function HostPage() {
     setConfessions(confs || [])
   }
 
+  function resetHostLobbyState() {
+    setCurrentRound(null)
+    setLastFinishedRound(null)
+    setAllRounds([])
+    setVotes([])
+    setConfessions([])
+    autoFinishTriggeredRef.current = false
+    advancingRef.current = false
+    setEnding(false)
+    setAdvancing(false)
+    setFinishing(false)
+  }
+
   function mergeVote(prev: Vote[], vote: Vote) {
     const idx = prev.findIndex((v) => v.id === vote.id || (v.player_id === vote.player_id && v.round_id === vote.round_id))
     if (idx >= 0) {
@@ -186,6 +200,9 @@ export default function HostPage() {
           }
           if (g.status === 'finished') {
             await loadResults()
+          }
+          if (g.status === 'waiting') {
+            resetHostLobbyState()
           }
         }
       )
@@ -436,6 +453,30 @@ export default function HostPage() {
       setFinishing(false)
     } catch {
       setFinishing(false)
+    }
+  }
+
+  const handlePlayAgain = async () => {
+    if (playingAgain) return
+    setPlayingAgain(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/play-again`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Failed to reset for another game')
+        return
+      }
+      resetHostLobbyState()
+      if (data.game) setGame(data.game)
+      await refreshLobbyLists()
+    } catch {
+      alert('Failed to reset for another game')
+    } finally {
+      setPlayingAgain(false)
     }
   }
 
@@ -1526,6 +1567,20 @@ export default function HostPage() {
             </div>
           </div>
         )}
+
+        <div className="glass-card p-5 space-y-3 text-center">
+          <p className="text-white font-semibold">Same room, fresh game</p>
+          <p className="text-faint text-sm">
+            Send everyone back to the lobby with the same link and settings. Players stay joined — you start when ready.
+          </p>
+          <button
+            onClick={handlePlayAgain}
+            disabled={playingAgain}
+            className="btn-primary w-full"
+          >
+            {playingAgain ? 'Resetting…' : '↻ Play Again'}
+          </button>
+        </div>
       </div>
     )
   }

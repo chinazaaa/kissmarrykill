@@ -287,6 +287,25 @@ export default function GamePage() {
     setAllConfessions(confs || [])
   }
 
+  function resetPlayerForLobby(hasSession: boolean) {
+    setCurrentRound(null)
+    setLastFinishedRound(null)
+    setAllRounds([])
+    setAllVotes([])
+    setAllConfessions([])
+    setLastRoundVotes([])
+    submittedRef.current = false
+    setSubmitted(false)
+    setAssignment(emptyAssignment())
+    setPairAssignment({})
+    setWyrChoice(null)
+    setMltTargetPlayerId(null)
+    setConfessionText('')
+    setConfessionSent(false)
+    announcedRoundIdRef.current = null
+    setView(hasSession ? 'waiting' : 'join')
+  }
+
   // ── Real-time subscriptions ───────────────────────────────────────────────
   useEffect(() => {
     const ch = supabase
@@ -321,6 +340,10 @@ export default function GamePage() {
           if (newGame.status === 'finished') {
             await loadAllResults()
             setView('results')
+          }
+
+          if (newGame.status === 'waiting') {
+            resetPlayerForLobby(!!myPlayerIdRef.current)
           }
         }
       )
@@ -468,6 +491,24 @@ export default function GamePage() {
     return () => { supabase.removeChannel(ch) }
   }, [gameCode])
 
+  // Poll during final results — return to lobby when host resets
+  useEffect(() => {
+    if (view !== 'results') return
+
+    async function pollForLobby() {
+      const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+      if (gameData?.status === 'waiting') {
+        setGame(gameData)
+        resetPlayerForLobby(!!myPlayerIdRef.current)
+      }
+    }
+
+    pollForLobby()
+    const id = setInterval(pollForLobby, 2000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, gameCode])
+
   // Poll lobby / join — keep claimed names in sync if realtime is slow
   useEffect(() => {
     if (view !== 'waiting' && view !== 'join') return
@@ -515,6 +556,11 @@ export default function GamePage() {
       ])
 
       if (gameData) setGame(gameData)
+
+      if (gameData?.status === 'waiting') {
+        resetPlayerForLobby(!!myPlayerIdRef.current)
+        return
+      }
 
       if (gameData?.status === 'finished') {
         await loadAllResults()
@@ -1848,6 +1894,10 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
           </div>
         </div>
       )}
+
+      <p className="text-faint text-xs text-center">
+        You&apos;ll return to the lobby automatically when the host starts another game.
+      </p>
     </div>
   )
 }
