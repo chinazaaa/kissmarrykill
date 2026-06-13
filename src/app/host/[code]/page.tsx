@@ -60,6 +60,7 @@ import {
   MltRoundResults,
   WstRoundResults,
   AnimeWstRoundResults,
+  HotSeatRoundResults,
 } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -69,6 +70,8 @@ import {
   clampHotSeatMaxCap,
   HOT_SEAT_MIN_PLAYERS,
   HOT_SEAT_MAX_ROUNDS_CAP,
+  hotSeatJoinedPlayers,
+  hotSeatPlayerDisplayName,
 } from '@/lib/hot-seat'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { useToast } from '@/components/ui/Toast'
@@ -132,6 +135,9 @@ export default function HostPage() {
   const [animePool, setAnimePool] = useState<AnimeQuotePoolEntry[]>([])
   const [animeFetching, setAnimeFetching] = useState(false)
   const [animeError, setAnimeError] = useState<string | null>(null)
+  const [hotSeatSubmissions, setHotSeatSubmissions] = useState<
+    { id: string; text: string; submission_type: string }[]
+  >([])
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
@@ -150,6 +156,26 @@ export default function HostPage() {
     FINAL_RESULTS_AUTO_REVEAL_SECONDS,
     betweenRounds && isBetweenLastRound && !!game?.auto_reveal
   )
+
+  useEffect(() => {
+    if (!betweenRounds || !lastFinishedRound || !isHotSeat(game?.game_type)) {
+      setHotSeatSubmissions([])
+      return
+    }
+    let cancelled = false
+    async function fetchHotSeatResults() {
+      const res = await fetch(`/api/hot-seat?roundId=${lastFinishedRound!.id}&gameId=${gameCode}`)
+      if (cancelled) return
+      if (res.ok) {
+        const { submissions } = await res.json()
+        setHotSeatSubmissions(submissions ?? [])
+      }
+    }
+    fetchHotSeatResults()
+    return () => {
+      cancelled = true
+    }
+  }, [betweenRounds, game?.game_type, lastFinishedRound?.id, gameCode])
 
   useTimerTickSound(timeLeft, game?.status === 'active' && !!currentRound)
 
@@ -1411,13 +1437,19 @@ export default function HostPage() {
               />
             </div>
           )}
-          {!isJoinersMode && (
+          {!isJoinersMode && !hotSeatLobby && (
             <p className="text-faint text-xs">
               {isMltImport
                 ? `${players.length} of ${participants.length} voters joined — all names appear in rounds`
                 : game.participant_filter === 'all'
                   ? `All ${participants.length} names will appear in rounds`
                   : `${roundParticipants.length} of ${participants.length} on the list have joined — only joined names appear in rounds`}
+            </p>
+          )}
+          {hotSeatLobby && !hotSeatLegacyJoiners && (
+            <p className="text-faint text-xs">
+              {roundParticipants.length} of {participants.length} on the list have joined — only joined players take
+              turns in the hot seat
             </p>
           )}
           {!isJoinersMode && (
@@ -1796,6 +1828,7 @@ export default function HostPage() {
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
     const isWyr = isWouldYouRather(gameType)
+    const isHotSeatGame = isHotSeat(gameType)
     const roundVotes = votes.filter((v) => v.round_id === currentRound.id)
     const roundParts = participants.filter((p) => currentRound.participant_ids.includes(p.id))
     const roundParticipantGender = getRoundParticipantGender(currentRound.participant_ids, participants)
@@ -1972,6 +2005,55 @@ export default function HostPage() {
       )
     }
 
+    if (isHotSeatGame) {
+      const hotSeatPlayerId = currentRound.submitter_player_id
+      const hotSeatPlayerName = hotSeatPlayerDisplayName(hotSeatPlayerId, players, participants)
+      const joinedPlayers = hotSeatJoinedPlayers(players, participants, game.participant_mode)
+      const submitters = joinedPlayers.filter((p) => p.id !== hotSeatPlayerId)
+
+      return (
+        <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-muted text-xs uppercase tracking-wider">Round</p>
+              <p className="font-black text-body text-3xl">
+                {currentRound.round_number}
+                <span className="text-faint font-normal text-lg"> / {game.rounds_count}</span>
+              </p>
+              <p className="text-amber-400/90 text-sm mt-1">Hot Seat</p>
+            </div>
+            <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
+          </div>
+
+          <div className="glass-card border-2 border-amber-500/40 rounded-2xl p-6 text-center">
+            <div className="text-4xl mb-2">🪑🔥</div>
+            <p className="text-amber-400 text-xs uppercase tracking-wider mb-1">In the hot seat</p>
+            <p className="text-2xl font-black text-body">{hotSeatPlayerName}</p>
+          </div>
+
+          <div className="glass-card p-4 space-y-3">
+            <p className="text-muted text-xs uppercase tracking-wider">
+              Writing about {hotSeatPlayerName} ({submitters.length} joined)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {submitters.map((p) => (
+                <span key={p.id} className="chip text-xs py-1 px-2">
+                  {p.name}
+                </span>
+              ))}
+            </div>
+            <p className="text-faint text-xs text-center">
+              Only players who joined and claimed a name take turns in the hot seat
+            </p>
+          </div>
+
+          <button onClick={handleEndRound} disabled={ending} className="btn-secondary">
+            {ending ? 'Ending...' : 'End Round Early'}
+          </button>
+        </div>
+      )
+    }
+
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
         {/* Header */}
@@ -2099,12 +2181,16 @@ export default function HostPage() {
     const isWyr = isWouldYouRather(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
+    const isHotSeatGame = isHotSeat(gameType)
     const isMltImport = isMltImportGame(game)
     const roundVotes = votes.filter((v) => v.round_id === lastFinishedRound.id)
     const roundParts = participants.filter((p) => lastFinishedRound.participant_ids.includes(p.id))
     const roundConfessions = confessions.filter((c) => c.round_id === lastFinishedRound.id)
     const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
     const isLastRound = lastFinishedRound.round_number >= game.rounds_count
+    const hotSeatPlayerName = isHotSeatGame
+      ? hotSeatPlayerDisplayName(lastFinishedRound.submitter_player_id, players, participants)
+      : ''
     const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
     const mltKind = isMltImport ? 'participant' : 'player'
     const mltTargets = mltVoteTargets(game, participants, players)
@@ -2115,13 +2201,21 @@ export default function HostPage() {
         <div className="text-center">
           <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game.rounds_count}
-            {!isWyr && !isMlt && roundGender ? ` · ${roundGender}` : ''}
+            {!isWyr && !isMlt && !isHotSeatGame && roundGender ? ` · ${roundGender}` : ''}
           </p>
-          <h1 className="text-3xl font-black tracking-tight mt-1">Results are in! 🗳️</h1>
-          <p className="text-muted text-sm mt-1">Players can see these results on their screens</p>
+          <h1 className="text-3xl font-black tracking-tight mt-1">
+            {isHotSeatGame ? 'Hot Seat Reveal! 🪑🔥' : 'Results are in! 🗳️'}
+          </h1>
+          <p className="text-muted text-sm mt-1">
+            {isHotSeatGame
+              ? `Anonymous answers about ${hotSeatPlayerName}`
+              : 'Players can see these results on their screens'}
+          </p>
         </div>
 
-        {isWst ? (
+        {isHotSeatGame ? (
+          <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
+        ) : isWst ? (
           (() => {
             if (isAnimeRound(lastFinishedRound)) {
               const meta = lastFinishedRound.anime_metadata as {
