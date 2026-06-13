@@ -52,7 +52,7 @@ export function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`${wide ? 'flex-1' : 'px-4'} chip active:scale-95 ${active ? 'chip-active' : ''} ${className}`}
+      className={`${wide ? 'flex-1' : 'px-4'} chip ${active ? 'chip-active' : ''} ${className}`}
     >
       {children}
     </button>

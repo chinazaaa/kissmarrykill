@@ -381,13 +381,22 @@ function CreateGameInner() {
 
           {participantTab === 'upload' ? (
             <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="btn-secondary w-full !py-4 border-dashed"
-              >
-                Choose .csv or .xlsx
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="btn-secondary !py-3"
+                >
+                  Choose file
+                </button>
+                <a
+                  href="/participants-sample.csv"
+                  download="participants-sample.csv"
+                  className="btn-secondary !py-3 text-center no-underline flex items-center justify-center"
+                >
+                  Sample CSV
+                </a>
+              </div>
               <input
                 ref={fileRef}
                 type="file"
@@ -395,26 +404,20 @@ function CreateGameInner() {
                 className="hidden"
                 onChange={handleFileUpload}
               />
-              <a
-                href="/participants-sample.csv"
-                download="participants-sample.csv"
-                className="block text-center text-faint text-xs hover:text-[var(--foreground)] transition-colors"
-              >
-                Download sample CSV →
-              </a>
+              <p className="text-faint text-xs text-center">.csv or .xlsx — name + gender columns</p>
               {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
             </div>
           ) : (
             <div className="space-y-3">
               <Field label="Default gender">
-                <div className="flex gap-2">
-                  <Chip active={defaultGender === 'female'} onClick={() => setDefaultGender('female')} wide>
-                    Female
-                  </Chip>
-                  <Chip active={defaultGender === 'male'} onClick={() => setDefaultGender('male')} wide>
-                    Male
-                  </Chip>
-                </div>
+                <SegmentedControl
+                  value={defaultGender}
+                  onChange={setDefaultGender}
+                  options={[
+                    { value: 'female', label: 'Female' },
+                    { value: 'male', label: 'Male' },
+                  ]}
+                />
               </Field>
 
               <div className="flex gap-2">
