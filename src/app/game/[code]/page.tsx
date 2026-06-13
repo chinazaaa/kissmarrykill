@@ -6,7 +6,14 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession, filterParticipa
 import { Avatar } from '@/components/Avatar'
 import { ParticipantPhotoCard } from '@/components/ParticipantPhotoCard'
 import { ParticipantGallery } from '@/components/ParticipantGallery'
-import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
+import {
+  playRoundStartSound,
+  playVoteSubmittedSound,
+  playRoundEndSound,
+  playGameFinishedSound,
+  playConfessionSound,
+  unlockAudio,
+} from '@/lib/sounds'
 import {
   roundGenderLabel,
   playerIdentityLabel,
@@ -79,8 +86,11 @@ import {
   dedupeWstPool,
   mergeWstPoolEntry,
 } from '@/lib/who-said-this'
+import { ShareResults } from '@/components/ShareResults'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { ConfessionsTicker } from '@/components/ConfessionsTicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
+import ReactionBar from '@/components/ReactionBar'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
@@ -99,7 +109,6 @@ import type {
   Vote,
   VoteAssignment,
   Confession,
-  GameType,
   PairAssignmentMap,
   WyrChoice,
   WstQuotePoolEntry,
@@ -403,6 +412,18 @@ export default function GamePage() {
     playRoundStartSound()
   }, [view, currentRound?.id])
 
+  // Play round-end sound when transitioning to round results, game-finished sound for final results
+  const prevViewRef = useRef<View | null>(null)
+  useEffect(() => {
+    if (view === 'round_results' && prevViewRef.current !== 'round_results' && !suppressRoundSoundRef.current) {
+      playRoundEndSound()
+    }
+    if (view === 'results' && prevViewRef.current !== 'results') {
+      playGameFinishedSound()
+    }
+    prevViewRef.current = view
+  }, [view])
+
   async function loadAllResults() {
     const [{ data: rounds }, { data: votes }, { data: confs }] = await Promise.all([
       supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
@@ -435,17 +456,6 @@ export default function GamePage() {
       resetRoundPlayerState()
       if (options?.switchView !== false) setView('round')
     }
-  }
-
-  async function fetchActiveRound() {
-    const { data } = await supabase
-      .from('rounds')
-      .select('*')
-      .eq('game_id', gameCode)
-      .eq('status', 'active')
-      .maybeSingle()
-    if (data) applyActiveRound(data, { switchView: false })
-    return data
   }
 
   function resetPlayerForLobby(hasSession: boolean) {
@@ -1092,6 +1102,7 @@ export default function GamePage() {
       }
       submittedRef.current = true
       setSubmitted(true)
+      playVoteSubmittedSound()
     } catch {
       toast.error('Could not submit — try again')
     }
@@ -1220,11 +1231,12 @@ export default function GamePage() {
   const sendConfession = async () => {
     if (!confessionText.trim() || confessionSent) return
     setConfessionSent(true)
-    await fetch('/api/confessions', {
+    const res = await fetch('/api/confessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gameId: gameCode, roundId: currentRound?.id, text: confessionText }),
     })
+    if (res.ok) playConfessionSound()
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -2007,6 +2019,8 @@ export default function GamePage() {
             voterCount={voterCount}
             myChoice={myVote?.wyr_choice ?? null}
           />
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+          <ReactionBar className="pt-1" />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2050,6 +2064,8 @@ export default function GamePage() {
             correctCount={correctCount}
             myPickName={myPickName}
           />
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+          <ReactionBar className="pt-1" />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2089,6 +2105,8 @@ export default function GamePage() {
             winnerNames={winnerNames}
             myPickName={myPickName}
           />
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+          <ReactionBar className="pt-1" />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2235,18 +2253,9 @@ export default function GamePage() {
         })()}
 
         {/* Hot takes for this round */}
-        {roundConfessions.length > 0 && (
-          <div>
-            <p className="text-muted text-xs uppercase tracking-wider mb-2">🔥 Hot Takes</p>
-            <div className="space-y-2">
-              {roundConfessions.map((c) => (
-                <div key={c.id} className="glass-card px-4 py-3">
-                  <p className="text-body-muted text-sm italic">&ldquo;{c.text}&rdquo;</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <ConfessionsTicker confessions={roundConfessions} />
+
+        <ReactionBar className="pt-1" />
 
         <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-[var(--primary)]' : 'text-faint'}`}>
           {roundResultsWaitMessage({
@@ -2281,61 +2290,6 @@ export default function GamePage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
-
-function ParticipantCard({
-  gameType,
-  participant,
-  action,
-  onAssign,
-  disabled,
-  disabledSlots = [],
-}: {
-  gameType: GameType
-  participant: Participant
-  action: 'kiss' | 'marry' | 'kill' | null
-  onAssign: (a: 'kiss' | 'marry' | 'kill') => void
-  disabled: boolean
-  disabledSlots?: ('kiss' | 'marry' | 'kill')[]
-}) {
-  const cfg = action ? slotMeta(gameType, action) : null
-  return (
-    <div
-      className={`rounded-2xl border-2 p-4 transition-all backdrop-blur-sm ${cfg ? cfg.borderClass : 'glass-card border-theme'}`}
-    >
-      <div className="flex items-center gap-3 mb-3">
-        <Avatar name={participant.name} photoUrl={participant.photo_url} />
-        <div>
-          <p className="font-bold text-body text-lg leading-tight">{participant.name}</p>
-          {action && cfg && (
-            <p className="text-sm font-medium" style={{ color: cfg.textColor }}>
-              {cfg.emoji} {cfg.label}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="flex gap-2">
-        {voteSlots(gameType).map((a) => {
-          const slot = slotMeta(gameType, a)
-          const slotDisabled = disabled || disabledSlots.includes(a)
-          return (
-            <button
-              key={a}
-              onClick={() => onAssign(a)}
-              disabled={slotDisabled}
-              className={`flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
-                action === a
-                  ? slot.activeClass
-                  : `surface-inset border-theme text-muted ${!slotDisabled ? 'hover:border-theme-strong hover:text-body-muted' : ''}`
-              } disabled:cursor-not-allowed disabled:opacity-40`}
-            >
-              {slot.emoji}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 function TimerDisplay({ seconds, total }: { seconds: number; total: number }) {
   const pct = total > 0 ? (seconds / total) * 100 : 0
@@ -2396,6 +2350,8 @@ function FinalResultsView({
                 : ''}
         </p>
       </div>
+
+      <ShareResults game={game} participants={participants} votes={votes} rounds={rounds} players={players} />
 
       {isWst && wstScores.length > 0 && (
         <PaginatedLeaderboard
