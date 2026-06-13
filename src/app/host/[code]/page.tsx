@@ -31,6 +31,7 @@ export default function HostPage() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
+  const autoFinishTriggeredRef = useRef(false)
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -212,6 +213,27 @@ export default function HostPage() {
     return () => clearInterval(id)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.status, gameCode, currentRound?.id, lastFinishedRound?.id])
+
+  // Auto-reveal: after the final round results, show the leaderboard automatically
+  useEffect(() => {
+    if (game?.status !== 'active' || currentRound || !lastFinishedRound) return
+    if (lastFinishedRound.round_number < (game?.rounds_count ?? 0)) return
+    if (!game.auto_reveal || autoFinishTriggeredRef.current) return
+
+    autoFinishTriggeredRef.current = true
+    const timer = setTimeout(() => {
+      handleFinishGame()
+    }, 8000)
+
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.status, game?.auto_reveal, game?.rounds_count, currentRound?.id, lastFinishedRound?.id])
+
+  useEffect(() => {
+    if (!lastFinishedRound || lastFinishedRound.round_number < (game?.rounds_count ?? 0)) {
+      autoFinishTriggeredRef.current = false
+    }
+  }, [lastFinishedRound?.id, game?.rounds_count])
 
   // ── Timer (host) ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -484,7 +506,7 @@ export default function HostPage() {
             />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {players.map((pl) => {
+            {!game.anonymous && players.map((pl) => {
               const voted = roundVotes.some((v) => v.player_id === pl.id)
               return (
                 <div key={pl.id} className={`flex items-center gap-1.5 text-xs ${voted ? 'text-green-400' : 'text-zinc-600'}`}>
@@ -594,13 +616,19 @@ export default function HostPage() {
         )}
 
         {isLastRound ? (
-          <button
-            onClick={handleFinishGame}
-            disabled={finishing}
-            className="w-full py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white text-xl font-bold rounded-2xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 shadow-lg shadow-purple-500/20"
-          >
-            {finishing ? 'Loading...' : '🏆 Show Final Leaderboard'}
-          </button>
+          game.auto_reveal ? (
+            <p className="text-purple-400 text-sm text-center animate-pulse">
+              Final leaderboard in a few seconds...
+            </p>
+          ) : (
+            <button
+              onClick={handleFinishGame}
+              disabled={finishing}
+              className="w-full py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white text-xl font-bold rounded-2xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 shadow-lg shadow-purple-500/20"
+            >
+              {finishing ? 'Loading...' : '🏆 Show Final Leaderboard'}
+            </button>
+          )
         ) : (
           <button
             onClick={handleNextRound}
