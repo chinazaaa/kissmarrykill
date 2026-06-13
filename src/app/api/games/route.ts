@@ -20,6 +20,7 @@ import { parseQuestionSource, parseStoredWyrQuestions, parseStoredMltQuestions }
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import type { ParticipantMode, QuestionSource } from '@/types'
 import { createGameSchema, stripHtml } from '@/lib/validation'
+import { parseThemeId } from '@/lib/themes'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -94,10 +95,12 @@ export async function POST(req: NextRequest) {
     question_source: rawQuestionSource,
     custom_questions: rawCustomQuestions,
     game_type: rawGameType,
+    theme: rawTheme,
     participants: rawParticipants,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
+  const theme = parseThemeId(rawTheme)
   const question_source = parseQuestionSource(rawQuestionSource, game_type)
   let custom_questions: unknown[] | null = null
 
@@ -180,6 +183,7 @@ export async function POST(req: NextRequest) {
     question_source: isWouldYouRather(game_type) || isMostLikelyTo(game_type) ? question_source : 'platform',
     custom_questions,
     game_type,
+    theme,
     status: 'waiting',
     current_round_number: 0,
   })

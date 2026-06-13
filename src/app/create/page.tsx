@@ -1,7 +1,8 @@
 'use client'
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { ParticipantGender, ParticipantMode, GameType, PairVoteMode, QuestionSource } from '@/types'
+import type { ParticipantGender, ParticipantMode, GameType, PairVoteMode, QuestionSource, ThemeId } from '@/types'
+import { THEMES, type ThemeConfig } from '@/lib/themes'
 import {
   type ParticipantInput,
   parseParticipantsForGame,
@@ -59,6 +60,7 @@ interface Settings {
   participant_mode: ParticipantMode
   pair_vote_mode: PairVoteMode
   game_type: GameType
+  theme: ThemeId
 }
 
 type Step = 'settings' | 'participants' | 'done'
@@ -82,6 +84,7 @@ function CreateGameInner() {
     participant_mode: 'import',
     pair_vote_mode: 'any',
     game_type: 'smash_marry_kill',
+    theme: 'default',
   })
   const [participants, setParticipants] = useState<ParticipantInput[]>([])
   const [nameInput, setNameInput] = useState('')
@@ -435,6 +438,21 @@ function CreateGameInner() {
             <Field label="Game mode">
               <GameTypeCard type={settings.game_type} compact selected onClick={() => setShowGameTypes(true)} />
             </Field>
+          </div>
+
+          {/* Theme */}
+          <div className="glass-card p-5 space-y-3">
+            <p className="label-caps">Theme</p>
+            <div className="flex gap-2 flex-wrap">
+              {THEMES.map((t) => (
+                <ThemePreviewCard
+                  key={t.id}
+                  theme={t}
+                  selected={settings.theme === t.id}
+                  onClick={() => setSettings({ ...settings, theme: t.id })}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Rules */}
@@ -984,6 +1002,44 @@ function GenderBadge({ gender }: { gender: ParticipantGender }) {
 
 function Avatar({ name }: { name: string }) {
   return <div className="avatar w-7 h-7 text-xs shrink-0">{name.charAt(0).toUpperCase()}</div>
+}
+
+function ThemePreviewCard({
+  theme,
+  selected,
+  onClick,
+}: {
+  theme: ThemeConfig
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-2.5 transition-all ${
+        selected
+          ? 'border-[var(--primary)] shadow-[0_0_0_1px_var(--primary)]'
+          : 'border-[var(--border)] hover:border-[var(--border-strong)]'
+      }`}
+      style={{ minWidth: '4.5rem' }}
+    >
+      <div className="flex gap-1">
+        <span className="block w-4 h-4 rounded-full border border-black/10" style={{ background: theme.preview.bg }} />
+        <span
+          className="block w-4 h-4 rounded-full border border-black/10"
+          style={{ background: theme.preview.accent }}
+        />
+        <span
+          className="block w-4 h-4 rounded-full border border-black/10"
+          style={{ background: theme.preview.text }}
+        />
+      </div>
+      <span className="text-xs font-medium text-body">
+        {theme.emoji} {theme.label}
+      </span>
+    </button>
+  )
 }
 
 function CopyCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
