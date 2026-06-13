@@ -47,6 +47,16 @@ export async function POST(req: NextRequest) {
 
   const gameType = parseGameType(game.game_type)
 
+  // Rate limit: max 10 questions per player per game
+  const { count } = await supabase
+    .from('player_questions')
+    .select('id', { count: 'exact', head: true })
+    .eq('game_id', upperGameId)
+    .eq('player_id', playerId)
+  if ((count ?? 0) >= 10) {
+    return NextResponse.json({ error: 'You can submit up to 10 questions per game' }, { status: 400 })
+  }
+
   if (questionType === 'wyr' && !isWouldYouRather(gameType)) {
     return NextResponse.json({ error: 'This game type does not accept WYR questions' }, { status: 400 })
   }

@@ -15,12 +15,26 @@ function extFromMime(mime: string): string {
   }
 }
 
+const MAGIC_BYTES: Record<string, number[]> = {
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/png': [0x89, 0x50, 0x4E, 0x47],
+  'image/webp': [0x52, 0x49, 0x46, 0x46],
+  'image/gif': [0x47, 0x49, 0x46],
+}
+
+function validateMagicBytes(buffer: Uint8Array, mime: string): boolean {
+  const expected = MAGIC_BYTES[mime]
+  if (!expected) return false
+  return expected.every((byte, i) => buffer[i] === byte)
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const gameId = formData.get('gameId') as string | null
     const participantId = formData.get('participantId') as string | null
+    const playerId = formData.get('playerId') as string | null
 
     if (!file || !gameId || !participantId) {
       return NextResponse.json({ error: 'Missing file, gameId, or participantId' }, { status: 400 })
@@ -34,6 +48,13 @@ export async function POST(req: NextRequest) {
     // Validate file size
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: 'File must be under 2MB' }, { status: 400 })
+    }
+
+    // Validate magic bytes match claimed MIME type
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = new Uint8Array(arrayBuffer)
+    if (!validateMagicBytes(buffer, file.type)) {
+      return NextResponse.json({ error: 'File content does not match its type' }, { status: 400 })
     }
 
     // Validate game exists and is in waiting status
@@ -50,6 +71,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Photos can only be uploaded while the game is waiting' }, { status: 400 })
     }
 
+    // Authorization: verify the uploader owns this participant
+    if (playerId) {
+      const { data: player } = await supabase
+        .from('players')
+        .select('id, participant_id')
+        .eq('id', playerId)
+        .eq('game_id', gameId)
+        .maybeSingle()
+      if (!player || player.participant_id !== participantId) {
+        return NextResponse.json({ error: 'You can only upload photos for your own profile' }, { status: 403 })
+      }
+    }
+
     // Validate participant exists and belongs to this game
     const { data: participant } = await supabase
       .from('participants')
@@ -64,8 +98,11 @@ export async function POST(req: NextRequest) {
 
     const ext = extFromMime(file.type)
     const storagePath = `${gameId}/${participantId}.${ext}`
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = new Uint8Array(arrayBuffer)
+
+    // Clean up old files with different extensions
+    const otherExts = ['jpg', 'png', 'webp', 'gif'].filter((e) => e !== ext)
+    const oldPaths = otherExts.map((e) => `${gameId}/${participantId}.${e}`)
+    if (oldPaths.length > 0) await supabase.storage.from('avatars').remove(oldPaths)
 
     // Upload (upsert) to Supabase Storage
     const { error: uploadError } = await supabase.storage

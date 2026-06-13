@@ -82,7 +82,7 @@ export const createGameSchema = z.object({
   pair_vote_mode: pairVoteModeEnum.optional(),
   question_source: questionSourceEnum.optional(),
   custom_questions: z.array(z.unknown()).optional().nullable(),
-  game_type: z.string().optional(),
+  game_type: gameTypeEnum.optional(),
   participants: z.array(participantItemSchema).optional(),
 })
 
@@ -164,10 +164,10 @@ export type DeleteParticipantInput = z.infer<typeof deleteParticipantSchema>
 export const createPlayerSchema = z.object({
   gameCode: gameCodeString(),
   playerName: sanitizedString(1, 50).optional(),
-  gender: z.string().optional(),
-  pollGender: z.string().optional(),
-  identityGender: z.string().optional(),
-  participantId: z.string().optional(),
+  gender: playerGenderEnum.or(z.string()).optional(),
+  pollGender: participantGenderEnum.or(z.string()).optional(),
+  identityGender: participantGenderEnum.or(z.string()).optional(),
+  participantId: uuidString('participantId').optional(),
 })
 
 export type CreatePlayerInput = z.infer<typeof createPlayerSchema>
