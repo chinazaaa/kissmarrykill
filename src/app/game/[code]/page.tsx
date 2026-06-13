@@ -889,7 +889,6 @@ export default function GamePage() {
     timerRef.current = setInterval(tick, 500)
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
-  
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
