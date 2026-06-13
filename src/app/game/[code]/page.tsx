@@ -1833,7 +1833,7 @@ function PlayerNameBar({ name }: { name: string | null | undefined }) {
       <div className="avatar w-7 h-7 text-xs shrink-0">{getInitial(name)}</div>
       <div className="min-w-0">
         <p className="text-[10px] uppercase tracking-wider text-faint leading-none">Playing as</p>
-        <p className="text-sm font-semibold text-white truncate">{name}</p>
+        <p className="text-sm font-semibold truncate">{name}</p>
       </div>
     </div>
   )
@@ -1852,7 +1852,7 @@ function NotFound({ onHome }: { onHome: () => void }) {
     <div className="page-wrap flex items-center justify-center px-4">
       <div className="text-center space-y-4">
         <p className="text-6xl">🤷</p>
-        <h1 className="text-2xl font-black text-white">Game not found</h1>
+        <h1 className="text-2xl font-black gradient-title-subtle">Game not found</h1>
         <p className="text-muted">Check the code and try again</p>
         <button onClick={onHome} className={primaryBtnCls + ' max-w-xs mx-auto'}>Back Home</button>
       </div>

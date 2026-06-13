@@ -14,11 +14,21 @@ export interface SlotMeta {
   textColor: string
 }
 
+export interface GameTypeCardMeta {
+  accent: string
+  accentSoft: string
+  emoji: string
+  players: string
+  vibe: string
+  featured?: boolean
+}
+
 export interface GameTypeConfig {
   id: GameType
   label: string
   tagline: string
   headerEmoji: string
+  card: GameTypeCardMeta
   slots: Record<VoteSlot, SlotMeta>
 }
 
@@ -28,6 +38,14 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
     label: 'Smash Marry Kill',
     tagline: 'Pick one to smash, one to marry, one to kill',
     headerEmoji: '🔥💍💀',
+    card: {
+      accent: '#f43f5e',
+      accentSoft: 'rgba(244, 63, 94, 0.15)',
+      emoji: '🔥',
+      players: '3+ players',
+      vibe: 'Classic chaos',
+      featured: true,
+    },
     slots: {
       kiss: {
         emoji: '🔥',
@@ -63,6 +81,13 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
     label: 'Red Flag / Green Flag',
     tagline: 'Two names — rate each person green or red on their own',
     headerEmoji: '💚🚩',
+    card: {
+      accent: '#22c55e',
+      accentSoft: 'rgba(34, 197, 94, 0.15)',
+      emoji: '🚩',
+      players: '4+ players',
+      vibe: 'Spicy takes',
+    },
     slots: {
       kiss: {
         emoji: '💚',
@@ -98,6 +123,13 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
     label: 'Smash or Pass',
     tagline: 'Two names — smash or pass on each person separately',
     headerEmoji: '🔥👎',
+    card: {
+      accent: '#fb923c',
+      accentSoft: 'rgba(251, 146, 60, 0.15)',
+      emoji: '🔥',
+      players: '4+ players',
+      vibe: 'Quick & bold',
+    },
     slots: {
       kiss: {
         emoji: '🔥',
@@ -133,6 +165,14 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
     label: 'Would You Rather',
     tagline: 'Pick between two options — votes stay anonymous',
     headerEmoji: '🤔⚖️',
+    card: {
+      accent: '#a78bfa',
+      accentSoft: 'rgba(167, 139, 250, 0.15)',
+      emoji: '🤔',
+      players: '2+ players',
+      vibe: 'Anonymous fun',
+      featured: true,
+    },
     slots: {
       kiss: {
         emoji: 'A',
@@ -168,6 +208,14 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
     label: 'Most Likely To',
     tagline: 'Vote for the friend who fits each prompt — anonymous',
     headerEmoji: '🎯👥',
+    card: {
+      accent: '#fbbf24',
+      accentSoft: 'rgba(251, 191, 36, 0.15)',
+      emoji: '🎯',
+      players: '3+ players',
+      vibe: 'Call out friends',
+      featured: true,
+    },
     slots: {
       kiss: {
         emoji: '🏆',

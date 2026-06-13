@@ -97,8 +97,8 @@ export default function GameHistoryPage() {
       <div className="page-wrap flex items-center justify-center px-4 py-12">
         <div className="text-center space-y-4 max-w-sm">
           <p className="text-5xl">🤷</p>
-          <h1 className="text-2xl font-black text-white">Game not found</h1>
-          <p className="text-muted text-sm">No game with ID <span className="font-mono text-white/80">{gameCode}</span></p>
+          <h1 className="text-2xl font-black gradient-title-subtle">Game not found</h1>
+          <p className="text-muted text-sm">No game with ID <span className="font-mono">{gameCode}</span></p>
           <button onClick={() => router.push('/history')} className="btn-secondary px-6 py-3">
             Search again
           </button>
@@ -123,8 +123,8 @@ export default function GameHistoryPage() {
     <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <p className="text-faint text-xs uppercase tracking-wider">Game history</p>
-          <h1 className="text-3xl font-black text-white">{game.title}</h1>
+          <p className="label-caps">Game history</p>
+          <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
           <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -142,19 +142,19 @@ export default function GameHistoryPage() {
       <div className="glass-card p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
         <div>
           <p className="text-faint text-[10px] uppercase tracking-wider">Status</p>
-          <p className="text-white font-medium mt-0.5">{statusLabel(game.status)}</p>
+          <p className="font-medium mt-0.5">{statusLabel(game.status)}</p>
         </div>
         <div>
           <p className="text-faint text-[10px] uppercase tracking-wider">Created</p>
-          <p className="text-white/90 mt-0.5">{formatDate(game.created_at)}</p>
+          <p className="mt-0.5">{formatDate(game.created_at)}</p>
         </div>
         <div>
           <p className="text-faint text-[10px] uppercase tracking-wider">Players</p>
-          <p className="text-white font-medium mt-0.5">{players.length}</p>
+          <p className="font-medium mt-0.5">{players.length}</p>
         </div>
         <div>
           <p className="text-faint text-[10px] uppercase tracking-wider">Votes recorded</p>
-          <p className="text-white font-medium mt-0.5">{votes.length}</p>
+          <p className="font-medium mt-0.5">{votes.length}</p>
         </div>
       </div>
 

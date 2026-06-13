@@ -1,6 +1,6 @@
 'use client'
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { ParticipantGender, ParticipantMode, GameType } from '@/types'
 import {
   type ParticipantInput,
@@ -11,9 +11,19 @@ import {
   hasEnoughForRounds,
   genderLabel,
 } from '@/lib/participants'
-import { GAME_TYPE_OPTIONS, gameTypeConfig, roundPoolSize, isLobbyGame, isMostLikelyTo, isWouldYouRather, isAnonymousGame } from '@/lib/game-types'
+import {
+  roundPoolSize,
+  isLobbyGame,
+  isMostLikelyTo,
+  isWouldYouRather,
+  isAnonymousGame,
+  parseGameType,
+} from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
+import { GameTypeModal } from '@/components/GameTypeModal'
+import { GameTypeCard } from '@/components/GameTypeCard'
+import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/components/ui/PageShell'
 
 interface Settings {
   title: string
@@ -28,9 +38,11 @@ interface Settings {
 
 type Step = 'settings' | 'participants' | 'done'
 
-export default function CreateGame() {
+function CreateGameInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>('settings')
+  const [showGameTypes, setShowGameTypes] = useState(false)
   const [settings, setSettings] = useState<Settings>({
     title: '',
     rounds_count: 3,
@@ -51,11 +63,22 @@ export default function CreateGame() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [bulkPaste, setBulkPaste] = useState('')
 
+  useEffect(() => {
+    const typeParam = searchParams.get('type')
+    if (typeParam) {
+      const type = parseGameType(typeParam)
+      setSettings((prev) => ({
+        ...prev,
+        game_type: type,
+        ...(isLobbyGame(type) ? { participant_mode: 'joiners', anonymous: true } : {}),
+      }))
+    }
+  }, [searchParams])
+
   const genderCounts = countByGender(participants)
   const isJoinersMode = settings.participant_mode === 'joiners'
   const isWyr = isWouldYouRather(settings.game_type)
   const isMlt = isMostLikelyTo(settings.game_type)
-  const isLobby = isLobbyGame(settings.game_type)
   const minPool = roundPoolSize(settings.game_type)
   const canCreateImport = participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type)
   const canCreateJoiners = !!settings.title.trim()
@@ -63,6 +86,14 @@ export default function CreateGame() {
   const mltRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= MLT_QUESTION_COUNT)
   const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= WYR_QUESTION_COUNT)
   const roundOptions = isWyr ? wyrRoundOptions : isMlt ? mltRoundOptions : [2, 3, 4, 5, 6, 8, 10]
+
+  const selectGameType = (type: GameType) => {
+    setSettings({
+      ...settings,
+      game_type: type,
+      ...(isLobbyGame(type) ? { participant_mode: 'joiners', anonymous: true } : {}),
+    })
+  }
 
   const addParticipantsFromRows = (rows: ParticipantInput[]) => {
     if (rows.length === 0) return 0
@@ -169,181 +200,173 @@ export default function CreateGame() {
     }
   }
 
+  const modeCardClass = (active: boolean) =>
+    `text-left rounded-2xl border p-4 transition-all w-full ${
+      active
+        ? 'border-[var(--primary)] bg-[var(--chip-active-bg)]'
+        : 'border-[var(--border)] surface-inset hover:border-[var(--border-strong)]'
+    }`
+
   if (step === 'settings') {
     return (
-      <PageShell>
-        <BackBtn onClick={() => router.push('/')} />
-        <div>
-          <p className="label-caps mb-2">New game</p>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Create Game</h1>
-        </div>
+      <>
+        <PageShell>
+          <BackBtn onClick={() => router.push('/')} label="Home" />
+          <div>
+            <p className="label-caps mb-2">New game</p>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight gradient-title-subtle">Create Game</h1>
+          </div>
 
-        <div className="glass-card p-5 space-y-5">
-          <Field label="Game Name">
-            <input
-              value={settings.title}
-              onChange={(e) => setSettings({ ...settings, title: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && settings.title.trim() && setStep('participants')}
-              placeholder="Friday Night KMS"
-              autoFocus
-              className="input-field"
-            />
-          </Field>
+          <div className="glass-card p-5 space-y-5">
+            <Field label="Game Name">
+              <input
+                value={settings.title}
+                onChange={(e) => setSettings({ ...settings, title: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && settings.title.trim() && setStep('participants')}
+                placeholder="Friday Night KMS"
+                autoFocus
+                className="input-field"
+              />
+            </Field>
 
-          <Field label="Game Type">
-            <div className="grid gap-2">
-              {GAME_TYPE_OPTIONS.map((type) => {
-                const cfg = gameTypeConfig(type)
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() =>
-                      setSettings({
-                        ...settings,
-                        game_type: type,
-                        ...(isLobbyGame(type)
-                          ? { participant_mode: 'joiners', anonymous: true }
-                          : {}),
-                      })
-                    }
-                    className={`text-left rounded-2xl border p-4 transition-all ${
-                      settings.game_type === type
-                        ? 'border-[var(--primary)] bg-[var(--primary)]/10'
-                        : 'border-white/10 surface-inset hover:border-white/20'
-                    }`}
-                  >
-                    <p className="font-semibold text-white">
-                      {cfg.headerEmoji} {cfg.label}
-                    </p>
-                    <p className="text-faint text-xs mt-1">{cfg.tagline}</p>
-                  </button>
-                )
-              })}
-            </div>
-          </Field>
-
-          {!isWyr && (
-          <Field label="Who Joins">
-            <div className="grid gap-2">
-              <button
-                type="button"
-                onClick={() => setSettings({ ...settings, participant_mode: 'joiners' })}
-                className={`text-left rounded-2xl border p-4 transition-all ${
-                  settings.participant_mode === 'joiners'
-                    ? 'border-[var(--primary)] bg-[var(--primary)]/10'
-                    : 'border-white/10 surface-inset hover:border-white/20'
-                }`}
-              >
-                <p className="font-semibold text-white">Join &amp; play</p>
-                <p className="text-faint text-xs mt-1">
-                  Everyone who joins is in the poll — no list to upload first
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSettings({ ...settings, participant_mode: 'import' })}
-                className={`text-left rounded-2xl border p-4 transition-all ${
-                  settings.participant_mode === 'import'
-                    ? 'border-[var(--primary)] bg-[var(--primary)]/10'
-                    : 'border-white/10 surface-inset hover:border-white/20'
-                }`}
-              >
-                <p className="font-semibold text-white">Import list</p>
-                <p className="text-faint text-xs mt-1">
-                  Upload names before the game — joiners only vote, they are not on the list
-                </p>
-              </button>
-            </div>
-          </Field>
-          )}
-
-          <Field label="Number of Rounds">
-            <div className="flex gap-2 flex-wrap">
-              {roundOptions.map((n) => (
-                <Chip
-                  key={n}
-                  active={settings.rounds_count === n}
-                  onClick={() => setSettings({ ...settings, rounds_count: n })}
+            <Field label="Game Type">
+              <div className="space-y-2">
+                <GameTypeCard
+                  type={settings.game_type}
+                  compact
+                  selected
+                  onClick={() => setShowGameTypes(true)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGameTypes(true)}
+                  className="w-full text-center text-faint text-xs hover:text-[var(--foreground)] transition-colors py-1"
                 >
-                  {n}
-                </Chip>
-              ))}
-            </div>
-          </Field>
+                  Change game mode
+                </button>
+              </div>
+            </Field>
 
-          <Field label="Time Per Round">
-            <div className="flex gap-2">
-              {[15, 30, 60].map((t) => (
+            {!isWyr && (
+              <Field label="Who Joins">
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ ...settings, participant_mode: 'joiners' })}
+                    className={modeCardClass(settings.participant_mode === 'joiners')}
+                  >
+                    <p className="font-semibold">Join &amp; play</p>
+                    <p className="text-faint text-xs mt-1">
+                      Everyone who joins is in the poll — no list to upload first
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ ...settings, participant_mode: 'import' })}
+                    className={modeCardClass(settings.participant_mode === 'import')}
+                  >
+                    <p className="font-semibold">Import list</p>
+                    <p className="text-faint text-xs mt-1">
+                      Upload names before the game — joiners only vote, they are not on the list
+                    </p>
+                  </button>
+                </div>
+              </Field>
+            )}
+
+            <Field label="Number of Rounds">
+              <div className="flex gap-2 flex-wrap">
+                {roundOptions.map((n) => (
+                  <Chip
+                    key={n}
+                    active={settings.rounds_count === n}
+                    onClick={() => setSettings({ ...settings, rounds_count: n })}
+                  >
+                    {n}
+                  </Chip>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Time Per Round">
+              <div className="flex gap-2">
+                {[15, 30, 60].map((t) => (
+                  <Chip
+                    key={t}
+                    active={settings.timer_seconds === t}
+                    onClick={() => setSettings({ ...settings, timer_seconds: t })}
+                    wide
+                  >
+                    {t}s
+                  </Chip>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="When Timer Runs Out (incomplete votes)">
+              <div className="flex gap-2">
                 <Chip
-                  key={t}
-                  active={settings.timer_seconds === t}
-                  onClick={() => setSettings({ ...settings, timer_seconds: t })}
+                  active={settings.auto_submit_behavior === 'random'}
+                  onClick={() => setSettings({ ...settings, auto_submit_behavior: 'random' })}
                   wide
                 >
-                  {t}s
+                  Random Fill
                 </Chip>
-              ))}
-            </div>
-          </Field>
+                <Chip
+                  active={settings.auto_submit_behavior === 'no_answer'}
+                  onClick={() => setSettings({ ...settings, auto_submit_behavior: 'no_answer' })}
+                  wide
+                >
+                  No Answer
+                </Chip>
+              </div>
+            </Field>
 
-          <Field label="When Timer Runs Out (incomplete votes)">
-            <div className="flex gap-2">
-              <Chip
-                active={settings.auto_submit_behavior === 'random'}
-                onClick={() => setSettings({ ...settings, auto_submit_behavior: 'random' })}
-                wide
-              >
-                Random Fill
-              </Chip>
-              <Chip
-                active={settings.auto_submit_behavior === 'no_answer'}
-                onClick={() => setSettings({ ...settings, auto_submit_behavior: 'no_answer' })}
-                wide
-              >
-                No Answer
-              </Chip>
+            <div className="space-y-2 pt-1">
+              {!isAnonymousGame(settings.game_type) && (
+                <Toggle
+                  label="Anonymous Responses"
+                  description="Hide who voted for what"
+                  value={settings.anonymous}
+                  onChange={(v) => setSettings({ ...settings, anonymous: v })}
+                />
+              )}
+              {isAnonymousGame(settings.game_type) && (
+                <p className="text-faint text-xs px-1">
+                  Would You Rather and Most Likely To are always anonymous — only totals are shown.
+                </p>
+              )}
+              <Toggle
+                label="Auto-Reveal Results"
+                description="Show results after the last round automatically"
+                value={settings.auto_reveal}
+                onChange={(v) => setSettings({ ...settings, auto_reveal: v })}
+              />
             </div>
-          </Field>
-
-          <div className="space-y-2 pt-1">
-            {!isAnonymousGame(settings.game_type) && (
-            <Toggle
-              label="Anonymous Responses"
-              description="Hide who voted for what"
-              value={settings.anonymous}
-              onChange={(v) => setSettings({ ...settings, anonymous: v })}
-            />
-            )}
-            {isAnonymousGame(settings.game_type) && (
-              <p className="text-faint text-xs px-1">Would You Rather and Most Likely To are always anonymous — only totals are shown.</p>
-            )}
-            <Toggle
-              label="Auto-Reveal Results"
-              description="Show results after the last round automatically"
-              value={settings.auto_reveal}
-              onChange={(v) => setSettings({ ...settings, auto_reveal: v })}
-            />
           </div>
-        </div>
 
-        {isWyr || (isMlt && isJoinersMode) ? (
-          <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading}>
-            {loading ? 'Creating...' : 'Create Game'}
-          </PrimaryBtn>
-        ) : isJoinersMode ? (
-          <PrimaryBtn onClick={createGame} disabled={!canCreateJoiners || loading}>
-            {loading ? 'Creating...' : 'Create Game'}
-          </PrimaryBtn>
-        ) : (
-          <PrimaryBtn
-            onClick={() => setStep('participants')}
-            disabled={!settings.title.trim()}
-          >
-            Next: Add Participants →
-          </PrimaryBtn>
-        )}
-      </PageShell>
+          {isWyr || (isMlt && isJoinersMode) ? (
+            <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading}>
+              {loading ? 'Creating...' : 'Create Game'}
+            </PrimaryBtn>
+          ) : isJoinersMode ? (
+            <PrimaryBtn onClick={createGame} disabled={!canCreateJoiners || loading}>
+              {loading ? 'Creating...' : 'Create Game'}
+            </PrimaryBtn>
+          ) : (
+            <PrimaryBtn onClick={() => setStep('participants')} disabled={!settings.title.trim()}>
+              Next: Add Participants →
+            </PrimaryBtn>
+          )}
+        </PageShell>
+
+        <GameTypeModal
+          open={showGameTypes}
+          onClose={() => setShowGameTypes(false)}
+          selected={settings.game_type}
+          onSelect={selectGameType}
+        />
+      </>
     )
   }
 
@@ -353,29 +376,21 @@ export default function CreateGame() {
         <BackBtn onClick={() => setStep('settings')} />
         <div>
           <p className="label-caps mb-2">Almost there</p>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Add Participants</h1>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight gradient-title-subtle">Add Participants</h1>
           <p className="text-muted text-sm mt-2">
             {isMlt
               ? 'Upload names for the poll — everyone on the list can be voted for; players join separately to vote'
-              : 'Each round picks 3 people of the <strong className="text-white/90">same gender</strong> — upload a sheet with name + gender, or add manually.'}
+              : 'Each round picks 3 people of the same gender — upload a sheet with name + gender, or add manually.'}
           </p>
         </div>
 
         <div className="glass-card p-5 space-y-4">
           <Field label="Upload CSV or Excel">
             <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="btn-secondary flex-1"
-              >
+              <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary flex-1">
                 Choose file (.csv / .xlsx)
               </button>
-              <a
-                href="/participants-sample.csv"
-                download="participants-sample.csv"
-                className="btn-secondary flex-1 text-center no-underline"
-              >
+              <a href="/participants-sample.csv" download="participants-sample.csv" className="btn-secondary flex-1 text-center no-underline">
                 Download sample
               </a>
             </div>
@@ -387,13 +402,11 @@ export default function CreateGame() {
               onChange={handleFileUpload}
             />
             <p className="text-faint text-xs mt-2">
-              Column 1: name · Column 2: gender (<span className="text-white/50">male</span> or <span className="text-white/50">female</span>)
+              Column 1: name · Column 2: gender (male or female)
             </p>
           </Field>
 
-          {uploadError && (
-            <p className="text-red-300 text-sm">{uploadError}</p>
-          )}
+          {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
 
           <div className="flex items-center gap-3">
             <div className="divider-soft" />
@@ -423,10 +436,7 @@ export default function CreateGame() {
               autoFocus
               className="input-field"
             />
-            <button
-              onClick={addParticipant}
-              className="btn-secondary shrink-0 px-5 whitespace-nowrap"
-            >
+            <button type="button" onClick={addParticipant} className="btn-secondary shrink-0 px-5 whitespace-nowrap">
               Add
             </button>
           </div>
@@ -440,6 +450,7 @@ export default function CreateGame() {
               className="input-field resize-y min-h-[96px] font-medium"
             />
             <button
+              type="button"
               onClick={addBulkParticipants}
               disabled={!bulkPaste.trim()}
               className="btn-secondary w-full disabled:opacity-40"
@@ -458,6 +469,7 @@ export default function CreateGame() {
                     <GenderBadge gender={p.gender} />
                   </div>
                   <button
+                    type="button"
                     onClick={() => removeParticipant(i)}
                     className="text-faint hover:text-[var(--kill)] text-2xl leading-none transition-colors shrink-0 ml-2"
                   >
@@ -477,18 +489,13 @@ export default function CreateGame() {
           )}
 
           {!isMlt && !hasEnoughForRounds(participants, settings.game_type) && participants.length > 0 && (
-            <p className="text-amber-200/90 text-sm text-center">
+            <p className="text-amber-500 text-sm text-center">
               Need at least {minPool} people of the same gender to run rounds
             </p>
           )}
-          {participants.length < minPool && participants.length > 0 && isMlt && (
+          {participants.length < minPool && participants.length > 0 && (
             <p className="text-faint text-sm text-center">
               Add {minPool - participants.length} more name{minPool - participants.length === 1 ? '' : 's'} to continue
-            </p>
-          )}
-          {participants.length < minPool && participants.length > 0 && !isMlt && (
-            <p className="text-faint text-sm text-center">
-              Add {minPool - participants.length} more to continue
             </p>
           )}
         </div>
@@ -508,7 +515,7 @@ export default function CreateGame() {
     <PageShell>
       <div className="text-center space-y-2">
         <div className="text-6xl">🎉</div>
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Game Created!</h1>
+        <h1 className="text-3xl sm:text-4xl font-black tracking-tight gradient-title-subtle">Game Created!</h1>
         <p className="text-muted">Share the link or code below</p>
       </div>
 
@@ -530,78 +537,29 @@ export default function CreateGame() {
   )
 }
 
+export default function CreateGame() {
+  return (
+    <Suspense fallback={
+      <PageShell centered>
+        <div className="text-center text-muted">Loading...</div>
+      </PageShell>
+    }>
+      <CreateGameInner />
+    </Suspense>
+  )
+}
+
 function GenderBadge({ gender }: { gender: ParticipantGender }) {
   return (
     <span
       className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full shrink-0 ${
         gender === 'male'
-          ? 'bg-sky-500/15 text-sky-200 border border-sky-400/25'
-          : 'bg-pink-500/15 text-pink-200 border border-pink-400/25'
+          ? 'bg-sky-500/15 text-sky-600 border border-sky-400/25 dark:text-sky-300'
+          : 'bg-pink-500/15 text-pink-600 border border-pink-400/25 dark:text-pink-300'
       }`}
     >
       {genderLabel(gender)}
     </span>
-  )
-}
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="page-wrap flex flex-col items-center justify-start px-4 py-10 overflow-y-auto">
-      <div className="w-full max-w-lg space-y-6">{children}</div>
-    </div>
-  )
-}
-
-function BackBtn({ onClick }: { onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="text-muted hover:text-white text-sm transition-colors">
-      ← Back
-    </button>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-muted text-sm font-medium block mb-2">{label}</label>
-      {children}
-    </div>
-  )
-}
-
-function Chip({ active, onClick, children, wide }: { active: boolean; onClick: () => void; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`${wide ? 'flex-1' : 'px-4'} chip active:scale-95 ${active ? 'chip-active' : ''}`}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Toggle({ label, description, value, onChange }: { label: string; description: string; value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div
-      className="surface-inset flex items-center justify-between px-4 py-3 cursor-pointer hover:border-white/12 transition-colors"
-      onClick={() => onChange(!value)}
-    >
-      <div>
-        <p className="font-medium text-sm">{label}</p>
-        <p className="text-faint text-xs mt-0.5">{description}</p>
-      </div>
-      <div className={`ml-3 shrink-0 w-11 h-6 rounded-full transition-colors relative ${value ? 'bg-[var(--primary-strong)]' : 'bg-white/10'}`}>
-        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`} />
-      </div>
-    </div>
-  )
-}
-
-function PrimaryBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} disabled={disabled} className="btn-primary">
-      {children}
-    </button>
   )
 }
 
@@ -616,13 +574,14 @@ function Avatar({ name }: { name: string }) {
 function CopyCard({ label, value, children, accent }: { label: string; value: string; children?: React.ReactNode; accent?: boolean }) {
   const copy = () => navigator.clipboard.writeText(value).catch(() => null)
   return (
-    <div className={`glass-card p-5 space-y-3 ${accent ? 'border-[rgba(192,132,252,0.35)]' : ''}`}>
+    <div className={`glass-card p-5 space-y-3 ${accent ? 'border-[var(--primary)]/35' : ''}`}>
       <p className={`label-caps ${accent ? 'text-[var(--primary)]' : ''}`}>{label}</p>
-      <p className="font-mono text-sm break-all text-white/90">{value}</p>
+      <p className="font-mono text-sm break-all text-muted">{value}</p>
       {children}
       <button
+        type="button"
         onClick={copy}
-        className={`text-sm font-semibold transition-colors ${accent ? 'text-[var(--primary)] hover:text-white' : 'text-muted hover:text-white'}`}
+        className={`text-sm font-semibold transition-colors ${accent ? 'text-[var(--primary)] hover:opacity-80' : 'text-muted hover:text-[var(--foreground)]'}`}
       >
         Copy →
       </button>

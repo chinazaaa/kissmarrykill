@@ -9,13 +9,19 @@ export function GameTypeBadge({
   className?: string
 }) {
   const cfg = gameTypeConfig(parseGameType(gameType))
+  const { card } = cfg
 
   return (
-    <p
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs font-semibold text-white/90 ${className}`}
+    <span
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${className}`}
+      style={{
+        background: card.accentSoft,
+        borderColor: `${card.accent}40`,
+        color: card.accent,
+      }}
     >
-      <span aria-hidden>{cfg.headerEmoji}</span>
+      <span aria-hidden>{cfg.card.emoji}</span>
       <span>{cfg.label}</span>
-    </p>
+    </span>
   )
 }
