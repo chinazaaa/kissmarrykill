@@ -11,7 +11,7 @@ import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
 import { questionPoolCap, parseQuestionSource, customQuestionCount } from '@/lib/custom-questions'
-import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound, wstPoolPlayerName } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound, wstQuotePoolStatus } from '@/lib/who-said-this'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -19,6 +19,7 @@ import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
+import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import {
   FINAL_RESULTS_AUTO_REVEAL_SECONDS,
   msUntilDeadline,
@@ -82,6 +83,8 @@ export default function HostPage() {
     FINAL_RESULTS_AUTO_REVEAL_SECONDS,
     betweenRounds && isBetweenLastRound && !!game?.auto_reveal
   )
+
+  useTimerTickSound(timeLeft, game?.status === 'active' && !!currentRound)
 
   const filteredListParticipants = useMemo(() => {
     const q = listSearch.trim().toLowerCase()
@@ -813,6 +816,7 @@ export default function HostPage() {
     const isWst = isWhoSaidThis(gameType)
     const isMltImport = isMltImportGame(game)
     const wstSubmitters = wstEligibleSubmitters(players)
+    const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
     const minPool = roundPoolSize(gameType)
     const isJoinersMode = (game.participant_mode ?? 'import') === 'joiners'
     const roundParticipants = isJoinersMode
@@ -908,18 +912,6 @@ export default function HostPage() {
             <>
               <p className="font-bold text-body text-2xl">{game.rounds_count}</p>
               <p className="text-faint text-xs">{roundsHint}</p>
-              {wstPool.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {wstPool.map((entry) => {
-                    const name = wstPoolPlayerName(entry, players) ?? 'Player'
-                    return (
-                      <span key={entry.id} className="chip text-xs py-1 px-2">
-                        ✓ {name}
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
             </>
           ) : isWyr || isMlt || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
             <>
@@ -953,6 +945,78 @@ export default function HostPage() {
             </p>
           )}
         </div>
+
+        {isWst && wstPoolStatus && (
+          <div className="glass-card p-4 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-muted text-xs uppercase tracking-wider">Quote pool</p>
+              <span className="text-sm font-bold text-body">
+                {wstPoolStatus.submitted.length} / {wstPoolStatus.eligible.length} ready
+              </span>
+            </div>
+            <p className="text-faint text-xs">
+              Remind anyone still waiting — only submitted quotes become rounds.
+            </p>
+
+            {wstPoolStatus.submitted.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-muted text-[10px] uppercase tracking-wider">Submitted</p>
+                <div className="flex flex-wrap gap-2">
+                  {wstPoolStatus.submitted.map((p) => (
+                    <span key={p.id} className="chip text-xs py-1 px-2 border-emerald-500/40 text-emerald-300">
+                      ✓ {p.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {wstPoolStatus.awaitingQuote.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-amber-400/90 text-[10px] uppercase tracking-wider font-semibold">
+                  Waiting for quote ({wstPoolStatus.awaitingQuote.length})
+                </p>
+                <div className="space-y-1.5">
+                  {wstPoolStatus.awaitingQuote.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2"
+                    >
+                      <span className="text-amber-300 text-sm shrink-0">⏳</span>
+                      <span className="text-body text-sm font-medium flex-1 min-w-0 truncate">{p.name}</span>
+                      <span className="text-faint text-[10px] uppercase tracking-wider shrink-0">No quote yet</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {wstPoolStatus.notClaimed.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-muted text-[10px] uppercase tracking-wider">
+                  Hasn&apos;t claimed a name ({wstPoolStatus.notClaimed.length})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {wstPoolStatus.notClaimed.map((p) => (
+                    <span key={p.id} className="chip text-xs py-1 px-2 opacity-70">
+                      {p.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {wstPoolStatus.eligible.length === 0 && wstPoolStatus.notClaimed.length === 0 && (
+              <p className="text-faint text-xs text-center py-2">No players joined yet</p>
+            )}
+
+            {wstPoolStatus.eligible.length > 0 &&
+              wstPoolStatus.awaitingQuote.length === 0 &&
+              wstPoolStatus.submitted.length >= 2 && (
+                <p className="text-green-400 text-sm text-center">Everyone who claimed a name has submitted — ready to start</p>
+              )}
+          </div>
+        )}
 
         {/* Share link */}
         <div className="glass-card p-4 space-y-2">

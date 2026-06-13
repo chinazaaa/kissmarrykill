@@ -133,6 +133,18 @@ export function wstPoolPlayerName(entry: WstQuotePoolEntry, players: Player[]): 
   return players.find((p) => p.id === entry.player_id)?.name ?? null
 }
 
+const poolPlayerIds = (pool: WstQuotePoolEntry[]) => new Set(pool.map((e) => e.player_id))
+
+/** Lobby status: who submitted a quote vs who still needs to. */
+export function wstQuotePoolStatus(players: Player[], pool: WstQuotePoolEntry[]) {
+  const ids = poolPlayerIds(pool)
+  const eligible = wstEligibleSubmitters(players)
+  const submitted = eligible.filter((p) => ids.has(p.id))
+  const awaitingQuote = eligible.filter((p) => !ids.has(p.id))
+  const notClaimed = players.filter((p) => !p.participant_id)
+  return { submitted, awaitingQuote, notClaimed, eligible }
+}
+
 export function tallyWstVotes(
   votes: Vote[],
   targets: WstVoteTarget[],

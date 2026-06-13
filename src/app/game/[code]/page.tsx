@@ -42,6 +42,7 @@ import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
+import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
 import {
   FINAL_RESULTS_AUTO_REVEAL_SECONDS,
@@ -674,6 +675,8 @@ export default function GamePage() {
       setPoolQuoteSaved(true)
     }
   }, [view, myPlayerId, wstPool])
+
+  useTimerTickSound(timeLeft, view === 'round')
 
   // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
   useEffect(() => {
