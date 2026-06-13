@@ -478,11 +478,11 @@ export default function GamePage() {
       <CenteredCard>
         <div className="text-center space-y-1">
           <div className="text-4xl">❤️💍💀</div>
-          <h1 className="text-2xl font-black text-white">{game?.title}</h1>
-          <p className="text-zinc-500 text-sm">{game?.rounds_count} rounds · {game?.timer_seconds}s each</p>
+          <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
+          <p className="text-muted text-sm">{game?.rounds_count} rounds · {game?.timer_seconds}s each</p>
         </div>
         <div className="space-y-3">
-          <p className="text-zinc-400 font-medium text-center">Enter your name to join</p>
+          <p className="text-muted font-medium text-center">Enter your name to join</p>
           <input
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
@@ -505,23 +505,23 @@ export default function GamePage() {
       <CenteredCard>
         <div className="text-center space-y-1">
           <div className="text-4xl">⏳</div>
-          <h1 className="text-2xl font-black text-white">{game?.title}</h1>
-          <p className="text-zinc-500">Waiting for the host to start...</p>
+          <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
+          <p className="text-muted">Waiting for the host to start...</p>
         </div>
-        <div className="bg-[#0d0d0d] border border-[#262626] rounded-2xl p-4 space-y-2">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider">Players Joined ({players.length})</p>
+        <div className="surface-inset border border-white/10 rounded-2xl p-4 space-y-2">
+          <p className="text-muted text-xs uppercase tracking-wider">Players Joined ({players.length})</p>
           <div className="space-y-1.5 max-h-52 overflow-y-auto">
             {players.map((p) => (
               <div key={p.id} className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${p.name === myPlayerName ? 'bg-purple-400' : 'bg-zinc-600'}`} />
-                <span className={`text-sm ${p.name === myPlayerName ? 'text-purple-300 font-semibold' : 'text-zinc-300'}`}>
+                <div className={`w-2 h-2 rounded-full shrink-0 ${p.name === myPlayerName ? 'bg-[var(--primary)]' : 'bg-white/20'}`} />
+                <span className={`text-sm ${p.name === myPlayerName ? 'text-[var(--primary)] font-semibold' : 'text-white/80'}`}>
                   {p.name}{p.name === myPlayerName ? ' (you)' : ''}
                 </span>
               </div>
             ))}
           </div>
         </div>
-        <p className="text-zinc-600 text-xs text-center">Keep this tab open</p>
+        <p className="text-faint text-xs text-center">Keep this tab open</p>
       </CenteredCard>
     )
   }
@@ -533,14 +533,14 @@ export default function GamePage() {
     const allAssigned = !!(assignment.kiss && assignment.marry && assignment.kill)
 
     return (
-      <div className="min-h-screen flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
+      <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-zinc-500 text-xs uppercase tracking-wider">{game?.title}</p>
+            <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
             <p className="text-white font-black text-2xl">
               Round {currentRound.round_number}
-              <span className="text-zinc-600 font-normal text-base"> / {game?.rounds_count}</span>
+              <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
             </p>
           </div>
           <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
@@ -570,11 +570,7 @@ export default function GamePage() {
           <button
             onClick={handleSubmit}
             disabled={!allAssigned}
-            className={`w-full py-4 rounded-2xl font-bold text-lg transition-all active:scale-95 ${
-              allAssigned
-                ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white shadow-lg shadow-purple-500/20 hover:opacity-90'
-                : 'bg-[#161616] text-zinc-600 border border-[#262626] cursor-not-allowed'
-            }`}
+            className={allAssigned ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}
           >
             {allAssigned
               ? 'Submit Vote ✓'
@@ -582,32 +578,32 @@ export default function GamePage() {
           </button>
         ) : (
           <div className="space-y-3">
-            <div className="w-full py-4 rounded-2xl bg-[#161616] border border-green-800/50 text-center">
+            <div className="w-full py-4 rounded-2xl glass-card border border-emerald-500/30 text-center">
               <p className="text-green-400 font-semibold">✓ Vote submitted!</p>
-              <p className="text-zinc-500 text-sm mt-0.5">Results will show when the round ends</p>
+              <p className="text-muted text-sm mt-0.5">Results will show when the round ends</p>
             </div>
             {!confessionSent ? (
               <div className="space-y-2">
-                <p className="text-zinc-600 text-xs text-center">Leave an anonymous hot take (optional)</p>
+                <p className="text-faint text-xs text-center">Leave an anonymous hot take (optional)</p>
                 <div className="flex gap-2">
                   <input
                     value={confessionText}
                     onChange={(e) => setConfessionText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && sendConfession()}
                     placeholder="Why did you make those choices?"
-                    className="flex-1 bg-[#161616] text-white border border-[#262626] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-500 placeholder:text-zinc-700"
+                    className="flex-1 input-field py-2.5 text-sm"
                   />
                   <button
                     onClick={sendConfession}
                     disabled={!confessionText.trim()}
-                    className="px-4 py-2.5 bg-[#262626] text-zinc-300 rounded-xl text-sm hover:bg-[#2a2a2a] disabled:opacity-40 transition-colors"
+                    className="px-4 py-2.5 btn-secondary text-sm disabled:opacity-40"
                   >
                     Send
                   </button>
                 </div>
               </div>
             ) : (
-              <p className="text-zinc-600 text-xs text-center">Hot take sent 👀</p>
+              <p className="text-faint text-xs text-center">Hot take sent 👀</p>
             )}
           </div>
         )}
@@ -623,19 +619,19 @@ export default function GamePage() {
     const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
 
     return (
-      <div className="min-h-screen flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+      <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
         {/* Header */}
         <div className="text-center">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider">
+          <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game?.rounds_count}
           </p>
-          <h2 className="text-2xl font-black text-white mt-1">Results are in! 🗳️</h2>
+          <h2 className="text-2xl font-black tracking-tight mt-1">Results are in! 🗳️</h2>
         </div>
 
         {/* My vote recap */}
         {myVote && (
-          <div className="bg-[#161616] border border-purple-800/40 rounded-2xl p-4">
-            <p className="text-purple-400 text-xs uppercase tracking-wider mb-2">Your vote</p>
+          <div className="glass-card border border-[var(--primary)]/30 p-4">
+            <p className="text-[var(--primary)] text-xs uppercase tracking-wider mb-2">Your vote</p>
             <div className="flex gap-4 flex-wrap">
               {myVote.kiss_participant_id && (
                 <span className="text-pink-300 text-sm font-medium">
@@ -672,17 +668,17 @@ export default function GamePage() {
             const borderCls =
               myAction === 'kiss'  ? 'border-pink-500/40'  :
               myAction === 'marry' ? 'border-amber-500/40' :
-              myAction === 'kill'  ? 'border-red-500/40'   : 'border-[#262626]'
+              myAction === 'kill'  ? 'border-red-500/40'   : 'border-white/10'
 
             return (
-              <div key={p.id} className={`bg-[#161616] border-2 ${borderCls} rounded-2xl p-4`}>
+              <div key={p.id} className={`glass-card border-2 ${borderCls} rounded-2xl p-4`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-black text-lg shrink-0">
+                  <div className="avatar w-10 h-10 text-lg shrink-0">
                     {getInitial(p.name)}
                   </div>
                   <p className="text-white font-bold text-lg">{p.name}</p>
                   {myAction && (
-                    <span className="ml-auto text-xs text-zinc-500 italic">
+                    <span className="ml-auto text-xs text-muted italic">
                       you: {myAction === 'kiss' ? '❤️' : myAction === 'marry' ? '💍' : '💀'}
                     </span>
                   )}
@@ -701,18 +697,18 @@ export default function GamePage() {
         {/* Hot takes for this round */}
         {roundConfessions.length > 0 && (
           <div>
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">🔥 Hot Takes</p>
+            <p className="text-muted text-xs uppercase tracking-wider mb-2">🔥 Hot Takes</p>
             <div className="space-y-2">
               {roundConfessions.map((c) => (
-                <div key={c.id} className="bg-[#161616] border border-[#262626] rounded-xl px-4 py-3">
-                  <p className="text-zinc-300 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                <div key={c.id} className="glass-card px-4 py-3">
+                  <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-purple-400' : 'text-zinc-600'}`}>
+        <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-[var(--primary)]' : 'text-faint'}`}>
           {isLastRound
             ? (game?.auto_reveal ? '⏳ Final leaderboard in a few seconds...' : '⏳ Waiting for final leaderboard...')
             : '⏳ Waiting for next round...'}
@@ -742,9 +738,9 @@ export default function GamePage() {
 // ── Sub-components ────────────────────────────────────────────────────────
 
 const ACTION_CONFIG = {
-  kiss:  { emoji: '❤️', label: 'Kiss',  border: 'border-pink-500 bg-pink-500/10',  active: 'bg-pink-500/25 text-pink-200 border-pink-400'  },
-  marry: { emoji: '💍', label: 'Marry', border: 'border-amber-500 bg-amber-500/10', active: 'bg-amber-500/25 text-amber-200 border-amber-400' },
-  kill:  { emoji: '💀', label: 'Kill',  border: 'border-red-500 bg-red-500/10',    active: 'bg-red-500/25 text-red-200 border-red-400'   },
+  kiss:  { emoji: '❤️', label: 'Kiss',  border: 'border-[var(--kiss)]/50 bg-[var(--kiss)]/10',  active: 'bg-[var(--kiss)]/20 text-rose-200 border-[var(--kiss)]'  },
+  marry: { emoji: '💍', label: 'Marry', border: 'border-[var(--marry)]/50 bg-[var(--marry)]/10', active: 'bg-[var(--marry)]/20 text-amber-100 border-[var(--marry)]' },
+  kill:  { emoji: '💀', label: 'Kill',  border: 'border-[var(--kill)]/50 bg-[var(--kill)]/10',  active: 'bg-[var(--kill)]/20 text-red-200 border-[var(--kill)]'   },
 }
 
 function ParticipantCard({ participant, action, onAssign, disabled }: {
@@ -755,9 +751,9 @@ function ParticipantCard({ participant, action, onAssign, disabled }: {
 }) {
   const cfg = action ? ACTION_CONFIG[action] : null
   return (
-    <div className={`rounded-2xl border-2 p-4 transition-all ${cfg ? cfg.border : 'border-[#262626] bg-[#161616]'}`}>
+    <div className={`rounded-2xl border-2 p-4 transition-all backdrop-blur-sm ${cfg ? cfg.border : 'glass-card border-white/10'}`}>
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-black text-lg shrink-0">
+        <div className="avatar w-10 h-10 text-lg shrink-0">
           {getInitial(participant.name)}
         </div>
         <div>
@@ -778,7 +774,7 @@ function ParticipantCard({ participant, action, onAssign, disabled }: {
             className={`flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
               action === a
                 ? ACTION_CONFIG[a].active
-                : `bg-[#0d0d0d] border-[#2a2a2a] text-zinc-500 ${!disabled ? 'hover:border-zinc-500 hover:text-zinc-300' : ''}`
+                : `surface-inset border-white/8 text-muted ${!disabled ? 'hover:border-zinc-500 hover:text-white/80' : ''}`
             } disabled:cursor-not-allowed`}
           >
             {ACTION_CONFIG[a].emoji}
@@ -798,7 +794,7 @@ function TimerDisplay({ seconds, total }: { seconds: number; total: number }) {
       <p className={`text-4xl font-black tabular-nums ${color} ${seconds <= 5 ? 'animate-pulse' : ''}`}>
         {seconds}
       </p>
-      <div className="w-20 h-1.5 bg-[#262626] rounded-full mt-1 overflow-hidden">
+      <div className="w-20 h-1.5 progress-track mt-1 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${barColor}`}
           style={{ width: `${pct}%` }}
@@ -815,8 +811,8 @@ function VoteStat({ emoji, label, count, total, color }: {
   return (
     <div className="text-center">
       <p className="text-base">{emoji} <span className="text-white font-bold">{count}</span></p>
-      <p className="text-zinc-600 text-xs">{label}</p>
-      <div className="h-1.5 bg-[#2a2a2a] rounded-full mt-1.5 overflow-hidden">
+      <p className="text-faint text-xs">{label}</p>
+      <div className="h-1.5 bg-white/8 rounded-full mt-1.5 overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
@@ -844,16 +840,16 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
   const mostKilled  = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
 
   return (
-    <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
+    <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
       <div className="text-center">
         <div className="text-4xl mb-2">🎊</div>
         <h1 className="text-3xl font-black text-white">{game.title}</h1>
-        <p className="text-zinc-500">{players.length} players · {rounds.length} rounds</p>
+        <p className="text-muted">{players.length} players · {rounds.length} rounds</p>
       </div>
 
       {/* Leaderboard */}
       <div>
-        <h2 className="text-zinc-400 text-xs uppercase tracking-wider mb-3">Leaderboard</h2>
+        <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Leaderboard</h2>
         <div className="grid grid-cols-3 gap-3">
           <LeaderCard emoji="💍" label="Most Married" name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
           <LeaderCard emoji="❤️" label="Most Kissed"  name={mostKissed?.name}  count={mostKissed?.kissCount}  color="pink"  />
@@ -869,10 +865,10 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
 
         return (
           <div key={round.id}>
-            <h2 className="text-zinc-400 text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+            <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
             {myVote && (
-              <div className="bg-[#161616] border border-purple-800/30 rounded-xl px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
-                <span className="text-zinc-500 text-xs uppercase tracking-wider self-center">Your vote:</span>
+              <div className="glass-card border border-[var(--primary)]/25 px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
+                <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
                 {myVote.kiss_participant_id  && <span className="text-pink-300 text-sm">❤️ {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}</span>}
                 {myVote.marry_participant_id && <span className="text-amber-300 text-sm">💍 {participants.find((p) => p.id === myVote.marry_participant_id)?.name}</span>}
                 {myVote.kill_participant_id  && <span className="text-red-300 text-sm">💀 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
@@ -884,9 +880,9 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
                 const m = roundVotes.filter((v) => v.marry_participant_id === p.id).length
                 const d = roundVotes.filter((v) => v.kill_participant_id  === p.id).length
                 return (
-                  <div key={p.id} className="bg-[#161616] border border-[#262626] rounded-2xl p-4">
+                  <div key={p.id} className="glass-card p-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-black shrink-0">
+                      <div className="avatar w-8 h-8 shrink-0">
                         {getInitial(p.name)}
                       </div>
                       <p className="text-white font-bold">{p.name}</p>
@@ -907,11 +903,11 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
       {/* All hot takes */}
       {confessions.length > 0 && (
         <div>
-          <h2 className="text-zinc-400 text-xs uppercase tracking-wider mb-3">🔥 All Hot Takes</h2>
+          <h2 className="text-muted text-xs uppercase tracking-wider mb-3">🔥 All Hot Takes</h2>
           <div className="space-y-2">
             {confessions.map((c) => (
-              <div key={c.id} className="bg-[#161616] border border-[#262626] rounded-xl px-4 py-3">
-                <p className="text-zinc-300 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+              <div key={c.id} className="glass-card px-4 py-3">
+                <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
               </div>
             ))}
           </div>
@@ -925,48 +921,48 @@ function LeaderCard({ emoji, label, name, count, color }: {
   emoji: string; label: string; name?: string; count?: number; color: string
 }) {
   const cls: Record<string, string> = {
-    amber: 'border-amber-500/30 bg-amber-500/5',
-    pink:  'border-pink-500/30 bg-pink-500/5',
-    red:   'border-red-500/30 bg-red-500/5',
+    amber: 'glass-card border-[var(--marry)]/30 bg-[var(--marry)]/8',
+    pink:  'glass-card border-[var(--kiss)]/30 bg-[var(--kiss)]/8',
+    red:   'glass-card border-[var(--kill)]/30 bg-[var(--kill)]/8',
   }
   return (
     <div className={`border rounded-2xl p-3 text-center ${cls[color]}`}>
       <p className="text-2xl">{emoji}</p>
-      <p className="text-zinc-400 text-xs mt-1 leading-tight">{label}</p>
+      <p className="text-muted text-xs mt-1 leading-tight">{label}</p>
       <p className="text-white font-bold text-sm mt-1 truncate">{name ?? '—'}</p>
-      {count !== undefined && <p className="text-zinc-500 text-xs">{count} votes</p>}
+      {count !== undefined && <p className="text-muted text-xs">{count} votes</p>}
     </div>
   )
 }
 
 function CenteredCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">{children}</div>
+    <div className="page-wrap flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm glass-card-strong p-6 space-y-6">{children}</div>
     </div>
   )
 }
 
 function FullLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+    <div className="page-wrap flex items-center justify-center">
+      <div className="w-11 h-11 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
     </div>
   )
 }
 
 function NotFound({ onHome }: { onHome: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="page-wrap flex items-center justify-center px-4">
       <div className="text-center space-y-4">
         <p className="text-6xl">🤷</p>
         <h1 className="text-2xl font-black text-white">Game not found</h1>
-        <p className="text-zinc-500">Check the code and try again</p>
+        <p className="text-muted">Check the code and try again</p>
         <button onClick={onHome} className={primaryBtnCls + ' max-w-xs mx-auto'}>Back Home</button>
       </div>
     </div>
   )
 }
 
-const inputCls = 'w-full bg-[#161616] text-white border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors placeholder:text-zinc-700'
-const primaryBtnCls = 'w-full py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white font-bold text-lg rounded-2xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20'
+const inputCls = 'input-field'
+const primaryBtnCls = 'btn-primary'

@@ -66,9 +66,12 @@ export default function CreateGame() {
     return (
       <PageShell>
         <BackBtn onClick={() => router.push('/')} />
-        <h1 className="text-3xl font-black text-white">Create Game</h1>
+        <div>
+          <p className="label-caps mb-2">New game</p>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Create Game</h1>
+        </div>
 
-        <div className="space-y-5">
+        <div className="glass-card p-5 space-y-5">
           <Field label="Game Name">
             <input
               value={settings.title}
@@ -76,7 +79,7 @@ export default function CreateGame() {
               onKeyDown={(e) => e.key === 'Enter' && settings.title.trim() && setStep('participants')}
               placeholder="Friday Night FMK"
               autoFocus
-              className={inputCls}
+              className="input-field"
             />
           </Field>
 
@@ -128,7 +131,7 @@ export default function CreateGame() {
             </div>
           </Field>
 
-          <div className="space-y-2">
+          <div className="space-y-2 pt-1">
             <Toggle
               label="Anonymous Responses"
               description="Hide who voted for what"
@@ -159,51 +162,57 @@ export default function CreateGame() {
       <PageShell>
         <BackBtn onClick={() => setStep('settings')} />
         <div>
-          <h1 className="text-3xl font-black text-white">Add Participants</h1>
-          <p className="text-zinc-500 text-sm mt-1">People being voted on — need at least 3</p>
+          <p className="label-caps mb-2">Almost there</p>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Add Participants</h1>
+          <p className="text-muted text-sm mt-2">People being voted on — need at least 3</p>
         </div>
 
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addParticipant()}
-            placeholder="Enter name..."
-            autoFocus
-            className={inputCls}
-          />
-          <button
-            onClick={addParticipant}
-            className="px-5 py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 active:scale-95 transition-all whitespace-nowrap"
-          >
-            Add
-          </button>
-        </div>
-
-        {participants.length > 0 ? (
-          <div className="space-y-2">
-            {participants.map((name, i) => (
-              <div key={i} className="flex items-center justify-between bg-[#161616] border border-[#262626] rounded-xl px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Avatar name={name} />
-                  <span className="text-white font-medium">{name}</span>
-                </div>
-                <button onClick={() => removeParticipant(i)} className="text-zinc-600 hover:text-red-400 text-2xl leading-none transition-colors">
-                  ×
-                </button>
-              </div>
-            ))}
+        <div className="glass-card p-5 space-y-4">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addParticipant()}
+              placeholder="Enter name..."
+              autoFocus
+              className="input-field"
+            />
+            <button
+              onClick={addParticipant}
+              className="btn-secondary shrink-0 px-5 whitespace-nowrap"
+            >
+              Add
+            </button>
           </div>
-        ) : (
-          <div className="text-center py-8 text-zinc-600">No participants yet</div>
-        )}
 
-        {participants.length < 3 && (
-          <p className="text-zinc-600 text-sm text-center">
-            Add {3 - participants.length} more to continue
-          </p>
-        )}
+          {participants.length > 0 ? (
+            <div className="space-y-2">
+              {participants.map((name, i) => (
+                <div key={i} className="surface-inset flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar name={name} />
+                    <span className="font-medium">{name}</span>
+                  </div>
+                  <button
+                    onClick={() => removeParticipant(i)}
+                    className="text-faint hover:text-[var(--kill)] text-2xl leading-none transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-faint">No participants yet</div>
+          )}
+
+          {participants.length < 3 && (
+            <p className="text-faint text-sm text-center">
+              Add {3 - participants.length} more to continue
+            </p>
+          )}
+        </div>
 
         <PrimaryBtn onClick={createGame} disabled={participants.length < 3 || loading}>
           {loading ? 'Creating...' : `Create Game (${participants.length} participants)`}
@@ -212,23 +221,22 @@ export default function CreateGame() {
     )
   }
 
-  // Done
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const gameUrl = `${origin}/game/${result?.gameCode}`
   const hostUrl = `${origin}/host/${result?.gameCode}?token=${result?.hostToken}`
 
   return (
     <PageShell>
-      <div className="text-center space-y-1">
+      <div className="text-center space-y-2">
         <div className="text-6xl">🎉</div>
-        <h1 className="text-3xl font-black text-white">Game Created!</h1>
-        <p className="text-zinc-400">Share the link or code below</p>
+        <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Game Created!</h1>
+        <p className="text-muted">Share the link or code below</p>
       </div>
 
       <CopyCard label="Share this with players" value={gameUrl}>
-        <div className="mt-2 text-center">
-          <span className="text-zinc-500 text-xs uppercase tracking-widest">Game Code</span>
-          <p className="text-white font-mono text-4xl font-black tracking-[0.3em] mt-1">{result?.gameCode}</p>
+        <div className="mt-3 text-center glass-card px-4 py-3">
+          <span className="label-caps">Game Code</span>
+          <p className="font-mono text-4xl font-black tracking-[0.28em] mt-1">{result?.gameCode}</p>
         </div>
       </CopyCard>
 
@@ -238,16 +246,14 @@ export default function CreateGame() {
         Open Host Panel →
       </PrimaryBtn>
 
-      <p className="text-zinc-700 text-xs text-center">The host link won&apos;t be shown again — save it now</p>
+      <p className="text-faint text-xs text-center">The host link won&apos;t be shown again — save it now</p>
     </PageShell>
   )
 }
 
-// ── Small components ────────────────────────────────────────────────────────
-
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start px-4 py-10 overflow-y-auto">
+    <div className="page-wrap flex flex-col items-center justify-start px-4 py-10 overflow-y-auto">
       <div className="w-full max-w-lg space-y-6">{children}</div>
     </div>
   )
@@ -255,7 +261,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="text-zinc-500 hover:text-white text-sm transition-colors">
+    <button onClick={onClick} className="text-muted hover:text-white text-sm transition-colors">
       ← Back
     </button>
   )
@@ -264,7 +270,7 @@ function BackBtn({ onClick }: { onClick: () => void }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-zinc-400 text-sm font-medium block mb-2">{label}</label>
+      <label className="text-muted text-sm font-medium block mb-2">{label}</label>
       {children}
     </div>
   )
@@ -274,11 +280,7 @@ function Chip({ active, onClick, children, wide }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`${wide ? 'flex-1' : 'px-4'} py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 ${
-        active
-          ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-          : 'bg-[#161616] text-zinc-400 border border-[#262626] hover:border-purple-500'
-      }`}
+      className={`${wide ? 'flex-1' : 'px-4'} chip active:scale-95 ${active ? 'chip-active' : ''}`}
     >
       {children}
     </button>
@@ -288,14 +290,14 @@ function Chip({ active, onClick, children, wide }: { active: boolean; onClick: (
 function Toggle({ label, description, value, onChange }: { label: string; description: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div
-      className="flex items-center justify-between bg-[#161616] border border-[#262626] rounded-xl px-4 py-3 cursor-pointer hover:border-purple-900 transition-colors"
+      className="surface-inset flex items-center justify-between px-4 py-3 cursor-pointer hover:border-white/12 transition-colors"
       onClick={() => onChange(!value)}
     >
       <div>
-        <p className="text-white font-medium text-sm">{label}</p>
-        <p className="text-zinc-500 text-xs mt-0.5">{description}</p>
+        <p className="font-medium text-sm">{label}</p>
+        <p className="text-faint text-xs mt-0.5">{description}</p>
       </div>
-      <div className={`ml-3 shrink-0 w-11 h-6 rounded-full transition-colors relative ${value ? 'bg-purple-600' : 'bg-[#2a2a2a]'}`}>
+      <div className={`ml-3 shrink-0 w-11 h-6 rounded-full transition-colors relative ${value ? 'bg-[var(--primary-strong)]' : 'bg-white/10'}`}>
         <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`} />
       </div>
     </div>
@@ -304,11 +306,7 @@ function Toggle({ label, description, value, onChange }: { label: string; descri
 
 function PrimaryBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white text-lg font-bold rounded-2xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
-    >
+    <button onClick={onClick} disabled={disabled} className="btn-primary">
       {children}
     </button>
   )
@@ -316,7 +314,7 @@ function PrimaryBtn({ onClick, disabled, children }: { onClick: () => void; disa
 
 function Avatar({ name }: { name: string }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+    <div className="avatar w-8 h-8 text-sm shrink-0">
       {name.charAt(0).toUpperCase()}
     </div>
   )
@@ -325,16 +323,16 @@ function Avatar({ name }: { name: string }) {
 function CopyCard({ label, value, children, accent }: { label: string; value: string; children?: React.ReactNode; accent?: boolean }) {
   const copy = () => navigator.clipboard.writeText(value).catch(() => null)
   return (
-    <div className={`bg-[#161616] border rounded-2xl p-4 space-y-2 ${accent ? 'border-purple-800' : 'border-[#262626]'}`}>
-      <p className={`text-xs font-medium uppercase tracking-wider ${accent ? 'text-purple-400' : 'text-zinc-500'}`}>{label}</p>
-      <p className="text-white font-mono text-sm break-all">{value}</p>
+    <div className={`glass-card p-5 space-y-3 ${accent ? 'border-[rgba(192,132,252,0.35)]' : ''}`}>
+      <p className={`label-caps ${accent ? 'text-[var(--primary)]' : ''}`}>{label}</p>
+      <p className="font-mono text-sm break-all text-white/90">{value}</p>
       {children}
-      <button onClick={copy} className={`text-sm transition-colors ${accent ? 'text-purple-400 hover:text-purple-300' : 'text-zinc-400 hover:text-white'}`}>
+      <button
+        onClick={copy}
+        className={`text-sm font-semibold transition-colors ${accent ? 'text-[var(--primary)] hover:text-white' : 'text-muted hover:text-white'}`}
+      >
         Copy →
       </button>
     </div>
   )
 }
-
-const inputCls =
-  'w-full bg-[#161616] text-white border border-[#262626] rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors placeholder:text-zinc-700'

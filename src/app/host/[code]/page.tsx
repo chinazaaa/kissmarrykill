@@ -369,20 +369,20 @@ export default function HostPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      <div className="page-wrap flex items-center justify-center">
+        <div className="w-11 h-11 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (authError) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="page-wrap flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <p className="text-6xl">🔒</p>
           <h1 className="text-2xl font-black text-white">Access Denied</h1>
-          <p className="text-zinc-500">Invalid or missing host token</p>
-          <button onClick={() => router.push('/')} className="px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold">
+          <p className="text-muted">Invalid or missing host token</p>
+          <button onClick={() => router.push('/')} className="btn-secondary px-6 py-3">
             Go Home
           </button>
         </div>
@@ -393,42 +393,42 @@ export default function HostPage() {
   // ── WAITING ───────────────────────────────────────────────────────────────
   if (game?.status === 'waiting') {
     return (
-      <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+      <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-zinc-500 text-xs uppercase tracking-wider">Host Panel</p>
+            <p className="text-muted text-xs uppercase tracking-wider">Host Panel</p>
             <h1 className="text-2xl font-black text-white mt-1">{game.title}</h1>
-            <p className="text-zinc-500 text-sm">{game.rounds_count} rounds · {game.timer_seconds}s each</p>
+            <p className="text-muted text-sm">{game.rounds_count} rounds · {game.timer_seconds}s each</p>
           </div>
           <div className="text-right">
-            <p className="text-zinc-500 text-xs uppercase tracking-wider">Code</p>
+            <p className="text-muted text-xs uppercase tracking-wider">Code</p>
             <p className="text-white font-mono font-black text-2xl tracking-[0.2em]">{gameCode}</p>
           </div>
         </div>
 
         {/* Share link */}
-        <div className="bg-[#161616] border border-[#262626] rounded-2xl p-4 space-y-2">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider">Player Link</p>
+        <div className="glass-card p-4 space-y-2">
+          <p className="text-muted text-xs uppercase tracking-wider">Player Link</p>
           <p className="text-white font-mono text-sm break-all">{typeof window !== 'undefined' ? `${window.location.origin}/game/${gameCode}` : ''}</p>
-          <button onClick={copyPlayerLink} className="text-purple-400 text-sm hover:text-purple-300 transition-colors">Copy Link →</button>
+          <button onClick={copyPlayerLink} className="text-[var(--primary)] text-sm font-semibold hover:text-white transition-colors">Copy Link →</button>
         </div>
 
         {/* Players */}
-        <div className="bg-[#161616] border border-[#262626] rounded-2xl p-4 space-y-3">
+        <div className="glass-card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-zinc-500 text-xs uppercase tracking-wider">Players Joined</p>
-            <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{players.length}</span>
+            <p className="text-muted text-xs uppercase tracking-wider">Players Joined</p>
+            <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">{players.length}</span>
           </div>
           {players.length === 0 ? (
-            <p className="text-zinc-600 text-sm">Waiting for players to join...</p>
+            <p className="text-faint text-sm">Waiting for players to join...</p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {players.map((p) => (
                 <div key={p.id} className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-purple-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  <div className="avatar w-6 h-6 text-xs shrink-0">
                     {getInitial(p.name)}
                   </div>
-                  <span className="text-zinc-300 text-sm truncate">{p.name}</span>
+                  <span className="text-white/80 text-sm truncate">{p.name}</span>
                 </div>
               ))}
             </div>
@@ -436,11 +436,11 @@ export default function HostPage() {
         </div>
 
         {/* Participants preview */}
-        <div className="bg-[#161616] border border-[#262626] rounded-2xl p-4 space-y-2">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider">Participants ({participants.length})</p>
+        <div className="glass-card p-4 space-y-2">
+          <p className="text-muted text-xs uppercase tracking-wider">Participants ({participants.length})</p>
           <div className="flex flex-wrap gap-2">
             {participants.map((p) => (
-              <span key={p.id} className="bg-[#0d0d0d] border border-[#2a2a2a] text-zinc-300 text-sm px-3 py-1 rounded-full">
+              <span key={p.id} className="surface-inset border border-white/8 text-white/80 text-sm px-3 py-1 rounded-full">
                 {p.name}
               </span>
             ))}
@@ -450,7 +450,7 @@ export default function HostPage() {
         <button
           onClick={handleStart}
           disabled={players.length === 0 || starting}
-          className="w-full py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white text-xl font-bold rounded-2xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 shadow-lg shadow-purple-500/20"
+          className="btn-primary"
         >
           {starting ? 'Starting...' : players.length === 0 ? 'Waiting for players...' : `Start Game (${players.length} players)`}
         </button>
@@ -465,23 +465,23 @@ export default function HostPage() {
     const allVoted = roundVotes.length >= players.length && players.length > 0
 
     return (
-      <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+      <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-zinc-500 text-xs uppercase tracking-wider">Round</p>
-            <p className="text-white font-black text-3xl">{currentRound.round_number}<span className="text-zinc-600 font-normal text-lg"> / {game.rounds_count}</span></p>
+            <p className="text-muted text-xs uppercase tracking-wider">Round</p>
+            <p className="text-white font-black text-3xl">{currentRound.round_number}<span className="text-faint font-normal text-lg"> / {game.rounds_count}</span></p>
           </div>
           <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
         </div>
 
         {/* Current trio */}
         <div>
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">This Round</p>
+          <p className="text-muted text-xs uppercase tracking-wider mb-2">This Round</p>
           <div className="flex gap-2">
             {roundParts.map((p) => (
-              <div key={p.id} className="flex-1 bg-[#161616] border border-[#262626] rounded-xl p-3 text-center">
-                <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-black mx-auto mb-1">
+              <div key={p.id} className="flex-1 glass-card p-3 text-center">
+                <div className="avatar w-10 h-10 mx-auto mb-1">
                   {getInitial(p.name)}
                 </div>
                 <p className="text-white text-sm font-semibold truncate">{p.name}</p>
@@ -491,17 +491,17 @@ export default function HostPage() {
         </div>
 
         {/* Vote progress */}
-        <div className="bg-[#161616] border border-[#262626] rounded-2xl p-4 space-y-3">
+        <div className="glass-card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-zinc-500 text-xs uppercase tracking-wider">Votes In</p>
-            <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-zinc-300'}`}>
+            <p className="text-muted text-xs uppercase tracking-wider">Votes In</p>
+            <span className={`text-sm font-bold ${allVoted ? 'text-green-400' : 'text-white/80'}`}>
               {roundVotes.length} / {players.length}
               {allVoted && ' · ending round...'}
             </span>
           </div>
-          <div className="h-2 bg-[#2a2a2a] rounded-full overflow-hidden">
+          <div className="h-2 bg-white/8 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${allVoted ? 'bg-green-500' : 'bg-purple-500'}`}
+              className={`h-full rounded-full transition-all duration-500 ${allVoted ? 'bg-emerald-500' : 'bg-[var(--primary-strong)]'}`}
               style={{ width: players.length > 0 ? `${(roundVotes.length / players.length) * 100}%` : '0%' }}
             />
           </div>
@@ -509,7 +509,7 @@ export default function HostPage() {
             {!game.anonymous && players.map((pl) => {
               const voted = roundVotes.some((v) => v.player_id === pl.id)
               return (
-                <div key={pl.id} className={`flex items-center gap-1.5 text-xs ${voted ? 'text-green-400' : 'text-zinc-600'}`}>
+                <div key={pl.id} className={`flex items-center gap-1.5 text-xs ${voted ? 'text-green-400' : 'text-faint'}`}>
                   <span>{voted ? '✓' : '○'}</span>
                   <span className="truncate">{pl.name}</span>
                 </div>
@@ -521,14 +521,14 @@ export default function HostPage() {
         {/* Live vote counts (if not anonymous) */}
         {!game.anonymous && roundVotes.length > 0 && (
           <div>
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Live Tally</p>
+            <p className="text-muted text-xs uppercase tracking-wider mb-2">Live Tally</p>
             <div className="space-y-2">
               {roundParts.map((p) => {
                 const k = roundVotes.filter((v) => v.kiss_participant_id  === p.id).length
                 const m = roundVotes.filter((v) => v.marry_participant_id === p.id).length
                 const d = roundVotes.filter((v) => v.kill_participant_id  === p.id).length
                 return (
-                  <div key={p.id} className="bg-[#161616] border border-[#262626] rounded-xl px-4 py-3 flex items-center gap-4">
+                  <div key={p.id} className="glass-card px-4 py-3 flex items-center gap-4">
                     <p className="text-white font-semibold w-24 truncate">{p.name}</p>
                     <div className="flex gap-3 text-sm">
                       <span className="text-pink-400">❤️ {k}</span>
@@ -546,11 +546,7 @@ export default function HostPage() {
         <button
           onClick={handleEndRound}
           disabled={ending}
-          className={`w-full py-4 rounded-2xl font-bold text-lg transition-all active:scale-95 ${
-            allVoted || timeLeft === 0
-              ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white animate-pulse hover:opacity-90 shadow-lg shadow-purple-500/20'
-              : 'bg-[#161616] border border-[#262626] text-zinc-400 hover:border-purple-500'
-          }`}
+          className={allVoted || timeLeft === 0 ? 'btn-primary animate-pulse' : 'btn-secondary text-muted'}
         >
           {ending ? 'Ending round...' :
            currentRound.round_number >= game.rounds_count
@@ -569,13 +565,13 @@ export default function HostPage() {
     const isLastRound = lastFinishedRound.round_number >= game.rounds_count
 
     return (
-      <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+      <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
         <div className="text-center">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider">
+          <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game.rounds_count}
           </p>
-          <h1 className="text-3xl font-black text-white mt-1">Results are in! 🗳️</h1>
-          <p className="text-zinc-500 text-sm mt-1">Players can see these results on their screens</p>
+          <h1 className="text-3xl font-black tracking-tight mt-1">Results are in! 🗳️</h1>
+          <p className="text-muted text-sm mt-1">Players can see these results on their screens</p>
         </div>
 
         <div className="space-y-3">
@@ -585,9 +581,9 @@ export default function HostPage() {
             const d = roundVotes.filter((v) => v.kill_participant_id  === p.id).length
             const total = roundVotes.length || 1
             return (
-              <div key={p.id} className="bg-[#161616] border border-[#262626] rounded-2xl p-4">
+              <div key={p.id} className="glass-card p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center text-white font-black shrink-0">
+                  <div className="avatar w-9 h-9 shrink-0">
                     {getInitial(p.name)}
                   </div>
                   <p className="text-white font-bold text-lg">{p.name}</p>
@@ -604,11 +600,11 @@ export default function HostPage() {
 
         {roundConfessions.length > 0 && (
           <div>
-            <h2 className="text-zinc-400 text-xs uppercase tracking-wider mb-3">🔥 Hot Takes ({roundConfessions.length})</h2>
+            <h2 className="text-muted text-xs uppercase tracking-wider mb-3">🔥 Hot Takes ({roundConfessions.length})</h2>
             <div className="space-y-2">
               {roundConfessions.map((c) => (
-                <div key={c.id} className="bg-[#161616] border border-[#262626] rounded-xl px-4 py-3">
-                  <p className="text-zinc-300 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                <div key={c.id} className="glass-card px-4 py-3">
+                  <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
                 </div>
               ))}
             </div>
@@ -617,14 +613,14 @@ export default function HostPage() {
 
         {isLastRound ? (
           game.auto_reveal ? (
-            <p className="text-purple-400 text-sm text-center animate-pulse">
+            <p className="text-[var(--primary)] text-sm text-center animate-pulse">
               Final leaderboard in a few seconds...
             </p>
           ) : (
             <button
               onClick={handleFinishGame}
               disabled={finishing}
-              className="w-full py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white text-xl font-bold rounded-2xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 shadow-lg shadow-purple-500/20"
+              className="btn-primary"
             >
               {finishing ? 'Loading...' : '🏆 Show Final Leaderboard'}
             </button>
@@ -633,7 +629,7 @@ export default function HostPage() {
           <button
             onClick={handleNextRound}
             disabled={advancing}
-            className="w-full py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 text-white text-xl font-bold rounded-2xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 shadow-lg shadow-purple-500/20"
+            className="btn-primary"
           >
             {advancing ? 'Starting...' : `→ Start Round ${lastFinishedRound.round_number + 1}`}
           </button>
@@ -655,11 +651,11 @@ export default function HostPage() {
     const mostKilled  = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
 
     return (
-      <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
+      <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
         <div className="text-center">
           <div className="text-4xl mb-2">🏆</div>
           <h1 className="text-3xl font-black text-white">{game.title}</h1>
-          <p className="text-zinc-500">{players.length} players · {allRounds.length} rounds</p>
+          <p className="text-muted">{players.length} players · {allRounds.length} rounds</p>
         </div>
 
         {/* Top 3 */}
@@ -672,9 +668,9 @@ export default function HostPage() {
         {/* Full breakdown */}
         <div className="space-y-3">
           {tally.sort((a, b) => (b.kissCount + b.marryCount) - (a.kissCount + a.marryCount)).map((p) => (
-            <div key={p.id} className="bg-[#161616] border border-[#262626] rounded-2xl p-4">
+            <div key={p.id} className="glass-card p-4">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center text-white font-black shrink-0">
+                <div className="avatar w-9 h-9 shrink-0">
                   {getInitial(p.name)}
                 </div>
                 <p className="text-white font-bold text-lg">{p.name}</p>
@@ -691,11 +687,11 @@ export default function HostPage() {
         {/* Confessions / hot takes */}
         {confessions.length > 0 && (
           <div>
-            <h2 className="text-zinc-400 text-xs uppercase tracking-wider mb-3">🔥 Hot Takes ({confessions.length})</h2>
+            <h2 className="text-muted text-xs uppercase tracking-wider mb-3">🔥 Hot Takes ({confessions.length})</h2>
             <div className="space-y-2">
               {confessions.map((c) => (
-                <div key={c.id} className="bg-[#161616] border border-[#262626] rounded-xl px-4 py-3">
-                  <p className="text-zinc-300 text-sm italic">&ldquo;{c.text}&rdquo;</p>
+                <div key={c.id} className="glass-card px-4 py-3">
+                  <p className="text-white/80 text-sm italic">&ldquo;{c.text}&rdquo;</p>
                 </div>
               ))}
             </div>
@@ -715,7 +711,7 @@ function TimerDisplay({ seconds, total }: { seconds: number; total: number }) {
   return (
     <div className="text-right">
       <p className={`text-4xl font-black tabular-nums ${color} ${seconds <= 5 ? 'animate-pulse' : ''}`}>{seconds}</p>
-      <div className="w-20 h-1.5 bg-[#262626] rounded-full mt-1 overflow-hidden">
+      <div className="w-20 h-1.5 progress-track mt-1 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${seconds <= 5 ? 'bg-red-500' : seconds <= 10 ? 'bg-amber-500' : 'bg-green-500'}`}
           style={{ width: total > 0 ? `${(seconds / total) * 100}%` : '0%' }}
@@ -726,13 +722,17 @@ function TimerDisplay({ seconds, total }: { seconds: number; total: number }) {
 }
 
 function StatCard({ emoji, label, name, count, color }: { emoji: string; label: string; name?: string; count?: number; color: string }) {
-  const map: Record<string, string> = { amber: 'border-amber-500/30 bg-amber-500/5', pink: 'border-pink-500/30 bg-pink-500/5', red: 'border-red-500/30 bg-red-500/5' }
+  const map: Record<string, string> = {
+    amber: 'glass-card border-[var(--marry)]/30 bg-[var(--marry)]/8',
+    pink: 'glass-card border-[var(--kiss)]/30 bg-[var(--kiss)]/8',
+    red: 'glass-card border-[var(--kill)]/30 bg-[var(--kill)]/8',
+  }
   return (
     <div className={`border rounded-2xl p-3 text-center ${map[color]}`}>
       <p className="text-2xl">{emoji}</p>
-      <p className="text-zinc-400 text-xs mt-1 leading-tight">{label}</p>
+      <p className="text-muted text-xs mt-1 leading-tight">{label}</p>
       <p className="text-white font-bold text-sm mt-1 truncate">{name ?? '—'}</p>
-      {count !== undefined && <p className="text-zinc-500 text-xs">{count}v</p>}
+      {count !== undefined && <p className="text-muted text-xs">{count}v</p>}
     </div>
   )
 }
@@ -742,8 +742,8 @@ function MiniStat({ emoji, label, count, total, color }: { emoji: string; label:
   return (
     <div className="text-center">
       <p className="text-sm">{emoji} <span className="text-white font-bold">{count}</span></p>
-      <p className="text-zinc-600 text-xs">{label}</p>
-      <div className="h-1 bg-[#2a2a2a] rounded-full mt-1.5 overflow-hidden">
+      <p className="text-faint text-xs">{label}</p>
+      <div className="h-1 bg-white/8 rounded-full mt-1.5 overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
