@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
-import { roundGenderLabel, genderLabel, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel } from '@/lib/participants'
+import { roundGenderLabel, genderLabel, getRoundParticipantGender, eligibleVotersForRound, roundVoterLabel, hasEnoughForRounds, countByGender } from '@/lib/participants'
 import { tallyRoundVotes, VOTE_CATEGORY_META } from '@/lib/vote-stats'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
@@ -159,6 +159,12 @@ export default function HostPage() {
           setPlayers((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p])
         }
       )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const p = payload.new as Participant
+          setParticipants((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p])
+        }
+      )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `game_id=eq.${gameCode}` },
         (payload) => setVotes((prev) => mergeVote(prev, payload.new as Vote))
       )
@@ -197,14 +203,17 @@ export default function HostPage() {
   useEffect(() => {
     if (game?.status !== 'waiting') return
 
-    async function refreshPlayers() {
-      const { data: plrs } = await supabase
-        .from('players').select('*').eq('game_id', gameCode).order('joined_at')
+    async function refreshLobby() {
+      const [{ data: plrs }, { data: parts }] = await Promise.all([
+        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+      ])
       if (plrs) setPlayers(plrs)
+      if (parts) setParticipants(parts)
     }
 
-    refreshPlayers()
-    const id = setInterval(refreshPlayers, 3000)
+    refreshLobby()
+    const id = setInterval(refreshLobby, 3000)
     return () => clearInterval(id)
   }, [game?.status, gameCode])
 
@@ -401,6 +410,14 @@ export default function HostPage() {
 
   // ── WAITING ───────────────────────────────────────────────────────────────
   if (game?.status === 'waiting') {
+    const isJoinersMode = (game.participant_mode ?? 'import') === 'joiners'
+    const participantInputs = participants.map((p) => ({ name: p.name, gender: p.gender }))
+    const genderCounts = countByGender(participantInputs)
+    const canStart =
+      players.length > 0 &&
+      participants.length >= 3 &&
+      hasEnoughForRounds(participantInputs)
+
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
         <div className="flex items-start justify-between">
@@ -408,6 +425,9 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider">Host Panel</p>
             <h1 className="text-2xl font-black text-white mt-1">{game.title}</h1>
             <p className="text-muted text-sm">{game.rounds_count} rounds · {game.timer_seconds}s each</p>
+            <p className="text-[var(--primary)] text-xs mt-1 font-medium">
+              {isJoinersMode ? 'Join & play — joiners are the names in the poll' : 'Import list — voters join separately'}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-muted text-xs uppercase tracking-wider">Code</p>
@@ -422,14 +442,18 @@ export default function HostPage() {
           <button onClick={copyPlayerLink} className="text-[var(--primary)] text-sm font-semibold hover:text-white transition-colors">Copy Link →</button>
         </div>
 
-        {/* Players */}
+        {/* Players / in-the-game list */}
         <div className="glass-card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-muted text-xs uppercase tracking-wider">Players Joined</p>
+            <p className="text-muted text-xs uppercase tracking-wider">
+              {isJoinersMode ? 'In the game' : 'Players joined'}
+            </p>
             <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">{players.length}</span>
           </div>
           {players.length === 0 ? (
-            <p className="text-faint text-sm">Waiting for players to join...</p>
+            <p className="text-faint text-sm">
+              {isJoinersMode ? 'Waiting for people to join...' : 'Waiting for players to join...'}
+            </p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {players.map((p) => (
@@ -443,11 +467,22 @@ export default function HostPage() {
               ))}
             </div>
           )}
+          {isJoinersMode && players.length > 0 && (
+            <p className="text-faint text-xs text-center">
+              {genderCounts.female} female · {genderCounts.male} male
+            </p>
+          )}
+          {isJoinersMode && participants.length > 0 && !hasEnoughForRounds(participantInputs) && (
+            <p className="text-amber-200/90 text-xs text-center">
+              Need at least 3 people of the same gender to start
+            </p>
+          )}
         </div>
 
-        {/* Participants preview */}
+        {/* Participants preview (import mode only) */}
+        {!isJoinersMode && (
         <div className="glass-card p-4 space-y-2">
-          <p className="text-muted text-xs uppercase tracking-wider">Participants ({participants.length})</p>
+          <p className="text-muted text-xs uppercase tracking-wider">On the list ({participants.length})</p>
           <div className="flex flex-wrap gap-2">
             {participants.map((p) => (
               <span key={p.id} className="surface-inset border border-white/8 text-white/80 text-sm px-3 py-1 rounded-full">
@@ -456,13 +491,24 @@ export default function HostPage() {
             ))}
           </div>
         </div>
+        )}
 
         <button
           onClick={handleStart}
-          disabled={players.length === 0 || starting}
+          disabled={!canStart || starting}
           className="btn-primary"
         >
-          {starting ? 'Starting...' : players.length === 0 ? 'Waiting for players...' : `Start Game (${players.length} players)`}
+          {starting
+            ? 'Starting...'
+            : !canStart
+              ? isJoinersMode
+                ? participants.length < 3
+                  ? `Need ${3 - participants.length} more to start`
+                  : 'Need 3+ of one gender to start'
+                : players.length === 0
+                  ? 'Waiting for players...'
+                  : 'Need 3+ participants on the list'
+              : `Start Game (${players.length} players)`}
         </button>
       </div>
     )

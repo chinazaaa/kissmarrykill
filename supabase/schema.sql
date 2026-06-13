@@ -11,10 +11,14 @@ create table if not exists games (
   anonymous boolean not null default false,
   auto_reveal boolean not null default true,
   auto_submit_behavior text not null default 'random',
+  participant_mode text not null default 'import' check (participant_mode in ('import', 'joiners')),
   status text not null default 'waiting',
   current_round_number integer not null default 0,
   created_at timestamptz not null default now()
 );
+
+-- If upgrading an existing database, run:
+-- alter table games add column if not exists participant_mode text not null default 'import' check (participant_mode in ('import', 'joiners'));
 
 -- Participants (people being voted on)
 create table if not exists participants (

@@ -509,7 +509,11 @@ export default function GamePage() {
           <p className="text-muted text-sm">{game?.rounds_count} rounds · {game?.timer_seconds}s each</p>
         </div>
         <div className="space-y-4">
-          <p className="text-muted font-medium text-center">Enter your name and gender to join</p>
+          <p className="text-muted font-medium text-center">
+            {game?.participant_mode === 'joiners'
+              ? 'Join the game — your name goes in the poll'
+              : 'Enter your name and gender to vote'}
+          </p>
           <input
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}

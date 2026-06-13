@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import { normalizeGender, hasEnoughForRounds, type ParticipantInput } from '@/lib/participants'
+import type { ParticipantMode } from '@/types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,21 +30,36 @@ function parseParticipants(raw: unknown): ParticipantInput[] | null {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { title, rounds_count, timer_seconds, anonymous, auto_reveal, auto_submit_behavior, participants: rawParticipants } = body
+  const {
+    title,
+    rounds_count,
+    timer_seconds,
+    anonymous,
+    auto_reveal,
+    auto_submit_behavior,
+    participant_mode: rawMode,
+    participants: rawParticipants,
+  } = body
 
   if (!title?.trim()) {
     return NextResponse.json({ error: 'Game name is required' }, { status: 400 })
   }
 
-  const participants = parseParticipants(rawParticipants)
-  if (!participants || participants.length < 3) {
-    return NextResponse.json({ error: 'At least 3 participants required' }, { status: 400 })
-  }
-  if (!hasEnoughForRounds(participants)) {
-    return NextResponse.json(
-      { error: 'Need at least 3 people of the same gender (male or female) for rounds' },
-      { status: 400 }
-    )
+  const participant_mode: ParticipantMode = rawMode === 'joiners' ? 'joiners' : 'import'
+
+  let participants: ParticipantInput[] = []
+  if (participant_mode === 'import') {
+    const parsed = parseParticipants(rawParticipants)
+    if (!parsed || parsed.length < 3) {
+      return NextResponse.json({ error: 'At least 3 participants required' }, { status: 400 })
+    }
+    if (!hasEnoughForRounds(parsed)) {
+      return NextResponse.json(
+        { error: 'Need at least 3 people of the same gender (male or female) for rounds' },
+        { status: 400 }
+      )
+    }
+    participants = parsed
   }
 
   let gameCode = generateGameCode()
@@ -64,6 +80,7 @@ export async function POST(req: NextRequest) {
     anonymous: Boolean(anonymous),
     auto_reveal: Boolean(auto_reveal),
     auto_submit_behavior: auto_submit_behavior === 'no_answer' ? 'no_answer' : 'random',
+    participant_mode,
     status: 'waiting',
     current_round_number: 0,
   })
@@ -72,17 +89,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: gameError.message }, { status: 500 })
   }
 
-  const participantRows = participants.map((p, index) => ({
-    game_id: gameCode,
-    name: p.name,
-    gender: p.gender,
-    display_order: index,
-  }))
+  if (participant_mode === 'import' && participants.length > 0) {
+    const participantRows = participants.map((p, index) => ({
+      game_id: gameCode,
+      name: p.name,
+      gender: p.gender,
+      display_order: index,
+    }))
 
-  const { error: partError } = await supabase.from('participants').insert(participantRows)
-  if (partError) {
-    await supabase.from('games').delete().eq('id', gameCode)
-    return NextResponse.json({ error: partError.message }, { status: 500 })
+    const { error: partError } = await supabase.from('participants').insert(participantRows)
+    if (partError) {
+      await supabase.from('games').delete().eq('id', gameCode)
+      return NextResponse.json({ error: partError.message }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ gameCode, hostToken })

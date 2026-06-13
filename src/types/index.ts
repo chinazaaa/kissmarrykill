@@ -1,6 +1,7 @@
 export type GameStatus = 'waiting' | 'active' | 'finished'
 export type RoundStatus = 'pending' | 'active' | 'finished'
 export type AutoSubmitBehavior = 'random' | 'no_answer'
+export type ParticipantMode = 'import' | 'joiners'
 
 export type ParticipantGender = 'male' | 'female'
 
@@ -13,6 +14,7 @@ export interface Game {
   anonymous: boolean
   auto_reveal: boolean
   auto_submit_behavior: AutoSubmitBehavior
+  participant_mode: ParticipantMode
   status: GameStatus
   current_round_number: number
   created_at: string

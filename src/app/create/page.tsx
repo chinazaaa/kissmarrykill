@@ -1,8 +1,8 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import type { ParticipantGender, ParticipantMode } from '@/types'
 import {
-  type ParticipantGender,
   type ParticipantInput,
   parseParticipantRows,
   parseExcelParticipants,
@@ -12,8 +12,6 @@ import {
   genderLabel,
 } from '@/lib/participants'
 
-type Step = 'settings' | 'participants' | 'done'
-
 interface Settings {
   title: string
   rounds_count: number
@@ -21,7 +19,10 @@ interface Settings {
   anonymous: boolean
   auto_reveal: boolean
   auto_submit_behavior: 'random' | 'no_answer'
+  participant_mode: ParticipantMode
 }
+
+type Step = 'settings' | 'participants' | 'done'
 
 export default function CreateGame() {
   const router = useRouter()
@@ -33,6 +34,7 @@ export default function CreateGame() {
     anonymous: false,
     auto_reveal: true,
     auto_submit_behavior: 'random',
+    participant_mode: 'import',
   })
   const [participants, setParticipants] = useState<ParticipantInput[]>([])
   const [nameInput, setNameInput] = useState('')
@@ -45,7 +47,9 @@ export default function CreateGame() {
   const [bulkPaste, setBulkPaste] = useState('')
 
   const genderCounts = countByGender(participants)
-  const canCreate = participants.length >= 3 && hasEnoughForRounds(participants)
+  const isJoinersMode = settings.participant_mode === 'joiners'
+  const canCreateImport = participants.length >= 3 && hasEnoughForRounds(participants)
+  const canCreateJoiners = !!settings.title.trim()
 
   const addParticipantsFromRows = (rows: ParticipantInput[]) => {
     if (rows.length === 0) return 0
@@ -128,13 +132,17 @@ export default function CreateGame() {
   const removeParticipant = (i: number) => setParticipants((prev) => prev.filter((_, idx) => idx !== i))
 
   const createGame = async () => {
-    if (loading || !canCreate) return
+    if (loading) return
+    if (isJoinersMode ? !canCreateJoiners : !canCreateImport) return
     setLoading(true)
     try {
       const res = await fetch('/api/games', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...settings, participants }),
+        body: JSON.stringify({
+          ...settings,
+          participants: isJoinersMode ? [] : participants,
+        }),
       })
       const data = await res.json()
       if (data.gameCode) {
@@ -167,6 +175,39 @@ export default function CreateGame() {
               autoFocus
               className="input-field"
             />
+          </Field>
+
+          <Field label="Game Style">
+            <div className="grid gap-2">
+              <button
+                type="button"
+                onClick={() => setSettings({ ...settings, participant_mode: 'joiners' })}
+                className={`text-left rounded-2xl border p-4 transition-all ${
+                  settings.participant_mode === 'joiners'
+                    ? 'border-[var(--primary)] bg-[var(--primary)]/10'
+                    : 'border-white/10 surface-inset hover:border-white/20'
+                }`}
+              >
+                <p className="font-semibold text-white">Join &amp; play</p>
+                <p className="text-faint text-xs mt-1">
+                  Everyone who joins is in the poll — no list to upload first
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettings({ ...settings, participant_mode: 'import' })}
+                className={`text-left rounded-2xl border p-4 transition-all ${
+                  settings.participant_mode === 'import'
+                    ? 'border-[var(--primary)] bg-[var(--primary)]/10'
+                    : 'border-white/10 surface-inset hover:border-white/20'
+                }`}
+              >
+                <p className="font-semibold text-white">Import list</p>
+                <p className="text-faint text-xs mt-1">
+                  Upload names before the game — joiners only vote, they are not on the list
+                </p>
+              </button>
+            </div>
           </Field>
 
           <Field label="Number of Rounds">
@@ -233,12 +274,18 @@ export default function CreateGame() {
           </div>
         </div>
 
-        <PrimaryBtn
-          onClick={() => setStep('participants')}
-          disabled={!settings.title.trim()}
-        >
-          Next: Add Participants →
-        </PrimaryBtn>
+        {isJoinersMode ? (
+          <PrimaryBtn onClick={createGame} disabled={!canCreateJoiners || loading}>
+            {loading ? 'Creating...' : 'Create Game'}
+          </PrimaryBtn>
+        ) : (
+          <PrimaryBtn
+            onClick={() => setStep('participants')}
+            disabled={!settings.title.trim()}
+          >
+            Next: Add Participants →
+          </PrimaryBtn>
+        )}
       </PageShell>
     )
   }
@@ -382,7 +429,7 @@ export default function CreateGame() {
           )}
         </div>
 
-        <PrimaryBtn onClick={createGame} disabled={!canCreate || loading}>
+        <PrimaryBtn onClick={createGame} disabled={!canCreateImport || loading}>
           {loading ? 'Creating...' : `Create Game (${participants.length} participants)`}
         </PrimaryBtn>
       </PageShell>
