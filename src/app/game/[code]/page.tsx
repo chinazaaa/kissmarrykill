@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getPlayerSession, setPlayerSession, getInitial } from '@/lib/utils'
+import { getPlayerSession, setPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
@@ -828,7 +828,8 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
   players: Player[]
   myPlayerId: string | null
 }) {
-  const tally = participants.map((p) => ({
+  const playedParticipants = filterParticipantsInRounds(participants, rounds)
+  const tally = playedParticipants.map((p) => ({
     ...p,
     kissCount:  votes.filter((v) => v.kiss_participant_id  === p.id).length,
     marryCount: votes.filter((v) => v.marry_participant_id === p.id).length,
@@ -844,7 +845,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
       <div className="text-center">
         <div className="text-4xl mb-2">🎊</div>
         <h1 className="text-3xl font-black text-white">{game.title}</h1>
-        <p className="text-muted">{players.length} players · {rounds.length} rounds</p>
+        <p className="text-muted">{players.length} players · {rounds.length} rounds · {playedParticipants.length} in game</p>
       </div>
 
       {/* Leaderboard */}

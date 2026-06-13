@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getInitial } from '@/lib/utils'
+import { getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
 
 export default function HostPage() {
@@ -640,7 +640,8 @@ export default function HostPage() {
 
   // ── FINISHED ──────────────────────────────────────────────────────────────
   if (game?.status === 'finished') {
-    const tally = participants.map((p) => ({
+    const playedParticipants = filterParticipantsInRounds(participants, allRounds)
+    const tally = playedParticipants.map((p) => ({
       ...p,
       kissCount:  votes.filter((v) => v.kiss_participant_id  === p.id).length,
       marryCount: votes.filter((v) => v.marry_participant_id === p.id).length,
@@ -655,7 +656,7 @@ export default function HostPage() {
         <div className="text-center">
           <div className="text-4xl mb-2">🏆</div>
           <h1 className="text-3xl font-black text-white">{game.title}</h1>
-          <p className="text-muted">{players.length} players · {allRounds.length} rounds</p>
+          <p className="text-muted">{players.length} players · {allRounds.length} rounds · {playedParticipants.length} in game</p>
         </div>
 
         {/* Top 3 */}

@@ -41,6 +41,23 @@ export function generateRounds(participantIds: string[], roundCount: number): st
   return rounds
 }
 
+/** Participant IDs that appeared in at least one round. */
+export function getParticipantIdsFromRounds(rounds: { participant_ids: string[] }[]): Set<string> {
+  const ids = new Set<string>()
+  for (const round of rounds) {
+    for (const id of round.participant_ids) ids.add(id)
+  }
+  return ids
+}
+
+export function filterParticipantsInRounds<T extends { id: string }>(
+  participants: T[],
+  rounds: { participant_ids: string[] }[]
+): T[] {
+  const playedIds = getParticipantIdsFromRounds(rounds)
+  return participants.filter((p) => playedIds.has(p.id))
+}
+
 export function getPlayerSession(gameCode: string): { playerId: string; playerName: string } | null {
   if (typeof window === 'undefined') return null
   try {
