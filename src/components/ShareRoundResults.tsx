@@ -12,7 +12,12 @@ import {
 } from '@/lib/game-types'
 import { getCategoryMeta, getVoteCategories, flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
-import { tallyWstVotes, wstVoteTargets, wstCorrectParticipantIdFromRound, wstCorrectNameFromRound } from '@/lib/who-said-this'
+import {
+  tallyWstVotes,
+  wstVoteTargets,
+  wstCorrectParticipantIdFromRound,
+  wstCorrectNameFromRound,
+} from '@/lib/who-said-this'
 import { useToast } from '@/components/ui/Toast'
 
 const APP_URL = 'kissmarrykill.app'

@@ -1410,9 +1410,7 @@ export default function GamePage() {
           return
         }
         const url = data.photoUrl + '?t=' + Date.now()
-        setParticipants((prev) =>
-          prev.map((p) => (p.id === me.participant_id ? { ...p, photo_url: url } : p))
-        )
+        setParticipants((prev) => prev.map((p) => (p.id === me.participant_id ? { ...p, photo_url: url } : p)))
       } catch {
         toast.error('Upload failed — try again')
       } finally {
@@ -1438,9 +1436,7 @@ export default function GamePage() {
           toast.error(data.error || 'Failed to remove photo')
           return
         }
-        setParticipants((prev) =>
-          prev.map((p) => (p.id === me.participant_id ? { ...p, photo_url: null } : p))
-        )
+        setParticipants((prev) => prev.map((p) => (p.id === me.participant_id ? { ...p, photo_url: null } : p)))
       } catch {
         toast.error('Could not remove photo — try again')
       } finally {
@@ -1558,11 +1554,7 @@ export default function GamePage() {
                       </div>
                     ) : hasPhoto ? (
                       <div className="relative shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => photoInputRef.current?.click()}
-                          className="block"
-                        >
+                        <button type="button" onClick={() => photoInputRef.current?.click()} className="block">
                           <Avatar name={p.name} photoUrl={myPart!.photo_url} size="sm" />
                         </button>
                         <button
@@ -1580,8 +1572,17 @@ export default function GamePage() {
                         onClick={() => photoInputRef.current?.click()}
                         className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center bg-[var(--surface-inset)] border border-dashed border-[var(--border-strong)] text-faint hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                          <path fillRule="evenodd" d="M1 8a2 2 0 0 1 2-2h.93a2 2 0 0 0 1.664-.89l.812-1.22A2 2 0 0 1 8.07 3h3.86a2 2 0 0 1 1.664.89l.812 1.22A2 2 0 0 0 16.07 6H17a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm13.5 3a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM10 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clipRule="evenodd" />
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="w-3.5 h-3.5"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M1 8a2 2 0 0 1 2-2h.93a2 2 0 0 0 1.664-.89l.812-1.22A2 2 0 0 1 8.07 3h3.86a2 2 0 0 1 1.664.89l.812 1.22A2 2 0 0 0 16.07 6H17a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm13.5 3a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM10 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       </button>
                     )
@@ -2196,7 +2197,13 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
-          <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
+          <ShareRoundResults
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2246,7 +2253,13 @@ export default function GamePage() {
               correctCount={animeTally.correctCount}
               myPickName={myPickName}
             />
-            <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
+            <ShareRoundResults
+              game={game!}
+              round={lastFinishedRound}
+              votes={lastRoundVotes}
+              participants={participants}
+              players={players}
+            />
             <p className="text-faint text-sm text-center">
               {roundResultsWaitMessage({
                 isLastRound,
@@ -2286,7 +2299,13 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
-          <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
+          <ShareRoundResults
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2328,7 +2347,13 @@ export default function GamePage() {
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" />
-          <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
+          <ShareRoundResults
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2479,7 +2504,13 @@ export default function GamePage() {
 
         <ReactionBar className="pt-1" />
 
-        <ShareRoundResults game={game!} round={lastFinishedRound} votes={lastRoundVotes} participants={participants} players={players} />
+        <ShareRoundResults
+          game={game!}
+          round={lastFinishedRound}
+          votes={lastRoundVotes}
+          participants={participants}
+          players={players}
+        />
 
         <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-[var(--primary)]' : 'text-faint'}`}>
           {roundResultsWaitMessage({
