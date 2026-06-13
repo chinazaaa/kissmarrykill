@@ -1355,6 +1355,15 @@ export default function GamePage() {
               }
             />
           )}
+          {!joinNeedsGender && isNameOnlyJoin && (
+            <p className="text-faint text-xs text-center">
+              {isHotSeat(game?.game_type)
+                ? 'Claim your name from the list — everyone takes a turn in the hot seat'
+                : isMostLikelyTo(game?.game_type)
+                  ? 'Vote for who fits each prompt — your choice stays anonymous'
+                  : 'Pick between two options each round — your choice stays anonymous'}
+            </p>
+          )}
           {!joinNeedsGender ? null : (
             <>
               <div>

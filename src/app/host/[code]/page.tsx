@@ -28,6 +28,9 @@ import {
   isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
+  isHotSeat,
+  isHotSeatLobbyGame,
+  isPlayerOnlyJoinLobby,
   isNameOnlyPlayerJoin,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
@@ -60,6 +63,13 @@ import {
 } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import {
+  hotSeatEffectiveRounds,
+  hotSeatLobbyRoundsHint,
+  clampHotSeatMaxCap,
+  HOT_SEAT_MIN_PLAYERS,
+  HOT_SEAT_MAX_ROUNDS_CAP,
+} from '@/lib/hot-seat'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -826,6 +836,8 @@ export default function HostPage() {
 
   async function hostUpdateRounds(roundsCount: number) {
     if (updatingRounds || game?.rounds_count === roundsCount) return
+    const previousCount = game!.rounds_count
+    setGame((g) => (g ? { ...g, rounds_count: roundsCount } : g))
     setUpdatingRounds(true)
     try {
       const res = await fetch(`/api/games/${gameCode}`, {
@@ -835,6 +847,7 @@ export default function HostPage() {
       })
       const data = await res.json()
       if (!res.ok) {
+        setGame((g) => (g ? { ...g, rounds_count: previousCount } : g))
         toast.error(data.error || 'Failed to update rounds')
         return
       }
@@ -1006,28 +1019,45 @@ export default function HostPage() {
     const isWyr = isWouldYouRather(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
+    const isHotSeatGame = isHotSeat(gameType)
     const isMltImport = isMltImportGame(game)
-    const wstSubmitters = wstEligibleSubmitters(players)
-    const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
+    const lobbyOpts = { participantMode: game.participant_mode, participantCount: participants.length }
+    const playerOnlyLobby = isPlayerOnlyJoinLobby(gameType, lobbyOpts)
+    const hotSeatLobby = isHotSeatLobbyGame(gameType, lobbyOpts)
     const minPool = roundPoolSize(gameType)
     const isJoinersMode = (game.participant_mode ?? 'import') === 'joiners'
-    const roundParticipants = isJoinersMode
-      ? participants
-      : isMltImport
+    const hotSeatLegacyJoiners = isHotSeatGame && isJoinersMode && participants.length === 0
+    const wstSubmitters = wstEligibleSubmitters(players)
+    const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
+    const roundParticipants = isHotSeatGame && !hotSeatLegacyJoiners
+      ? participantsWhoJoined(participants, players)
+      : isJoinersMode
         ? participants
-        : game.participant_filter === 'all'
+        : isMltImport
           ? participants
-          : participantsWhoJoined(participants, players)
-    const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
+          : game.participant_filter === 'all'
+            ? participants
+            : participantsWhoJoined(participants, players)
+    const participantInputs = hotSeatLegacyJoiners
+      ? players.map((p) => ({ name: p.name, gender: 'female' as ParticipantGender }))
+      : roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
     const lobbyQuestionMax =
       isWyr || isMlt
         ? questionPoolCap(game)
         : isWst
           ? wstAutoRoundCount(wstPool.length || wstSubmitters.length)
-          : maxRecommendedRounds(participantInputs, gameType)
+          : isHotSeatGame
+            ? Math.min(20, Math.max(roundParticipants.length, hotSeatLegacyJoiners ? players.length : 3))
+            : maxRecommendedRounds(participantInputs, gameType)
     const maxRounds =
-      isWyr || isMlt ? lobbyQuestionMax : isWst ? lobbyQuestionMax : maxRecommendedRounds(participantInputs, gameType)
+      isWyr || isMlt
+        ? lobbyQuestionMax
+        : isWst
+          ? lobbyQuestionMax
+          : isHotSeatGame
+            ? Math.min(20, Math.max(roundParticipants.length, hotSeatLegacyJoiners ? players.length : 1))
+            : maxRecommendedRounds(participantInputs, gameType)
     const roundsHint = isWst
       ? wstPool.length >= 2
         ? `${wstPool.length} quotes in the pool → ${wstAutoRoundCount(wstPool.length)} rounds`
@@ -1043,12 +1073,14 @@ export default function HostPage() {
             ? `Platform pool → up to ${lobbyQuestionMax} rounds`
             : `Platform prompts → up to ${lobbyQuestionMax} rounds`
         : roundLimitHint(participantInputs, gameType)
-    const roundsTooHigh = maxRounds > 0 && game.rounds_count > maxRounds
+    const hotSeatJoinedCount = hotSeatLegacyJoiners ? players.length : roundParticipants.length
+    const hotSeatEffective = hotSeatLobby ? hotSeatEffectiveRounds(hotSeatJoinedCount, game.rounds_count) : 0
+    const roundsTooHigh = hotSeatLobby ? false : maxRounds > 0 && game.rounds_count > maxRounds
     const roundOptions = isWyr
       ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
       : isMlt
         ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
-        : isWst
+          : isWst
           ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
           : kmkRoundPickerOptions(maxRounds)
     const voterCheck = hasVotersForPolls(roundParticipants, players)
@@ -1062,6 +1094,8 @@ export default function HostPage() {
         : wstSource === 'both'
           ? totalQuotes >= 2
           : participants.length >= 2 && wstSubmitters.length >= 2 && wstPool.length >= 2
+      : hotSeatLobby
+        ? hotSeatEffective >= HOT_SEAT_MIN_PLAYERS
       : isMltImport
         ? participants.length >= 2 && players.length > 0 && !roundsTooHigh
         : isMlt
@@ -1087,7 +1121,9 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider">Host Panel</p>
             <h1 className="text-2xl font-black text-body mt-1">{game.title}</h1>
             <p className="text-muted text-sm">
-              {game.rounds_count} rounds · {game.timer_seconds}s each
+              {hotSeatLobby && hotSeatEffective > 0
+                ? `${hotSeatEffective} rounds · ${game.timer_seconds}s each`
+                : `${game.rounds_count} rounds · ${game.timer_seconds}s each`}
             </p>
             {(isWyr || isMlt) &&
               parseQuestionSource(game.question_source, gameType) === 'custom' &&
@@ -1103,6 +1139,8 @@ export default function HostPage() {
                     ? 'Who Said This — players submit quotes in the lobby, then guess who said each one'
                     : isWyr
                       ? 'Would You Rather — players join and pick A or B each round'
+                      : hotSeatLobby
+                        ? 'Hot Seat — upload names, players claim theirs, then take turns in the spotlight'
                       : isJoinersMode
                         ? 'Join & play — joiners are the names in the poll'
                         : 'Import list — voters join separately'}
@@ -1124,9 +1162,33 @@ export default function HostPage() {
               <p className="font-bold text-body text-2xl">{game.rounds_count}</p>
               <p className="text-faint text-xs">{roundsHint}</p>
             </>
-          ) : isWyr ||
-            isMlt ||
-            (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
+          ) : hotSeatLobby ? (
+            <>
+              <p className="font-bold text-body text-2xl">{hotSeatEffective > 0 ? hotSeatEffective : '—'}</p>
+              <p className="text-faint text-xs">{hotSeatLobbyRoundsHint(hotSeatJoinedCount, game.rounds_count)}</p>
+              <div className="space-y-2 pt-2">
+                <p className="text-muted text-[10px] uppercase tracking-wider">Max rounds (cap)</p>
+                <input
+                  type="number"
+                  min={HOT_SEAT_MIN_PLAYERS}
+                  max={HOT_SEAT_MAX_ROUNDS_CAP}
+                  step={1}
+                  defaultValue={game.rounds_count}
+                  key={game.rounds_count}
+                  disabled={updatingRounds}
+                  onBlur={(e) => {
+                    const n = clampHotSeatMaxCap(e.target.value)
+                    e.target.value = String(n)
+                    if (n !== game.rounds_count) hostUpdateRounds(n)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                  }}
+                  className="input-field w-28 py-2 text-sm disabled:opacity-50"
+                />
+              </div>
+            </>
+          ) : isWyr || isMlt || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
             <>
               {roundsHint && <p className="text-faint text-xs">{roundsHint}</p>}
               <div className="flex gap-2 flex-wrap">
@@ -1134,9 +1196,9 @@ export default function HostPage() {
                   <button
                     key={n}
                     type="button"
-                    disabled={updatingRounds || n > maxRounds}
+                    disabled={n > maxRounds}
                     onClick={() => hostUpdateRounds(n)}
-                    className={`min-w-[2.5rem] px-3 py-2 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-40 ${
+                    className={`min-w-[2.5rem] px-3 py-2 rounded-xl border text-sm font-semibold disabled:opacity-40 ${
                       game.rounds_count === n ? 'chip-active' : 'chip'
                     }`}
                   >
@@ -1146,8 +1208,13 @@ export default function HostPage() {
               </div>
               {roundsTooHigh && (
                 <p className="callout-warning">
-                  {game.rounds_count} rounds is too many for {roundParticipants.length} in the game — pick {maxRounds}{' '}
-                  or fewer
+                  {game.rounds_count} rounds is too many for{' '}
+                  {hotSeatLobby
+                    ? hotSeatLegacyJoiners
+                      ? players.length
+                      : roundParticipants.length
+                    : roundParticipants.length}{' '}
+                  in the game — pick {maxRounds} or fewer
                 </p>
               )}
             </>
@@ -1155,7 +1222,13 @@ export default function HostPage() {
             <p className="text-faint text-xs">
               {isWyr || isMlt
                 ? 'Set how many questions to play'
-                : `Need at least ${minPool} joined people of one gender before you can set rounds`}
+                : hotSeatLobby
+                  ? hotSeatLegacyJoiners
+                    ? 'Need at least 3 players before you can set rounds'
+                    : participants.length >= 3
+                      ? 'Need at least 3 players to claim a name before you can set rounds'
+                      : 'Need at least 3 names on the list before you can set rounds'
+                  : `Need at least ${minPool} joined people of one gender before you can set rounds`}
             </p>
           )}
         </div>
@@ -1350,10 +1423,10 @@ export default function HostPage() {
           {!isJoinersMode && (
             <p className="text-faint text-xs">Tap Male/Female to fix identity · Remove to kick someone out</p>
           )}
-          {isJoinersMode && participants.length > 0 && (
+          {isJoinersMode && participants.length > 0 && !hotSeatLobby && (
             <p className="text-faint text-xs">Tap to fix poll placement or gender · Remove to kick out</p>
           )}
-          {(isJoinersMode ? joinerParticipantsWithPlayers.length : players.length) > 8 && (
+          {(playerOnlyLobby || hotSeatLegacyJoiners || !isJoinersMode ? players.length : joinerParticipantsWithPlayers.length) > 8 && (
             <div className="space-y-1">
               <div className="relative">
                 <input
@@ -1379,13 +1452,19 @@ export default function HostPage() {
               </div>
               {playersSearch.trim() && (
                 <p className="text-faint text-[10px] uppercase tracking-wider px-0.5">
-                  {isJoinersMode ? filteredJoinerParticipants.length : filteredPlayers.length} of{' '}
-                  {isJoinersMode ? joinerParticipantsWithPlayers.length : players.length} shown
+                  {playerOnlyLobby || hotSeatLegacyJoiners || !isJoinersMode
+                    ? filteredPlayers.length
+                    : filteredJoinerParticipants.length}{' '}
+                  of{' '}
+                  {playerOnlyLobby || hotSeatLegacyJoiners || !isJoinersMode
+                    ? players.length
+                    : joinerParticipantsWithPlayers.length}{' '}
+                  shown
                 </p>
               )}
             </div>
           )}
-          {isWyr || (isMlt && isJoinersMode) ? (
+          {playerOnlyLobby || hotSeatLegacyJoiners ? (
             filteredPlayers.length === 0 ? (
               <p className="text-faint text-sm">Waiting for people to join...</p>
             ) : (
@@ -1507,7 +1586,7 @@ export default function HostPage() {
               })}
             </div>
           )}
-          {isJoinersMode && !isWyr && !isMlt && participants.length > 0 && (
+          {isJoinersMode && !isWyr && !isMlt && !hotSeatLobby && participants.length > 0 && (
             <p className="text-faint text-xs text-center">
               {genderCounts.female} female · {genderCounts.male} male
             </p>
@@ -1515,11 +1594,12 @@ export default function HostPage() {
           {isJoinersMode &&
             !isWyr &&
             !isMlt &&
+            !hotSeatLobby &&
             participants.length > 0 &&
             !hasEnoughForRounds(participantInputs, gameType) && (
               <p className="callout-warning text-center">Need at least {minPool} people of the same gender to start</p>
             )}
-          {!voterCheck.ok && players.length > 0 && roundParticipants.length >= minPool && (
+          {!hotSeatLobby && !voterCheck.ok && players.length > 0 && roundParticipants.length >= minPool && (
             <p className="callout-warning text-center">{voterCheck.message}</p>
           )}
           {!isJoinersMode && roundParticipants.length < minPool && players.length > 0 && (
@@ -1678,9 +1758,15 @@ export default function HostPage() {
                             ? 'Waiting for voters to join...'
                             : isMlt && !isMltImport && players.length < 2
                               ? `Need at least 2 players (${players.length}/2)`
-                              : isWyr && players.length === 0
-                                ? 'Waiting for players...'
-                                : isJoinersMode
+                              : hotSeatLobby && hotSeatLegacyJoiners && players.length < 3
+                                ? `Need at least 3 players (${players.length}/3)`
+                                : hotSeatLobby && !hotSeatLegacyJoiners && roundParticipants.length < 3
+                                  ? `Need 3+ players who claimed a name (${roundParticipants.length}/3)`
+                                  : hotSeatLobby && !hotSeatLegacyJoiners && participants.length < 3
+                                    ? `Need at least 3 names on the list (${participants.length}/3)`
+                                    : isWyr && players.length === 0
+                                  ? 'Waiting for players...'
+                                  : isJoinersMode
                                   ? participants.length < minPool
                                     ? `Need ${minPool - participants.length} more to start`
                                     : roundsTooHigh
@@ -1695,7 +1781,9 @@ export default function HostPage() {
                                         : !voterCheck.ok
                                           ? 'Need voters for each list'
                                           : `Need ${minPool}+ joined of one gender`
-              : `Start Game (${players.length} players)`}
+              : hotSeatLobby
+                ? `Start Game (${hotSeatEffective} round${hotSeatEffective === 1 ? '' : 's'})`
+                : `Start Game (${players.length} players)`}
         </button>
       </div>
     )
