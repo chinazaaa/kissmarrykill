@@ -6,11 +6,12 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession, filterParticipa
 import { Avatar } from '@/components/Avatar'
 import { ParticipantPhotoCard } from '@/components/ParticipantPhotoCard'
 import { ParticipantGallery } from '@/components/ParticipantGallery'
-import { useQueryClient as __useQueryClient } from '@tanstack/react-query'
 import { usePlayerQuestions } from '@/hooks/queries/usePlayerQuestions'
 import { useHotSeatSubmissions } from '@/hooks/queries/useHotSeatSubmissions'
 import { useGameRealtime } from '@/hooks/useGameRealtime'
-import { gameKeys } from '@/lib/query-keys'
+import { useSubmitPlayerQuestion, useDeletePlayerQuestion } from '@/hooks/mutations/useSubmitPlayerQuestion'
+import { useSubmitHotSeat } from '@/hooks/mutations/useSubmitHotSeat'
+import { useSendConfession } from '@/hooks/mutations/useSendConfession'
 import {
   playRoundStartSound,
   playVoteSubmittedSound,
@@ -133,11 +134,16 @@ export default function GamePage() {
   const router = useRouter()
   const toast = useToast()
   const { confirm } = useConfirm()
-  const queryClient = __useQueryClient()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
 
   // Realtime → React Query cache bridge (runs alongside existing setState handlers)
   useGameRealtime(gameCode)
+
+  // Mutation hooks
+  const submitPQ = useSubmitPlayerQuestion(gameCode)
+  const deletePQ = useDeletePlayerQuestion(gameCode)
+  const submitHotSeatMutation = useSubmitHotSeat(gameCode)
+  const sendConfessionMutation = useSendConfession(gameCode)
 
   const [view, setView] = useState<View>('loading')
   const [game, setGame] = useState<Game | null>(null)
@@ -1284,12 +1290,10 @@ export default function GamePage() {
   const sendConfession = async () => {
     if (!confessionText.trim() || confessionSent) return
     setConfessionSent(true)
-    const res = await fetch('/api/confessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId: gameCode, roundId: currentRound?.id, text: confessionText }),
-    })
-    if (res.ok) playConfessionSound()
+    sendConfessionMutation.mutate(
+      { gameId: gameCode, roundId: currentRound?.id, text: confessionText },
+      { onSuccess: () => playConfessionSound() }
+    )
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1679,32 +1683,25 @@ export default function GamePage() {
                     <button
                       type="button"
                       disabled={!pqWyrA.trim() || !pqWyrB.trim() || pqSubmitting}
-                      onClick={async () => {
+                      onClick={() => {
                         setPqSubmitting(true)
-                        try {
-                          const res = await fetch('/api/player-questions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              gameId: gameCode,
-                              playerId: myPlayerId,
-                              questionType: 'wyr',
-                              optionA: pqWyrA.trim(),
-                              optionB: pqWyrB.trim(),
-                            }),
-                          })
-                          if (res.ok) {
-                            const { question } = await res.json()
-                            queryClient.invalidateQueries({ queryKey: gameKeys.playerQuestions(gameCode) })
-                            setPqWyrA('')
-                            setPqWyrB('')
-                          } else {
-                            const { error } = await res.json()
-                            toast.error(error || 'Failed to submit')
+                        submitPQ.mutate(
+                          {
+                            gameId: gameCode,
+                            playerId: myPlayerId,
+                            questionType: 'wyr',
+                            optionA: pqWyrA.trim(),
+                            optionB: pqWyrB.trim(),
+                          },
+                          {
+                            onSuccess: () => {
+                              setPqWyrA('')
+                              setPqWyrB('')
+                            },
+                            onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to submit'),
+                            onSettled: () => setPqSubmitting(false),
                           }
-                        } finally {
-                          setPqSubmitting(false)
-                        }
+                        )
                       }}
                       className={
                         pqWyrA.trim() && pqWyrB.trim()
@@ -1729,30 +1726,21 @@ export default function GamePage() {
                     <button
                       type="button"
                       disabled={!pqMltText.trim() || pqSubmitting}
-                      onClick={async () => {
+                      onClick={() => {
                         setPqSubmitting(true)
-                        try {
-                          const res = await fetch('/api/player-questions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              gameId: gameCode,
-                              playerId: myPlayerId,
-                              questionType: 'mlt',
-                              questionText: pqMltText.trim(),
-                            }),
-                          })
-                          if (res.ok) {
-                            const { question } = await res.json()
-                            queryClient.invalidateQueries({ queryKey: gameKeys.playerQuestions(gameCode) })
-                            setPqMltText('')
-                          } else {
-                            const { error } = await res.json()
-                            toast.error(error || 'Failed to submit')
+                        submitPQ.mutate(
+                          {
+                            gameId: gameCode,
+                            playerId: myPlayerId,
+                            questionType: 'mlt',
+                            questionText: pqMltText.trim(),
+                          },
+                          {
+                            onSuccess: () => setPqMltText(''),
+                            onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to submit'),
+                            onSettled: () => setPqSubmitting(false),
                           }
-                        } finally {
-                          setPqSubmitting(false)
-                        }
+                        )
                       }}
                       className={
                         pqMltText.trim()
@@ -1777,14 +1765,7 @@ export default function GamePage() {
                           <button
                             type="button"
                             className="text-faint hover:text-red-400 text-xs shrink-0"
-                            onClick={async () => {
-                              await fetch('/api/player-questions', {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ questionId: q.id, playerId: myPlayerId }),
-                              })
-                              queryClient.invalidateQueries({ queryKey: gameKeys.playerQuestions(gameCode) })
-                            }}
+                            onClick={() => deletePQ.mutate({ questionId: q.id, playerId: myPlayerId! })}
                           >
                             x
                           </button>
@@ -2143,23 +2124,23 @@ export default function GamePage() {
             />
 
             <button
-              onClick={async () => {
+              onClick={() => {
                 if (!hotSeatText.trim() || !currentRound || !myPlayerId) return
-                const res = await fetch('/api/hot-seat', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
+                submitHotSeatMutation.mutate(
+                  {
                     gameId: gameCode,
                     roundId: currentRound.id,
                     playerId: myPlayerId,
                     text: hotSeatText.trim(),
                     submissionType: hotSeatType,
-                  }),
-                })
-                if (res.ok) {
-                  setHotSeatSubmitted(true)
-                  playVoteSubmittedSound()
-                }
+                  },
+                  {
+                    onSuccess: () => {
+                      setHotSeatSubmitted(true)
+                      playVoteSubmittedSound()
+                    },
+                  }
+                )
               }}
               disabled={!hotSeatText.trim()}
               className={
