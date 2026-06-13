@@ -660,7 +660,7 @@ function CreateGameInner() {
               <SettingsGroup title="How it works">
                 <p className="text-faint text-sm leading-relaxed">
                   Upload everyone&apos;s names on the next step. Players claim their name when joining.
-                  Each round one person writes a quote — everyone else guesses who said it.
+                  Each round one person writes a quote and picks who said it — everyone else guesses.
                 </p>
               </SettingsGroup>
             )}

@@ -7,7 +7,7 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  const { playerId, roundId, gameId, quoteText } = await req.json()
+  const { playerId, roundId, gameId, quoteText, authorParticipantId } = await req.json()
 
   if (!playerId || !roundId || !gameId) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -21,10 +21,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Quote is too long (500 characters max)' }, { status: 400 })
   }
 
+  const authorId = typeof authorParticipantId === 'string' ? authorParticipantId.trim() : ''
+  if (!authorId) {
+    return NextResponse.json({ error: 'Pick who said it from the name list' }, { status: 400 })
+  }
+
   const [{ data: round }, { data: game }] = await Promise.all([
     supabase
       .from('rounds')
-      .select('id, status, submitter_player_id, quote_text, game_id')
+      .select('id, status, submitter_player_id, quote_text, quote_author_participant_id, participant_ids, game_id')
       .eq('id', roundId)
       .maybeSingle(),
     supabase.from('games').select('status, game_type').eq('id', gameId.toUpperCase()).maybeSingle(),
@@ -44,13 +49,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Quote already submitted for this round' }, { status: 400 })
   }
 
+  const roundIds = (round.participant_ids as string[]) ?? []
+  if (!roundIds.includes(authorId)) {
+    return NextResponse.json({ error: 'Pick a name from the game list' }, { status: 400 })
+  }
+
+  const { data: authorParticipant } = await supabase
+    .from('participants')
+    .select('id')
+    .eq('id', authorId)
+    .eq('game_id', gameId.toUpperCase())
+    .maybeSingle()
+
+  if (!authorParticipant) {
+    return NextResponse.json({ error: 'Invalid name — not on the list' }, { status: 400 })
+  }
+
   const now = new Date().toISOString()
   const { error } = await supabase
     .from('rounds')
-    .update({ quote_text: quote, quote_submitted_at: now })
+    .update({
+      quote_text: quote,
+      quote_author_participant_id: authorId,
+      quote_submitted_at: now,
+    })
     .eq('id', roundId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, quoteText: quote })
+  return NextResponse.json({ success: true, quoteText: quote, authorParticipantId: authorId })
 }

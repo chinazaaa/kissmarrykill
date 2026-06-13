@@ -36,7 +36,7 @@ import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/Fina
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { MltPlayerPicker } from '@/components/MltPlayerPicker'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
-import { wstVoteTargets, wstCorrectName, wstSubmitterName, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap, WyrChoice } from '@/types'
@@ -62,6 +62,7 @@ export default function GamePage() {
   const [wyrChoice, setWyrChoice] = useState<WyrChoice | null>(null)
   const [mltTargetPlayerId, setMltTargetPlayerId] = useState<string | null>(null)
   const [quoteInput, setQuoteInput] = useState('')
+  const [quoteAuthorParticipantId, setQuoteAuthorParticipantId] = useState<string | null>(null)
   const [quoteSubmitting, setQuoteSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [confessionText, setConfessionText] = useState('')
@@ -311,6 +312,7 @@ export default function GamePage() {
     setWyrChoice(null)
     setMltTargetPlayerId(null)
     setQuoteInput('')
+    setQuoteAuthorParticipantId(null)
     setQuoteSubmitting(false)
     setConfessionText('')
     setConfessionSent(false)
@@ -344,6 +346,7 @@ export default function GamePage() {
               setWyrChoice(null)
               setMltTargetPlayerId(null)
     setQuoteInput('')
+    setQuoteAuthorParticipantId(null)
     setQuoteSubmitting(false)
               setConfessionText('')
               setConfessionSent(false)
@@ -378,6 +381,7 @@ export default function GamePage() {
               setWyrChoice(null)
               setMltTargetPlayerId(null)
     setQuoteInput('')
+    setQuoteAuthorParticipantId(null)
     setQuoteSubmitting(false)
               setConfessionText('')
             setConfessionSent(false)
@@ -393,10 +397,16 @@ export default function GamePage() {
 
           if (round.status === 'active') {
             setCurrentRound((prev) => {
-              if (prev?.id === round.id && round.quote_text && prev.quote_text !== round.quote_text) {
+              if (
+                prev?.id === round.id &&
+                round.quote_text &&
+                (prev.quote_text !== round.quote_text ||
+                  prev.quote_author_participant_id !== round.quote_author_participant_id)
+              ) {
                 return {
                   ...prev,
                   quote_text: round.quote_text,
+                  quote_author_participant_id: round.quote_author_participant_id,
                   quote_submitted_at: round.quote_submitted_at,
                 }
               }
@@ -412,6 +422,7 @@ export default function GamePage() {
               setWyrChoice(null)
               setMltTargetPlayerId(null)
               setQuoteInput('')
+    setQuoteAuthorParticipantId(null)
               setQuoteSubmitting(false)
               setConfessionText('')
               setConfessionSent(false)
@@ -565,6 +576,7 @@ export default function GamePage() {
           setWyrChoice(null)
           setMltTargetPlayerId(null)
     setQuoteInput('')
+    setQuoteAuthorParticipantId(null)
     setQuoteSubmitting(false)
           setView('round')
         }
@@ -610,6 +622,7 @@ export default function GamePage() {
               setWyrChoice(null)
               setMltTargetPlayerId(null)
     setQuoteInput('')
+    setQuoteAuthorParticipantId(null)
     setQuoteSubmitting(false)
               setConfessionText('')
           setConfessionSent(false)
@@ -647,6 +660,24 @@ export default function GamePage() {
     const parsed = me ? playerVoteGenderForRound(me, participants) : null
     if (parsed) setMyPlayerGender(parsed)
   }, [myPlayerId, players, participants])
+
+  useEffect(() => {
+    if (view !== 'round' || !currentRound || !isWhoSaidThis(game?.game_type)) return
+    if (currentRound.quote_text) return
+    if (myPlayerId !== currentRound.submitter_player_id) return
+    if (quoteAuthorParticipantId) return
+    const me = players.find((p) => p.id === myPlayerId)
+    if (me?.participant_id) setQuoteAuthorParticipantId(me.participant_id)
+  }, [
+    view,
+    currentRound?.id,
+    currentRound?.quote_text,
+    currentRound?.submitter_player_id,
+    myPlayerId,
+    players,
+    game?.game_type,
+    quoteAuthorParticipantId,
+  ])
 
   // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
   useEffect(() => {
@@ -820,7 +851,7 @@ export default function GamePage() {
   const handleSubmitQuote = async () => {
     if (!currentRound || !myPlayerId || quoteSubmitting) return
     const text = quoteInput.trim()
-    if (!text) return
+    if (!text || !quoteAuthorParticipantId) return
     setQuoteSubmitting(true)
     try {
       const res = await fetch('/api/quote', {
@@ -831,6 +862,7 @@ export default function GamePage() {
           roundId: currentRound.id,
           gameId: gameCode,
           quoteText: text,
+          authorParticipantId: quoteAuthorParticipantId,
         }),
       })
       if (!res.ok) {
@@ -842,9 +874,11 @@ export default function GamePage() {
       setCurrentRound({
         ...currentRound,
         quote_text: data.quoteText ?? text,
+        quote_author_participant_id: data.authorParticipantId ?? quoteAuthorParticipantId,
         quote_submitted_at: new Date().toISOString(),
       })
       setQuoteInput('')
+      setQuoteAuthorParticipantId(null)
     } finally {
       setQuoteSubmitting(false)
     }
@@ -1222,21 +1256,38 @@ export default function GamePage() {
               <p className="text-muted text-sm">Everyone else is guessing who said it…</p>
             </div>
           ) : (
-            <div className="glass-card p-5 mb-6 space-y-3">
-              <p className="font-semibold text-body text-center">Write something someone in the group might say</p>
-              <textarea
-                value={quoteInput}
-                onChange={(e) => setQuoteInput(e.target.value)}
-                placeholder="e.g. Mark is ugly"
-                maxLength={500}
-                rows={3}
-                className="input-field resize-none"
-                disabled={quoteSubmitting}
-              />
+            <div className="glass-card p-5 mb-6 space-y-4">
+              <div className="space-y-2">
+                <p className="font-semibold text-body text-center">Write a quote</p>
+                <textarea
+                  value={quoteInput}
+                  onChange={(e) => setQuoteInput(e.target.value)}
+                  placeholder="e.g. Mark is ugly"
+                  maxLength={500}
+                  rows={3}
+                  className="input-field resize-none"
+                  disabled={quoteSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-faint text-xs uppercase tracking-wider text-center">Who said this?</p>
+                <NameSearchPicker
+                  options={targets.map((p) => ({ id: p.id, name: p.name }))}
+                  valueId={quoteAuthorParticipantId}
+                  onChange={(id) => setQuoteAuthorParticipantId(id)}
+                  searchPlaceholder="Search names…"
+                  emptyMessage="No names match"
+                  disabled={quoteSubmitting}
+                />
+              </div>
               <button
                 onClick={handleSubmitQuote}
-                disabled={!quoteInput.trim() || quoteSubmitting}
-                className={quoteInput.trim() ? 'btn-primary w-full' : 'btn-secondary w-full opacity-60 cursor-not-allowed'}
+                disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
+                className={
+                  quoteInput.trim() && quoteAuthorParticipantId
+                    ? 'btn-primary w-full'
+                    : 'btn-secondary w-full opacity-60 cursor-not-allowed'
+                }
               >
                 {quoteSubmitting ? 'Submitting…' : 'Submit Quote →'}
               </button>
@@ -1603,8 +1654,8 @@ export default function GamePage() {
     if (isWhoSaidThis(gameType) && game) {
       const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
       const targets = wstVoteTargets(participants)
-      const correctName = wstCorrectName(lastFinishedRound.submitter_player_id, players, participants)
-      const correctId = players.find((p) => p.id === lastFinishedRound.submitter_player_id)?.participant_id ?? null
+      const correctName = wstCorrectNameFromRound(lastFinishedRound, players, participants)
+      const correctId = wstCorrectParticipantIdFromRound(lastFinishedRound, players)
       const { rows, voterCount, maxCount, topGuesses, correctCount } = tallyWstVotes(
         lastRoundVotes,
         targets,
@@ -2018,8 +2069,8 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
 
         if (isWst) {
           const targets = wstVoteTargets(participants)
-          const correctName = wstCorrectName(round.submitter_player_id, players, participants)
-          const correctId = players.find((p) => p.id === round.submitter_player_id)?.participant_id ?? null
+          const correctName = wstCorrectNameFromRound(round, players, participants)
+          const correctId = wstCorrectParticipantIdFromRound(round, players)
           const { rows, voterCount, maxCount, topGuesses, correctCount } = tallyWstVotes(
             roundVotes,
             targets,

@@ -72,6 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       participant_ids: participantIds,
       submitter_player_id: submitter.id,
       quote_text: null,
+      quote_author_participant_id: null,
       quote_submitted_at: null,
       status: index === 0 ? 'active' : 'pending',
       started_at: index === 0 ? now : null,

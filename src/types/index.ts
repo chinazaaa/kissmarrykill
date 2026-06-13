@@ -67,6 +67,7 @@ export interface Round {
   mlt_question: string | null
   submitter_player_id: string | null
   quote_text: string | null
+  quote_author_participant_id: string | null
   quote_submitted_at: string | null
   status: RoundStatus
   started_at: string | null

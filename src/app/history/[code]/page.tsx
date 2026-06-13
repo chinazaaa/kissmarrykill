@@ -7,7 +7,7 @@ import { roundGenderLabel } from '@/lib/participants'
 import { assignmentEmojiFor, tallyRoundVotes, getVoteCategories, flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { parseGameType, slotMeta, voteSlots, isPairGame, isWouldYouRather, isMostLikelyTo, isWhoSaidThis } from '@/lib/game-types'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
-import { wstVoteTargets, wstCorrectName, tallyWstVotes } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, tallyWstVotes } from '@/lib/who-said-this'
 import { ParticipantRoundResults, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
 import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
 
@@ -230,8 +230,8 @@ export default function GameHistoryPage() {
                 ) : isWhoSaidThis(gameType) ? (
                   (() => {
                     const targets = wstVoteTargets(participants)
-                    const correctName = wstCorrectName(round.submitter_player_id, players, participants)
-                    const correctId = players.find((p) => p.id === round.submitter_player_id)?.participant_id ?? null
+                    const correctName = wstCorrectNameFromRound(round, players, participants)
+                    const correctId = wstCorrectParticipantIdFromRound(round, players)
                     const wstTally = tallyWstVotes(roundVotes, targets, correctId)
                     return (
                       <WstRoundResults

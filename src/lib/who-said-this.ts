@@ -20,6 +20,24 @@ export function wstCorrectParticipantId(submitterPlayerId: string | null | undef
   return players.find((p) => p.id === submitterPlayerId)?.participant_id ?? null
 }
 
+export function wstCorrectParticipantIdFromRound(
+  round: { quote_author_participant_id?: string | null; submitter_player_id?: string | null },
+  players: Player[]
+): string | null {
+  if (round.quote_author_participant_id) return round.quote_author_participant_id
+  return wstCorrectParticipantId(round.submitter_player_id, players)
+}
+
+export function wstCorrectNameFromRound(
+  round: { quote_author_participant_id?: string | null; submitter_player_id?: string | null },
+  players: Player[],
+  participants: Participant[]
+): string | null {
+  const participantId = wstCorrectParticipantIdFromRound(round, players)
+  if (!participantId) return null
+  return participants.find((p) => p.id === participantId)?.name ?? null
+}
+
 export function wstCorrectName(
   submitterPlayerId: string | null | undefined,
   players: Player[],
@@ -101,7 +119,7 @@ export interface WstPlayerScore {
 
 /** Points for picking the right name each round. */
 export function tallyWstPlayerScores(
-  rounds: { id: string; submitter_player_id?: string | null }[],
+  rounds: { id: string; quote_author_participant_id?: string | null; submitter_player_id?: string | null }[],
   votes: Vote[],
   players: Player[]
 ): WstPlayerScore[] {
@@ -109,7 +127,7 @@ export function tallyWstPlayerScores(
   for (const p of players) scores.set(p.id, 0)
 
   for (const round of rounds) {
-    const correctId = wstCorrectParticipantId(round.submitter_player_id, players)
+    const correctId = wstCorrectParticipantIdFromRound(round, players)
     if (!correctId) continue
     const roundVotes = votes.filter((v) => v.round_id === round.id)
     for (const vote of roundVotes) {

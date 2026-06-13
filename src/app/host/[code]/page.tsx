@@ -11,7 +11,7 @@ import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
 import { questionPoolCap, parseQuestionSource, customQuestionCount } from '@/lib/custom-questions'
-import { wstVoteTargets, wstCorrectName, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores } from '@/lib/who-said-this'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -1499,8 +1499,8 @@ export default function HostPage() {
         {isWst ? (
           (() => {
             const targets = wstVoteTargets(participants)
-            const correctName = wstCorrectName(lastFinishedRound.submitter_player_id, players, participants)
-            const correctId = players.find((p) => p.id === lastFinishedRound.submitter_player_id)?.participant_id ?? null
+            const correctName = wstCorrectNameFromRound(lastFinishedRound, players, participants)
+            const correctId = wstCorrectParticipantIdFromRound(lastFinishedRound, players)
             const wstTally = tallyWstVotes(roundVotes, targets, correctId)
             return (
               <WstRoundResults
@@ -1687,8 +1687,8 @@ export default function HostPage() {
             {allRounds.map((round) => {
               const roundVotes = votes.filter((v) => v.round_id === round.id)
               const targets = wstVoteTargets(participants)
-              const correctName = wstCorrectName(round.submitter_player_id, players, participants)
-              const correctId = players.find((p) => p.id === round.submitter_player_id)?.participant_id ?? null
+              const correctName = wstCorrectNameFromRound(round, players, participants)
+              const correctId = wstCorrectParticipantIdFromRound(round, players)
               const { rows, voterCount, maxCount, topGuesses, correctCount } = tallyWstVotes(
                 roundVotes,
                 targets,

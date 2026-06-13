@@ -79,6 +79,7 @@ create table if not exists rounds (
   mlt_question text,
   submitter_player_id uuid references players(id),
   quote_text text,
+  quote_author_participant_id uuid references participants(id),
   quote_submitted_at timestamptz,
   status text not null default 'pending',
   started_at timestamptz,
@@ -116,7 +117,7 @@ create index if not exists idx_votes_round_id on votes(round_id);
 -- alter table participants add column if not exists in_mlt_poll boolean not null default false;
 -- alter table rounds add column if not exists submitter_player_id uuid references players(id);
 -- alter table rounds add column if not exists quote_text text;
--- alter table rounds add column if not exists quote_submitted_at timestamptz;
+-- alter table rounds add column if not exists quote_author_participant_id uuid references participants(id);
 
 -- Confessions (anonymous post-round messages)
 create table if not exists confessions (
