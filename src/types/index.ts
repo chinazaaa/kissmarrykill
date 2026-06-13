@@ -36,6 +36,7 @@ export interface Game {
   status: GameStatus
   current_round_number: number
   created_at: string
+  wst_quote_source?: WstQuoteSource
 }
 
 export interface Participant {
@@ -78,6 +79,7 @@ export interface Round {
   status: RoundStatus
   started_at: string | null
   ended_at: string | null
+  anime_metadata?: AnimeMetadata | null
 }
 
 export type PairFlag = 'kiss' | 'kill'
@@ -95,6 +97,7 @@ export interface Vote {
   wyr_choice: WyrChoice | null
   target_player_id: string | null
   target_participant_id: string | null
+  anime_choice?: string | null
   created_at: string
 }
 
@@ -122,3 +125,23 @@ export interface WstQuotePoolEntry {
   created_at: string
   updated_at: string
 }
+
+export interface AnimeMetadata {
+  source: 'anime'
+  anime_name: string
+  correct_character: string
+  choices: string[]
+}
+
+export interface AnimeQuotePoolEntry {
+  id: string
+  game_id: string
+  quote_text: string
+  anime_name: string
+  correct_character: string
+  choices: string[]
+  removed: boolean
+  created_at: string
+}
+
+export type WstQuoteSource = 'player' | 'anime' | 'both'
