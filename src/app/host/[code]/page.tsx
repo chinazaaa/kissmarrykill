@@ -82,6 +82,7 @@ import type {
   AnimeQuotePoolEntry,
 } from '@/types'
 import { parseThemeId, THEME_MAP } from '@/lib/themes'
+import { SegmentedControl } from '@/components/ui/CreateWizard'
 
 export default function HostPage() {
   const { code } = useParams<{ code: string }>()
@@ -1014,7 +1015,9 @@ export default function HostPage() {
       ? participants
       : isMltImport
         ? participants
-        : participantsWhoJoined(participants, players)
+        : game.participant_filter === 'all'
+          ? participants
+          : participantsWhoJoined(participants, players)
     const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
     const lobbyQuestionMax =
@@ -1316,11 +1319,32 @@ export default function HostPage() {
               {players.length}
             </span>
           </div>
+          {!isJoinersMode && !isMltImport && !isWyr && !isMlt && !isWst && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted shrink-0">Rounds include:</span>
+              <SegmentedControl
+                value={game.participant_filter ?? 'all'}
+                onChange={async (v: string) => {
+                  await fetch(`/api/games/${game.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hostToken, participant_filter: v }),
+                  })
+                }}
+                options={[
+                  { value: 'all', label: 'Everyone' },
+                  { value: 'joined', label: 'Joined only' },
+                ]}
+              />
+            </div>
+          )}
           {!isJoinersMode && (
             <p className="text-faint text-xs">
               {isMltImport
                 ? `${players.length} of ${participants.length} voters joined — all names appear in rounds`
-                : `${roundParticipants.length} of ${participants.length} on the list have joined — only joined names appear in rounds`}
+                : game.participant_filter === 'all'
+                  ? `All ${participants.length} names will appear in rounds`
+                  : `${roundParticipants.length} of ${participants.length} on the list have joined — only joined names appear in rounds`}
             </p>
           )}
           {!isJoinersMode && (

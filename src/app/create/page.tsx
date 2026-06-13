@@ -69,6 +69,7 @@ interface Settings {
   pair_vote_mode: PairVoteMode
   game_type: GameType
   theme: ThemeId
+  participant_filter: 'all' | 'joined'
 }
 
 type Step = 'settings' | 'participants' | 'done'
@@ -93,6 +94,7 @@ function CreateGameInner() {
     pair_vote_mode: 'any',
     game_type: 'smash_marry_kill',
     theme: 'default',
+    participant_filter: 'all' as 'all' | 'joined',
   })
   const [participants, setParticipants] = useState<ParticipantInput[]>([])
   const [nameInput, setNameInput] = useState('')
@@ -727,6 +729,19 @@ function CreateGameInner() {
                   value={settings.participant_mode}
                   onChange={(mode) => setSettings({ ...settings, participant_mode: mode })}
                   options={participantModeOptions(settings.game_type)}
+                />
+              </SettingsGroup>
+            )}
+
+            {settings.participant_mode === 'import' && !isWyr && !isWst && (
+              <SettingsGroup title="Who appears in rounds">
+                <SegmentedControl
+                  value={settings.participant_filter}
+                  onChange={(v) => setSettings({ ...settings, participant_filter: v })}
+                  options={[
+                    { value: 'all', label: 'Everyone on the list' },
+                    { value: 'joined', label: 'Only people who join' },
+                  ]}
                 />
               </SettingsGroup>
             )}
