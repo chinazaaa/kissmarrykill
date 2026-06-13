@@ -52,9 +52,19 @@ export function winnerNames(
 
 export const VOTE_CATEGORY_META: Record<
   VoteCategory,
-  { emoji: string; label: string; color: string }
+  { emoji: string; label: string; color: string; leaderboardLabel: string }
 > = {
-  kiss: { emoji: '❤️', label: 'Kiss', color: '#f472b6' },
-  marry: { emoji: '💍', label: 'Marry', color: '#fbbf24' },
-  smash: { emoji: '💀', label: 'Smash', color: '#f87171' },
+  kiss: { emoji: '🔥', label: 'Smash', color: '#fb923c', leaderboardLabel: 'Most Smashed' },
+  marry: { emoji: '💍', label: 'Marry', color: '#fbbf24', leaderboardLabel: 'Most Married' },
+  smash: { emoji: '💀', label: 'Kill', color: '#f87171', leaderboardLabel: 'Most Killed' },
+}
+
+export const ASSIGNMENT_ACTION_META = {
+  kiss: VOTE_CATEGORY_META.kiss,
+  marry: VOTE_CATEGORY_META.marry,
+  kill: VOTE_CATEGORY_META.smash,
+} as const
+
+export function assignmentEmoji(action: keyof typeof ASSIGNMENT_ACTION_META): string {
+  return ASSIGNMENT_ACTION_META[action].emoji
 }

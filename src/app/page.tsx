@@ -16,13 +16,13 @@ export default function Home() {
       <div className="relative z-10 text-center space-y-8 max-w-md w-full">
         <div className="space-y-4">
           <div className="inline-flex items-center gap-3 rounded-full glass-card px-5 py-2 text-2xl">
-            <span>❤️</span>
+            <span>🔥</span>
             <span>💍</span>
             <span>💀</span>
           </div>
           <div className="space-y-2">
             <h1 className="text-5xl sm:text-6xl font-black tracking-tight gradient-title">
-              Kiss Marry Smash
+              Smash Marry Kill
             </h1>
             <p className="text-muted text-lg">The party game that reveals everything</p>
           </div>

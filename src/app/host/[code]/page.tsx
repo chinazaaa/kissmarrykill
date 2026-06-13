@@ -537,9 +537,9 @@ export default function HostPage() {
                   <div key={p.id} className="glass-card px-4 py-3 flex items-center gap-4">
                     <p className="text-white font-semibold w-24 truncate">{p.name}</p>
                     <div className="flex gap-3 text-sm">
-                      <span className="text-pink-400">❤️ {k}</span>
-                      <span className="text-amber-400">💍 {m}</span>
-                      <span className="text-red-400">💀 {d}</span>
+                      <span className="text-orange-400">{VOTE_CATEGORY_META.kiss.emoji} {k}</span>
+                      <span className="text-amber-400">{VOTE_CATEGORY_META.marry.emoji} {m}</span>
+                      <span className="text-red-400">{VOTE_CATEGORY_META.smash.emoji} {d}</span>
                     </div>
                   </div>
                 )
@@ -674,11 +674,11 @@ export default function HostPage() {
       killCount:  votes.filter((v) => v.kill_participant_id  === p.id).length,
     }))
     const mostMarried = [...tally].sort((a, b) => b.marryCount - a.marryCount)[0]
-    const mostKissed  = [...tally].sort((a, b) => b.kissCount  - a.kissCount)[0]
-    const mostSmashed = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
-    const maxKiss = Math.max(1, ...tally.map((p) => p.kissCount))
+    const mostSmashed = [...tally].sort((a, b) => b.kissCount - a.kissCount)[0]
+    const mostKilled  = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
+    const maxSmash = Math.max(1, ...tally.map((p) => p.kissCount))
     const maxMarry = Math.max(1, ...tally.map((p) => p.marryCount))
-    const maxSmash = Math.max(1, ...tally.map((p) => p.killCount))
+    const maxKill = Math.max(1, ...tally.map((p) => p.killCount))
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -690,9 +690,9 @@ export default function HostPage() {
 
         {/* Top 3 */}
         <div className="grid grid-cols-3 gap-3">
-          <StatCard emoji="💍" label="Most Married" name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
-          <StatCard emoji="❤️" label="Most Kissed"  name={mostKissed?.name}  count={mostKissed?.kissCount}  color="pink" />
-          <StatCard emoji="💀" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red" />
+          <StatCard emoji={VOTE_CATEGORY_META.kiss.emoji} label={VOTE_CATEGORY_META.kiss.leaderboardLabel} name={mostSmashed?.name} count={mostSmashed?.kissCount} color="pink" />
+          <StatCard emoji={VOTE_CATEGORY_META.marry.emoji} label={VOTE_CATEGORY_META.marry.leaderboardLabel} name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
+          <StatCard emoji={VOTE_CATEGORY_META.smash.emoji} label={VOTE_CATEGORY_META.smash.leaderboardLabel} name={mostKilled?.name} count={mostKilled?.killCount} color="red" />
         </div>
 
         {/* Full breakdown */}
@@ -706,9 +706,9 @@ export default function HostPage() {
                 <p className="text-white font-bold text-lg">{p.name}</p>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <VoteCountStat emoji="❤️" label="Kiss" count={p.kissCount} max={maxKiss} color="#f472b6" isWinner={p.kissCount === maxKiss && maxKiss > 0} />
-                <VoteCountStat emoji="💍" label="Marry" count={p.marryCount} max={maxMarry} color="#fbbf24" isWinner={p.marryCount === maxMarry && maxMarry > 0} />
-                <VoteCountStat emoji="💀" label="Smash" count={p.killCount} max={maxSmash} color="#f87171" isWinner={p.killCount === maxSmash && maxSmash > 0} />
+                <VoteCountStat emoji={VOTE_CATEGORY_META.kiss.emoji} label={VOTE_CATEGORY_META.kiss.label} count={p.kissCount} max={maxSmash} color={VOTE_CATEGORY_META.kiss.color} isWinner={p.kissCount === maxSmash && maxSmash > 0} />
+                <VoteCountStat emoji={VOTE_CATEGORY_META.marry.emoji} label={VOTE_CATEGORY_META.marry.label} count={p.marryCount} max={maxMarry} color={VOTE_CATEGORY_META.marry.color} isWinner={p.marryCount === maxMarry && maxMarry > 0} />
+                <VoteCountStat emoji={VOTE_CATEGORY_META.smash.emoji} label={VOTE_CATEGORY_META.smash.label} count={p.killCount} max={maxKill} color={VOTE_CATEGORY_META.smash.color} isWinner={p.killCount === maxKill && maxKill > 0} />
               </div>
             </div>
           ))}

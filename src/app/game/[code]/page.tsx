@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import { roundGenderLabel } from '@/lib/participants'
-import { tallyRoundVotes, VOTE_CATEGORY_META } from '@/lib/vote-stats'
+import { tallyRoundVotes, VOTE_CATEGORY_META, ASSIGNMENT_ACTION_META, assignmentEmoji } from '@/lib/vote-stats'
 import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
 import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession } from '@/types'
 
@@ -480,7 +480,7 @@ export default function GamePage() {
     return (
       <CenteredCard>
         <div className="text-center space-y-1">
-          <div className="text-4xl">❤️💍💀</div>
+          <div className="text-4xl">🔥💍💀</div>
           <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
           <p className="text-muted text-sm">{game?.rounds_count} rounds · {game?.timer_seconds}s each</p>
         </div>
@@ -642,17 +642,17 @@ export default function GamePage() {
             <div className="flex gap-4 flex-wrap">
               {myVote.kiss_participant_id && (
                 <span className="text-pink-300 text-sm font-medium">
-                  ❤️ {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}
+                  {assignmentEmoji('kiss')} {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}
                 </span>
               )}
               {myVote.marry_participant_id && (
                 <span className="text-amber-300 text-sm font-medium">
-                  💍 {participants.find((p) => p.id === myVote.marry_participant_id)?.name}
+                  {assignmentEmoji('marry')} {participants.find((p) => p.id === myVote.marry_participant_id)?.name}
                 </span>
               )}
               {myVote.kill_participant_id && (
                 <span className="text-red-300 text-sm font-medium">
-                  💀 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}
+                  {assignmentEmoji('kill')} {participants.find((p) => p.id === myVote.kill_participant_id)?.name}
                 </span>
               )}
             </div>
@@ -693,7 +693,7 @@ export default function GamePage() {
                       <p className="text-white font-bold text-lg">{name}</p>
                       {myAction && (
                         <span className="ml-auto text-xs text-muted italic">
-                          you: {myAction === 'kiss' ? '❤️' : myAction === 'marry' ? '💍' : '💀'}
+                          you: {myAction ? assignmentEmoji(myAction) : ''}
                         </span>
                       )}
                     </div>
@@ -764,9 +764,9 @@ export default function GamePage() {
 // ── Sub-components ────────────────────────────────────────────────────────
 
 const ACTION_CONFIG = {
-  kiss:  { emoji: '❤️', label: 'Kiss',  border: 'border-[var(--kiss)]/50 bg-[var(--kiss)]/10',  active: 'bg-[var(--kiss)]/20 text-rose-200 border-[var(--kiss)]'  },
-  marry: { emoji: '💍', label: 'Marry', border: 'border-[var(--marry)]/50 bg-[var(--marry)]/10', active: 'bg-[var(--marry)]/20 text-amber-100 border-[var(--marry)]' },
-  kill:  { emoji: '💀', label: 'Smash', border: 'border-[var(--kill)]/50 bg-[var(--kill)]/10',  active: 'bg-[var(--kill)]/20 text-red-200 border-[var(--kill)]'   },
+  kiss:  { emoji: ASSIGNMENT_ACTION_META.kiss.emoji,  label: ASSIGNMENT_ACTION_META.kiss.label,  border: 'border-[var(--kiss)]/50 bg-[var(--kiss)]/10',  active: 'bg-[var(--kiss)]/20 text-orange-200 border-[var(--kiss)]'  },
+  marry: { emoji: ASSIGNMENT_ACTION_META.marry.emoji, label: ASSIGNMENT_ACTION_META.marry.label, border: 'border-[var(--marry)]/50 bg-[var(--marry)]/10', active: 'bg-[var(--marry)]/20 text-amber-100 border-[var(--marry)]' },
+  kill:  { emoji: ASSIGNMENT_ACTION_META.kill.emoji,  label: ASSIGNMENT_ACTION_META.kill.label,  border: 'border-[var(--kill)]/50 bg-[var(--kill)]/10',  active: 'bg-[var(--kill)]/20 text-red-200 border-[var(--kill)]'   },
 }
 
 function ParticipantCard({ participant, action, onAssign, disabled }: {
@@ -785,7 +785,7 @@ function ParticipantCard({ participant, action, onAssign, disabled }: {
         <div>
           <p className="text-white font-bold text-lg leading-tight">{participant.name}</p>
           {action && (
-            <p className="text-sm font-medium" style={{ color: action === 'kiss' ? '#f9a8d4' : action === 'marry' ? '#fcd34d' : '#fca5a5' }}>
+            <p className="text-sm font-medium" style={{ color: action === 'kiss' ? '#fdba74' : action === 'marry' ? '#fcd34d' : '#fca5a5' }}>
               {ACTION_CONFIG[action].emoji} {ACTION_CONFIG[action].label}
             </p>
           )}
@@ -848,8 +848,8 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
   }))
 
   const mostMarried = [...tally].sort((a, b) => b.marryCount - a.marryCount)[0]
-  const mostKissed  = [...tally].sort((a, b) => b.kissCount  - a.kissCount)[0]
-    const mostSmashed = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
+  const mostSmashed = [...tally].sort((a, b) => b.kissCount - a.kissCount)[0]
+  const mostKilled  = [...tally].sort((a, b) => b.killCount  - a.killCount)[0]
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -863,9 +863,9 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
       <div>
         <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Leaderboard</h2>
         <div className="grid grid-cols-3 gap-3">
-          <LeaderCard emoji="💍" label="Most Married" name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
-          <LeaderCard emoji="❤️" label="Most Kissed"  name={mostKissed?.name}  count={mostKissed?.kissCount}  color="pink"  />
-          <LeaderCard emoji="💀" label="Most Smashed" name={mostSmashed?.name} count={mostSmashed?.killCount} color="red"   />
+          <LeaderCard emoji={VOTE_CATEGORY_META.kiss.emoji} label={VOTE_CATEGORY_META.kiss.leaderboardLabel} name={mostSmashed?.name} count={mostSmashed?.kissCount} color="pink" />
+          <LeaderCard emoji={VOTE_CATEGORY_META.marry.emoji} label={VOTE_CATEGORY_META.marry.leaderboardLabel} name={mostMarried?.name} count={mostMarried?.marryCount} color="amber" />
+          <LeaderCard emoji={VOTE_CATEGORY_META.smash.emoji} label={VOTE_CATEGORY_META.smash.leaderboardLabel} name={mostKilled?.name} count={mostKilled?.killCount} color="red" />
         </div>
       </div>
 
@@ -881,9 +881,9 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
             {myVote && (
               <div className="glass-card border border-[var(--primary)]/25 px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
                 <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
-                {myVote.kiss_participant_id  && <span className="text-pink-300 text-sm">❤️ {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}</span>}
-                {myVote.marry_participant_id && <span className="text-amber-300 text-sm">💍 {participants.find((p) => p.id === myVote.marry_participant_id)?.name}</span>}
-                {myVote.kill_participant_id  && <span className="text-red-300 text-sm">💀 {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
+                {myVote.kiss_participant_id  && <span className="text-orange-300 text-sm">{assignmentEmoji('kiss')} {participants.find((p) => p.id === myVote.kiss_participant_id)?.name}</span>}
+                {myVote.marry_participant_id && <span className="text-amber-300 text-sm">{assignmentEmoji('marry')} {participants.find((p) => p.id === myVote.marry_participant_id)?.name}</span>}
+                {myVote.kill_participant_id  && <span className="text-red-300 text-sm">{assignmentEmoji('kill')} {participants.find((p) => p.id === myVote.kill_participant_id)?.name}</span>}
               </div>
             )}
             <div className="space-y-4">
