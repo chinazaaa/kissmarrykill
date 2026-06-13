@@ -16,6 +16,7 @@ interface MltPlayerPickerProps {
   selectedId: string | null
   onSelect: (id: string) => void
   disabled?: boolean
+  selfId?: string | null
 }
 
 export function MltPlayerPicker({
@@ -23,20 +24,27 @@ export function MltPlayerPicker({
   selectedId,
   onSelect,
   disabled = false,
+  selfId = null,
 }: MltPlayerPickerProps) {
   const sorted = useMemo(
     () => [...players].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
     [players]
   )
 
+  const displayName = (p: MltPlayerOption) =>
+    selfId && p.id === selfId ? `${p.name} (you)` : p.name
+
   if (sorted.length === 0) {
-    return <p className="text-faint text-sm text-center py-4">No one else to vote for yet</p>
+    return <p className="text-faint text-sm text-center py-4">No players in the game yet</p>
   }
 
   if (sorted.length > MLT_PICKER_SEARCH_THRESHOLD) {
     return (
       <NameSearchPicker
-        options={sorted}
+        options={sorted.map((p) => ({
+          id: p.id,
+          name: displayName(p),
+        }))}
         valueId={selectedId}
         onChange={(id) => !disabled && onSelect(id)}
         searchPlaceholder="Search for someone…"
@@ -68,7 +76,7 @@ export function MltPlayerPicker({
             } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             <div className="avatar w-8 h-8 text-sm shrink-0">{getInitial(p.name)}</div>
-            <span className="font-medium truncate">{p.name}</span>
+            <span className="font-medium truncate">{displayName(p)}</span>
           </button>
         )
       })}

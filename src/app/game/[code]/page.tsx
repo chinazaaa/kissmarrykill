@@ -614,11 +614,8 @@ export default function GamePage() {
       if (isWouldYouRather(gameType)) {
         wyr = Math.random() < 0.5 ? 'a' : 'b'
       } else if (isMostLikelyTo(gameType)) {
-        const others = plrs.filter((p) => p.id !== pid)
-        if (others.length > 0) {
-          mltTarget = others[Math.floor(Math.random() * others.length)].id
-        } else if (plrs.length > 0) {
-          mltTarget = plrs[0].id
+        if (plrs.length > 0) {
+          mltTarget = plrs[Math.floor(Math.random() * plrs.length)].id
         }
       } else if (isPairGame(gameType)) {
         for (const p of roundParts) {
@@ -635,7 +632,7 @@ export default function GamePage() {
     const voteBody = isWouldYouRather(gameType)
       ? { wyrChoice: wyr ?? (Math.random() < 0.5 ? 'a' : 'b') }
       : isMostLikelyTo(gameType)
-      ? { targetPlayerId: mltTarget ?? plrs.find((p) => p.id !== pid)?.id ?? plrs[0]?.id }
+      ? { targetPlayerId: mltTarget ?? plrs[0]?.id }
       : isPairGame(gameType)
       ? {
           pairAssignments: Object.fromEntries(
@@ -1001,7 +998,7 @@ export default function GamePage() {
     const gameType = parseGameType(game?.game_type)
     const question = currentRound.mlt_question ?? ''
     const canVote = !!myPlayerId
-    const voteTargets = players.filter((p) => p.id !== myPlayerId)
+    const voteTargets = players
     const borderCls = mltTargetPlayerId ? 'border-amber-500/40' : 'border-white/10'
 
     return (
@@ -1029,6 +1026,7 @@ export default function GamePage() {
             selectedId={mltTargetPlayerId}
             onSelect={setMltTargetPlayerId}
             disabled={submitted || !canVote}
+            selfId={myPlayerId}
           />
         </div>
 
