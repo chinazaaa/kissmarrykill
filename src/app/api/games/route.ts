@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     game_type: rawGameType,
     theme: rawTheme,
     participants: rawParticipants,
+    participant_filter,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -179,6 +180,7 @@ export async function POST(req: NextRequest) {
     auto_reveal: auto_reveal !== false,
     auto_submit_behavior: auto_submit_behavior === 'random' ? 'random' : 'no_answer',
     participant_mode,
+    participant_filter: participant_filter === 'joined' ? 'joined' : 'all',
     pair_vote_mode: isPairGame(game_type) ? parsePairVoteMode(rawPairVoteMode) : 'any',
     question_source: isWouldYouRather(game_type) || isMostLikelyTo(game_type) ? question_source : 'platform',
     custom_questions,
