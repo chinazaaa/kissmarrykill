@@ -1026,7 +1026,9 @@ export default function GamePage() {
             {allAssigned
               ? 'Submit Vote ✓'
               : isPair
-                ? `Rate both (${assignProgress}/${assignTarget})`
+                ? gameType === 'smash_or_pass'
+                  ? `Pick for both (${assignProgress}/${assignTarget})`
+                  : `Rate both (${assignProgress}/${assignTarget})`
                 : `Assign all ${assignTarget} (${assignProgress}/${assignTarget})`}
           </button>
         ) : (

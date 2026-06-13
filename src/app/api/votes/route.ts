@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (isPairGame(gameType)) {
     const pairAssignments = parsePairAssignments(rawPairAssignments)
     if (!pairAssignments || !isPairAssignmentComplete(pairAssignments, roundIds)) {
-      return NextResponse.json({ error: 'Pick a flag for each person' }, { status: 400 })
+      return NextResponse.json({ error: 'Pick an option for each person' }, { status: 400 })
     }
     for (const id of roundIds) {
       const flag = pairAssignments[id]

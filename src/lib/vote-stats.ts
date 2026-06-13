@@ -116,6 +116,6 @@ export function myActionBorderClass(
   }
   if (action === 'marry') return 'border-amber-500/40'
   if (type === 'red_flag_green_flag') return 'border-red-500/40'
-  if (type === 'smash_or_pass') return 'border-white/25'
+  if (type === 'smash_or_pass') return 'border-slate-400/40'
   return 'border-red-500/40'
 }

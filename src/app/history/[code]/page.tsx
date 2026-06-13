@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { roundGenderLabel } from '@/lib/participants'
 import { assignmentEmojiFor, tallyRoundVotes, getVoteCategories, flagForParticipant } from '@/lib/vote-stats'
 import { parseGameType, slotMeta, voteSlots, isPairGame } from '@/lib/game-types'
+import { ParticipantRoundResults } from '@/components/VoteResults'
 import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
@@ -196,49 +197,68 @@ export default function GameHistoryPage() {
                   </p>
                 </div>
 
-                {!game.anonymous ? (
+                {isPairGame(gameType) ? (
+                  <>
+                    <ParticipantRoundResults
+                      gameType={gameType}
+                      tallies={tallies}
+                      nameById={new Map(roundParts.map((p) => [p.id, p.name]))}
+                      voterCount={roundVotes.length}
+                      participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
+                    />
+                    {!game.anonymous && (
+                      <details className="text-faint text-xs">
+                        <summary className="cursor-pointer hover:text-white/70 transition-colors">
+                          Who voted what
+                        </summary>
+                        <div className="mt-2 glass-card overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-[24rem]">
+                              <thead>
+                                <tr className="border-b border-white/10 text-left">
+                                  <th className="px-4 py-3 text-faint text-xs uppercase tracking-wider font-medium">
+                                    Voter
+                                  </th>
+                                  {roundParts.map((p) => (
+                                    <th key={p.id} className="px-4 py-3 text-center text-xs font-medium w-24">
+                                      {p.name}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {roundVotes.map((vote) => (
+                                  <tr key={vote.id} className="border-b border-white/5 last:border-0">
+                                    <td className="px-4 py-3 font-medium text-white/90">
+                                      {playerNameById.get(vote.player_id) ?? 'Unknown'}
+                                    </td>
+                                    {roundParts.map((p) => {
+                                      const flag = flagForParticipant(vote, p.id)
+                                      const meta = flag ? slotMeta(gameType, flag) : null
+                                      return (
+                                        <td key={p.id} className="px-4 py-3 text-center">
+                                          {meta ? (
+                                            <span title={meta.label} style={{ color: meta.textColor }}>
+                                              {meta.emoji} {meta.label}
+                                            </span>
+                                          ) : (
+                                            '—'
+                                          )}
+                                        </td>
+                                      )
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </details>
+                    )}
+                  </>
+                ) : !game.anonymous ? (
                   <div className="glass-card overflow-hidden">
                     <div className="overflow-x-auto">
-                      {isPairGame(gameType) ? (
-                        <table className="w-full text-sm min-w-[24rem]">
-                          <thead>
-                            <tr className="border-b border-white/10 text-left">
-                              <th className="px-4 py-3 text-faint text-xs uppercase tracking-wider font-medium">
-                                Voter
-                              </th>
-                              {roundParts.map((p) => (
-                                <th key={p.id} className="px-4 py-3 text-center text-xs font-medium w-24">
-                                  {p.name}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {roundVotes.map((vote) => (
-                              <tr key={vote.id} className="border-b border-white/5 last:border-0">
-                                <td className="px-4 py-3 font-medium text-white/90">
-                                  {playerNameById.get(vote.player_id) ?? 'Unknown'}
-                                </td>
-                                {roundParts.map((p) => {
-                                  const flag = flagForParticipant(vote, p.id)
-                                  const meta = flag ? slotMeta(gameType, flag) : null
-                                  return (
-                                    <td key={p.id} className="px-4 py-3 text-center">
-                                      {meta ? (
-                                        <span title={meta.label} style={{ color: meta.textColor }}>
-                                          {meta.emoji} {meta.label}
-                                        </span>
-                                      ) : (
-                                        '—'
-                                      )}
-                                    </td>
-                                  )
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : (
                       <table className={`w-full text-sm ${voteColumns.length === 2 ? 'min-w-[24rem]' : 'min-w-[32rem]'}`}>
                         <thead>
                           <tr className="border-b border-white/10 text-left">
@@ -267,7 +287,6 @@ export default function GameHistoryPage() {
                           ))}
                         </tbody>
                       </table>
-                      )}
                     </div>
                   </div>
                 ) : (
@@ -305,7 +324,7 @@ export default function GameHistoryPage() {
                   </div>
                 )}
 
-                {!game.anonymous && (
+                {!game.anonymous && !isPairGame(gameType) && (
                   <details className="text-faint text-xs">
                     <summary className="cursor-pointer hover:text-white/70 transition-colors">
                       Round totals

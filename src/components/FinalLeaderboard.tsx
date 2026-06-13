@@ -1,6 +1,7 @@
 import type { GameType, Participant, Round, Vote } from '@/types'
 import { participantsInGenderRounds, genderLabel } from '@/lib/participants'
-import { getCategoryMeta, getVoteCategories } from '@/lib/vote-stats'
+import { isPairGame } from '@/lib/game-types'
+import { flagForParticipant, getCategoryMeta, getVoteCategories } from '@/lib/vote-stats'
 import { VoteCountStat } from '@/components/VoteResults'
 import { getInitial } from '@/lib/utils'
 
@@ -12,13 +13,18 @@ type TallyRow = {
   killCount: number
 }
 
-function buildTally(participants: Participant[], votes: Vote[]): TallyRow[] {
+function buildTally(participants: Participant[], votes: Vote[], gameType?: GameType | string): TallyRow[] {
+  const pairGame = isPairGame(gameType)
   return participants.map((p) => ({
     id: p.id,
     name: p.name,
-    kissCount: votes.filter((v) => v.kiss_participant_id === p.id).length,
+    kissCount: pairGame
+      ? votes.filter((v) => flagForParticipant(v, p.id) === 'kiss').length
+      : votes.filter((v) => v.kiss_participant_id === p.id).length,
     marryCount: votes.filter((v) => v.marry_participant_id === p.id).length,
-    killCount: votes.filter((v) => v.kill_participant_id === p.id).length,
+    killCount: pairGame
+      ? votes.filter((v) => flagForParticipant(v, p.id) === 'kill').length
+      : votes.filter((v) => v.kill_participant_id === p.id).length,
   }))
 }
 
@@ -45,7 +51,7 @@ export function FinalGenderLeaderboards({
     { gender: 'female' as const, title: "Women's leaderboard" },
   ]).map(({ gender, title }) => {
     const group = participantsInGenderRounds(participants, rounds, gender)
-    const tally = buildTally(group, votes)
+    const tally = buildTally(group, votes, gameType)
     return { gender, title, tally, group }
   }).filter((s) => s.group.length > 0)
 
@@ -54,8 +60,6 @@ export function FinalGenderLeaderboards({
   return (
     <div className="space-y-6">
       {sections.map(({ gender, title, tally }) => {
-        const kissMeta = getCategoryMeta(gameType, 'kiss')
-        const smashMeta = getCategoryMeta(gameType, 'smash')
         const categories = getVoteCategories(gameType)
         const topByCategory = categories.map((category) => {
           const key = category === 'kiss' ? 'kissCount' : category === 'marry' ? 'marryCount' : 'killCount'
@@ -102,11 +106,13 @@ export function FinalGenderBreakdown({
     { gender: 'female' as const, title: 'Women' },
   ]).map(({ gender, title }) => {
     const group = participantsInGenderRounds(participants, rounds, gender)
-    const tally = buildTally(group, votes)
+    const tally = buildTally(group, votes, gameType)
     return { gender, title, tally }
   }).filter((s) => s.tally.length > 0)
 
   if (sections.length === 0) return null
+
+  const pairGame = isPairGame(gameType)
 
   return (
     <div className="space-y-6">
@@ -135,6 +141,11 @@ export function FinalGenderBreakdown({
                         const key = category === 'kiss' ? 'kissCount' : category === 'marry' ? 'marryCount' : 'killCount'
                         const count = p[key]
                         const max = maxByCategory[index]
+                        const isWinner = pairGame
+                          ? category === 'kiss'
+                            ? p.kissCount > p.killCount
+                            : p.killCount > p.kissCount
+                          : count === max && max > 0
                         return (
                           <VoteCountStat
                             key={category}
@@ -143,7 +154,7 @@ export function FinalGenderBreakdown({
                             count={count}
                             max={max}
                             color={meta.color}
-                            isWinner={count === max && max > 0}
+                            isWinner={isWinner}
                           />
                         )
                       })}
