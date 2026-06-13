@@ -11,7 +11,7 @@ import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
 import { questionPoolCap, parseQuestionSource, customQuestionCount } from '@/lib/custom-questions'
-import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound } from '@/lib/who-said-this'
+import { wstVoteTargets, wstCorrectNameFromRound, wstCorrectParticipantIdFromRound, wstSubmitterName, wstEligibleSubmitters, wstAutoRoundCount, tallyWstVotes, tallyWstPlayerScores, mergeActiveRound, wstPoolPlayerName } from '@/lib/who-said-this'
 import { ParticipantRoundResults, VoteCountStat, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -24,7 +24,7 @@ import {
   msUntilDeadline,
   ROUND_RESULTS_AUTO_ADVANCE_SECONDS,
 } from '@/lib/round-timing'
-import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment } from '@/types'
+import type { Game, Participant, Player, Round, Vote, Confession, VoteAssignment, WstQuotePoolEntry } from '@/types'
 
 export default function HostPage() {
   const { code } = useParams<{ code: string }>()
@@ -60,6 +60,7 @@ export default function HostPage() {
   const [updatingRounds, setUpdatingRounds] = useState(false)
   const [listSearch, setListSearch] = useState('')
   const [playersSearch, setPlayersSearch] = useState('')
+  const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
@@ -120,6 +121,15 @@ export default function HostPage() {
       ])
       setParticipants(parts || [])
       setPlayers(plrs || [])
+
+      if (isWhoSaidThis(parseGameType(gameData.game_type))) {
+        const { data: pool } = await supabase
+          .from('wst_quote_pool')
+          .select('*')
+          .eq('game_id', gameCode)
+          .order('created_at')
+        setWstPool(pool || [])
+      }
 
       if (gameData.status === 'active') {
         const [{ data: roundData }, { data: finishedRound }, { data: votesData }, { data: confs }] = await Promise.all([
@@ -300,6 +310,24 @@ export default function HostPage() {
           }
         }
       )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const entry = payload.new as WstQuotePoolEntry
+          setWstPool((prev) => prev.some((x) => x.id === entry.id) ? prev : [...prev, entry])
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const entry = payload.new as WstQuotePoolEntry
+          setWstPool((prev) => prev.map((x) => x.id === entry.id ? entry : x))
+        }
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const entry = payload.old as WstQuotePoolEntry
+          setWstPool((prev) => prev.filter((x) => x.id !== entry.id))
+        }
+      )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'confessions', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const c = payload.new as Confession
@@ -316,18 +344,22 @@ export default function HostPage() {
     if (game?.status !== 'waiting') return
 
     async function refreshLobby() {
-      const [{ data: plrs }, { data: parts }] = await Promise.all([
+      const [{ data: plrs }, { data: parts }, { data: pool }] = await Promise.all([
         supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
         supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+        isWhoSaidThis(parseGameType(game?.game_type))
+          ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
+          : Promise.resolve({ data: null }),
       ])
       if (plrs) setPlayers(plrs)
       if (parts) setParticipants(parts)
+      if (pool) setWstPool(pool)
     }
 
     refreshLobby()
     const id = setInterval(refreshLobby, 3000)
     return () => clearInterval(id)
-  }, [game?.status, gameCode])
+  }, [game?.status, gameCode, game?.game_type])
 
   // Poll during active game — fallback when realtime misses votes or round transitions
   useEffect(() => {
@@ -591,12 +623,16 @@ export default function HostPage() {
     typeof window !== 'undefined' ? `${window.location.origin}/game/${gameCode}` : `/game/${gameCode}`
 
   async function refreshLobbyLists() {
-    const [{ data: plrs }, { data: parts }] = await Promise.all([
+    const [{ data: plrs }, { data: parts }, { data: pool }] = await Promise.all([
       supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
       supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+      game && isWhoSaidThis(parseGameType(game.game_type))
+        ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
+        : Promise.resolve({ data: null }),
     ])
     if (plrs) setPlayers(plrs)
     if (parts) setParticipants(parts)
+    if (pool) setWstPool(pool)
   }
 
   async function hostUpdateRounds(roundsCount: number) {
@@ -622,14 +658,14 @@ export default function HostPage() {
   useEffect(() => {
     if (!game || game.status !== 'waiting') return
     if (!isWhoSaidThis(parseGameType(game.game_type))) return
-    const count = wstEligibleSubmitters(players).length
+    const count = wstPool.length
     if (count === 0) return
     const autoRounds = wstAutoRoundCount(count)
     if (game.rounds_count !== autoRounds) {
       hostUpdateRounds(autoRounds)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.status, game?.rounds_count, game?.game_type, players])
+  }, [game?.status, game?.rounds_count, game?.game_type, wstPool.length])
 
   async function hostAddParticipant() {
     const name = addName.trim()
@@ -786,15 +822,17 @@ export default function HostPage() {
       : participantsWhoJoined(participants, players)
     const participantInputs = roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
     const genderCounts = countByGender(participantInputs)
-    const lobbyQuestionMax = isWyr || isMlt ? questionPoolCap(game) : isWst ? wstAutoRoundCount(wstSubmitters.length) : maxRecommendedRounds(participantInputs, gameType)
+    const lobbyQuestionMax = isWyr || isMlt ? questionPoolCap(game) : isWst ? wstAutoRoundCount(wstPool.length || wstSubmitters.length) : maxRecommendedRounds(participantInputs, gameType)
     const maxRounds = isWyr || isMlt ? lobbyQuestionMax : isWst ? lobbyQuestionMax : maxRecommendedRounds(participantInputs, gameType)
     const roundsHint =
       isWst
-        ? wstSubmitters.length >= 2
-          ? `${wstSubmitters.length} players ready — one turn each`
-          : wstSubmitters.length === 1
-            ? '1 player claimed a name — need at least 2 to start'
-            : 'Rounds set automatically when players claim their names'
+        ? wstPool.length >= 2
+          ? `${wstPool.length} quotes in the pool → ${wstAutoRoundCount(wstPool.length)} rounds`
+          : wstPool.length === 1
+            ? '1 quote in the pool — need at least 2 to start'
+            : wstSubmitters.length >= 1
+              ? `${wstSubmitters.length} players joined — waiting for quotes in the lobby`
+              : 'Players claim a name and submit a quote before start'
         : isWyr || isMlt
         ? parseQuestionSource(game.question_source, gameType) === 'custom' && customQuestionCount(game) > 0
           ? `${customQuestionCount(game)} custom questions → up to ${lobbyQuestionMax} rounds`
@@ -812,7 +850,7 @@ export default function HostPage() {
       : [1, 2, 3, 4, 5, 6, 8, 10].filter((n) => n <= Math.max(maxRounds, 1))
     const voterCheck = hasVotersForPolls(roundParticipants, players)
     const canStart = isWst
-      ? participants.length >= 2 && wstSubmitters.length >= 2
+      ? participants.length >= 2 && wstSubmitters.length >= 2 && wstPool.length >= 2
       : isMltImport
       ? participants.length >= 2 && players.length > 0 && !roundsTooHigh
       : isMlt
@@ -847,7 +885,7 @@ export default function HostPage() {
                 : isMlt
                 ? 'Most Likely To — players join and vote for a friend each round'
                 : isWst
-                ? 'Who Said This — import names, players claim theirs, take turns writing quotes'
+                ? 'Who Said This — players submit quotes in the lobby, then guess who said each one'
                 : isWyr
                 ? 'Would You Rather — players join and pick A or B each round'
                 : isJoinersMode
@@ -870,6 +908,18 @@ export default function HostPage() {
             <>
               <p className="font-bold text-body text-2xl">{game.rounds_count}</p>
               <p className="text-faint text-xs">{roundsHint}</p>
+              {wstPool.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {wstPool.map((entry) => {
+                    const name = wstPoolPlayerName(entry, players) ?? 'Player'
+                    return (
+                      <span key={entry.id} className="chip text-xs py-1 px-2">
+                        ✓ {name}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </>
           ) : isWyr || isMlt || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
             <>
@@ -1235,6 +1285,8 @@ export default function HostPage() {
                 ? `Need at least 2 names on the list (${participants.length}/2)`
               : isWst && wstSubmitters.length < 2
                 ? `Need 2+ players who claimed a name (${wstSubmitters.length} ready)`
+              : isWst && wstPool.length < 2
+                ? `Need 2+ quotes in the pool (${wstPool.length} submitted)`
               : isMltImport && participants.length < 2
                 ? `Need at least 2 names on the list (${participants.length}/2)`
               : isMltImport && players.length === 0
@@ -1302,7 +1354,7 @@ export default function HostPage() {
                 {currentRound.round_number}
                 <span className="text-faint font-normal text-lg"> / {game.rounds_count}</span>
               </p>
-              <p className="label-teal text-sm mt-1">{submitterName ?? 'Player'}'s turn to write</p>
+              <p className="label-teal text-sm mt-1">Guess who said it</p>
             </div>
             <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
           </div>

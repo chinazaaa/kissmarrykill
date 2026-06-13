@@ -1,4 +1,4 @@
-import type { Participant, Player, Round, Vote } from '@/types'
+import type { Participant, Player, Round, Vote, WstQuotePoolEntry } from '@/types'
 
 export interface WstVoteTarget {
   id: string
@@ -86,9 +86,51 @@ export function buildSubmitterSequence(players: Player[], roundsCount: number): 
   return sequence
 }
 
-/** One round per player who claimed a name from the list. */
-export function wstAutoRoundCount(submitterCount: number): number {
-  return Math.min(20, Math.max(submitterCount, 1))
+/** One round per quote submitted to the lobby pool (max 20). */
+export function wstAutoRoundCount(poolCount: number): number {
+  return Math.min(20, Math.max(poolCount, 1))
+}
+
+export function shuffleQuotePool<T>(entries: T[]): T[] {
+  const arr = [...entries]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+export interface WstRoundFromPoolInput {
+  gameId: string
+  participantIds: string[]
+  poolEntries: WstQuotePoolEntry[]
+  now: string
+}
+
+/** Build one round row per pool entry, quotes pre-filled for the guess phase. */
+export function buildRoundsFromQuotePool({
+  gameId,
+  participantIds,
+  poolEntries,
+  now,
+}: WstRoundFromPoolInput) {
+  const shuffled = shuffleQuotePool(poolEntries)
+  return shuffled.map((entry, index) => ({
+    game_id: gameId,
+    round_number: index + 1,
+    participant_ids: participantIds,
+    submitter_player_id: entry.player_id,
+    quote_text: entry.quote_text,
+    quote_author_participant_id: entry.author_participant_id,
+    quote_submitted_at: index === 0 ? now : null,
+    status: index === 0 ? 'active' : 'pending',
+    started_at: index === 0 ? now : null,
+    ended_at: null,
+  }))
+}
+
+export function wstPoolPlayerName(entry: WstQuotePoolEntry, players: Player[]): string | null {
+  return players.find((p) => p.id === entry.player_id)?.name ?? null
 }
 
 export function tallyWstVotes(

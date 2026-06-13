@@ -48,7 +48,7 @@ import {
   roundResultsWaitMessage,
   ROUND_RESULTS_AUTO_ADVANCE_SECONDS,
 } from '@/lib/round-timing'
-import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap, WyrChoice } from '@/types'
+import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap, WyrChoice, WstQuotePoolEntry } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
 
@@ -74,6 +74,8 @@ export default function GamePage() {
   const [quoteInput, setQuoteInput] = useState('')
   const [quoteAuthorParticipantId, setQuoteAuthorParticipantId] = useState<string | null>(null)
   const [quoteSubmitting, setQuoteSubmitting] = useState(false)
+  const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
+  const [poolQuoteSaved, setPoolQuoteSaved] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [confessionText, setConfessionText] = useState('')
   const [confessionSent, setConfessionSent] = useState(false)
@@ -519,6 +521,25 @@ export default function GamePage() {
         }
       )
 
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const entry = payload.new as WstQuotePoolEntry
+          setWstPool((prev) => prev.some((x) => x.id === entry.id) ? prev : [...prev, entry])
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const entry = payload.new as WstQuotePoolEntry
+          setWstPool((prev) => prev.map((x) => x.id === entry.id ? entry : x))
+        }
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const entry = payload.old as WstQuotePoolEntry
+          setWstPool((prev) => prev.filter((x) => x.id !== entry.id))
+        }
+      )
+
       // New confession (live hot takes)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'confessions', filter: `game_id=eq.${gameCode}` },
         (payload) => {
@@ -565,6 +586,9 @@ export default function GamePage() {
       if (plrs) setPlayers(plrs)
       if (parts) setParticipants(parts)
       if (gameData) setGame(gameData)
+      if (gameData && isWhoSaidThis(parseGameType(gameData.game_type))) {
+        await fetchWstPool()
+      }
 
       if (view === 'waiting' && gameData?.status === 'active' && myPlayerIdRef.current) {
         const { data: activeRound } = await supabase
@@ -640,6 +664,16 @@ export default function GamePage() {
     const parsed = me ? playerVoteGenderForRound(me, participants) : null
     if (parsed) setMyPlayerGender(parsed)
   }, [myPlayerId, players, participants])
+
+  useEffect(() => {
+    if (view !== 'waiting' || !myPlayerId) return
+    const entry = wstPool.find((e) => e.player_id === myPlayerId)
+    if (entry) {
+      setQuoteInput(entry.quote_text)
+      setQuoteAuthorParticipantId(entry.author_participant_id)
+      setPoolQuoteSaved(true)
+    }
+  }, [view, myPlayerId, wstPool])
 
   // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
   useEffect(() => {
@@ -822,6 +856,47 @@ export default function GamePage() {
       next[action] = participantId
       return next
     })
+  }
+
+  async function fetchWstPool() {
+    const { data } = await supabase
+      .from('wst_quote_pool')
+      .select('*')
+      .eq('game_id', gameCode)
+      .order('created_at')
+    if (data) setWstPool(data)
+    return data ?? []
+  }
+
+  const handleSubmitPoolQuote = async () => {
+    if (!myPlayerId || quoteSubmitting) return
+    const text = quoteInput.trim()
+    if (!text || !quoteAuthorParticipantId) return
+    const authorId = quoteAuthorParticipantId
+    setQuoteSubmitting(true)
+    try {
+      const res = await fetch('/api/wst-quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: myPlayerId,
+          gameId: gameCode,
+          quoteText: text,
+          authorParticipantId: authorId,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to submit quote')
+        return
+      }
+      setPoolQuoteSaved(true)
+      await fetchWstPool()
+    } catch {
+      toast.error('Could not submit quote — try again')
+    } finally {
+      setQuoteSubmitting(false)
+    }
   }
 
   const handleSubmitQuote = async () => {
@@ -1158,7 +1233,7 @@ export default function GamePage() {
                 ? 'Vote for who fits each prompt — your choice stays anonymous'
                 : 'Pick between two options each round — your choice stays anonymous'
               : isWstGame
-                ? 'Claim your name — you\'ll take turns writing quotes and guessing who said what'
+                ? 'Claim your name, then submit a quote and who said it while you wait'
               : joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode, joinPollGender)}
           </p>
           </>
@@ -1180,6 +1255,12 @@ export default function GamePage() {
 
   // WAITING
   if (view === 'waiting') {
+    const isWst = isWhoSaidThis(game?.game_type)
+    const wstTargets = isWst ? wstVoteTargets(participants) : []
+    const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
+    const myPoolEntry = isWst && myPlayerId ? wstPool.find((e) => e.player_id === myPlayerId) : null
+    const canSubmitPoolQuote = !!(me?.participant_id)
+
     return (
       <CenteredCard>
         <PlayerNameBar name={myPlayerName} />
@@ -1189,6 +1270,73 @@ export default function GamePage() {
           <GameTypeBadge gameType={game?.game_type} />
           <p className="text-muted">Waiting for the host to start...</p>
         </div>
+
+        {isWst && (
+          <div className="space-y-4">
+            <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-muted text-xs uppercase tracking-wider">Quote pool</p>
+                <span className="text-sm font-bold text-body">{wstPool.length} submitted</span>
+              </div>
+              <p className="text-faint text-xs">
+                Submit your quote and the correct answer now. Only people in the pool get a round — if 5 of 10 submit, that&apos;s 5 rounds.
+              </p>
+            </div>
+
+            {canSubmitPoolQuote ? (
+              <div className="glass-card p-5 space-y-4">
+                {myPoolEntry && poolQuoteSaved ? (
+                  <div className="text-center space-y-1">
+                    <p className="text-green-400 text-sm font-semibold">✓ Your quote is in the pool</p>
+                    <p className="text-faint text-xs">You can edit it below until the host starts.</p>
+                  </div>
+                ) : (
+                  <p className="font-semibold text-body text-center">Add your quote to the pool</p>
+                )}
+                <textarea
+                  value={quoteInput}
+                  onChange={(e) => {
+                    setQuoteInput(e.target.value)
+                    setPoolQuoteSaved(false)
+                  }}
+                  placeholder="e.g. Roses are red"
+                  maxLength={500}
+                  rows={3}
+                  className="input-field resize-none"
+                  disabled={quoteSubmitting}
+                />
+                <div className="space-y-2">
+                  <p className="text-faint text-xs uppercase tracking-wider text-center">Who said this?</p>
+                  <NameSearchPicker
+                    options={wstTargets.map((p) => ({ id: p.id, name: p.name }))}
+                    valueId={quoteAuthorParticipantId}
+                    onChange={(id) => {
+                      setQuoteAuthorParticipantId(id)
+                      setPoolQuoteSaved(false)
+                    }}
+                    searchPlaceholder="Search names…"
+                    emptyMessage="No names match"
+                    disabled={quoteSubmitting}
+                  />
+                </div>
+                <button
+                  onClick={handleSubmitPoolQuote}
+                  disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
+                  className={
+                    quoteInput.trim() && quoteAuthorParticipantId
+                      ? 'btn-primary w-full'
+                      : 'btn-secondary w-full opacity-60 cursor-not-allowed'
+                  }
+                >
+                  {quoteSubmitting ? 'Saving…' : myPoolEntry ? 'Update Quote' : 'Add to Pool →'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-faint text-xs text-center">Claim your name when joining to submit a quote.</p>
+            )}
+          </div>
+        )}
+
         <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
           <p className="text-muted text-xs uppercase tracking-wider">Players Joined ({players.length})</p>
           <div className="space-y-1.5 max-h-52 overflow-y-auto">
@@ -1243,10 +1391,8 @@ export default function GamePage() {
             </p>
             <p className="label-teal text-sm font-medium mt-1">
               {isSubmitter
-                ? quote
-                  ? 'Waiting for guesses…'
-                  : 'Your turn to write'
-                : `${submitterName ?? 'Someone'}'s turn`}
+                ? 'Your quote this round'
+                : 'Guess who said it'}
             </p>
           </div>
           <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
@@ -1259,44 +1405,7 @@ export default function GamePage() {
               <p className="text-body text-lg font-medium italic">&ldquo;{quote}&rdquo;</p>
               <p className="text-muted text-sm">Everyone else is guessing who said it…</p>
             </div>
-          ) : (
-            <div className="glass-card p-5 mb-6 space-y-4">
-              <div className="space-y-2">
-                <p className="font-semibold text-body text-center">Write a quote</p>
-                <textarea
-                  value={quoteInput}
-                  onChange={(e) => setQuoteInput(e.target.value)}
-                  placeholder="e.g. Roses are red"
-                  maxLength={500}
-                  rows={3}
-                  className="input-field resize-none"
-                  disabled={quoteSubmitting}
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-faint text-xs uppercase tracking-wider text-center">Who said this?</p>
-                <NameSearchPicker
-                  options={targets.map((p) => ({ id: p.id, name: p.name }))}
-                  valueId={quoteAuthorParticipantId}
-                  onChange={(id) => setQuoteAuthorParticipantId(id)}
-                  searchPlaceholder="Search names…"
-                  emptyMessage="No names match"
-                  disabled={quoteSubmitting}
-                />
-              </div>
-              <button
-                onClick={handleSubmitQuote}
-                disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
-                className={
-                  quoteInput.trim() && quoteAuthorParticipantId
-                    ? 'btn-primary w-full'
-                    : 'btn-secondary w-full opacity-60 cursor-not-allowed'
-                }
-              >
-                {quoteSubmitting ? 'Submitting…' : 'Submit Quote →'}
-              </button>
-            </div>
-          )
+          ) : null
         ) : quote ? (
           <div className="glass-card border border-teal-500/30 px-4 py-5 mb-6 text-center">
             <p className="text-faint text-xs uppercase tracking-wider mb-2">Who said this?</p>

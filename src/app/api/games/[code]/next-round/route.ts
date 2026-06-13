@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { parseGameType, isWhoSaidThis } from '@/lib/game-types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (game.status !== 'active') return NextResponse.json({ error: 'Game not active' }, { status: 400 })
 
   const gameId = code.toUpperCase()
+  const gameType = parseGameType(game.game_type)
 
   const { data: activeRound } = await supabase
     .from('rounds')
@@ -33,11 +35,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'No more rounds' }, { status: 400 })
   }
 
+  const { data: pendingRound } = await supabase
+    .from('rounds')
+    .select('quote_text, quote_submitted_at')
+    .eq('game_id', gameId)
+    .eq('round_number', nextRoundNumber)
+    .maybeSingle()
+
   const now = new Date().toISOString()
+  const activateUpdate: Record<string, string> = {
+    status: 'active',
+    started_at: now,
+  }
+  if (
+    isWhoSaidThis(gameType) &&
+    pendingRound?.quote_text &&
+    !pendingRound.quote_submitted_at
+  ) {
+    activateUpdate.quote_submitted_at = now
+  }
 
   await supabase
     .from('rounds')
-    .update({ status: 'active', started_at: now })
+    .update(activateUpdate)
     .eq('game_id', gameId)
     .eq('round_number', nextRoundNumber)
 

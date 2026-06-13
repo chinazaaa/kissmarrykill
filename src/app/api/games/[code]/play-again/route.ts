@@ -31,6 +31,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { error: roundsError } = await supabase.from('rounds').delete().eq('game_id', gameId)
   if (roundsError) return NextResponse.json({ error: roundsError.message }, { status: 500 })
 
+  await supabase.from('wst_quote_pool').delete().eq('game_id', gameId)
+
   const { data: updated, error: gameError } = await supabase
     .from('games')
     .update({ status: 'waiting', current_round_number: 0 })

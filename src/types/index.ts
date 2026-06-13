@@ -105,3 +105,14 @@ export interface Confession {
   text: string
   created_at: string
 }
+
+/** Lobby quote submission for Who Said This — one per player before the game starts. */
+export interface WstQuotePoolEntry {
+  id: string
+  game_id: string
+  player_id: string
+  quote_text: string
+  author_participant_id: string
+  created_at: string
+  updated_at: string
+}

@@ -118,6 +118,27 @@ create index if not exists idx_votes_round_id on votes(round_id);
 -- alter table rounds add column if not exists submitter_player_id uuid references players(id);
 -- alter table rounds add column if not exists quote_text text;
 -- alter table rounds add column if not exists quote_author_participant_id uuid references participants(id);
+-- alter table rounds add column if not exists quote_submitted_at timestamptz;
+
+-- Pre-game quote pool for Who Said This (lobby submissions before start)
+create table if not exists wst_quote_pool (
+  id uuid primary key default gen_random_uuid(),
+  game_id text not null references games(id) on delete cascade,
+  player_id uuid not null references players(id) on delete cascade,
+  quote_text text not null,
+  author_participant_id uuid not null references participants(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(game_id, player_id)
+);
+create index if not exists idx_wst_quote_pool_game_id on wst_quote_pool(game_id);
+
+alter table wst_quote_pool enable row level security;
+create policy "public_wst_quote_pool" on wst_quote_pool for all to anon using (true) with check (true);
+
+-- If upgrading an existing database for Who Said This quote pool, run:
+-- create table if not exists wst_quote_pool (...);  (see full definition above)
+-- alter publication supabase_realtime add table wst_quote_pool;
 
 -- Confessions (anonymous post-round messages)
 create table if not exists confessions (
@@ -149,3 +170,4 @@ alter publication supabase_realtime add table games;
 alter publication supabase_realtime add table players;
 alter publication supabase_realtime add table rounds;
 alter publication supabase_realtime add table votes;
+alter publication supabase_realtime add table wst_quote_pool;

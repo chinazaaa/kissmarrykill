@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateRoundsByGender } from '@/lib/utils'
 import { hasVotersForPolls, parseParticipantGenderFromDb, participantsWhoJoined, maxRecommendedRounds } from '@/lib/participants'
 import { parseGameType, roundPoolSize, isWouldYouRather, isMostLikelyTo, isWhoSaidThis } from '@/lib/game-types'
-import { buildSubmitterSequence, wstAutoRoundCount } from '@/lib/who-said-this'
+import { buildRoundsFromQuotePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
 import { fetchMltQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
@@ -62,22 +62,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       )
     }
 
-    const roundsCount = wstAutoRoundCount(submitters.length)
-    const participantIds = (participantsData ?? []).map((p) => p.id)
-    const sequence = buildSubmitterSequence(playersData as Parameters<typeof buildSubmitterSequence>[0], roundsCount)
+    const { data: poolEntries } = await supabase
+      .from('wst_quote_pool')
+      .select('*')
+      .eq('game_id', code.toUpperCase())
 
-    const roundRows = sequence.map((submitter, index) => ({
-      game_id: code.toUpperCase(),
-      round_number: index + 1,
-      participant_ids: participantIds,
-      submitter_player_id: submitter.id,
-      quote_text: null,
-      quote_author_participant_id: null,
-      quote_submitted_at: null,
-      status: index === 0 ? 'active' : 'pending',
-      started_at: index === 0 ? now : null,
-      ended_at: null,
-    }))
+    const quotes = poolEntries ?? []
+    if (quotes.length < 2) {
+      return NextResponse.json(
+        { error: 'Need at least 2 quotes in the pool before starting — players submit quotes in the lobby' },
+        { status: 400 }
+      )
+    }
+
+    const roundsCount = wstAutoRoundCount(quotes.length)
+    const participantIds = (participantsData ?? []).map((p) => p.id)
+    const roundRows = buildRoundsFromQuotePool({
+      gameId: code.toUpperCase(),
+      participantIds,
+      poolEntries: quotes.slice(0, roundsCount),
+      now,
+    })
 
     const { error: roundError } = await supabase.from('rounds').insert(roundRows)
     if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })

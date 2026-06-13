@@ -249,7 +249,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
   who_said_this: {
     id: 'who_said_this',
     label: 'Who Said This',
-    tagline: 'Take turns writing quotes — everyone guesses who said it',
+    tagline: 'Submit quotes in the lobby — everyone guesses who said it',
     headerEmoji: '💬🕵️',
     card: {
       accent: '#14b8a6',
@@ -315,7 +315,7 @@ export function gameHowItWorks(
 
   switch (type) {
     case 'who_said_this':
-      return "Upload everyone's names on the next step. Players claim their name when joining. Each round one person writes a quote and picks who said it — everyone else guesses."
+      return "Upload everyone's names on the next step. Players claim their name when joining, then submit a quote and who said it in the lobby. Only quotes in the pool become rounds — if 5 of 10 submit, that's 5 rounds."
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
     case 'most_likely_to':
