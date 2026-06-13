@@ -74,32 +74,97 @@ export async function POST(req: NextRequest) {
     wyr_choice: WyrChoice | null
     target_player_id: string | null
     target_participant_id: string | null
+    anime_choice?: string | null
   }
 
   if (isWhoSaidThis(gameType)) {
-    if (round.submitter_player_id === playerId) {
-      return NextResponse.json({ error: 'The writer does not vote on their own quote' }, { status: 400 })
-    }
-    if (!round.quote_text) {
-      return NextResponse.json({ error: 'Waiting for the quote before voting' }, { status: 400 })
-    }
+    const { data: fullRound } = await supabase
+      .from('rounds')
+      .select('anime_metadata')
+      .eq('id', roundId)
+      .maybeSingle()
 
-    const targetParticipantId = typeof rawTargetParticipantId === 'string' ? rawTargetParticipantId : null
-    if (!targetParticipantId) {
-      return NextResponse.json({ error: 'Pick who said it' }, { status: 400 })
-    }
-    if (!roundIdSet.has(targetParticipantId)) {
-      return NextResponse.json({ error: 'Invalid pick — name not on the list' }, { status: 400 })
-    }
+    const animeMetadata = fullRound?.anime_metadata as
+      | { choices: string[]; correct_character: string }
+      | null
 
-    row = {
-      kiss_participant_id: null,
-      marry_participant_id: null,
-      kill_participant_id: null,
-      pair_assignments: null,
-      wyr_choice: null,
-      target_player_id: null,
-      target_participant_id: targetParticipantId,
+    if (animeMetadata) {
+      // Anime round: validate anime_choice
+      if (!round.quote_text) {
+        return NextResponse.json(
+          { error: 'Waiting for the quote' },
+          { status: 400 },
+        )
+      }
+
+      const animeChoice =
+        typeof parsed.data.animeChoice === 'string'
+          ? parsed.data.animeChoice
+          : null
+      if (!animeChoice) {
+        return NextResponse.json(
+          { error: 'Pick a character' },
+          { status: 400 },
+        )
+      }
+      if (!animeMetadata.choices.includes(animeChoice)) {
+        return NextResponse.json(
+          { error: 'Invalid pick — not one of the choices' },
+          { status: 400 },
+        )
+      }
+
+      row = {
+        kiss_participant_id: null,
+        marry_participant_id: null,
+        kill_participant_id: null,
+        pair_assignments: null,
+        wyr_choice: null,
+        target_player_id: null,
+        target_participant_id: null,
+        anime_choice: animeChoice,
+      }
+    } else {
+      // Player round: existing logic
+      if (round.submitter_player_id === playerId) {
+        return NextResponse.json(
+          { error: 'The writer does not vote on their own quote' },
+          { status: 400 },
+        )
+      }
+      if (!round.quote_text) {
+        return NextResponse.json(
+          { error: 'Waiting for the quote before voting' },
+          { status: 400 },
+        )
+      }
+
+      const targetParticipantId =
+        typeof rawTargetParticipantId === 'string'
+          ? rawTargetParticipantId
+          : null
+      if (!targetParticipantId) {
+        return NextResponse.json(
+          { error: 'Pick who said it' },
+          { status: 400 },
+        )
+      }
+      if (!roundIdSet.has(targetParticipantId)) {
+        return NextResponse.json(
+          { error: 'Invalid pick — name not on the list' },
+          { status: 400 },
+        )
+      }
+
+      row = {
+        kiss_participant_id: null,
+        marry_participant_id: null,
+        kill_participant_id: null,
+        pair_assignments: null,
+        wyr_choice: null,
+        target_player_id: null,
+        target_participant_id: targetParticipantId,
+      }
     }
   } else if (isMostLikelyTo(gameType)) {
     const isImport = game.participant_mode === 'import'

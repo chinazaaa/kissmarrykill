@@ -1,5 +1,9 @@
 import type { Participant, Player, Round, Vote, WstQuotePoolEntry } from '@/types'
 
+export function isAnimeRound(round: { anime_metadata?: unknown | null }): boolean {
+  return round.anime_metadata != null
+}
+
 export interface WstVoteTarget {
   id: string
   name: string
@@ -22,6 +26,7 @@ export function mergeActiveRound(prev: Round | null, incoming: Round): Round {
     quote_text: incoming.quote_text ?? prev.quote_text,
     quote_author_participant_id: incoming.quote_author_participant_id ?? prev.quote_author_participant_id,
     quote_submitted_at: incoming.quote_submitted_at ?? prev.quote_submitted_at,
+    anime_metadata: incoming.anime_metadata ?? prev.anime_metadata,
   }
 }
 
@@ -128,6 +133,51 @@ export function buildRoundsFromQuotePool({ gameId, participantIds, poolEntries, 
   }))
 }
 
+export interface AnimeRoundInput {
+  gameId: string
+  participantIds: string[]
+  animeQuotes: Array<{
+    quote_text: string
+    anime_name: string
+    correct_character: string
+    choices: string[]
+  }>
+  startIndex: number
+  now: string
+}
+
+export function buildRoundsFromAnimePool({
+  gameId,
+  participantIds,
+  animeQuotes,
+  startIndex,
+  now,
+}: AnimeRoundInput) {
+  const shuffled = shuffleQuotePool(animeQuotes)
+  return shuffled.map((entry, index) => {
+    const roundNumber = startIndex + index + 1
+    const isFirst = roundNumber === 1
+    return {
+      game_id: gameId,
+      round_number: roundNumber,
+      participant_ids: participantIds,
+      submitter_player_id: null,
+      quote_text: entry.quote_text,
+      quote_author_participant_id: null,
+      quote_submitted_at: isFirst ? now : null,
+      anime_metadata: {
+        source: 'anime' as const,
+        anime_name: entry.anime_name,
+        correct_character: entry.correct_character,
+        choices: entry.choices,
+      },
+      status: isFirst ? 'active' : 'pending',
+      started_at: isFirst ? now : null,
+      ended_at: null,
+    }
+  })
+}
+
 export function dedupeWstPool(entries: WstQuotePoolEntry[]): WstQuotePoolEntry[] {
   const byPlayer = new Map<string, WstQuotePoolEntry>()
   for (const entry of entries) {
@@ -188,6 +238,53 @@ export function tallyWstVotes(votes: Vote[], targets: WstVoteTarget[], correctPa
   }
 }
 
+export interface AnimeWstTally {
+  rows: Array<{ choice: string; count: number }>
+  voterCount: number
+  maxCount: number
+  topGuesses: string[]
+  correctCount: number
+  correctCharacter: string
+}
+
+export function tallyAnimeWstVotes(
+  votes: Vote[],
+  choices: string[],
+  correctCharacter: string,
+): AnimeWstTally {
+  const counts = new Map<string, number>()
+  for (const c of choices) counts.set(c, 0)
+  let correctCount = 0
+
+  for (const vote of votes) {
+    const picked = vote.anime_choice
+    if (!picked) continue
+    counts.set(picked, (counts.get(picked) ?? 0) + 1)
+    if (picked === correctCharacter) correctCount += 1
+  }
+
+  const rows = choices
+    .map((c) => ({ choice: c, count: counts.get(c) ?? 0 }))
+    .sort(
+      (a, b) =>
+        b.count - a.count || a.choice.localeCompare(b.choice),
+    )
+
+  const maxCount = rows.length > 0 ? rows[0].count : 0
+  const topGuesses = rows
+    .filter((r) => r.count === maxCount && maxCount > 0)
+    .map((r) => r.choice)
+
+  return {
+    rows,
+    voterCount: votes.filter((v) => v.anime_choice).length,
+    maxCount,
+    topGuesses,
+    correctCount,
+    correctCharacter,
+  }
+}
+
 export interface WstPlayerScore {
   playerId: string
   name: string
@@ -196,20 +293,41 @@ export interface WstPlayerScore {
 
 /** Points for picking the right name each round. */
 export function tallyWstPlayerScores(
-  rounds: { id: string; quote_author_participant_id?: string | null; submitter_player_id?: string | null }[],
+  rounds: {
+    id: string
+    quote_author_participant_id?: string | null
+    submitter_player_id?: string | null
+    anime_metadata?: { correct_character: string } | null
+  }[],
   votes: Vote[],
-  players: Player[]
+  players: Player[],
 ): WstPlayerScore[] {
   const scores = new Map<string, number>()
   for (const p of players) scores.set(p.id, 0)
 
   for (const round of rounds) {
-    const correctId = wstCorrectParticipantIdFromRound(round, players)
-    if (!correctId) continue
     const roundVotes = votes.filter((v) => v.round_id === round.id)
-    for (const vote of roundVotes) {
-      if (vote.target_participant_id === correctId) {
-        scores.set(vote.player_id, (scores.get(vote.player_id) ?? 0) + 1)
+
+    if (round.anime_metadata) {
+      const correctChar = round.anime_metadata.correct_character
+      for (const vote of roundVotes) {
+        if (vote.anime_choice === correctChar) {
+          scores.set(
+            vote.player_id,
+            (scores.get(vote.player_id) ?? 0) + 1,
+          )
+        }
+      }
+    } else {
+      const correctId = wstCorrectParticipantIdFromRound(round, players)
+      if (!correctId) continue
+      for (const vote of roundVotes) {
+        if (vote.target_participant_id === correctId) {
+          scores.set(
+            vote.player_id,
+            (scores.get(vote.player_id) ?? 0) + 1,
+          )
+        }
       }
     }
   }
@@ -221,6 +339,8 @@ export function tallyWstPlayerScores(
       correctGuesses,
     }))
     .sort(
-      (a, b) => b.correctGuesses - a.correctGuesses || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      (a, b) =>
+        b.correctGuesses - a.correctGuesses ||
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
     )
 }
