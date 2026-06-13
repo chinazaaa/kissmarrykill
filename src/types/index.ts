@@ -13,6 +13,7 @@ export type GameType =
   | 'would_you_rather'
   | 'most_likely_to'
   | 'who_said_this'
+export type ThemeId = 'default' | 'neon' | 'retro' | 'elegant' | 'tropical'
 export type WyrChoice = 'a' | 'b'
 
 export type ParticipantGender = 'male' | 'female'
@@ -33,6 +34,7 @@ export interface Game {
   question_source?: QuestionSource
   custom_questions?: unknown[] | null
   game_type: GameType
+  theme?: ThemeId
   status: GameStatus
   current_round_number: number
   created_at: string

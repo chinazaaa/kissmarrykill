@@ -90,6 +90,8 @@ import {
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
 import { ShareResults } from '@/components/ShareResults'
+import { AchievementBadges } from '@/components/AchievementBadges'
+import { computeAchievements } from '@/lib/achievements'
 import { ShareRoundResults } from '@/components/ShareRoundResults'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { ConfessionsTicker } from '@/components/ConfessionsTicker'
@@ -2607,6 +2609,10 @@ function FinalResultsView({
   const isWst = isWhoSaidThis(gameType)
   const isMltImport = isMltImportGame(game)
   const wstScores = isWst ? tallyWstPlayerScores(rounds, votes, players) : []
+  const achievements = useMemo(
+    () => computeAchievements(game, participants, rounds, votes, players),
+    [game, participants, rounds, votes, players]
+  )
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -2654,6 +2660,8 @@ function FinalResultsView({
           <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
         </>
       )}
+
+      {achievements.length > 0 && <AchievementBadges achievements={achievements} />}
 
       <div>
         <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>

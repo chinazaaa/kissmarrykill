@@ -71,7 +71,9 @@ function buildRoundShareText({
       const meta = round.anime_metadata as { anime_name: string; correct_character: string; choices: string[] }
       const { correctCount } = tallyAnimeWstVotes(votes, meta.choices, meta.correct_character)
       const voterCount = votes.filter((v) => v.anime_choice).length
-      lines.push(`Answer: ${meta.correct_character} from ${meta.anime_name} (${correctCount} of ${voterCount} guessed right)`)
+      lines.push(
+        `Answer: ${meta.correct_character} from ${meta.anime_name} (${correctCount} of ${voterCount} guessed right)`
+      )
     } else {
       const targets = wstVoteTargets(participants)
       const correctId = wstCorrectParticipantIdFromRound(round, players)

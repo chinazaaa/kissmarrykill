@@ -55,6 +55,7 @@ const wyrChoiceEnum = z.enum(['a', 'b'])
 const participantGenderEnum = z.enum(['male', 'female'])
 const playerGenderEnum = z.enum(['male', 'female', 'both'])
 const pairFlagEnum = z.enum(['kiss', 'kill'])
+const themeEnum = z.enum(['default', 'neon', 'retro', 'elegant', 'tropical'])
 const timerSecondsEnum = z.union([z.literal(15), z.literal(30), z.literal(60)])
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,7 @@ export const createGameSchema = z.object({
   question_source: questionSourceEnum.optional(),
   custom_questions: z.array(z.unknown()).optional().nullable(),
   game_type: gameTypeEnum.optional(),
+  theme: themeEnum.optional(),
   wst_quote_source: wstQuoteSourceEnum.optional(),
   participants: z.array(participantItemSchema).optional(),
 })
@@ -285,6 +287,7 @@ export {
   participantGenderEnum,
   playerGenderEnum,
   pairFlagEnum,
+  themeEnum,
   timerSecondsEnum,
   stripHtml,
 }

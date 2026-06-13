@@ -81,6 +81,7 @@ import type {
   WstQuotePoolEntry,
   AnimeQuotePoolEntry,
 } from '@/types'
+import { parseThemeId, THEME_MAP } from '@/lib/themes'
 
 export default function HostPage() {
   const { code } = useParams<{ code: string }>()
@@ -140,6 +141,22 @@ export default function HostPage() {
   )
 
   useTimerTickSound(timeLeft, game?.status === 'active' && !!currentRound)
+
+  // ── Apply theme CSS variables ─────────────────────────────────────────────
+  useEffect(() => {
+    const themeId = parseThemeId(game?.theme)
+    const vars = THEME_MAP[themeId]?.cssVars ?? {}
+    const root = document.documentElement
+    const keys = Object.keys(vars)
+    keys.forEach((k) => root.style.setProperty(k, vars[k]))
+    if (Object.keys(vars).length > 0) {
+      root.style.setProperty('background', vars['--background'] ?? '')
+    }
+    return () => {
+      keys.forEach((k) => root.style.removeProperty(k))
+      root.style.removeProperty('background')
+    }
+  }, [game?.theme])
 
   const filteredListParticipants = useMemo(() => {
     const q = listSearch.trim().toLowerCase()
