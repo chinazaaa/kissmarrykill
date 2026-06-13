@@ -52,6 +52,14 @@ export default function Home() {
               Join
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => router.push('/history')}
+            className="w-full text-faint text-sm hover:text-white transition-colors pt-1"
+          >
+            View game history →
+          </button>
         </div>
 
         <p className="text-faint text-sm">No sign-up required · works on any device</p>
