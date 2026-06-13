@@ -56,10 +56,15 @@ export function parseParticipantRows(text: string): ParticipantInput[] {
   return rows
 }
 
-/** Smash / Red Flag / Smash or Pass need gender for same-gender rounds. WYR & MLT do not. */
+/** Smash / Red Flag / Smash or Pass need gender for same-gender rounds. WYR, MLT & WST do not. */
 export function participantsNeedGender(gameType?: GameType | string): boolean {
   const type = parseGameType(gameType)
   return !isWouldYouRather(type) && !isMostLikelyTo(type) && !isWhoSaidThis(type)
+}
+
+/** Whether the join screen should ask for gender / vote preference. */
+export function playerJoinNeedsGender(gameType?: GameType | string): boolean {
+  return participantsNeedGender(gameType)
 }
 
 /** Parse name-only rows (one name per line or single CSV column). Gender defaults for DB storage. */
@@ -333,7 +338,7 @@ export function playerIdentityLabel(
   participants?: { name: string; gender: ParticipantGender }[],
   gameType?: GameType | string
 ): string {
-  if (isLobbyGame(gameType) || isNameOnlyPlayerJoin(gameType)) return ''
+  if (isLobbyGame(gameType) || isNameOnlyPlayerJoin(gameType) || isWhoSaidThis(gameType)) return ''
   return genderLabel(resolvePlayerIdentity(player, participants))
 }
 

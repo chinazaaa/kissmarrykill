@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isLobbyGame, isNameOnlyPlayerJoin } from '@/lib/game-types'
+import { parseGameType, isLobbyGame, isNameOnlyPlayerJoin, isWhoSaidThis } from '@/lib/game-types'
 import { assertHostGame, deleteJoinerPair, findJoinerParticipant, pollGenderForPlayer, syncImportParticipantBallot } from '@/lib/game-admin'
 
 const supabase = createClient(
@@ -103,6 +103,59 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({
+      playerId: player.id,
+      playerName: player.name,
+      playerGender: player.gender,
+      playerIdentityGender: player.identity_gender,
+    })
+  }
+
+  if (isWhoSaidThis(gameType) && game!.participant_mode === 'import') {
+    const participantId = String(rawParticipantId ?? '').trim()
+    if (!participantId) {
+      return NextResponse.json({ error: 'Select your name from the game list' }, { status: 400 })
+    }
+
+    const { data: existingPlayers } = await supabase
+      .from('players')
+      .select('id, name')
+      .eq('game_id', id)
+
+    const { data: participant } = await supabase
+      .from('participants')
+      .select('id, name')
+      .eq('id', participantId)
+      .eq('game_id', id)
+      .maybeSingle()
+
+    if (!participant) {
+      return NextResponse.json({ error: 'Select your name from the game list' }, { status: 400 })
+    }
+
+    if (await participantClaimed(id, participantId)) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    const claimName = participant.name
+    if (existingPlayers?.some((p) => p.name.toLowerCase() === claimName.toLowerCase())) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: id,
+        name: claimName,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: participantId,
       })
       .select()
       .single()
@@ -327,6 +380,57 @@ export async function PATCH(req: NextRequest) {
       playerId: updatedPlayer.id,
       playerName: updatedPlayer.name,
       playerGender: updatedPlayer.gender,
+    })
+  }
+
+  if (isWhoSaidThis(gameType) && game!.participant_mode === 'import') {
+    if (rawParticipantId === undefined) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    }
+
+    const participantId = String(rawParticipantId ?? '').trim()
+    if (!participantId) {
+      return NextResponse.json({ error: 'Select your name from the game list' }, { status: 400 })
+    }
+
+    const { data: participant } = await supabase
+      .from('participants')
+      .select('id, name')
+      .eq('id', participantId)
+      .eq('game_id', id)
+      .maybeSingle()
+
+    if (!participant) {
+      return NextResponse.json({ error: 'Select your name from the game list' }, { status: 400 })
+    }
+
+    if (await participantClaimed(id, participantId, playerId)) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    if (await nameTaken(id, participant.name, playerId)) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    const { data: updatedPlayer, error } = await supabase
+      .from('players')
+      .update({
+        name: participant.name,
+        participant_id: participantId,
+        gender: 'both',
+        identity_gender: null,
+      })
+      .eq('id', playerId)
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({
+      playerId: updatedPlayer.id,
+      playerName: updatedPlayer.name,
+      playerGender: updatedPlayer.gender,
+      playerIdentityGender: updatedPlayer.identity_gender,
     })
   }
 

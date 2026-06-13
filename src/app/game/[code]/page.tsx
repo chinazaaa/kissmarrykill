@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession, getInitial, filterParticipantsInRounds } from '@/lib/utils'
 import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
-import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, parseParticipantGenderFromDb, playerGenderFromJoin, joinGenderHint, playerVoteGenderForRound } from '@/lib/participants'
+import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, parseParticipantGenderFromDb, playerGenderFromJoin, joinGenderHint, playerVoteGenderForRound, playerJoinNeedsGender } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
 import { tallyRoundVotes, tallyWyrVotes, tallyMltVotes, getCategoryMeta, getVoteCategories, assignmentEmojiFor, myActionBorderClass, flagForParticipant } from '@/lib/vote-stats'
 import {
@@ -87,9 +87,11 @@ export default function GamePage() {
 
   const isJoinersMode = game?.participant_mode === 'joiners'
   const isNameOnlyJoin = isNameOnlyPlayerJoin(game?.game_type)
+  const joinNeedsGender = playerJoinNeedsGender(game?.game_type)
+  const isWstGame = isWhoSaidThis(game?.game_type)
   const isWyrGame = isWouldYouRather(game?.game_type)
   const isMltImport = game ? isMltImportGame(game) : false
-  const joinPlayerGender: PlayerGender = isNameOnlyJoin
+  const joinPlayerGender: PlayerGender = isNameOnlyJoin || !joinNeedsGender
     ? 'both'
     : playerGenderFromJoin(joinIdentityGender, voteBothGenders)
 
@@ -118,9 +120,9 @@ export default function GamePage() {
       .map((p) => ({
         id: p.id,
         name: p.name,
-        subtitle: genderLabel(p.gender),
+        ...(joinNeedsGender ? { subtitle: genderLabel(p.gender) } : {}),
       }))
-  }, [isJoinersMode, participants, players, myPlayerId])
+  }, [isJoinersMode, participants, players, myPlayerId, joinNeedsGender])
 
   const handleSelectParticipant = (id: string, name: string) => {
     setSelectedParticipantId(id)
@@ -899,6 +901,12 @@ export default function GamePage() {
     try {
       const body = isNameOnlyJoin
         ? { gameCode, playerName: nameInput.trim() }
+        : !joinNeedsGender
+        ? {
+            gameCode,
+            playerName: nameInput.trim(),
+            participantId: selectedParticipantId,
+          }
         : {
         gameCode,
         playerName: nameInput.trim(),
@@ -1029,7 +1037,7 @@ export default function GamePage() {
         <div className="space-y-4">
           <p className="text-muted font-medium text-center">
             {editingJoin
-              ? isNameOnlyJoin ? 'Update your name' : 'Update your name or vote preference'
+              ? isNameOnlyJoin || !joinNeedsGender ? 'Update your name' : 'Update your name or vote preference'
               : isNameOnlyJoin
                 ? 'Enter your name to join'
               : isJoinersMode
@@ -1054,7 +1062,7 @@ export default function GamePage() {
               emptyMessage={namePickerOptions.length === 0 ? 'All names have been claimed' : 'No names match your search'}
             />
           )}
-          {!isNameOnlyJoin && (
+          {!joinNeedsGender ? null : (
           <>
           <div>
             <p className="text-faint text-xs mb-2 text-center">I am</p>
@@ -1113,6 +1121,8 @@ export default function GamePage() {
                 : isMostLikelyTo(game?.game_type)
                 ? 'Vote for who fits each prompt — your choice stays anonymous'
                 : 'Pick between two options each round — your choice stays anonymous'
+              : isWstGame
+                ? 'Claim your name — you\'ll take turns writing quotes and guessing who said what'
               : joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode, joinPollGender)}
           </p>
           </>
@@ -1152,7 +1162,7 @@ export default function GamePage() {
                 <span className={`text-sm flex-1 min-w-0 truncate ${p.name === myPlayerName ? 'text-[var(--primary)] font-semibold' : 'text-white/80'}`}>
                   {p.name}{p.name === myPlayerName ? ' (you)' : ''}
                 </span>
-                {!isNameOnlyJoin && (
+                {!joinNeedsGender ? null : (
                   <span className="text-[10px] uppercase tracking-wider text-faint shrink-0">
                     {playerIdentityLabel(p, participants, game?.game_type)}
                   </span>
@@ -1163,7 +1173,7 @@ export default function GamePage() {
         </div>
         <div className="flex flex-col gap-2">
           <button type="button" onClick={openEditJoin} className="btn-secondary text-sm py-2.5">
-            {isNameOnlyJoin ? 'Change name' : 'Change name or gender'}
+            {isNameOnlyJoin || !joinNeedsGender ? 'Change name' : 'Change name or gender'}
           </button>
           <button type="button" onClick={leaveGame} disabled={joining} className="text-faint text-xs hover:text-red-300 transition-colors">
             Leave game

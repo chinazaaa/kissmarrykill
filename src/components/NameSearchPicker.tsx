@@ -59,7 +59,7 @@ export function NameSearchPicker({
           <button
             type="button"
             onClick={() => setQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-white text-sm"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-[var(--foreground)] text-sm"
             aria-label="Clear search"
           >
             ✕
@@ -69,17 +69,21 @@ export function NameSearchPicker({
 
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-faint px-0.5">
         <span>{filtered.length === options.length ? `${options.length} names` : `${filtered.length} of ${options.length}`}</span>
-        {selected && <span className="text-[var(--primary)] normal-case tracking-normal text-xs">Selected: {selected.name}</span>}
+        {selected && (
+          <span className="text-[var(--primary)] normal-case tracking-normal text-xs font-medium">
+            Selected: {selected.name}
+          </span>
+        )}
       </div>
 
       <div
-        className="surface-inset border border-white/10 rounded-xl overflow-hidden"
+        className="rounded-xl border border-[var(--border-strong)] bg-[var(--card-strong)] overflow-hidden shadow-sm"
         role="listbox"
         aria-label="Select your name"
       >
-        <ul className={`${listMaxHeight} overflow-y-auto overscroll-contain divide-y divide-white/5`}>
+        <ul className={`${listMaxHeight} overflow-y-auto overscroll-contain divide-y divide-[var(--border)]`}>
           {filtered.length === 0 ? (
-            <li className="px-4 py-8 text-center text-faint text-sm">{emptyMessage}</li>
+            <li className="px-4 py-8 text-center text-muted text-sm">{emptyMessage}</li>
           ) : (
             filtered.map((option) => {
               const active = option.id === valueId
@@ -93,13 +97,15 @@ export function NameSearchPicker({
                     onClick={() => onChange(option.id, option.name)}
                     className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                       active
-                        ? 'bg-[var(--primary-strong)]/35 text-white'
-                        : 'text-white/85 hover:bg-white/5'
+                        ? 'bg-[var(--chip-active-bg)] text-[var(--foreground)]'
+                        : 'text-[var(--foreground)] hover:bg-[var(--card-hover)]'
                     }`}
                   >
                     <span
                       className={`w-4 h-4 rounded-full border shrink-0 flex items-center justify-center ${
-                        active ? 'border-[var(--primary)] bg-[var(--primary)]' : 'border-white/25'
+                        active
+                          ? 'border-[var(--primary)] bg-[var(--primary)]'
+                          : 'border-[var(--border-strong)] bg-[var(--card)]'
                       }`}
                     >
                       {active && <span className="w-1.5 h-1.5 rounded-full bg-white" />}

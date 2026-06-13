@@ -71,8 +71,8 @@ export function MltPlayerPicker({
             onClick={() => !disabled && onSelect(p.id)}
             className={`w-full text-left rounded-2xl border px-4 py-3 transition-all active:scale-[0.99] flex items-center gap-3 ${
               active
-                ? 'border-amber-400 bg-amber-500/15 text-amber-100'
-                : 'border-white/10 surface-inset text-white/85 hover:border-white/25'
+                ? 'border-amber-400 bg-amber-500/15 text-[var(--foreground)]'
+                : 'border-[var(--border-strong)] bg-[var(--card-strong)] text-[var(--foreground)] hover:border-[var(--border-strong)] hover:bg-[var(--card-hover)]'
             } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             <div className="avatar w-8 h-8 text-sm shrink-0">{getInitial(p.name)}</div>
