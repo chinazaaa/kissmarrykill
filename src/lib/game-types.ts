@@ -128,13 +128,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  would_you_rather: {
+    id: 'would_you_rather',
+    label: 'Would You Rather',
+    tagline: 'Pick between two options — votes stay anonymous',
+    headerEmoji: '🤔⚖️',
+    slots: {
+      kiss: {
+        emoji: 'A',
+        label: 'Option A',
+        color: '#a78bfa',
+        leaderboardLabel: 'Option A',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+      marry: {
+        emoji: 'B',
+        label: 'Option B',
+        color: '#38bdf8',
+        leaderboardLabel: 'Option B',
+        activeClass: 'bg-sky-500/20 text-sky-100 border-sky-400',
+        borderClass: 'border-sky-500/50 bg-sky-500/10',
+        textColor: '#7dd3fc',
+      },
+      kill: {
+        emoji: 'B',
+        label: 'Option B',
+        color: '#38bdf8',
+        leaderboardLabel: 'Option B',
+        activeClass: 'bg-sky-500/20 text-sky-100 border-sky-400',
+        borderClass: 'border-sky-500/50 bg-sky-500/10',
+        textColor: '#7dd3fc',
+      },
+    },
+  },
 }
 
-export const GAME_TYPE_OPTIONS: GameType[] = ['smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass']
+export const GAME_TYPE_OPTIONS: GameType[] = ['smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass', 'would_you_rather']
 
 export function parseGameType(raw: unknown): GameType {
   if (raw === 'red_flag_green_flag') return 'red_flag_green_flag'
   if (raw === 'smash_or_pass') return 'smash_or_pass'
+  if (raw === 'would_you_rather') return 'would_you_rather'
   return 'smash_marry_kill'
 }
 
@@ -148,11 +184,16 @@ export function isPairGame(gameType: GameType | string | undefined): boolean {
   return type === 'red_flag_green_flag' || type === 'smash_or_pass'
 }
 
+export function isWouldYouRather(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'would_you_rather'
+}
+
 export function isThreeChoiceGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'smash_marry_kill'
 }
 
 export function roundPoolSize(gameType: GameType | string | undefined): 2 | 3 {
+  if (isWouldYouRather(gameType)) return 2
   return isPairGame(gameType) ? 2 : 3
 }
 

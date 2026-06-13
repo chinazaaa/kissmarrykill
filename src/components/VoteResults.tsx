@@ -241,3 +241,106 @@ export function ParticipantRoundResults({
     </div>
   )
 }
+
+function WyrOptionStat({
+  label,
+  text,
+  count,
+  max,
+  color,
+  isWinner,
+}: {
+  label: string
+  text: string
+  count: number
+  max: number
+  color: string
+  isWinner?: boolean
+}) {
+  const pct = max > 0 ? Math.min((count / max) * 100, 100) : 0
+
+  return (
+    <div
+      className={`rounded-xl px-3 py-3 transition-colors ${
+        isWinner ? 'bg-white/8 ring-1 ring-white/15' : 'surface-inset'
+      }`}
+    >
+      {isWinner && (
+        <p className="text-[9px] uppercase tracking-wider font-bold text-white/70 mb-1 text-center">Winner</p>
+      )}
+      <p className="text-[10px] uppercase tracking-wider text-faint text-center">{label}</p>
+      <p className="text-white/90 text-xs mt-2 leading-snug line-clamp-4 min-h-[3rem]">{text}</p>
+      <p className="text-center mt-3">
+        <span className="font-black text-lg text-white">{count}</span>
+        <span className="text-faint text-xs ml-1">votes</span>
+      </p>
+      <div className="h-2 bg-white/8 rounded-full mt-2 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  )
+}
+
+export function WyrRoundResults({
+  optionA,
+  optionB,
+  countA,
+  countB,
+  voterCount,
+  myChoice,
+}: {
+  optionA: string
+  optionB: string
+  countA: number
+  countB: number
+  voterCount: number
+  myChoice?: 'a' | 'b' | null
+}) {
+  const max = Math.max(countA, countB, 1)
+  const aWins = countA > countB
+  const bWins = countB > countA
+  const borderCls =
+    myChoice === 'a' ? 'border-violet-500/40' : myChoice === 'b' ? 'border-sky-500/40' : 'border-white/10'
+
+  return (
+    <div className="space-y-4">
+      <p className="text-muted text-xs uppercase tracking-wider text-center">
+        Round results · {voterCount} {voterCount === 1 ? 'vote' : 'votes'}
+      </p>
+      <div className={`glass-card border-2 ${borderCls} rounded-2xl p-4 space-y-4`}>
+        <p className="text-white/80 text-sm text-center leading-relaxed">
+          Would you rather{' '}
+          <span className="text-violet-200 font-medium">{optionA}</span>
+          {' '}or{' '}
+          <span className="text-sky-200 font-medium">{optionB}</span>?
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <WyrOptionStat
+            label="Option A"
+            text={optionA}
+            count={countA}
+            max={max}
+            color="#a78bfa"
+            isWinner={aWins}
+          />
+          <WyrOptionStat
+            label="Option B"
+            text={optionB}
+            count={countB}
+            max={max}
+            color="#38bdf8"
+            isWinner={bWins}
+          />
+        </div>
+        {myChoice && (
+          <p className="text-faint text-xs text-center">
+            You picked Option {myChoice.toUpperCase()}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}

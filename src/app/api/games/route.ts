@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import { normalizeGender, hasEnoughForRounds, type ParticipantInput } from '@/lib/participants'
-import { parseGameType, roundPoolSize } from '@/lib/game-types'
+import { parseGameType, roundPoolSize, isWouldYouRather } from '@/lib/game-types'
+import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { ParticipantMode } from '@/types'
 
 const supabase = createClient(
@@ -47,11 +48,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Game name is required' }, { status: 400 })
   }
 
-  const participant_mode: ParticipantMode = rawMode === 'joiners' ? 'joiners' : 'import'
   const game_type = parseGameType(rawGameType)
+  const participant_mode: ParticipantMode = isWouldYouRather(game_type)
+    ? 'joiners'
+    : rawMode === 'joiners'
+      ? 'joiners'
+      : 'import'
 
   let participants: ParticipantInput[] = []
-  if (participant_mode === 'import') {
+  if (!isWouldYouRather(game_type) && participant_mode === 'import') {
     const parsed = parseParticipants(rawParticipants)
     if (!parsed || parsed.length < roundPoolSize(game_type)) {
       return NextResponse.json(
@@ -69,6 +74,8 @@ export async function POST(req: NextRequest) {
     participants = parsed
   }
 
+  const maxRounds = isWouldYouRather(game_type) ? WYR_QUESTION_COUNT : 20
+
   let gameCode = generateGameCode()
   for (let i = 0; i < 10; i++) {
     const { data } = await supabase.from('games').select('id').eq('id', gameCode).maybeSingle()
@@ -82,9 +89,9 @@ export async function POST(req: NextRequest) {
     id: gameCode,
     title: title.trim(),
     host_token: hostToken,
-    rounds_count: Math.min(Math.max(Number(rounds_count) || 3, 1), 20),
+    rounds_count: Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds),
     timer_seconds: [15, 30, 60].includes(Number(timer_seconds)) ? Number(timer_seconds) : 30,
-    anonymous: Boolean(anonymous),
+    anonymous: isWouldYouRather(game_type) ? true : Boolean(anonymous),
     auto_reveal: Boolean(auto_reveal),
     auto_submit_behavior: auto_submit_behavior === 'no_answer' ? 'no_answer' : 'random',
     participant_mode,

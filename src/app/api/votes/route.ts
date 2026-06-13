@@ -6,10 +6,11 @@ import {
   isPairAssignmentComplete,
   isPairGame,
   isThreeChoiceGame,
+  isWouldYouRather,
   parseGameType,
   voteSlots,
 } from '@/lib/game-types'
-import type { PairFlag } from '@/types'
+import type { PairFlag, WyrChoice } from '@/types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,7 +27,7 @@ function parsePairAssignments(raw: unknown): Record<string, PairFlag> | null {
 }
 
 export async function POST(req: NextRequest) {
-  const { playerId, roundId, gameId, kiss, marry, kill, pairAssignments: rawPairAssignments } =
+  const { playerId, roundId, gameId, kiss, marry, kill, pairAssignments: rawPairAssignments, wyrChoice: rawWyrChoice } =
     await req.json()
 
   if (!playerId || !roundId || !gameId) {
@@ -52,9 +53,22 @@ export async function POST(req: NextRequest) {
     marry_participant_id: string | null
     kill_participant_id: string | null
     pair_assignments: Record<string, PairFlag> | null
+    wyr_choice: WyrChoice | null
   }
 
-  if (isPairGame(gameType)) {
+  if (isWouldYouRather(gameType)) {
+    const wyrChoice = rawWyrChoice === 'a' || rawWyrChoice === 'b' ? rawWyrChoice : null
+    if (!wyrChoice) {
+      return NextResponse.json({ error: 'Pick option A or B' }, { status: 400 })
+    }
+    row = {
+      kiss_participant_id: null,
+      marry_participant_id: null,
+      kill_participant_id: null,
+      pair_assignments: null,
+      wyr_choice: wyrChoice,
+    }
+  } else if (isPairGame(gameType)) {
     const pairAssignments = parsePairAssignments(rawPairAssignments)
     if (!pairAssignments || !isPairAssignmentComplete(pairAssignments, roundIds)) {
       return NextResponse.json({ error: 'Pick an option for each person' }, { status: 400 })
@@ -70,6 +84,7 @@ export async function POST(req: NextRequest) {
       marry_participant_id: null,
       kill_participant_id: null,
       pair_assignments: pairAssignments,
+      wyr_choice: null,
     }
   } else {
     const assignment = { kiss: kiss || null, marry: marry || null, kill: kill || null }
@@ -95,9 +110,11 @@ export async function POST(req: NextRequest) {
       marry_participant_id: isThreeChoiceGame(gameType) ? assignment.marry : null,
       kill_participant_id: assignment.kill,
       pair_assignments: null,
+      wyr_choice: null,
     }
   }
 
+  if (!isWouldYouRather(gameType)) {
   const { data: participants } = await supabase
     .from('participants')
     .select('id, gender')
@@ -121,6 +138,7 @@ export async function POST(req: NextRequest) {
       { error: 'You cannot vote in this round — only the opposite gender votes' },
       { status: 403 }
     )
+  }
   }
 
   const { error } = await supabase.from('votes').upsert(

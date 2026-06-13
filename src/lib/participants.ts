@@ -1,4 +1,5 @@
-import { roundPoolSize } from '@/lib/game-types'
+import { roundPoolSize, isWouldYouRather } from '@/lib/game-types'
+import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { GameType } from '@/types'
 
 export type ParticipantGender = 'male' | 'female'
@@ -84,6 +85,7 @@ export function hasEnoughForRounds(
   participants: ParticipantInput[],
   gameType?: GameType | string
 ): boolean {
+  if (isWouldYouRather(gameType)) return true
   const min = roundPoolSize(gameType)
   const counts = countByGender(participants)
   return counts.male >= min || counts.female >= min
@@ -94,6 +96,7 @@ export function maxRecommendedRounds(
   participants: ParticipantInput[],
   gameType?: GameType | string
 ): number {
+  if (isWouldYouRather(gameType)) return Math.min(20, WYR_QUESTION_COUNT)
   const perRound = roundPoolSize(gameType)
   const counts = countByGender(participants)
   const maleRounds = Math.floor(counts.male / perRound)
@@ -110,6 +113,9 @@ export function roundLimitHint(
   participants: ParticipantInput[],
   gameType?: GameType | string
 ): string | null {
+  if (isWouldYouRather(gameType)) {
+    return `${WYR_QUESTION_COUNT} questions available → up to ${Math.min(20, WYR_QUESTION_COUNT)} rounds`
+  }
   const min = roundPoolSize(gameType)
   const counts = countByGender(participants)
   const max = maxRecommendedRounds(participants, gameType)
@@ -313,7 +319,8 @@ export function eligibleVotersForRound<
     identity_gender?: ParticipantGender | string | null
     name: string
   }
->(roundGender: ParticipantGender | null, players: T[]): T[] {
+>(roundGender: ParticipantGender | null, players: T[], gameType?: GameType | string): T[] {
+  if (isWouldYouRather(gameType)) return players
   if (!roundGender) return []
   return players.filter((p) => {
     const g = playerVoteGenderForRound(p)

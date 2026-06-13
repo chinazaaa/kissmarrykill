@@ -6,7 +6,7 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession, getInitial, fil
 import { playRoundStartSound, unlockAudio } from '@/lib/sounds'
 import { roundGenderLabel, playerGenderLabel, playerIdentityLabel, genderLabel, getRoundParticipantGender, canPlayerVoteInRound, roundVoterLabel, spectatorMessage, activeVoteBanner, parsePlayerGenderFromDb, parseParticipantGenderFromDb, playerGenderFromJoin, joinGenderHint, playerVoteGenderForRound } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
-import { tallyRoundVotes, getCategoryMeta, getVoteCategories, assignmentEmojiFor, myActionBorderClass, flagForParticipant } from '@/lib/vote-stats'
+import { tallyRoundVotes, tallyWyrVotes, getCategoryMeta, getVoteCategories, assignmentEmojiFor, myActionBorderClass, flagForParticipant } from '@/lib/vote-stats'
 import {
   gameTypeConfig,
   slotMeta,
@@ -18,15 +18,16 @@ import {
   assignmentTargetCount,
   isThreeChoiceGame,
   isPairGame,
+  isWouldYouRather,
   isPairAssignmentComplete,
   pairAssignedCount,
   pairAssignmentFromVote,
 } from '@/lib/game-types'
-import { ParticipantRoundResults, VoteCountStat } from '@/components/VoteResults'
+import { ParticipantRoundResults, VoteCountStat, WyrRoundResults } from '@/components/VoteResults'
 import { FinalGenderLeaderboards, FinalGenderBreakdown } from '@/components/FinalLeaderboard'
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
-import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap } from '@/types'
+import type { Game, Participant, Player, Round, Vote, VoteAssignment, Confession, GameType, PairAssignmentMap, WyrChoice } from '@/types'
 
 type View = 'loading' | 'not_found' | 'join' | 'waiting' | 'round' | 'round_results' | 'results'
 
@@ -45,6 +46,7 @@ export default function GamePage() {
   const [timeLeft, setTimeLeft] = useState(0)
   const [assignment, setAssignment] = useState<VoteAssignment>(emptyAssignment())
   const [pairAssignment, setPairAssignment] = useState<PairAssignmentMap>({})
+  const [wyrChoice, setWyrChoice] = useState<WyrChoice | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [confessionText, setConfessionText] = useState('')
   const [confessionSent, setConfessionSent] = useState(false)
@@ -70,7 +72,10 @@ export default function GamePage() {
   const [editingJoin, setEditingJoin] = useState(false)
 
   const isJoinersMode = game?.participant_mode === 'joiners'
-  const joinPlayerGender: PlayerGender = playerGenderFromJoin(joinIdentityGender, voteBothGenders)
+  const isWyrGame = isWouldYouRather(game?.game_type)
+  const joinPlayerGender: PlayerGender = isWyrGame
+    ? 'both'
+    : playerGenderFromJoin(joinIdentityGender, voteBothGenders)
 
   const setJoinIdentity = (gender: ParticipantGender) => {
     setJoinIdentityGender(gender)
@@ -130,6 +135,8 @@ export default function GamePage() {
   assignmentRef.current = assignment
   const pairAssignmentRef = useRef(pairAssignment)
   pairAssignmentRef.current = pairAssignment
+  const wyrChoiceRef = useRef(wyrChoice)
+  wyrChoiceRef.current = wyrChoice
   const currentRoundRef = useRef(currentRound)
   currentRoundRef.current = currentRound
   const gameRef = useRef(game)
@@ -183,7 +190,9 @@ export default function GamePage() {
               .eq('player_id', session.playerId).eq('round_id', activeRound.id).maybeSingle()
             if (existingVote) {
               const gameType = parseGameType(gameData.game_type)
-              if (isPairGame(gameType)) {
+              if (isWouldYouRather(gameType)) {
+                setWyrChoice(existingVote.wyr_choice)
+              } else if (isPairGame(gameType)) {
                 setPairAssignment(pairAssignmentFromVote(existingVote, activeRound.participant_ids))
               } else {
                 setAssignment({
@@ -278,6 +287,7 @@ export default function GamePage() {
               setSubmitted(false)
               setAssignment(emptyAssignment())
               setPairAssignment({})
+              setWyrChoice(null)
               setConfessionText('')
               setConfessionSent(false)
               setView('round')
@@ -304,6 +314,7 @@ export default function GamePage() {
             setSubmitted(false)
             setAssignment(emptyAssignment())
             setPairAssignment({})
+            setWyrChoice(null)
             setConfessionText('')
             setConfessionSent(false)
             setView('round')
@@ -323,6 +334,7 @@ export default function GamePage() {
             setSubmitted(false)
             setAssignment(emptyAssignment())
             setPairAssignment({})
+            setWyrChoice(null)
             setConfessionText('')
             setConfessionSent(false)
             setView('round')
@@ -453,6 +465,7 @@ export default function GamePage() {
           setSubmitted(false)
           setAssignment(emptyAssignment())
           setPairAssignment({})
+          setWyrChoice(null)
           setView('round')
         }
       }
@@ -489,6 +502,7 @@ export default function GamePage() {
           setSubmitted(false)
           setAssignment(emptyAssignment())
           setPairAssignment({})
+          setWyrChoice(null)
           setConfessionText('')
           setConfessionSent(false)
           setView('round')
@@ -541,11 +555,13 @@ export default function GamePage() {
         currentRound.participant_ids,
         participantsRef.current
       )
+      const gameType = parseGameType(gameRef.current?.game_type)
       const playerGender = myPlayerGenderRef.current ?? getPlayerSession(gameCode)?.playerGender ?? null
-      const canVote =
-        !!roundGender &&
-        !!playerGender &&
-        canPlayerVoteInRound(playerGender, roundGender)
+      const canVote = isWouldYouRather(gameType)
+        ? !!myPlayerIdRef.current
+        : !!roundGender &&
+          !!playerGender &&
+          canPlayerVoteInRound(playerGender, roundGender)
 
       if (remaining === 0 && !submittedRef.current && canVote) {
         submittedRef.current = true
@@ -565,6 +581,7 @@ export default function GamePage() {
   function autoSubmitFromRefs() {
     const a = { ...assignmentRef.current }
     const pa = { ...pairAssignmentRef.current }
+    let wyr = wyrChoiceRef.current
     const r = currentRoundRef.current
     const g = gameRef.current
     const parts = participantsRef.current
@@ -577,7 +594,9 @@ export default function GamePage() {
     const roundIds = roundParts.map((p) => p.id)
 
     if (g?.auto_submit_behavior === 'random') {
-      if (isPairGame(gameType)) {
+      if (isWouldYouRather(gameType)) {
+        wyr = Math.random() < 0.5 ? 'a' : 'b'
+      } else if (isPairGame(gameType)) {
         for (const p of roundParts) {
           pa[p.id] = Math.random() < 0.5 ? 'kiss' : 'kill'
         }
@@ -589,7 +608,9 @@ export default function GamePage() {
       }
     }
 
-    const voteBody = isPairGame(gameType)
+    const voteBody = isWouldYouRather(gameType)
+      ? { wyrChoice: wyr ?? (Math.random() < 0.5 ? 'a' : 'b') }
+      : isPairGame(gameType)
       ? {
           pairAssignments: Object.fromEntries(
             roundIds
@@ -639,7 +660,9 @@ export default function GamePage() {
     setSubmitted(true)
     const submitGameType = parseGameType(game?.game_type)
     const roundIds = currentRound.participant_ids
-    const voteBody = isPairGame(submitGameType)
+    const voteBody = isWouldYouRather(submitGameType)
+      ? { wyrChoice }
+      : isPairGame(submitGameType)
       ? {
           pairAssignments: Object.fromEntries(
             roundIds
@@ -823,6 +846,8 @@ export default function GamePage() {
               emptyMessage={namePickerOptions.length === 0 ? 'All names have been claimed' : 'No names match your search'}
             />
           )}
+          {!isWyrGame && (
+          <>
           <div>
             <p className="text-faint text-xs mb-2 text-center">I am</p>
             <div className="flex gap-2">
@@ -874,8 +899,12 @@ export default function GamePage() {
             </div>
           )}
           <p className="text-faint text-xs text-center">
-            {joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode, joinPollGender)}
+            {isWyrGame
+              ? 'Pick between two options each round — your choice stays anonymous'
+              : joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode, joinPollGender)}
           </p>
+          </>
+          )}
           <button onClick={joinGame} disabled={!canSubmitJoin || joining} className={primaryBtnCls}>
             {joining
               ? editingJoin ? 'Saving...' : 'Joining...'
@@ -928,6 +957,82 @@ export default function GamePage() {
         </div>
         <p className="text-faint text-xs text-center">Keep this tab open</p>
       </CenteredCard>
+    )
+  }
+
+  // ROUND — Would You Rather
+  if (view === 'round' && currentRound && isWouldYouRather(game?.game_type)) {
+    const gameType = parseGameType(game?.game_type)
+    const optionA = currentRound.wyr_option_a ?? ''
+    const optionB = currentRound.wyr_option_b ?? ''
+    const canVote = !!myPlayerId
+    const borderCls =
+      wyrChoice === 'a' ? 'border-violet-500/40' : wyrChoice === 'b' ? 'border-sky-500/40' : 'border-white/10'
+
+    return (
+      <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
+        <PlayerNameBar name={myPlayerName} />
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
+            <GameTypeBadge gameType={gameType} className="mt-1 mb-1" />
+            <p className="text-white font-black text-2xl">
+              Round {currentRound.round_number}
+              <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
+            </p>
+          </div>
+          {canVote ? (
+            <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
+          ) : null}
+        </div>
+
+        <div className={`glass-card border-2 ${borderCls} rounded-2xl p-5 mb-6 flex-1`}>
+          <p className="text-muted text-xs uppercase tracking-wider text-center mb-3">Would you rather…</p>
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={submitted || !canVote}
+              onClick={() => canVote && !submitted && setWyrChoice('a')}
+              className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
+                wyrChoice === 'a'
+                  ? 'border-violet-400 bg-violet-500/15 text-violet-100'
+                  : 'border-white/10 surface-inset text-white/85 hover:border-white/25'
+              } disabled:cursor-not-allowed`}
+            >
+              <p className="text-[10px] uppercase tracking-wider text-faint mb-1">Option A</p>
+              <p className="text-sm leading-snug">{optionA}</p>
+            </button>
+            <button
+              type="button"
+              disabled={submitted || !canVote}
+              onClick={() => canVote && !submitted && setWyrChoice('b')}
+              className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
+                wyrChoice === 'b'
+                  ? 'border-sky-400 bg-sky-500/15 text-sky-100'
+                  : 'border-white/10 surface-inset text-white/85 hover:border-white/25'
+              } disabled:cursor-not-allowed`}
+            >
+              <p className="text-[10px] uppercase tracking-wider text-faint mb-1">Option B</p>
+              <p className="text-sm leading-snug">{optionB}</p>
+            </button>
+          </div>
+        </div>
+
+        {!submitted ? (
+          <button
+            onClick={handleSubmit}
+            disabled={!wyrChoice}
+            className={wyrChoice ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}
+          >
+            {wyrChoice ? 'Submit Vote ✓' : 'Pick one option'}
+          </button>
+        ) : (
+          <div className="w-full py-4 rounded-2xl glass-card border border-emerald-500/30 text-center">
+            <p className="text-green-400 font-semibold">✓ Vote submitted!</p>
+            <p className="text-muted text-sm mt-0.5">Results will show when the round ends</p>
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -1068,6 +1173,40 @@ export default function GamePage() {
 
   // ROUND RESULTS — shown after round ends, before next round starts
   if (view === 'round_results' && lastFinishedRound) {
+    const gameType = parseGameType(game?.game_type)
+
+    if (isWouldYouRather(gameType)) {
+      const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
+      const { countA, countB, voterCount } = tallyWyrVotes(lastRoundVotes)
+      const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
+
+      return (
+        <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+          <PlayerNameBar name={myPlayerName} />
+          <div className="text-center">
+            <p className="text-muted text-xs uppercase tracking-wider">
+              Round {lastFinishedRound.round_number} of {game?.rounds_count}
+            </p>
+            <GameTypeBadge gameType={gameType} className="mt-2" />
+            <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🗳️</h2>
+          </div>
+          <WyrRoundResults
+            optionA={lastFinishedRound.wyr_option_a ?? ''}
+            optionB={lastFinishedRound.wyr_option_b ?? ''}
+            countA={countA}
+            countB={countB}
+            voterCount={voterCount}
+            myChoice={myVote?.wyr_choice ?? null}
+          />
+          <p className="text-faint text-sm text-center">
+            {isLastRound
+              ? (game?.auto_reveal ? '⏳ Final results in a few seconds...' : '⏳ Waiting for final results...')
+              : '⏳ Waiting for next round...'}
+          </p>
+        </div>
+      )
+    }
+
     const roundParts = participants.filter((p) => lastFinishedRound.participant_ids.includes(p.id))
     const roundParticipantGender = getRoundParticipantGender(lastFinishedRound.participant_ids, participants)
     const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
@@ -1080,7 +1219,6 @@ export default function GamePage() {
     )
     const roundConfessions = allConfessions.filter((c) => c.round_id === lastFinishedRound.id)
     const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
-    const gameType = parseGameType(game?.game_type)
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
@@ -1321,6 +1459,7 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
 }) {
   const gameType = parseGameType(game.game_type)
   const playedParticipants = filterParticipantsInRounds(participants, rounds)
+  const isWyr = isWouldYouRather(gameType)
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -1329,27 +1468,52 @@ function FinalResultsView({ game, participants, rounds, votes, confessions, play
         <div className="text-4xl mb-2">🎊</div>
         <h1 className="text-3xl font-black text-white">{game.title}</h1>
         <GameTypeBadge gameType={gameType} className="mt-2" />
-        <p className="text-muted mt-2">{players.length} players · {rounds.length} rounds · {playedParticipants.length} in game</p>
+        <p className="text-muted mt-2">
+          {players.length} players · {rounds.length} rounds
+          {!isWyr ? ` · ${playedParticipants.length} in game` : ''}
+        </p>
       </div>
 
-      <FinalGenderLeaderboards
-        gameType={gameType}
-        participants={participants}
-        rounds={rounds}
-        votes={votes}
-        TopCard={LeaderCard}
-      />
-
-      <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
+      {!isWyr && (
+        <>
+          <FinalGenderLeaderboards
+            gameType={gameType}
+            participants={participants}
+            rounds={rounds}
+            votes={votes}
+            TopCard={LeaderCard}
+          />
+          <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
+        </>
+      )}
 
       <div>
         <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>
         <div className="space-y-8">
-      {/* Round-by-round breakdown — all rounds visible to everyone */}
       {rounds.map((round) => {
-        const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
         const roundVotes = votes.filter((v) => v.round_id === round.id)
         const myVote = roundVotes.find((v) => v.player_id === myPlayerId)
+
+        if (isWyr) {
+          const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
+          return (
+            <div key={round.id}>
+              <h2 className="text-muted text-xs uppercase tracking-wider mb-3">
+                Round {round.round_number}
+              </h2>
+              <WyrRoundResults
+                optionA={round.wyr_option_a ?? ''}
+                optionB={round.wyr_option_b ?? ''}
+                countA={countA}
+                countB={countB}
+                voterCount={voterCount}
+                myChoice={myVote?.wyr_choice ?? null}
+              />
+            </div>
+          )
+        }
+
+        const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
         const roundGender = roundGenderLabel(roundParts.map((p) => p.gender))
 
         return (

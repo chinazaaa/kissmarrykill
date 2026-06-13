@@ -12,7 +12,7 @@ create table if not exists games (
   auto_reveal boolean not null default true,
   auto_submit_behavior text not null default 'random',
   participant_mode text not null default 'import' check (participant_mode in ('import', 'joiners')),
-  game_type text not null default 'smash_marry_kill' check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass')),
+  game_type text not null default 'smash_marry_kill' check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass', 'would_you_rather')),
   status text not null default 'waiting',
   current_round_number integer not null default 0,
   created_at timestamptz not null default now()
@@ -22,7 +22,7 @@ create table if not exists games (
 -- alter table games add column if not exists game_type text not null default 'smash_marry_kill' check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass'));
 -- To allow smash_or_pass on an existing DB, drop and recreate the check:
 -- alter table games drop constraint if exists games_game_type_check;
--- alter table games add constraint games_game_type_check check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass'));
+-- alter table games add constraint games_game_type_check check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass', 'would_you_rather'));
 
 -- Participants (people being voted on)
 create table if not exists participants (
@@ -65,7 +65,9 @@ create table if not exists rounds (
   id uuid primary key default gen_random_uuid(),
   game_id text not null references games(id) on delete cascade,
   round_number integer not null,
-  participant_ids uuid[] not null,
+  participant_ids uuid[] not null default '{}',
+  wyr_option_a text,
+  wyr_option_b text,
   status text not null default 'pending',
   started_at timestamptz,
   ended_at timestamptz
@@ -84,6 +86,7 @@ create table if not exists votes (
   kill_participant_id uuid references participants(id),
   /** Pair games: { "participant-id": "kiss"|"kill" } — one flag per person, can match. */
   pair_assignments jsonb,
+  wyr_choice text check (wyr_choice in ('a', 'b')),
   created_at timestamptz not null default now(),
   unique(player_id, round_id)
 );
@@ -91,6 +94,9 @@ create index if not exists idx_votes_game_id on votes(game_id);
 create index if not exists idx_votes_round_id on votes(round_id);
 
 -- If upgrading: alter table votes add column if not exists pair_assignments jsonb;
+-- alter table rounds add column if not exists wyr_option_a text;
+-- alter table rounds add column if not exists wyr_option_b text;
+-- alter table votes add column if not exists wyr_choice text check (wyr_choice in ('a', 'b'));
 
 -- Confessions (anonymous post-round messages)
 create table if not exists confessions (

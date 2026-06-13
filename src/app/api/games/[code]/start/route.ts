@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateRoundsByGender } from '@/lib/utils'
 import { hasVotersForPolls, parseParticipantGenderFromDb, participantsWhoJoined, maxRecommendedRounds } from '@/lib/participants'
-import { parseGameType, roundPoolSize } from '@/lib/game-types'
+import { parseGameType, roundPoolSize, isWouldYouRather } from '@/lib/game-types'
+import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,6 +20,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (game.status !== 'waiting') return NextResponse.json({ error: 'Game already started' }, { status: 400 })
 
   const gameType = parseGameType(game.game_type)
+
+  const { data: playersData } = await supabase
+    .from('players')
+    .select('gender, identity_gender, participant_id, name')
+    .eq('game_id', code.toUpperCase())
+
+  if (!playersData?.length) {
+    return NextResponse.json({ error: 'Need at least one player to start' }, { status: 400 })
+  }
+
+  const now = new Date().toISOString()
+
+  if (isWouldYouRather(gameType)) {
+    const maxRounds = maxRecommendedRounds([], gameType)
+    if (game.rounds_count > maxRounds) {
+      return NextResponse.json(
+        { error: `Too many rounds — lower to ${maxRounds} or fewer before starting` },
+        { status: 400 }
+      )
+    }
+
+    const questions = pickWyrQuestions(game.rounds_count)
+    if (questions.length === 0) {
+      return NextResponse.json({ error: 'No questions available' }, { status: 400 })
+    }
+
+    const roundRows = questions.map((q, index) => ({
+      game_id: code.toUpperCase(),
+      round_number: index + 1,
+      participant_ids: [],
+      wyr_option_a: q.optionA,
+      wyr_option_b: q.optionB,
+      status: index === 0 ? 'active' : 'pending',
+      started_at: index === 0 ? now : null,
+      ended_at: null,
+    }))
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({ status: 'active', current_round_number: 1 })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  }
+
   const poolSize = roundPoolSize(gameType)
   const minPool = poolSize
 
@@ -30,15 +81,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (!participantsData || participantsData.length < minPool) {
     return NextResponse.json({ error: `Need at least ${minPool} names on the list` }, { status: 400 })
-  }
-
-  const { data: playersData } = await supabase
-    .from('players')
-    .select('gender, identity_gender, participant_id, name')
-    .eq('game_id', code.toUpperCase())
-
-  if (!playersData?.length) {
-    return NextResponse.json({ error: 'Need at least one player to start' }, { status: 400 })
   }
 
   const isImportMode = (game.participant_mode ?? 'import') === 'import'
@@ -85,8 +127,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (!voterCheck.ok) {
     return NextResponse.json({ error: voterCheck.message }, { status: 400 })
   }
-
-  const now = new Date().toISOString()
 
   const roundRows = trios.map((trio, index) => ({
     game_id: code.toUpperCase(),

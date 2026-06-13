@@ -1,4 +1,4 @@
-import type { GameType, PairFlag } from '@/types'
+import type { GameType, PairFlag, WyrChoice } from '@/types'
 import {
   type VoteCategory,
   categoryMeta,
@@ -37,6 +37,18 @@ export function tallyRoundVotes(participantIds: string[], votes: VoteRow[]): Rou
     marry: votes.filter((v) => v.marry_participant_id === id).length,
     smash: votes.filter((v) => flagForParticipant(v, id) === 'kill').length,
   }))
+}
+
+export interface WyrTally {
+  countA: number
+  countB: number
+  voterCount: number
+}
+
+export function tallyWyrVotes(votes: { wyr_choice?: WyrChoice | string | null }[]): WyrTally {
+  const countA = votes.filter((v) => v.wyr_choice === 'a').length
+  const countB = votes.filter((v) => v.wyr_choice === 'b').length
+  return { countA, countB, voterCount: votes.length }
 }
 
 export function maxInRound(tallies: RoundTally[]): Record<VoteCategory, number> {

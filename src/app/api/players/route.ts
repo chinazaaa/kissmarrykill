@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
+import { parseGameType, isWouldYouRather } from '@/lib/game-types'
 import { assertHostGame, deleteJoinerPair, findJoinerParticipant, pollGenderForPlayer, syncImportParticipantBallot } from '@/lib/game-admin'
 
 const supabase = createClient(
@@ -12,7 +13,7 @@ async function assertWaitingGame(gameCode: string) {
   const id = gameCode.toUpperCase()
   const { data: game } = await supabase
     .from('games')
-    .select('status, participant_mode')
+    .select('status, participant_mode, game_type')
     .eq('id', id)
     .maybeSingle()
 
@@ -89,6 +90,40 @@ export async function POST(req: NextRequest) {
   const waiting = await assertWaitingGame(gameCode)
   if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })
   const { game, id } = waiting
+  const gameType = parseGameType(game!.game_type)
+
+  if (isWouldYouRather(gameType)) {
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+    if (await nameTaken(id, name)) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    const identityGender =
+      resolveIdentityGender(rawIdentityGender, 'both', 'female') ?? 'female'
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: id,
+        name,
+        gender: 'both',
+        identity_gender: identityGender,
+        participant_id: null,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({
+      playerId: player.id,
+      playerName: player.name,
+      playerGender: player.gender,
+      playerIdentityGender: player.identity_gender,
+    })
+  }
 
   if (game!.participant_mode === 'import') {
     const participantId = String(rawParticipantId ?? '').trim()

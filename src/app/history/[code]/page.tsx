@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { roundGenderLabel } from '@/lib/participants'
 import { assignmentEmojiFor, tallyRoundVotes, getVoteCategories, flagForParticipant } from '@/lib/vote-stats'
-import { parseGameType, slotMeta, voteSlots, isPairGame } from '@/lib/game-types'
-import { ParticipantRoundResults } from '@/components/VoteResults'
+import { parseGameType, slotMeta, voteSlots, isPairGame, isWouldYouRather } from '@/lib/game-types'
+import { ParticipantRoundResults, WyrRoundResults } from '@/components/VoteResults'
+import { tallyWyrVotes } from '@/lib/vote-stats'
 import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
@@ -197,7 +198,20 @@ export default function GameHistoryPage() {
                   </p>
                 </div>
 
-                {isPairGame(gameType) ? (
+                {isWouldYouRather(gameType) ? (
+                  (() => {
+                    const wyrTally = tallyWyrVotes(roundVotes)
+                    return (
+                  <WyrRoundResults
+                    optionA={round.wyr_option_a ?? ''}
+                    optionB={round.wyr_option_b ?? ''}
+                    countA={wyrTally.countA}
+                    countB={wyrTally.countB}
+                    voterCount={wyrTally.voterCount}
+                  />
+                    )
+                  })()
+                ) : isPairGame(gameType) ? (
                   <>
                     <ParticipantRoundResults
                       gameType={gameType}

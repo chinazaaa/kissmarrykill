@@ -11,7 +11,8 @@ import {
   hasEnoughForRounds,
   genderLabel,
 } from '@/lib/participants'
-import { GAME_TYPE_OPTIONS, gameTypeConfig, roundPoolSize } from '@/lib/game-types'
+import { GAME_TYPE_OPTIONS, gameTypeConfig, roundPoolSize, isWouldYouRather } from '@/lib/game-types'
+import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 
 interface Settings {
   title: string
@@ -51,9 +52,13 @@ export default function CreateGame() {
 
   const genderCounts = countByGender(participants)
   const isJoinersMode = settings.participant_mode === 'joiners'
+  const isWyr = isWouldYouRather(settings.game_type)
   const minPool = roundPoolSize(settings.game_type)
   const canCreateImport = participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type)
   const canCreateJoiners = !!settings.title.trim()
+  const canCreateWyr = !!settings.title.trim()
+  const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= WYR_QUESTION_COUNT)
+  const roundOptions = isWyr ? wyrRoundOptions : [2, 3, 4, 5, 6, 8, 10]
 
   const addParticipantsFromRows = (rows: ParticipantInput[]) => {
     if (rows.length === 0) return 0
@@ -189,7 +194,15 @@ export default function CreateGame() {
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setSettings({ ...settings, game_type: type })}
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        game_type: type,
+                        ...(isWouldYouRather(type)
+                          ? { participant_mode: 'joiners', anonymous: true }
+                          : {}),
+                      })
+                    }
                     className={`text-left rounded-2xl border p-4 transition-all ${
                       settings.game_type === type
                         ? 'border-[var(--primary)] bg-[var(--primary)]/10'
@@ -206,6 +219,7 @@ export default function CreateGame() {
             </div>
           </Field>
 
+          {!isWyr && (
           <Field label="Who Joins">
             <div className="grid gap-2">
               <button
@@ -238,10 +252,11 @@ export default function CreateGame() {
               </button>
             </div>
           </Field>
+          )}
 
           <Field label="Number of Rounds">
             <div className="flex gap-2 flex-wrap">
-              {[2, 3, 4, 5, 6, 8, 10].map((n) => (
+              {roundOptions.map((n) => (
                 <Chip
                   key={n}
                   active={settings.rounds_count === n}
@@ -288,12 +303,17 @@ export default function CreateGame() {
           </Field>
 
           <div className="space-y-2 pt-1">
+            {!isWyr && (
             <Toggle
               label="Anonymous Responses"
               description="Hide who voted for what"
               value={settings.anonymous}
               onChange={(v) => setSettings({ ...settings, anonymous: v })}
             />
+            )}
+            {isWyr && (
+              <p className="text-faint text-xs px-1">Would You Rather games are always anonymous — only totals are shown.</p>
+            )}
             <Toggle
               label="Auto-Reveal Results"
               description="Show results after the last round automatically"
@@ -303,7 +323,11 @@ export default function CreateGame() {
           </div>
         </div>
 
-        {isJoinersMode ? (
+        {isWyr ? (
+          <PrimaryBtn onClick={createGame} disabled={!canCreateWyr || loading}>
+            {loading ? 'Creating...' : 'Create Game'}
+          </PrimaryBtn>
+        ) : isJoinersMode ? (
           <PrimaryBtn onClick={createGame} disabled={!canCreateJoiners || loading}>
             {loading ? 'Creating...' : 'Create Game'}
           </PrimaryBtn>

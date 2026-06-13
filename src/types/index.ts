@@ -2,7 +2,8 @@ export type GameStatus = 'waiting' | 'active' | 'finished'
 export type RoundStatus = 'pending' | 'active' | 'finished'
 export type AutoSubmitBehavior = 'random' | 'no_answer'
 export type ParticipantMode = 'import' | 'joiners'
-export type GameType = 'smash_marry_kill' | 'red_flag_green_flag' | 'smash_or_pass'
+export type GameType = 'smash_marry_kill' | 'red_flag_green_flag' | 'smash_or_pass' | 'would_you_rather'
+export type WyrChoice = 'a' | 'b'
 
 export type ParticipantGender = 'male' | 'female'
 /** Gender selected when joining — `both` means vote on every round. */
@@ -52,6 +53,8 @@ export interface Round {
   game_id: string
   round_number: number
   participant_ids: string[]
+  wyr_option_a: string | null
+  wyr_option_b: string | null
   status: RoundStatus
   started_at: string | null
   ended_at: string | null
@@ -69,6 +72,7 @@ export interface Vote {
   marry_participant_id: string | null
   kill_participant_id: string | null
   pair_assignments: Record<string, PairFlag> | null
+  wyr_choice: WyrChoice | null
   created_at: string
 }
 
