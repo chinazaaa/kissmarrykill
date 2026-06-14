@@ -89,6 +89,8 @@ import {
   hotSeatPlayerDisplayName,
 } from '@/lib/hot-seat'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { AchievementBadges } from '@/components/AchievementBadges'
+import { computeAchievements } from '@/lib/achievements'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
@@ -2688,6 +2690,7 @@ export default function HostPage() {
     const playedParticipants = filterParticipantsInRounds(participants, allRounds)
     const pollCount = mltVoteTargets(game, participants, players).length
     const wstScores = isWst ? tallyWstPlayerScores(allRounds, votes, players) : []
+    const achievements = computeAchievements(game, participants, allRounds, votes, players)
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -2880,6 +2883,8 @@ export default function HostPage() {
             <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
           </>
         )}
+
+        {achievements.length > 0 && <AchievementBadges achievements={achievements} />}
 
         {/* Confessions / hot takes */}
         {confessions.length > 0 && (

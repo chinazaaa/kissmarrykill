@@ -2725,18 +2725,21 @@ export default function GamePage() {
         {myVote && (
           <div className="glass-card border border-[var(--primary)]/30 p-4">
             <p className="text-[var(--primary)] text-xs uppercase tracking-wider mb-2">Your vote</p>
-            <div className="flex gap-4 flex-wrap">
-              {isCustomGame(gameType) && game
-                ? customVoteRecapItems(
-                    myVote.pair_assignments as Record<string, string> | null,
-                    roundParts,
-                    getCustomSlots(game)
-                  ).map((item) => (
-                    <span key={item.name} className="text-sm font-medium" style={{ color: item.color }}>
-                      {item.name}: {item.emoji} {item.label}
-                    </span>
-                  ))
-                : isPairGame(gameType)
+            {isCustomGame(gameType) && game ? (
+              <div className="space-y-1.5">
+                {customVoteRecapItems(
+                  myVote.pair_assignments as Record<string, string> | null,
+                  roundParts,
+                  getCustomSlots(game)
+                ).map((item) => (
+                  <p key={`${item.label}-${item.name}`} className="text-sm font-medium" style={{ color: item.color }}>
+                    {item.emoji} {item.label}: {item.name}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <div className="inline-flex flex-wrap gap-x-3 gap-y-1">
+                {isPairGame(gameType)
                   ? roundParts.map((p) => {
                       const flag = flagForParticipant(myVote, p.id)
                       if (!flag) return null
@@ -2762,7 +2765,8 @@ export default function GamePage() {
                         </span>
                       )
                     })}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
