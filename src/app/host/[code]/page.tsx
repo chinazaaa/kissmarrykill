@@ -53,8 +53,6 @@ import {
 import { isGameGenderBased, supportsGenderToggle, isGenderFreeVoting } from '@/lib/gender-based'
 import { isVoterOnlyMode } from '@/lib/participant-mode'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
-// import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
-// import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import {
   questionPoolCap,
