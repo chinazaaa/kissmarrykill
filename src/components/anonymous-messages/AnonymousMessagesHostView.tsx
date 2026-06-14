@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { ResultsPagination, usePagination } from '@/components/ui/ResultsPagination'
 import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
@@ -24,6 +25,8 @@ import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
 import type { Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+
+const LOBBY_PAGE_SIZE = 10
 
 export function AnonymousMessagesHostView({
   gameCode,
@@ -57,6 +60,8 @@ export function AnonymousMessagesHostView({
   const messagesEnabled = game?.status === 'active'
   const { messages, removeMessage } = useAnonymousMessages(gameCode, !!messagesEnabled, players)
   useAnonymousMessageTrim(gameCode, !!messagesEnabled)
+  const lobbyPagination = usePagination(players.length, LOBBY_PAGE_SIZE)
+  const visibleLobbyPlayers = players.slice(lobbyPagination.start, lobbyPagination.end)
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }] = await Promise.all([
@@ -295,7 +300,7 @@ export function AnonymousMessagesHostView({
           {players.length === 0 ? (
             <p className="text-muted text-sm">Waiting for players…</p>
           ) : (
-            players.map((player) => {
+            visibleLobbyPlayers.map((player) => {
               const ban = banForPlayer(player.id)
               const muted = isPlayerBanned(ban?.banned_until)
               const mutedLabel =
@@ -345,6 +350,14 @@ export function AnonymousMessagesHostView({
             })
           )}
         </div>
+        <ResultsPagination
+          page={lobbyPagination.page}
+          totalPages={lobbyPagination.totalPages}
+          onPageChange={lobbyPagination.setPage}
+          totalItems={players.length}
+          pageSize={LOBBY_PAGE_SIZE}
+          noun="players"
+        />
       </div>
 
       {game.status === 'waiting' && (
