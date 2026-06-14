@@ -142,6 +142,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
+import { useGameChannel } from '@/hooks/useGameChannel'
 import { HOT_SEAT_SUBMISSION_TYPES, hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
 import {
@@ -576,209 +577,95 @@ export default function GamePage() {
   }
 
   // ── Real-time subscriptions ───────────────────────────────────────────────
-  useEffect(() => {
-    const ch = supabase
-      .channel(`game-player-${gameCode}`)
-
-      // Game status changes
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
-        async (payload) => {
-          const newGame = payload.new as Game
-          setGame(newGame)
-
-          if (newGame.status === 'active' && myPlayerIdRef.current) {
-            const [{ data: activeRound }, { data: parts }] = await Promise.all([
-              supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-              supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-            ])
-            if (parts) setParticipants(parts)
-            if (activeRound) {
-              applyActiveRound(activeRound)
-            }
-          }
-
-          if (newGame.status === 'finished') {
-            await loadAllResults()
-            setView('results')
-          }
-
-          if (newGame.status === 'waiting') {
-            resetPlayerForLobby(!!myPlayerIdRef.current)
-          }
+  useGameChannel(gameCode, `game-player-${gameCode}`, {
+    setGame,
+    setPlayers,
+    setParticipants,
+    setWstPool,
+    setConfessions: setAllConfessions,
+  }, {
+    onGameUpdate: async (newGame) => {
+      if (newGame.status === 'active' && myPlayerIdRef.current) {
+        const [{ data: activeRound }, { data: parts }] = await Promise.all([
+          supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+        ])
+        if (parts) setParticipants(parts)
+        if (activeRound) {
+          applyActiveRound(activeRound)
         }
-      )
-
-      // First round is inserted (not updated) when the host starts the game
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
-        async (payload) => {
-          const round = payload.new as Round
-          if (round.status === 'active' && myPlayerIdRef.current) {
-            const { data: parts } = await supabase
-              .from('participants')
-              .select('*')
-              .eq('game_id', gameCode)
-              .order('display_order')
-            if (parts) setParticipants(parts)
-            applyActiveRound(round)
-          }
+      }
+      if (newGame.status === 'finished') {
+        await loadAllResults()
+        setView('results')
+      }
+      if (newGame.status === 'waiting') {
+        resetPlayerForLobby(!!myPlayerIdRef.current)
+      }
+    },
+    onRoundInsert: async (round) => {
+      if (round.status === 'active' && myPlayerIdRef.current) {
+        const { data: parts } = await supabase
+          .from('participants')
+          .select('*')
+          .eq('game_id', gameCode)
+          .order('display_order')
+        if (parts) setParticipants(parts)
+        applyActiveRound(round)
+      }
+    },
+    onRoundUpdate: async (round) => {
+      if (round.status === 'active') {
+        const priorId = roundFormIdRef.current
+        applyActiveRound(round, { switchView: priorId !== round.id })
+      }
+      if (round.status === 'finished') {
+        const [{ data: rv }, { data: rc }] = await Promise.all([
+          supabase.from('votes').select('*').eq('round_id', round.id),
+          supabase.from('confessions').select('*').eq('round_id', round.id).order('created_at'),
+        ])
+        setLastFinishedRound(round)
+        setLastRoundVotes(rv || [])
+        setAllConfessions((prev) => {
+          const ids = new Set(prev.map((c) => c.id))
+          return [...prev, ...(rc || []).filter((c) => !ids.has(c.id))]
+        })
+        setAllVotes((prev) => {
+          const ids = new Set(prev.map((v) => v.id))
+          return [...prev, ...(rv || []).filter((v) => !ids.has(v.id))]
+        })
+        setAllRounds((prev) => {
+          const ids = new Set(prev.map((r) => r.id))
+          return ids.has(round.id) ? prev.map((r) => (r.id === round.id ? round : r)) : [...prev, round]
+        })
+        setView('round_results')
+      }
+    },
+    onPlayerUpdate: (p) => {
+      if (p.id === myPlayerIdRef.current) {
+        setMyPlayerName(p.name)
+        const voteGender = playerVoteGenderForRound(p, participantsRef.current)
+        if (voteGender) {
+          setMyPlayerGender(voteGender)
+          setPlayerSession(gameCode, p.id, p.name, voteGender)
         }
-      )
-
-      // Round status changes — this drives the whole flow
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
-        async (payload) => {
-          const round = payload.new as Round
-
-          if (round.status === 'active') {
-            const priorId = roundFormIdRef.current
-            applyActiveRound(round, { switchView: priorId !== round.id })
-          }
-
-          if (round.status === 'finished') {
-            // Round ended — show results before next round
-            const [{ data: rv }, { data: rc }] = await Promise.all([
-              supabase.from('votes').select('*').eq('round_id', round.id),
-              supabase.from('confessions').select('*').eq('round_id', round.id).order('created_at'),
-            ])
-            setLastFinishedRound(round)
-            setLastRoundVotes(rv || [])
-            // Merge into allConfessions (dedup)
-            setAllConfessions((prev) => {
-              const ids = new Set(prev.map((c) => c.id))
-              return [...prev, ...(rc || []).filter((c) => !ids.has(c.id))]
-            })
-            // Merge into allVotes
-            setAllVotes((prev) => {
-              const ids = new Set(prev.map((v) => v.id))
-              return [...prev, ...(rv || []).filter((v) => !ids.has(v.id))]
-            })
-            setAllRounds((prev) => {
-              const ids = new Set(prev.map((r) => r.id))
-              return ids.has(round.id) ? prev.map((r) => (r.id === round.id ? round : r)) : [...prev, round]
-            })
-            setView('round_results')
-          }
-        }
-      )
-
-      // New player joined
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const p = payload.new as Player
-          setPlayers((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p]))
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const p = payload.new as Player
-          setPlayers((prev) => prev.map((x) => (x.id === p.id ? p : x)))
-          if (p.id === myPlayerIdRef.current) {
-            setMyPlayerName(p.name)
-            const voteGender = playerVoteGenderForRound(p, participantsRef.current)
-            if (voteGender) {
-              setMyPlayerGender(voteGender)
-              setPlayerSession(gameCode, p.id, p.name, voteGender)
-            }
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const p = payload.old as Player
-          setPlayers((prev) => prev.filter((x) => x.id !== p.id))
-          if (p.id === myPlayerIdRef.current) {
-            clearPlayerSession(gameCode)
-            setMyPlayerId(null)
-            setMyPlayerName(null)
-            setMyPlayerGender(null)
-            setEditingJoin(false)
-            setView('join')
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const p = payload.new as Participant
-          setParticipants((prev) =>
-            prev.some((x) => x.id === p.id) ? prev : [...prev, p].sort((a, b) => a.display_order - b.display_order)
-          )
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const p = payload.new as Participant
-          setParticipants((prev) => prev.map((x) => (x.id === p.id ? p : x)))
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'participants', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const p = payload.old as Participant
-          setParticipants((prev) => prev.filter((x) => x.id !== p.id))
-        }
-      )
-
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const entry = payload.new as WstQuotePoolEntry
-          setWstPool((prev) => mergeWstPoolEntry(prev, entry))
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const entry = payload.new as WstQuotePoolEntry
-          setWstPool((prev) => mergeWstPoolEntry(prev, entry))
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const entry = payload.old as WstQuotePoolEntry
-          setWstPool((prev) => prev.filter((x) => x.id !== entry.id && x.player_id !== entry.player_id))
-        }
-      )
-
-      // New confession (live hot takes)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'confessions', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const c = payload.new as Confession
-          setAllConfessions((prev) => (prev.some((x) => x.id === c.id) ? prev : [...prev, c]))
-          // If it belongs to the currently-displayed finished round, add it live
-          setLastRoundVotes((prev) => prev) // trigger no-op to let view re-render
-        }
-      )
-
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(ch)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- realtime subscription, deps intentionally limited
-  }, [gameCode])
+      }
+    },
+    onPlayerDelete: (p) => {
+      if (p.id === myPlayerIdRef.current) {
+        clearPlayerSession(gameCode)
+        setMyPlayerId(null)
+        setMyPlayerName(null)
+        setMyPlayerGender(null)
+        setEditingJoin(false)
+        setView('join')
+      }
+    },
+    onConfessionInsert: () => {
+      // Trigger re-render for live confessions in round results
+      setLastRoundVotes((prev) => prev)
+    },
+  })
 
   // Poll during final results — return to lobby when host resets
   useEffect(() => {
