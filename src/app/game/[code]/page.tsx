@@ -65,7 +65,6 @@ import {
   isPairAssignmentValid,
   pairDisabledSlots,
   assignPairSlot,
-  completeRandomPairAssignment,
   isHotSeat,
   isCustomGame,
   isAnonymousMessagesGame,
@@ -106,7 +105,6 @@ import {
   getCustomSlots,
   getCustomSlotKeys,
   tallyCustomVotes,
-  completeRandomCustomAssignment,
   buildCustomLeaderboard,
   isCustomAssignmentValid,
   customAssignmentMode,
@@ -144,6 +142,7 @@ import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { useGameChannel } from '@/hooks/useGameChannel'
 import { useRoundTimer } from '@/hooks/useRoundTimer'
+import { useAutoSubmit } from '@/hooks/useAutoSubmit'
 import { HOT_SEAT_SUBMISSION_TYPES, hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
 import {
@@ -326,31 +325,39 @@ export default function GamePage() {
       joinGenderTouchedRef.current = false
     }
   }, [namePickerOptions, selectedParticipantId, useFreeNameJoin, view])
-  const submittedRef = useRef(false)
-  const assignmentRef = useRef(assignment)
+  const { refs: autoSubmitRefs, triggerAutoSubmit } = useAutoSubmit(gameCode, {
+    onCustomAssignmentsChange: setCustomAssignments,
+  })
+  const {
+    assignmentRef,
+    pairAssignmentRef,
+    customAssignmentsRef,
+    wyrChoiceRef,
+    mltTargetPlayerIdRef: autoMltRef,
+    animeChoiceRef,
+    playersRef,
+    currentRoundRef,
+    gameRef,
+    participantsRef,
+    myPlayerIdRef,
+    myPlayerGenderRef,
+    submittedRef,
+  } = autoSubmitRefs
+
+  // Sync state → refs so auto-submit reads current values
   assignmentRef.current = assignment
-  const pairAssignmentRef = useRef(pairAssignment)
   pairAssignmentRef.current = pairAssignment
-  const customAssignmentsRef = useRef(customAssignments)
   customAssignmentsRef.current = customAssignments
-  const wyrChoiceRef = useRef(wyrChoice)
   wyrChoiceRef.current = wyrChoice
-  const mltTargetPlayerIdRef = useRef(mltTargetPlayerId)
-  mltTargetPlayerIdRef.current = mltTargetPlayerId
-  const animeChoiceRef = useRef(animeChoice)
+  autoMltRef.current = mltTargetPlayerId
   animeChoiceRef.current = animeChoice
-  const playersRef = useRef(players)
   playersRef.current = players
-  const currentRoundRef = useRef(currentRound)
   currentRoundRef.current = currentRound
-  const gameRef = useRef(game)
   gameRef.current = game
-  const participantsRef = useRef(participants)
   participantsRef.current = participants
-  const myPlayerIdRef = useRef(myPlayerId)
   myPlayerIdRef.current = myPlayerId
-  const myPlayerGenderRef = useRef(myPlayerGender)
   myPlayerGenderRef.current = myPlayerGender
+
   const announcedRoundIdRef = useRef<string | null>(null)
   const suppressRoundSoundRef = useRef(true)
   const joinGenderTouchedRef = useRef(false)
@@ -865,7 +872,7 @@ export default function GamePage() {
           : !!roundGender && !!playerGender && canPlayerVoteInRound(playerGender, roundGender)
 
       if (canVote) {
-        void autoSubmitFromRefs().then((didSubmit) => {
+        void triggerAutoSubmit().then((didSubmit) => {
           if (didSubmit) {
             submittedRef.current = true
             setSubmitted(true)
@@ -877,144 +884,6 @@ export default function GamePage() {
   })
 
   useTimerTickSound(timeLeft, view === 'round')
-
-  // Uses only refs so it never causes stale closure issues
-  async function autoSubmitFromRefs(): Promise<boolean> {
-    const a = { ...assignmentRef.current }
-    const pa = { ...pairAssignmentRef.current }
-    let wyr = wyrChoiceRef.current
-    let mltTarget = mltTargetPlayerIdRef.current
-    let customCa = { ...customAssignmentsRef.current }
-    const plrs = playersRef.current
-    const r = currentRoundRef.current
-    const g = gameRef.current
-    const parts = participantsRef.current
-    const pid = myPlayerIdRef.current
-
-    if (!r || !pid || !g) return false
-
-    const gameType = parseGameType(g.game_type)
-    const roundParts = parts.filter((p) => r.participant_ids.includes(p.id))
-    const roundIds = roundParts.map((p) => p.id)
-    const useRandom = g.auto_submit_behavior === 'random'
-    let animeCh = animeChoiceRef.current
-    const isAnimeWst = isWhoSaidThis(gameType) && !!r.anime_metadata
-
-    // Only auto-fill random choices if the player has started voting
-    // (picked at least one option). If they haven't touched anything, skip.
-    const hasStartedVoting = isBinaryChoiceGame(gameType)
-      ? !!wyr
-      : isAnimeWst
-        ? !!animeCh
-        : isMostLikelyTo(gameType) || isWhoSaidThis(gameType)
-          ? !!mltTarget
-          : isCustomGame(gameType)
-            ? Object.keys(customCa).length > 0
-            : isPairGame(gameType)
-              ? Object.values(pa).some(Boolean)
-              : Object.values(a).some(Boolean)
-
-    if (useRandom && hasStartedVoting) {
-      if (isBinaryChoiceGame(gameType)) {
-        wyr = Math.random() < 0.5 ? 'a' : 'b'
-      } else if (isMostLikelyTo(gameType)) {
-        const targets = mltVoteTargets(g, parts, plrs)
-        if (targets.length > 0) {
-          mltTarget = targets[Math.floor(Math.random() * targets.length)].id
-        }
-      } else if (isAnimeWst) {
-        const choices = (r.anime_metadata as { choices: string[] }).choices
-        if (choices.length > 0) {
-          animeCh = choices[Math.floor(Math.random() * choices.length)]
-        }
-      } else if (isWhoSaidThis(gameType)) {
-        const targets = wstVoteTargets(parts)
-        if (targets.length > 0) {
-          mltTarget = targets[Math.floor(Math.random() * targets.length)].id
-        }
-      } else if (isCustomGame(gameType) && g) {
-        const slotKeys = getCustomSlotKeys(g)
-        const customMode = customAssignmentMode(g, roundIds.length, slotKeys)
-        const filled = completeRandomCustomAssignment(customCa, roundIds, slotKeys, customMode)
-        customCa = { ...customCa, ...filled }
-        customAssignmentsRef.current = customCa
-        setCustomAssignments(customCa)
-      } else if (isPairGame(gameType)) {
-        const pairMode = parsePairVoteMode(g.pair_vote_mode)
-        if (pairMode === 'one_each' && roundIds.length === 2) {
-          Object.assign(pa, completeRandomPairAssignment(pa, roundIds, pairMode))
-        } else {
-          for (const p of roundParts) {
-            if (!pa[p.id]) pa[p.id] = Math.random() < 0.5 ? 'kiss' : 'kill'
-          }
-        }
-      } else {
-        const unassigned = voteSlots(gameType).filter((slot) => !a[slot])
-        const available = shuffleCopy(roundParts.filter((p) => !Object.values(a).includes(p.id)))
-        unassigned.forEach((slot, i) => {
-          if (available[i]) a[slot] = available[i].id
-        })
-      }
-    }
-
-    let voteBody: Record<string, unknown> | null = null
-
-    if (isBinaryChoiceGame(gameType)) {
-      if (!wyr) return false
-      voteBody = { wyrChoice: wyr }
-    } else if (isMostLikelyTo(gameType)) {
-      if (!mltTarget) return false
-      voteBody = isMltImportGame(g) ? { targetParticipantId: mltTarget } : { targetPlayerId: mltTarget }
-    } else if (isWhoSaidThis(gameType)) {
-      if (r.submitter_player_id === pid) return false
-      if (!r.quote_text) return false
-      if (isAnimeWst) {
-        if (!animeCh) return false
-        voteBody = { animeChoice: animeCh }
-      } else {
-        if (!mltTarget) return false
-        voteBody = { targetParticipantId: mltTarget }
-      }
-    } else if (isCustomGame(gameType)) {
-      const slotKeys = getCustomSlotKeys(g)
-      const customMode = customAssignmentMode(g, roundIds.length, slotKeys)
-      if (!isCustomAssignmentValid(customCa, roundIds, slotKeys, customMode)) return false
-      voteBody = { customAssignments: customCa }
-    } else if (isPairGame(gameType)) {
-      const pairMode = parsePairVoteMode(g.pair_vote_mode)
-      if (!isPairAssignmentValid(pa, roundIds, pairMode)) return false
-      voteBody = {
-        pairAssignments: Object.fromEntries(
-          roundIds
-            .map((id) => [id, pa[id]] as const)
-            .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
-        ),
-      }
-    } else {
-      if (!isAssignmentComplete(a, gameType)) return false
-      voteBody = {
-        kiss: a.kiss,
-        marry: isThreeChoiceGame(gameType) ? a.marry : null,
-        kill: a.kill,
-      }
-    }
-
-    try {
-      const res = await fetch('/api/votes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerId: pid,
-          roundId: r.id,
-          gameId: gameCode,
-          ...voteBody,
-        }),
-      })
-      return res.ok
-    } catch {
-      return false
-    }
-  }
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const assign = (action: keyof VoteAssignment, participantId: string) => {
@@ -3480,12 +3349,3 @@ function NotFound({ onHome }: { onHome: () => void }) {
 
 const inputCls = 'input-field'
 const primaryBtnCls = 'btn-primary'
-
-function shuffleCopy<T>(items: T[]): T[] {
-  const arr = [...items]
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr
-}
