@@ -415,6 +415,48 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  anonymous_messages: {
+    id: 'anonymous_messages',
+    label: 'Anonymous Room',
+    tagline: 'Drop anonymous messages — no names, just vibes',
+    headerEmoji: '🎭💬',
+    card: {
+      accent: '#8b5cf6',
+      accentSoft: 'rgba(139, 92, 246, 0.15)',
+      emoji: '🎭',
+      players: '2+ players',
+      vibe: 'Anonymous chat',
+    },
+    slots: {
+      kiss: {
+        emoji: '💬',
+        label: 'Message',
+        color: '#8b5cf6',
+        leaderboardLabel: 'Messages',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+      marry: {
+        emoji: '💬',
+        label: 'Message',
+        color: '#8b5cf6',
+        leaderboardLabel: 'Messages',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+      kill: {
+        emoji: '💬',
+        label: 'Message',
+        color: '#8b5cf6',
+        leaderboardLabel: 'Messages',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+    },
+  },
 }
 
 export const GAME_TYPE_OPTIONS: GameType[] = [
@@ -427,6 +469,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'who_said_this',
   'hot_seat',
   'custom',
+  'anonymous_messages',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -438,6 +481,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'who_said_this') return 'who_said_this'
   if (raw === 'hot_seat') return 'hot_seat'
   if (raw === 'custom') return 'custom'
+  if (raw === 'anonymous_messages') return 'anonymous_messages'
   return 'smash_marry_kill'
 }
 
@@ -464,6 +508,8 @@ export function gameHowItWorks(
       return joiners
         ? 'Players join with any name — no list to upload. One round per player who joins; you set a max cap and the host lobby shows the final count.'
         : "Upload everyone's names on the next step. Players claim their name when joining. One round per player who joins — you set a max cap; the host lobby shows the final count."
+    case 'anonymous_messages':
+      return 'Players join with an auto-assigned name — no sign-up. When the host starts, everyone posts anonymous messages that appear live for the whole room.'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -689,7 +735,7 @@ export function isPlayerOnlyJoinLobby(gameType: GameType | string | undefined, o
 /** WYR + This or That — forced joiners, no gender, always anonymous. */
 export function isLobbyGame(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that'
+  return type === 'would_you_rather' || type === 'this_or_that' || type === 'anonymous_messages'
 }
 
 export function isAnonymousGame(gameType: GameType | string | undefined): boolean {
@@ -702,6 +748,15 @@ export function isThreeChoiceGame(gameType: GameType | string | undefined): bool
 
 export function isCustomGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'custom'
+}
+
+export function isAnonymousMessagesGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'anonymous_messages'
+}
+
+/** Auto-assigned display name on join — no name input. */
+export function isAutoNameJoinGame(gameType: GameType | string | undefined): boolean {
+  return isAnonymousMessagesGame(gameType)
 }
 
 export function roundPoolSize(gameType: GameType | string | undefined): 2 | 3 {

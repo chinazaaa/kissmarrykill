@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isNameOnlyPlayerJoin, isWhoSaidThis, isImportNameClaimGame, isHotSeat } from '@/lib/game-types'
+import { parseGameType, isNameOnlyPlayerJoin, isWhoSaidThis, isImportNameClaimGame, isHotSeat, isAnonymousMessagesGame } from '@/lib/game-types'
+import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import {
@@ -76,6 +77,32 @@ export async function POST(req: NextRequest) {
   if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })
   const { game, id } = waiting
   const gameType = parseGameType(game!.game_type)
+
+  if (isAnonymousMessagesGame(gameType)) {
+    const { data: existingPlayers } = await supabase.from('players').select('name').eq('game_id', id)
+    const name = generateAnonymousDisplayName((existingPlayers ?? []).map((p) => p.name))
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: id,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({
+      playerId: player.id,
+      playerName: player.name,
+      playerGender: player.gender,
+      playerIdentityGender: player.identity_gender,
+    })
+  }
 
   if (isNameOnlyPlayerJoin(gameType) || (isHotSeat(gameType) && isJoinersPollMode(game as import('@/types').Game))) {
     if (!name) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { hostActionSchema } from '@/lib/validation'
+import { parseGameType, isAnonymousMessagesGame } from '@/lib/game-types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -46,6 +47,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { error: hotSeatError } = await supabase.from('hot_seat_submissions').delete().eq('game_id', gameId)
   if (hotSeatError) return NextResponse.json({ error: hotSeatError.message }, { status: 500 })
+
+  if (isAnonymousMessagesGame(parseGameType(game.game_type))) {
+    const { error: messagesError } = await supabase.from('anonymous_messages').delete().eq('game_id', gameId)
+    if (messagesError) return NextResponse.json({ error: messagesError.message }, { status: 500 })
+  }
 
   const { data: updated, error: gameError } = await supabase
     .from('games')

@@ -7,6 +7,7 @@ import {
   isWhoSaidThis,
   isWouldYouRather,
   isThisOrThat,
+  isAnonymousMessagesGame,
   parseGameType,
   parsePairVoteMode,
   pairVoteModeOptions,
@@ -23,6 +24,7 @@ export type LobbySummaryChip = {
 /** Short player-facing label for how people join / who is in the poll. */
 export function participantModeLobbyLabel(game: Pick<Game, 'participant_mode' | 'game_type'>): string | null {
   const type = parseGameType(game.game_type)
+  if (isAnonymousMessagesGame(type)) return 'Auto-assigned name — messages stay anonymous'
   if (isWouldYouRather(type) || isThisOrThat(type)) return null
   if (isWhoSaidThis(type) || isHotSeat(type)) return 'Claim your name from the list'
   if (isJoinersPollMode(game)) return 'Join & play — you’re in the poll'

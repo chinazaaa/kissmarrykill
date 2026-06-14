@@ -37,9 +37,11 @@ import {
   isPlayerOnlyJoinLobby,
   isNameOnlyPlayerJoin,
   isCustomGame,
+  isAnonymousMessagesGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
+import { AnonymousMessagesHostView } from '@/components/anonymous-messages/AnonymousMessagesHostView'
 import {
   getCustomSlots,
   tallyCustomVotes,
@@ -1250,6 +1252,10 @@ export default function HostPage() {
         </div>
       </div>
     )
+  }
+
+  if (game && isAnonymousMessagesGame(game.game_type)) {
+    return <AnonymousMessagesHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   // ── WAITING ───────────────────────────────────────────────────────────────

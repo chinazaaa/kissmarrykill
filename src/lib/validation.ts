@@ -47,6 +47,7 @@ const gameTypeEnum = z.enum([
   'who_said_this',
   'hot_seat',
   'custom',
+  'anonymous_messages',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -277,6 +278,18 @@ export const createConfessionSchema = z.object({
 export type CreateConfessionInput = z.infer<typeof createConfessionSchema>
 
 // ---------------------------------------------------------------------------
+// Anonymous messages (POST /api/anonymous-messages)
+// ---------------------------------------------------------------------------
+
+export const createAnonymousMessageSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  text: sanitizedString(1, 500),
+})
+
+export type CreateAnonymousMessageInput = z.infer<typeof createAnonymousMessageSchema>
+
+// ---------------------------------------------------------------------------
 // Quote (POST /api/quote)
 // ---------------------------------------------------------------------------
 
@@ -345,6 +358,7 @@ const feedbackGameTypeEnum = z.enum([
   'who_said_this',
   'hot_seat',
   'custom',
+  'anonymous_messages',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])

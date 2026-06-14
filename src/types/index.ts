@@ -18,6 +18,7 @@ export type GameType =
   | 'who_said_this'
   | 'hot_seat'
   | 'custom'
+  | 'anonymous_messages'
 export type ThemeId = 'default' | 'neon' | 'retro' | 'elegant' | 'tropical'
 export type WyrChoice = 'a' | 'b'
 
@@ -142,6 +143,13 @@ export interface Confession {
   id: string
   game_id: string
   round_id: string | null
+  text: string
+  created_at: string
+}
+
+export interface AnonymousMessage {
+  id: string
+  game_id: string
   text: string
   created_at: string
 }

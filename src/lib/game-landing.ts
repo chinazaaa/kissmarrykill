@@ -25,6 +25,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   who_said_this: 'who-said-this',
   hot_seat: 'hot-seat',
   custom: 'custom-game',
+  anonymous_messages: 'anonymous-room',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -259,6 +260,28 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Assign & reveal', description: 'Each round, assign one person per slot and reveal the group’s picks.' },
     ],
     perfectFor: ['Inside jokes', 'Themed nights', 'Streamer communities', 'Niche friend groups'],
+  }),
+
+  anonymous_messages: landing('anonymous_messages', {
+    seoTitle: 'Anonymous Room — Free Live Anonymous Chat Game',
+    seoDescription:
+      'Create a free anonymous room for your group. Auto-assigned lobby names, fully anonymous messages, live for everyone — no sign-up.',
+    keywords: ['anonymous chat game', 'anonymous messages party', 'anonymous room online', 'free anonymous chat'],
+    heroSubtitle:
+      'A live anonymous wall for your group. Join with one tap, get a random lobby name, and post messages everyone sees in real time — with no names attached.',
+    highlights: ['One-tap join', 'Auto-assigned names', 'Live anonymous feed'],
+    features: [
+      { title: 'No name needed', description: 'Players join instantly — the platform assigns a fun random lobby name.', emoji: '🎭' },
+      { title: 'Truly anonymous posts', description: 'Messages never show who sent them — just the words.', emoji: '💬' },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Create a room', description: 'Host sets a title and shares the game code.' },
+      { title: 'Everyone joins', description: 'Players tap join — no typing a name.' },
+      { title: 'Post live', description: 'Host starts the session and anonymous messages flow for the whole room.' },
+    ],
+    perfectFor: ['Confession nights', 'Team retros', 'Icebreakers', 'Group chats'],
   }),
 }
 

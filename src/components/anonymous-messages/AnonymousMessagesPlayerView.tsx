@@ -1,0 +1,285 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
+import { GameLobbySummary } from '@/components/GameLobbySummary'
+import { GameTypeBadge } from '@/components/GameTypeBadge'
+import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
+import { gameTypeConfig } from '@/lib/game-types'
+import { supabase } from '@/lib/supabase'
+import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import type { Game, Player } from '@/types'
+import { useToast } from '@/components/ui/Toast'
+
+type Screen = 'loading' | 'join' | 'waiting' | 'active' | 'finished' | 'not_found'
+
+export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) {
+  const router = useRouter()
+  const { success, error: toastError } = useToast()
+  const [screen, setScreen] = useState<Screen>('loading')
+  const [game, setGame] = useState<Game | null>(null)
+  const [players, setPlayers] = useState<Player[]>([])
+  const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
+  const [myPlayerName, setMyPlayerName] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [messageInput, setMessageInput] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const messagesEnabled = screen === 'active' || screen === 'finished'
+  const { messages } = useAnonymousMessages(gameCode, messagesEnabled)
+
+  const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
+    if (gameData.status === 'waiting') {
+      setScreen(playerId ? 'waiting' : 'join')
+      return
+    }
+    if (gameData.status === 'active') {
+      setScreen(playerId ? 'active' : 'join')
+      return
+    }
+    setScreen(playerId ? 'finished' : 'join')
+  }, [])
+
+  const load = useCallback(async () => {
+    const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+    if (!gameData) {
+      setScreen('not_found')
+      return
+    }
+
+    const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
+    setGame(gameData)
+    setPlayers(plrs ?? [])
+
+    const session = getPlayerSession(gameCode)
+    if (session) {
+      setMyPlayerId(session.playerId)
+      setMyPlayerName(session.playerName)
+    }
+    syncScreen(gameData, session?.playerId ?? null)
+  }, [gameCode, syncScreen])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`anon-player-${gameCode}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        (payload) => {
+          const next = payload.new as Game
+          setGame(next)
+          syncScreen(next, myPlayerId)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const player = payload.new as Player
+          setPlayers((prev) => (prev.some((p) => p.id === player.id) ? prev : [...prev, player]))
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const player = payload.old as Player
+          setPlayers((prev) => prev.filter((p) => p.id !== player.id))
+        }
+      )
+      .subscribe()
+
+    const poll = setInterval(load, 3000)
+    return () => {
+      clearInterval(poll)
+      supabase.removeChannel(channel)
+    }
+  }, [gameCode, load, myPlayerId, syncScreen])
+
+  const join = async () => {
+    setJoining(true)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to join')
+
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
+      setMyPlayerId(data.playerId)
+      setMyPlayerName(data.playerName)
+      await load()
+      success(`Joined as ${data.playerName}`)
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to join')
+    } finally {
+      setJoining(false)
+    }
+  }
+
+  const sendMessage = async () => {
+    const text = messageInput.trim()
+    if (!text || !myPlayerId) return
+
+    setSending(true)
+    try {
+      const res = await fetch('/api/anonymous-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, text }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to send message')
+      setMessageInput('')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to send message')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (screen === 'loading') {
+    return <CenteredShell><p className="text-muted text-center">Loading…</p></CenteredShell>
+  }
+
+  if (screen === 'not_found') {
+    return (
+      <CenteredShell>
+        <p className="text-center font-bold text-xl">Game not found</p>
+        <button type="button" onClick={() => router.push('/')} className="btn-primary w-full">
+          Back home
+        </button>
+      </CenteredShell>
+    )
+  }
+
+  if (screen === 'join') {
+    return (
+      <CenteredShell>
+        <Header game={game} />
+        <p className="text-muted text-sm text-center">
+          Join the anonymous room — you&apos;ll get a random name in the lobby, but your messages stay anonymous.
+        </p>
+        <button type="button" onClick={join} disabled={joining} className="btn-primary w-full">
+          {joining ? 'Joining…' : 'Join anonymously'}
+        </button>
+      </CenteredShell>
+    )
+  }
+
+  if (screen === 'waiting') {
+    return (
+      <CenteredShell>
+        <Header game={game} />
+        <PlayerBar name={myPlayerName} />
+        <LobbyPlayers players={players} />
+        <p className="text-muted text-sm text-center">Waiting for the host to start the session…</p>
+      </CenteredShell>
+    )
+  }
+
+  if (screen === 'finished') {
+    return (
+      <PageShell>
+        <Header game={game} />
+        <p className="text-muted text-sm text-center">Session ended — here&apos;s what was shared.</p>
+        <AnonymousMessageFeed messages={messages} readOnly />
+      </PageShell>
+    )
+  }
+
+  return (
+    <PageShell>
+      <Header game={game} />
+      <PlayerBar name={myPlayerName} subtitle="Your lobby name — messages stay anonymous" />
+      <AnonymousMessageFeed messages={messages} />
+      <div className="space-y-3">
+        <textarea
+          value={messageInput}
+          onChange={(e) => setMessageInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              sendMessage()
+            }
+          }}
+          placeholder="Say something anonymous…"
+          rows={3}
+          maxLength={500}
+          className="input-field resize-none w-full"
+        />
+        <button
+          type="button"
+          onClick={sendMessage}
+          disabled={sending || !messageInput.trim()}
+          className="btn-primary w-full"
+        >
+          {sending ? 'Sending…' : 'Send anonymously'}
+        </button>
+      </div>
+    </PageShell>
+  )
+}
+
+function Header({ game }: { game: Game | null }) {
+  if (!game) return null
+  return (
+    <div className="text-center space-y-1">
+      <div className="text-4xl">{gameTypeConfig(game.game_type).headerEmoji}</div>
+      <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
+      <GameTypeBadge gameType={game.game_type} />
+      <GameLobbySummary game={game} className="pt-1" />
+    </div>
+  )
+}
+
+function PlayerBar({ name, subtitle }: { name: string; subtitle?: string }) {
+  return (
+    <div className="glass-card px-4 py-3 text-center">
+      <p className="text-faint text-xs uppercase tracking-wider">Your lobby name</p>
+      <p className="font-bold text-body">{name}</p>
+      {subtitle && <p className="text-faint text-xs mt-1">{subtitle}</p>}
+    </div>
+  )
+}
+
+function LobbyPlayers({ players }: { players: Player[] }) {
+  return (
+    <div className="glass-card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-muted text-xs uppercase tracking-wider">In the lobby</p>
+        <span className="text-faint text-xs">{players.length}</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {players.map((player) => (
+          <span key={player.id} className="chip text-xs">
+            {player.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CenteredShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="page-wrap flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md space-y-5">{children}</div>
+    </div>
+  )
+}
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="page-wrap px-4 py-8 max-w-lg mx-auto w-full space-y-5">
+      {children}
+    </div>
+  )
+}

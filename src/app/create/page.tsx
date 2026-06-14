@@ -30,6 +30,7 @@ import {
 import {
   roundPoolSize,
   isLobbyGame,
+  isAnonymousMessagesGame,
   isWouldYouRather,
   isThisOrThat,
   isBinaryChoiceGame,
@@ -152,6 +153,9 @@ function CreateGameInner() {
         ...prev,
         game_type: type,
         ...(isLobbyGame(type) ? { participant_mode: 'joiners', anonymous: true } : {}),
+      ...(isAnonymousMessagesGame(type)
+        ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
+        : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -228,7 +232,9 @@ function CreateGameInner() {
   const customSlotsValid =
     !isCustom || (customSlots && customSlots.slots.length >= 2 && customSlots.slots.every((s) => s.label.trim()))
 
-  const needsParticipantStep = !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
+  const isAnonymousRoom = isAnonymousMessagesGame(settings.game_type)
+  const needsParticipantStep =
+    !isAnonymousRoom && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
 
@@ -251,6 +257,9 @@ function CreateGameInner() {
       ...settings,
       game_type: type,
       ...(isLobbyGame(type) ? { participant_mode: 'joiners', anonymous: true } : {}),
+      ...(isAnonymousMessagesGame(type)
+        ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
+        : {}),
       ...(isWhoSaidThis(type)
         ? {
             participant_mode: 'import' as const,
@@ -594,6 +603,15 @@ function CreateGameInner() {
 
           {/* Rules */}
           <div className="glass-card p-5 space-y-5">
+            {isAnonymousRoom ? (
+              <SettingsGroup title="Session">
+                <p className="text-faint text-sm leading-relaxed">
+                  Players join with one tap and get a random lobby name. When you start, everyone posts anonymous
+                  messages live. End the session whenever you&apos;re done — no rounds, no timer.
+                </p>
+              </SettingsGroup>
+            ) : (
+              <>
             <SettingsGroup title="Round settings">
               {isWst ? (
                 <div className="space-y-4">
@@ -948,13 +966,8 @@ function CreateGameInner() {
               </SettingsGroup>
             )}
 
-            <SettingsGroup title="How it works">
-              <p className="text-faint text-sm leading-relaxed">
-                {gameHowItWorks(settings.game_type, settings.participant_mode)}
-              </p>
-            </SettingsGroup>
-
-            {(!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type)) || isHotSeatGame ? (
+            {!isAnonymousRoom &&
+            (((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type)) || isHotSeatGame) ? (
               <SettingsGroup title={isHotSeatGame ? "Who's in the game" : "Who's in the poll"}>
                 <SegmentedControl
                   value={settings.participant_mode}
@@ -962,9 +975,9 @@ function CreateGameInner() {
                   options={participantModeOptions(settings.game_type)}
                 />
               </SettingsGroup>
-            ) : null}
+            ) : null)}
 
-            {isPeoplePollVoters && (
+            {!isAnonymousRoom && isPeoplePollVoters && (
               <SettingsGroup title="Poll names">
                 <Field label="Player submissions">
                   <SegmentedControl
@@ -1005,7 +1018,7 @@ function CreateGameInner() {
               </SettingsGroup>
             )}
 
-            {settings.participant_mode === 'import' && !isBinaryLobby && !isWst && !isHotSeatGame && (
+            {!isAnonymousRoom && settings.participant_mode === 'import' && !isBinaryLobby && !isWst && !isHotSeatGame && (
               <SettingsGroup title="Who appears in rounds">
                 <SegmentedControl
                   value={settings.participant_filter}
@@ -1018,6 +1031,7 @@ function CreateGameInner() {
               </SettingsGroup>
             )}
 
+            {!isAnonymousRoom && (
             <SettingsGroup title="Advanced" description="Timer behavior & privacy" collapsible defaultOpen={false}>
               <Field label="When timer runs out">
                 <SegmentedControl
@@ -1052,10 +1066,23 @@ function CreateGameInner() {
                 />
               </div>
             </SettingsGroup>
+            )}
+              </>
+            )}
+
+            <SettingsGroup title="How it works">
+              <p className="text-faint text-sm leading-relaxed">
+                {gameHowItWorks(settings.game_type, settings.participant_mode)}
+              </p>
+            </SettingsGroup>
           </div>
 
           <StickyActionBar>
-            {isBinaryLobby || (isMlt && isJoinersMode) ? (
+            {isAnonymousRoom ? (
+              <PrimaryBtn onClick={createGame} disabled={!settings.title.trim() || loading}>
+                {loading ? 'Creating...' : 'Create Game'}
+              </PrimaryBtn>
+            ) : isBinaryLobby || (isMlt && isJoinersMode) ? (
               <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading || !customSlotsValid}>
                 {loading ? 'Creating...' : 'Create Game'}
               </PrimaryBtn>

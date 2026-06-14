@@ -16,6 +16,7 @@ import {
   isPairGame,
   parsePairVoteMode,
   isCustomGame,
+  isAnonymousMessagesGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
@@ -171,7 +172,9 @@ export async function POST(req: NextRequest) {
   }
 
   const maxRounds = lobbyMaxRounds(game_type, question_source, custom_questions)
-  const roundsCount = isWhoSaidThis(game_type)
+  const roundsCount = isAnonymousMessagesGame(game_type)
+    ? 1
+    : isWhoSaidThis(game_type)
     ? wstAutoRoundCount(participants.length)
     : isHotSeat(game_type)
       ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
@@ -203,7 +206,7 @@ export async function POST(req: NextRequest) {
     host_token: hostToken,
     rounds_count: roundsCount,
     timer_seconds: [15, 30, 60].includes(Number(timer_seconds)) ? Number(timer_seconds) : 30,
-    anonymous: isAnonymousGame(game_type) ? true : anonymous !== false,
+    anonymous: isAnonymousMessagesGame(game_type) || isAnonymousGame(game_type) ? true : anonymous !== false,
     auto_reveal: auto_reveal !== false,
     auto_submit_behavior: auto_submit_behavior === 'random' ? 'random' : 'no_answer',
     participant_mode,
