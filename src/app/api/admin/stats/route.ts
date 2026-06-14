@@ -9,21 +9,20 @@ export async function GET(req: NextRequest) {
 
   const supabase = getSupabaseAdmin()
 
-  const [gamesRes, playersRes, votesRes, finishedGamesRes, activeGamesRes, gamesLast7DaysRes] =
-    await Promise.all([
-      supabase.from('games').select('id, game_type, status, created_at', { count: 'exact', head: false }),
-      supabase.from('players').select('id', { count: 'exact', head: true }),
-      supabase.from('votes').select('id', { count: 'exact', head: true }),
-      supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'finished'),
-      supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase
-        .from('games')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-    ])
+  const [gamesRes, playersRes, votesRes, finishedGamesRes, activeGamesRes, gamesLast7DaysRes] = await Promise.all([
+    supabase.from('games').select('id, game_type, status, created_at', { count: 'exact', head: false }),
+    supabase.from('players').select('id', { count: 'exact', head: true }),
+    supabase.from('votes').select('id', { count: 'exact', head: true }),
+    supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'finished'),
+    supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase
+      .from('games')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+  ])
 
   let feedbackCount = 0
-  let feedbackByCategory: Record<string, number> = {}
+  const feedbackByCategory: Record<string, number> = {}
   if (hasServiceRoleKey()) {
     const [feedbackRes, feedbackByCategoryRes] = await Promise.all([
       supabase.from('app_feedback').select('id', { count: 'exact', head: true }),

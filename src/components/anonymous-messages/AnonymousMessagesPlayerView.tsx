@@ -12,7 +12,12 @@ import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
-import { anonymousPlayerCanChat, anonymousPlayerCanPost, anonymousRoomMaxPlayers, isPlayerBanned } from '@/lib/anonymous-messages'
+import {
+  anonymousPlayerCanChat,
+  anonymousPlayerCanPost,
+  anonymousRoomMaxPlayers,
+  isPlayerBanned,
+} from '@/lib/anonymous-messages'
 import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -140,11 +145,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       setMyPlayerId(data.playerId)
       setMyPlayerName(data.playerName)
       await load()
-      success(
-        data.canChat === false
-          ? `Joined as ${data.playerName} — view only`
-          : `Joined as ${data.playerName}`
-      )
+      success(data.canChat === false ? `Joined as ${data.playerName} — view only` : `Joined as ${data.playerName}`)
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to join')
     } finally {
@@ -180,7 +181,11 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   }
 
   if (screen === 'loading') {
-    return <CenteredShell><p className="text-muted text-center">Loading…</p></CenteredShell>
+    return (
+      <CenteredShell>
+        <p className="text-muted text-center">Loading…</p>
+      </CenteredShell>
+    )
   }
 
   if (screen === 'not_found') {
@@ -336,9 +341,5 @@ function CenteredShell({ children }: { children: React.ReactNode }) {
 }
 
 function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="page-wrap px-4 py-8 max-w-lg mx-auto w-full space-y-5">
-      {children}
-    </div>
-  )
+  return <div className="page-wrap px-4 py-8 max-w-lg mx-auto w-full space-y-5">{children}</div>
 }

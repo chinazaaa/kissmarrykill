@@ -1,7 +1,7 @@
 import type { Game } from '@/types'
 import { parseGameType, isPairGame, isThreeChoiceGame, isCustomGame } from '@/lib/game-types'
 import { participantsWhoJoined } from '@/lib/participants'
-import { useFullHostListForRounds } from '@/lib/participant-mode'
+import { getFullHostListForRounds } from '@/lib/participant-mode'
 import {
   combineLobbyQuestions,
   parsePlayerQuestionsOrder,
@@ -15,9 +15,7 @@ export function isPeoplePollGame(gameType?: string): boolean {
 }
 
 /** Player name submissions — voters-only (import list, vote only). */
-export function supportsPlayerNameSubmissions(
-  game: Pick<Game, 'game_type' | 'participant_mode'>
-): boolean {
+export function supportsPlayerNameSubmissions(game: Pick<Game, 'game_type' | 'participant_mode'>): boolean {
   return isPeoplePollGame(game.game_type) && (game.participant_mode ?? 'import') === 'voters'
 }
 
@@ -66,7 +64,7 @@ export function buildPeoplePollParticipantPool(
     ? participantsData.filter((p) => p.submitted_by_player_id)
     : []
 
-  const useAllHost = useFullHostListForRounds(game)
+  const useAllHost = getFullHostListForRounds(game)
   const hostPool = useAllHost ? hostRows : participantsWhoJoined(hostRows, playersData)
 
   const order = parsePlayerQuestionsOrder(game.player_questions_order)

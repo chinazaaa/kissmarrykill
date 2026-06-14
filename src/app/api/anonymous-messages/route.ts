@@ -61,7 +61,10 @@ export async function POST(req: NextRequest) {
     if (isPlayerBanned(ban?.banned_until)) {
       return NextResponse.json({ error: 'You are muted and cannot send messages right now' }, { status: 403 })
     }
-    return NextResponse.json({ error: 'You can only view this session — late joiners cannot send messages' }, { status: 403 })
+    return NextResponse.json(
+      { error: 'You can only view this session — late joiners cannot send messages' },
+      { status: 403 }
+    )
   }
 
   let replyToIdValue: string | null = null
@@ -108,7 +111,11 @@ export async function DELETE(req: NextRequest) {
   const { gameId, messageId, hostToken } = parsed.data
   const gameCode = gameId.toUpperCase()
 
-  const { data: game } = await supabase.from('games').select('host_token, status, game_type').eq('id', gameCode).maybeSingle()
+  const { data: game } = await supabase
+    .from('games')
+    .select('host_token, status, game_type')
+    .eq('id', gameCode)
+    .maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (!isAnonymousMessagesGame(parseGameType(game.game_type))) {

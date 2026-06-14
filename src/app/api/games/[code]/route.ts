@@ -3,7 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 import { assertHostGameSettings } from '@/lib/game-admin'
 import { questionPoolCap } from '@/lib/custom-questions'
 import { parseTimerSeconds, updateGameSchema } from '@/lib/validation'
-import { parseGameType, isHotSeat, isPairGame, parsePairVoteMode, isBinaryChoiceGame, isMostLikelyTo } from '@/lib/game-types'
+import {
+  parseGameType,
+  isHotSeat,
+  isPairGame,
+  parsePairVoteMode,
+  isBinaryChoiceGame,
+  isMostLikelyTo,
+} from '@/lib/game-types'
 import { isCustomTwoSlotGame } from '@/lib/custom-game'
 import { clampHotSeatMaxCap, hotSeatJoinedPlayers, hotSeatMaxCapUpperBound } from '@/lib/hot-seat'
 import {
@@ -77,7 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
 
   if (parsed.data.gender_based !== undefined) {
     return NextResponse.json(
-      { error: 'Who\'s in each round is set when the game is created — create a new game to change it' },
+      { error: "Who's in each round is set when the game is created — create a new game to change it" },
       { status: 400 }
     )
   }
@@ -94,7 +101,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
   const isLobbyQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
   const isPeoplePoll = isPeoplePollGame(gameType)
   const supportsPlayerSubmissions =
-    isLobbyQuestions || supportsPlayerNameSubmissions({ game_type: gameType, participant_mode: auth.game!.participant_mode })
+    isLobbyQuestions ||
+    supportsPlayerNameSubmissions({ game_type: gameType, participant_mode: auth.game!.participant_mode })
 
   if (parsed.data.player_questions_enabled !== undefined) {
     if (!supportsPlayerSubmissions) {

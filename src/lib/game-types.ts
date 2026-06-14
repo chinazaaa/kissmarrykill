@@ -1,4 +1,12 @@
-import type { Game, GameType, VoteAssignment, PairFlag, PairAssignmentMap, PairVoteMode, ParticipantMode } from '@/types'
+import type {
+  Game,
+  GameType,
+  VoteAssignment,
+  PairFlag,
+  PairAssignmentMap,
+  PairVoteMode,
+  ParticipantMode,
+} from '@/types'
 
 export type VoteSlot = 'kiss' | 'marry' | 'kill'
 /** Tally keys — `smash` counts the kill slot (Red Flag / Kill). */
@@ -518,13 +526,13 @@ export function gameHowItWorks(
       return joiners
         ? 'Players add their name to the poll when joining. Each round, two names appear — everyone rates each person green flag or red flag.'
         : participantMode === 'voters'
-          ? "Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, two names appear — everyone rates each person green flag or red flag."
+          ? 'Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, two names appear — everyone rates each person green flag or red flag.'
           : "Add everyone's names on the next step. Players claim their name when joining. Each round, two names appear — everyone rates each person green flag or red flag."
     case 'smash_or_pass':
       return joiners
         ? 'Players add their name to the poll when joining. Each round, two names appear — everyone picks smash or pass for each.'
         : participantMode === 'voters'
-          ? "Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, two names appear — everyone picks smash or pass for each."
+          ? 'Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, two names appear — everyone picks smash or pass for each.'
           : "Add everyone's names on the next step. Players claim their name when joining. Each round, two names appear — everyone picks smash or pass for each."
     case 'smash_marry_kill':
     default:

@@ -34,7 +34,13 @@ import {
   wstCorrectParticipantIdFromRound,
   tallyWstVotes,
 } from '@/lib/who-said-this'
-import { ParticipantRoundResults, WyrRoundResults, MltRoundResults, WstRoundResults, HotSeatRoundResults } from '@/components/VoteResults'
+import {
+  ParticipantRoundResults,
+  WyrRoundResults,
+  MltRoundResults,
+  WstRoundResults,
+  HotSeatRoundResults,
+} from '@/components/VoteResults'
 import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
@@ -106,16 +112,13 @@ export default function GameHistoryPage() {
 
       const [{ data: parts }, { data: plrs }, { data: rds }, { data: vts }, { data: confs }, { data: subs }] =
         await Promise.all([
-        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-        supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-        supabase.from('votes').select('*').eq('game_id', gameCode),
-        supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
-        supabase
-          .from('hot_seat_submissions')
-          .select('id, round_id, text, submission_type')
-          .eq('game_id', gameCode),
-      ])
+          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
+          supabase.from('votes').select('*').eq('game_id', gameCode),
+          supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+          supabase.from('hot_seat_submissions').select('id, round_id, text, submission_type').eq('game_id', gameCode),
+        ])
 
       setGame(gameData)
       setParticipants(parts ?? [])
@@ -283,9 +286,7 @@ export default function GameHistoryPage() {
             if (roundVotes.length === 0) return null
 
             const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
-            const roundGender = isGenderFreeVoting(game)
-              ? null
-              : roundGenderLabel(roundParts.map((p) => p.gender))
+            const roundGender = isGenderFreeVoting(game) ? null : roundGenderLabel(roundParts.map((p) => p.gender))
             const tallies = tallyRoundVotes(round.participant_ids, roundVotes)
 
             return (

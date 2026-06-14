@@ -44,8 +44,16 @@ export const ALL_GAME_LANDING_SLUGS = Object.values(GAME_TYPE_TO_SLUG)
 
 const SHARED_FEATURES = {
   noSignup: { title: 'No sign-up', description: 'Create a room and play in seconds — no account needed.', emoji: '⚡' },
-  realtime: { title: 'Live results', description: 'Votes sync in real time. Reveal round-by-round or all at once.', emoji: '📡' },
-  mobile: { title: 'Phone & desktop', description: 'Everyone joins from any browser — perfect for group chats.', emoji: '📱' },
+  realtime: {
+    title: 'Live results',
+    description: 'Votes sync in real time. Reveal round-by-round or all at once.',
+    emoji: '📡',
+  },
+  mobile: {
+    title: 'Phone & desktop',
+    description: 'Everyone joins from any browser — perfect for group chats.',
+    emoji: '📱',
+  },
   code: { title: 'Share a code', description: 'One short room code. Send the link and you’re in.', emoji: '🔗' },
 }
 
@@ -72,15 +80,29 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'The classic party game, upgraded. Three faces land each round — your group assigns smash, marry, and kill. Results get messy.',
     highlights: ['3 picks per round', 'Gender-based or names-only', 'Import a list or join & play'],
     features: [
-      { title: 'Three-way choices', description: 'Every round presents three names — one slot for each fate.', emoji: '🔥' },
-      { title: 'List or lobby modes', description: 'Upload celebrities, claim from a roster, or let joiners enter the poll.', emoji: '📋' },
+      {
+        title: 'Three-way choices',
+        description: 'Every round presents three names — one slot for each fate.',
+        emoji: '🔥',
+      },
+      {
+        title: 'List or lobby modes',
+        description: 'Upload celebrities, claim from a roster, or let joiners enter the poll.',
+        emoji: '📋',
+      },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.noSignup,
     ],
     steps: [
-      { title: 'Create your room', description: 'Pick rounds, timer, and whether rounds are gender-based or names-only.' },
+      {
+        title: 'Create your room',
+        description: 'Pick rounds, timer, and whether rounds are gender-based or names-only.',
+      },
       { title: 'Share the code', description: 'Friends join from their phones with a short link or room code.' },
-      { title: 'Smash, marry, kill', description: 'Vote each round, then reveal who got what — and who won each category.' },
+      {
+        title: 'Smash, marry, kill',
+        description: 'Vote each round, then reveal who got what — and who won each category.',
+      },
     ],
     perfectFor: ['Friend groups', 'Birthday parties', 'Discord calls', 'Icebreakers'],
   }),
@@ -94,7 +116,11 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'Two names, two judgments. Each round your group decides who’s a green flag and who’s a red flag — separately, honestly, and out loud.',
     highlights: ['Two names per round', 'Rate each person individually', 'Spicy group debates'],
     features: [
-      { title: 'Dual ratings', description: 'Both names get their own green or red flag — not a versus pick.', emoji: '🚩' },
+      {
+        title: 'Dual ratings',
+        description: 'Both names get their own green or red flag — not a versus pick.',
+        emoji: '🚩',
+      },
       { title: 'Pair voting rules', description: 'One-each mode or any combo — host picks the vibe.', emoji: '⚖️' },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.mobile,
@@ -138,8 +164,16 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'Impossible choices, anonymous votes. Every round pits two options against each other — see where your group actually stands.',
     highlights: ['Anonymous voting', 'Platform or custom questions', '2+ players, zero setup'],
     features: [
-      { title: 'Built-in question pool', description: 'Jump in with curated Would You Rather prompts — or upload your own.', emoji: '🤔' },
-      { title: 'Fully anonymous', description: 'Nobody knows who picked what until you reveal — if you reveal.', emoji: '🎭' },
+      {
+        title: 'Built-in question pool',
+        description: 'Jump in with curated Would You Rather prompts — or upload your own.',
+        emoji: '🤔',
+      },
+      {
+        title: 'Fully anonymous',
+        description: 'Nobody knows who picked what until you reveal — if you reveal.',
+        emoji: '🎭',
+      },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.noSignup,
     ],
@@ -160,13 +194,24 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'Your prompts, your vibe. Upload “Coffee or Tea?” style questions — everyone picks A or B and you see where the group lands.',
     highlights: ['Upload your own CSV', 'Anonymous voting', '2+ players, zero setup'],
     features: [
-      { title: 'Your question list', description: 'Bring a CSV of “X or Y?” prompts — or type them in when creating a room.', emoji: '📋' },
-      { title: 'Fully anonymous', description: 'Nobody knows who picked what until you reveal — if you reveal.', emoji: '🎭' },
+      {
+        title: 'Your question list',
+        description: 'Bring a CSV of “X or Y?” prompts — or type them in when creating a room.',
+        emoji: '📋',
+      },
+      {
+        title: 'Fully anonymous',
+        description: 'Nobody knows who picked what until you reveal — if you reveal.',
+        emoji: '🎭',
+      },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.noSignup,
     ],
     steps: [
-      { title: 'Upload prompts', description: 'Add your This or That questions when creating — one per row like “Coffee or Tea?”' },
+      {
+        title: 'Upload prompts',
+        description: 'Add your This or That questions when creating — one per row like “Coffee or Tea?”',
+      },
       { title: 'Friends join', description: 'Share the link. Everyone enters a display name and waits.' },
       { title: 'Pick A or B', description: 'Vote each round, reveal the split, and argue about the minority.' },
     ],
@@ -183,7 +228,11 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     highlights: ['Anonymous votes', 'Friend group or imported list', 'Custom prompts supported'],
     features: [
       { title: 'Call out friends', description: 'Each prompt asks who fits best — the group decides.', emoji: '🎯' },
-      { title: 'Vote on a list', description: 'Import names for celebrities or let joiners become the poll.', emoji: '👥' },
+      {
+        title: 'Vote on a list',
+        description: 'Import names for celebrities or let joiners become the poll.',
+        emoji: '👥',
+      },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.noSignup,
     ],
@@ -204,13 +253,24 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'Your group writes the content. Quotes hit the pool, everyone guesses the author — and friendships get tested.',
     highlights: ['Player-submitted quotes', 'Anime quote mode', 'Lobby quote pool'],
     features: [
-      { title: 'Quote pool', description: 'Players submit quotes before start — only pooled quotes become rounds.', emoji: '💬' },
-      { title: 'Guess the author', description: 'Read the quote, pick who said it, score points for correct guesses.', emoji: '🕵️' },
+      {
+        title: 'Quote pool',
+        description: 'Players submit quotes before start — only pooled quotes become rounds.',
+        emoji: '💬',
+      },
+      {
+        title: 'Guess the author',
+        description: 'Read the quote, pick who said it, score points for correct guesses.',
+        emoji: '🕵️',
+      },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.mobile,
     ],
     steps: [
-      { title: 'Claim & submit', description: 'Players join, claim their name, and add quotes to the pool in the lobby.' },
+      {
+        title: 'Claim & submit',
+        description: 'Players join, claim their name, and add quotes to the pool in the lobby.',
+      },
       { title: 'Host starts', description: 'When enough quotes are in, the host kicks off the guessing rounds.' },
       { title: 'Reveal & score', description: 'See who guessed right and who wrote the most unhinged lines.' },
     ],
@@ -226,7 +286,11 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'One person in the hot seat. Everyone else drops a compliment, observation, or roast. Take turns until nobody’s safe.',
     highlights: ['One spotlight per round', 'Compliment · observation · roast', 'Claim-from-list roster'],
     features: [
-      { title: 'Three submission types', description: 'Mix love, truth, and chaos — one message per voter per round.', emoji: '🪑' },
+      {
+        title: 'Three submission types',
+        description: 'Mix love, truth, and chaos — one message per voter per round.',
+        emoji: '🪑',
+      },
       { title: 'Turn-based rounds', description: 'Each joined player gets their moment in the seat.', emoji: '🔥' },
       SHARED_FEATURES.code,
       SHARED_FEATURES.noSignup,
@@ -249,8 +313,16 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'You name the slots. Date, Friendzone, CEO — whatever fits your group. Build categories, pick rules, run the poll.',
     highlights: ['2–5 custom slots', 'Your labels & emojis', 'Gender-based or names-only'],
     features: [
-      { title: 'Your categories', description: 'Define slot names, emojis, and colors — the game adapts to your vibe.', emoji: '✏️' },
-      { title: 'Flexible roster', description: 'Import a voter list, claim names, or let joiners fill the poll.', emoji: '🎛️' },
+      {
+        title: 'Your categories',
+        description: 'Define slot names, emojis, and colors — the game adapts to your vibe.',
+        emoji: '✏️',
+      },
+      {
+        title: 'Flexible roster',
+        description: 'Import a voter list, claim names, or let joiners fill the poll.',
+        emoji: '🎛️',
+      },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.noSignup,
     ],
@@ -271,8 +343,16 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'A live anonymous wall for your group. Join with one tap, get a random lobby name, and post messages everyone sees in real time — with no names attached.',
     highlights: ['One-tap join', 'Auto-assigned names', 'Live anonymous feed'],
     features: [
-      { title: 'No name needed', description: 'Players join instantly — the platform assigns a fun random lobby name.', emoji: '🎭' },
-      { title: 'Truly anonymous posts', description: 'Messages never show who sent them — just the words.', emoji: '💬' },
+      {
+        title: 'No name needed',
+        description: 'Players join instantly — the platform assigns a fun random lobby name.',
+        emoji: '🎭',
+      },
+      {
+        title: 'Truly anonymous posts',
+        description: 'Messages never show who sent them — just the words.',
+        emoji: '💬',
+      },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.noSignup,
     ],

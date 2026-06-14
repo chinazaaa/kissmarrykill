@@ -17,7 +17,12 @@ async function assertHostAnonymousRoom(gameCode: string, hostToken: string) {
     return { error: 'Not an anonymous room', status: 400 as const, game: null, id }
   }
   if (game.status !== 'waiting' && game.status !== 'active') {
-    return { error: 'Players can only be muted during the lobby or an active session', status: 400 as const, game: null, id }
+    return {
+      error: 'Players can only be muted during the lobby or an active session',
+      status: 400 as const,
+      game: null,
+      id,
+    }
   }
   return { error: null, status: 200 as const, game, id }
 }
@@ -89,10 +94,7 @@ export async function GET(req: NextRequest) {
   const gameId = req.nextUrl.searchParams.get('gameId')?.toUpperCase()
   if (!gameId) return NextResponse.json({ error: 'gameId is required' }, { status: 400 })
 
-  const { data: bans, error } = await supabase
-    .from('anonymous_room_bans')
-    .select('*')
-    .eq('game_id', gameId)
+  const { data: bans, error } = await supabase.from('anonymous_room_bans').select('*').eq('game_id', gameId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

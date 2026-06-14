@@ -49,9 +49,7 @@ export function CustomVoteCard({
                 const isActive = currentSlot === slot.key
                 const perParticipantDisabled = getDisabledSlotKeys?.(p.id) ?? disabledSlotKeys
                 const isDisabled = perParticipantDisabled.includes(slot.key)
-                const holderId = Object.entries(assignments).find(
-                  ([id, key]) => key === slot.key && id !== p.id
-                )?.[0]
+                const holderId = Object.entries(assignments).find(([id, key]) => key === slot.key && id !== p.id)?.[0]
                 const holderName = holderId ? nameById.get(holderId) : null
                 const usedByOther = !!holderName
                 return (

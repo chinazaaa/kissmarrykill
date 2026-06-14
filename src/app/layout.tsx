@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { FeedbackButton } from '@/components/FeedbackButton'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog'
+import { QueryProvider } from '@/components/QueryProvider'
 import { AppBackground } from '@/components/AppBackground'
 import { rootMetadata } from '@/lib/seo'
 import { parseThemeCookie, THEME_COOKIE } from '@/lib/theme-cookie'
@@ -31,10 +32,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ThemeProvider initialTheme={theme}>
           <ToastProvider>
             <ConfirmProvider>
-              <AppBackground />
-              <ThemeToggle />
-              <FeedbackButton />
-              {children}
+              <QueryProvider>
+                <AppBackground />
+                <ThemeToggle />
+                <FeedbackButton />
+                {children}
+              </QueryProvider>
             </ConfirmProvider>
           </ToastProvider>
         </ThemeProvider>
