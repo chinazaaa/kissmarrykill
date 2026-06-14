@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isNameOnlyPlayerJoin, isWhoSaidThis, isImportNameClaimGame, isHotSeat, isAnonymousMessagesGame } from '@/lib/game-types'
+import {
+  parseGameType,
+  isNameOnlyPlayerJoin,
+  isWhoSaidThis,
+  isImportNameClaimGame,
+  isHotSeat,
+  isAnonymousMessagesGame,
+} from '@/lib/game-types'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { anonymousPlayerCanChat, anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
@@ -399,8 +406,7 @@ export async function POST(req: NextRequest) {
     if (!identityGender) {
       return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
     }
-    const pollGender =
-      gender === 'both' ? normalizeGender(String(rawPollGender ?? '')) ?? identityGender : gender
+    const pollGender = gender === 'both' ? (normalizeGender(String(rawPollGender ?? '')) ?? identityGender) : gender
     if (!pollGender) {
       return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
     }

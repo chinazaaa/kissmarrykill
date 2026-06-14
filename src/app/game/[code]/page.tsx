@@ -80,7 +80,12 @@ import {
   AnimeWstRoundResults,
   HotSeatRoundResults,
 } from '@/components/VoteResults'
-import { FinalGenderLeaderboards, FinalGenderBreakdown, FinalOverallLeaderboards, FinalOverallBreakdown } from '@/components/FinalLeaderboard'
+import {
+  FinalGenderLeaderboards,
+  FinalGenderBreakdown,
+  FinalOverallLeaderboards,
+  FinalOverallBreakdown,
+} from '@/components/FinalLeaderboard'
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { MltPlayerPicker } from '@/components/MltPlayerPicker'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
@@ -115,7 +120,13 @@ import { isGameGenderBased, supportsGenderToggle, isGenderFreeVoting } from '@/l
 import { isImportClaimMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import { parseOrSplitQuestion } from '@/lib/custom-questions'
 import { lobbyAllowsPlayerQuestions } from '@/lib/player-question-pool'
-import { isPeoplePollGame, lobbyAllowsPlayerNameSubmissions, playerNameSubmissionHint, playerNameSubmissionPlaceholder, playerNameSubmissionPanelTitle } from '@/lib/player-participant-pool'
+import {
+  isPeoplePollGame,
+  lobbyAllowsPlayerNameSubmissions,
+  playerNameSubmissionHint,
+  playerNameSubmissionPlaceholder,
+  playerNameSubmissionPanelTitle,
+} from '@/lib/player-participant-pool'
 import { CustomVoteCard } from '@/components/CustomVoteCard'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { ShareResults } from '@/components/ShareResults'
@@ -509,10 +520,7 @@ export default function GamePage() {
       supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
       supabase.from('votes').select('*').eq('game_id', gameCode),
       supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
-      supabase
-        .from('hot_seat_submissions')
-        .select('id, round_id, text, submission_type')
-        .eq('game_id', gameCode),
+      supabase.from('hot_seat_submissions').select('id, round_id, text, submission_type').eq('game_id', gameCode),
     ])
     setAllRounds(rounds || [])
     setAllVotes(votes || [])
@@ -828,7 +836,13 @@ export default function GamePage() {
 
   // Poll player-submitted questions in lobby (WYR/MLT only)
   useEffect(() => {
-    if (view !== 'waiting' || !game || (!isBinaryGame && !isMostLikelyTo(game.game_type)) || !lobbyAllowsPlayerQuestions(game)) return
+    if (
+      view !== 'waiting' ||
+      !game ||
+      (!isBinaryGame && !isMostLikelyTo(game.game_type)) ||
+      !lobbyAllowsPlayerQuestions(game)
+    )
+      return
     async function fetchPQ() {
       const { data } = await supabase.from('player_questions').select('*').eq('game_id', gameCode).order('created_at')
       if (data) setPqList(data)
@@ -840,12 +854,7 @@ export default function GamePage() {
 
   // Poll player-submitted names in lobby (people poll games)
   useEffect(() => {
-    if (
-      view !== 'waiting' ||
-      !game ||
-      !isPeoplePollGame(game.game_type) ||
-      !lobbyAllowsPlayerNameSubmissions(game)
-    ) {
+    if (view !== 'waiting' || !game || !isPeoplePollGame(game.game_type) || !lobbyAllowsPlayerNameSubmissions(game)) {
       return
     }
     async function fetchPN() {
@@ -1712,8 +1721,8 @@ export default function GamePage() {
           </p>
           {canUploadPhoto && (
             <p className="text-faint text-xs leading-snug">
-              Your name is marked <span className="text-[var(--primary)] font-medium">(you)</span> in the list — tap
-              the camera icon next to it to add or change your photo.
+              Your name is marked <span className="text-[var(--primary)] font-medium">(you)</span> in the list — tap the
+              camera icon next to it to add or change your photo.
             </p>
           )}
           <div className="space-y-1.5 max-h-52 overflow-y-auto">
@@ -2008,8 +2017,7 @@ export default function GamePage() {
               className="w-full flex items-center justify-between"
             >
               <p className="text-muted text-xs uppercase tracking-wider">
-                {playerNameSubmissionPanelTitle()}{' '}
-                {pnList.length > 0 ? `(${pnList.length})` : ''}
+                {playerNameSubmissionPanelTitle()} {pnList.length > 0 ? `(${pnList.length})` : ''}
               </p>
               <span className="text-faint text-xs">{pnOpen ? '−' : '+'}</span>
             </button>
@@ -2496,11 +2504,7 @@ export default function GamePage() {
     const effectiveGender = myPlayerGender ?? getPlayerSession(gameCode)?.playerGender ?? null
     const canVote = genderFreeVoting
       ? !!myPlayerId
-      : !!(
-          effectiveGender &&
-          roundParticipantGender &&
-          canPlayerVoteInRound(effectiveGender, roundParticipantGender)
-        )
+      : !!(effectiveGender && roundParticipantGender && canPlayerVoteInRound(effectiveGender, roundParticipantGender))
     const voteBanner = canVote && !genderFreeVoting ? activeVoteBanner(effectiveGender) : null
     const isPair = isPairGame(gameType)
     const roundPartIds = roundParts.map((p) => p.id)
@@ -2508,7 +2512,13 @@ export default function GamePage() {
     const isCustom = isCustomGame(gameType)
     const customSlots = isCustom && game ? getCustomSlots(game) : []
     const customMode =
-      isCustom && game ? customAssignmentMode(game, roundParts.length, customSlots.map((s) => s.key)) : 'one_each'
+      isCustom && game
+        ? customAssignmentMode(
+            game,
+            roundParts.length,
+            customSlots.map((s) => s.key)
+          )
+        : 'one_each'
     const customComplete =
       isCustom && game
         ? isCustomAssignmentValid(
@@ -2523,8 +2533,7 @@ export default function GamePage() {
       : isPair
         ? isPairAssignmentValid(pairAssignment, roundPartIds, pairMode)
         : isAssignmentComplete(assignment, gameType)
-    const assignTarget =
-      isCustom && game ? roundParts.length : assignmentTargetCount(gameType, roundParts.length)
+    const assignTarget = isCustom && game ? roundParts.length : assignmentTargetCount(gameType, roundParts.length)
     const assignProgress = isCustom
       ? Object.keys(customAssignments).filter((id) => roundParts.some((p) => p.id === id)).length
       : isPair
@@ -2566,15 +2575,12 @@ export default function GamePage() {
                 person&apos;s choice to swap
               </p>
             )}
-            {isCustom &&
-              isCustomTwoSlotGame(game!) &&
-              !isCustomOneEachMode(game!) &&
-              customSlots.length === 2 && (
-                <p className="text-faint text-xs mt-1">
-                  Any combo — both {customSlots[0].label || 'options'}, both {customSlots[1].label || 'options'}, or
-                  one of each
-                </p>
-              )}
+            {isCustom && isCustomTwoSlotGame(game!) && !isCustomOneEachMode(game!) && customSlots.length === 2 && (
+              <p className="text-faint text-xs mt-1">
+                Any combo — both {customSlots[0].label || 'options'}, both {customSlots[1].label || 'options'}, or one
+                of each
+              </p>
+            )}
           </div>
           {canVote ? (
             <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
@@ -2597,7 +2603,11 @@ export default function GamePage() {
               const slots = getCustomSlots(game)
               const roundPartsCustom = participants.filter((p) => currentRound.participant_ids.includes(p.id))
               const roundIdsCustom = roundPartsCustom.map((p) => p.id)
-              const customMode = customAssignmentMode(game, roundIdsCustom.length, slots.map((s) => s.key))
+              const customMode = customAssignmentMode(
+                game,
+                roundIdsCustom.length,
+                slots.map((s) => s.key)
+              )
               return (
                 <div className="flex-1 mb-6">
                   <CustomVoteCard
@@ -2615,9 +2625,7 @@ export default function GamePage() {
                     }
                     onAssign={(pid, slotKey) => {
                       if (!canVote || submitted) return
-                      setCustomAssignments((prev) =>
-                        assignCustomSlot(prev, pid, slotKey, roundIdsCustom, customMode)
-                      )
+                      setCustomAssignments((prev) => assignCustomSlot(prev, pid, slotKey, roundIdsCustom, customMode))
                     }}
                     disabled={submitted || !canVote}
                   />
@@ -3189,8 +3197,7 @@ function FinalResultsView({
   const isWst = isWhoSaidThis(gameType)
   const isHotSeatGame = isHotSeat(gameType)
   const isMltImport = isMltImportGame(game)
-  const showPollLeaderboards =
-    !isBinaryGameType && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
+  const showPollLeaderboards = !isBinaryGameType && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
   const genderBasedLeaderboards = showPollLeaderboards && isGameGenderBased(game)
   const namesOnlyLeaderboards = showPollLeaderboards && isGenderFreeVoting(game)
   const wstScores = isWst ? tallyWstPlayerScores(rounds, votes, players) : []
@@ -3311,213 +3318,212 @@ function FinalResultsView({
           </div>
         </div>
       ) : (
-      <div>
-        <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>
-        <div className="space-y-8">
-          {rounds.map((round) => {
-            const roundVotes = votes.filter((v) => v.round_id === round.id)
-            const myVote = roundVotes.find((v) => v.player_id === myPlayerId)
+        <div>
+          <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>
+          <div className="space-y-8">
+            {rounds.map((round) => {
+              const roundVotes = votes.filter((v) => v.round_id === round.id)
+              const myVote = roundVotes.find((v) => v.player_id === myPlayerId)
 
-            if (isCustomGame(gameType) && game) {
-              const slots = getCustomSlots(game)
-              const slotKeys = slots.map((s) => s.key)
-              const nameMap = new Map(participants.map((p) => [p.id, p.name]))
-              const tally = tallyCustomVotes(roundVotes, round.participant_ids, nameMap, slotKeys)
-              const myAssignment = myVote?.pair_assignments as Record<string, string> | null
-              return (
-                <div key={round.id}>
-                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
-                  <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
-                </div>
-              )
-            }
-
-            if (isBinaryGameType) {
-              const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
-              return (
-                <div key={round.id}>
-                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
-                  <WyrRoundResults
-                    optionA={round.wyr_option_a ?? ''}
-                    optionB={round.wyr_option_b ?? ''}
-                    countA={countA}
-                    countB={countB}
-                    voterCount={voterCount}
-                    myChoice={myVote?.wyr_choice ?? null}
-                    mode={isThisOrThat(gameType) ? 'tot' : 'wyr'}
-                  />
-                </div>
-              )
-            }
-
-            if (isWst) {
-              if (isAnimeRound(round)) {
-                const meta = round.anime_metadata as {
-                  anime_name: string
-                  correct_character: string
-                  choices: string[]
-                }
-                const animeTally = tallyAnimeWstVotes(roundVotes, meta.choices, meta.correct_character)
-                const myPickName = myVote?.anime_choice ?? null
+              if (isCustomGame(gameType) && game) {
+                const slots = getCustomSlots(game)
+                const slotKeys = slots.map((s) => s.key)
+                const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+                const tally = tallyCustomVotes(roundVotes, round.participant_ids, nameMap, slotKeys)
+                const myAssignment = myVote?.pair_assignments as Record<string, string> | null
                 return (
                   <div key={round.id}>
                     <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
-                    <AnimeWstRoundResults
-                      quote={round.quote_text ?? '(no quote)'}
-                      animeName={meta.anime_name}
-                      rows={animeTally.rows}
-                      voterCount={animeTally.voterCount}
-                      maxCount={animeTally.maxCount}
-                      topGuesses={animeTally.topGuesses}
-                      correctCharacter={meta.correct_character}
-                      correctCount={animeTally.correctCount}
+                    <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
+                  </div>
+                )
+              }
+
+              if (isBinaryGameType) {
+                const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
+                return (
+                  <div key={round.id}>
+                    <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                    <WyrRoundResults
+                      optionA={round.wyr_option_a ?? ''}
+                      optionB={round.wyr_option_b ?? ''}
+                      countA={countA}
+                      countB={countB}
+                      voterCount={voterCount}
+                      myChoice={myVote?.wyr_choice ?? null}
+                      mode={isThisOrThat(gameType) ? 'tot' : 'wyr'}
+                    />
+                  </div>
+                )
+              }
+
+              if (isWst) {
+                if (isAnimeRound(round)) {
+                  const meta = round.anime_metadata as {
+                    anime_name: string
+                    correct_character: string
+                    choices: string[]
+                  }
+                  const animeTally = tallyAnimeWstVotes(roundVotes, meta.choices, meta.correct_character)
+                  const myPickName = myVote?.anime_choice ?? null
+                  return (
+                    <div key={round.id}>
+                      <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                      <AnimeWstRoundResults
+                        quote={round.quote_text ?? '(no quote)'}
+                        animeName={meta.anime_name}
+                        rows={animeTally.rows}
+                        voterCount={animeTally.voterCount}
+                        maxCount={animeTally.maxCount}
+                        topGuesses={animeTally.topGuesses}
+                        correctCharacter={meta.correct_character}
+                        correctCount={animeTally.correctCount}
+                        myPickName={myPickName}
+                      />
+                    </div>
+                  )
+                }
+                const targets = wstVoteTargets(participants)
+                const correctName = wstCorrectNameFromRound(round, players, participants)
+                const correctId = wstCorrectParticipantIdFromRound(round, players)
+                const { rows, voterCount, maxCount, topGuesses, correctCount } = tallyWstVotes(
+                  roundVotes,
+                  targets,
+                  correctId
+                )
+                const myPickName = myVote?.target_participant_id
+                  ? (participants.find((p) => p.id === myVote.target_participant_id)?.name ?? null)
+                  : null
+                return (
+                  <div key={round.id}>
+                    <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                    <WstRoundResults
+                      quote={round.quote_text ?? '(no quote submitted)'}
+                      rows={rows}
+                      voterCount={voterCount}
+                      maxCount={maxCount}
+                      topGuesses={topGuesses}
+                      correctName={correctName}
+                      correctCount={correctCount}
                       myPickName={myPickName}
                     />
                   </div>
                 )
               }
-              const targets = wstVoteTargets(participants)
-              const correctName = wstCorrectNameFromRound(round, players, participants)
-              const correctId = wstCorrectParticipantIdFromRound(round, players)
-              const { rows, voterCount, maxCount, topGuesses, correctCount } = tallyWstVotes(
-                roundVotes,
-                targets,
-                correctId
-              )
-              const myPickName = myVote?.target_participant_id
-                ? (participants.find((p) => p.id === myVote.target_participant_id)?.name ?? null)
-                : null
-              return (
-                <div key={round.id}>
-                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
-                  <WstRoundResults
-                    quote={round.quote_text ?? '(no quote submitted)'}
-                    rows={rows}
-                    voterCount={voterCount}
-                    maxCount={maxCount}
-                    topGuesses={topGuesses}
-                    correctName={correctName}
-                    correctCount={correctCount}
-                    myPickName={myPickName}
-                  />
-                </div>
-              )
-            }
 
-            if (isMlt) {
-              const mltKind = isMltImport ? 'participant' : 'player'
-              const mltTargets = mltVoteTargets(game, participants, players)
-              const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(roundVotes, mltTargets, mltKind)
-              const pickedId = myVote ? mltTargetIdFromVote(myVote, mltKind) : null
-              const myPickName = pickedId ? (mltTargets.find((t) => t.id === pickedId)?.name ?? null) : null
-              return (
-                <div key={round.id}>
-                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
-                  <MltRoundResults
-                    question={round.mlt_question ?? ''}
-                    rows={rows}
-                    voterCount={voterCount}
-                    maxCount={maxCount}
-                    winnerNames={winnerNames}
-                    myPickName={myPickName}
-                  />
-                </div>
-              )
-            }
-
-            const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
-            const roundGender = game && isGenderFreeVoting(game)
-              ? null
-              : roundGenderLabel(roundParts.map((p) => p.gender))
-
-            return (
-              <div key={round.id}>
-                <h2 className="text-muted text-xs uppercase tracking-wider mb-3">
-                  Round {round.round_number}
-                  {roundGender ? ` · ${roundGender}` : ''}
-                </h2>
-                {myVote && (
-                  <div className="glass-card border border-[var(--primary)]/25 px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
-                    <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
-                    {isPairGame(gameType)
-                      ? roundParts.map((p) => {
-                          const flag = flagForParticipant(myVote, p.id)
-                          if (!flag) return null
-                          const meta = slotMeta(gameType, flag)
-                          return (
-                            <span key={p.id} className="text-sm" style={{ color: meta.textColor }}>
-                              {p.name}: {meta.emoji}
-                            </span>
-                          )
-                        })
-                      : voteSlots(gameType).map((slot) => {
-                          const participantId =
-                            slot === 'kiss'
-                              ? myVote.kiss_participant_id
-                              : slot === 'marry'
-                                ? myVote.marry_participant_id
-                                : myVote.kill_participant_id
-                          if (!participantId) return null
-                          const meta = slotMeta(gameType, slot)
-                          return (
-                            <span key={slot} className="text-sm" style={{ color: meta.textColor }}>
-                              {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
-                            </span>
-                          )
-                        })}
+              if (isMlt) {
+                const mltKind = isMltImport ? 'participant' : 'player'
+                const mltTargets = mltVoteTargets(game, participants, players)
+                const { rows, voterCount, maxCount, winnerNames } = tallyMltVotes(roundVotes, mltTargets, mltKind)
+                const pickedId = myVote ? mltTargetIdFromVote(myVote, mltKind) : null
+                const myPickName = pickedId ? (mltTargets.find((t) => t.id === pickedId)?.name ?? null) : null
+                return (
+                  <div key={round.id}>
+                    <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                    <MltRoundResults
+                      question={round.mlt_question ?? ''}
+                      rows={rows}
+                      voterCount={voterCount}
+                      maxCount={maxCount}
+                      winnerNames={winnerNames}
+                      myPickName={myPickName}
+                    />
                   </div>
-                )}
-                <div className="space-y-4">
-                  {(() => {
-                    const tallies = tallyRoundVotes(
-                      roundParts.map((p) => p.id),
-                      roundVotes
-                    )
-                    const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
-                    return (
-                      <ParticipantRoundResults
-                        gameType={gameType}
-                        tallies={tallies}
-                        nameById={nameById}
-                        voterCount={roundVotes.length}
-                        participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
-                        renderCard={
-                          isPairGame(gameType)
-                            ? undefined
-                            : ({ tally, name, maxes, isWinner }) => (
-                                <div key={tally.id} className="glass-card p-4">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <Avatar name={name} size="sm" />
-                                    <p className="font-bold text-body">{name}</p>
+                )
+              }
+
+              const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
+              const roundGender =
+                game && isGenderFreeVoting(game) ? null : roundGenderLabel(roundParts.map((p) => p.gender))
+
+              return (
+                <div key={round.id}>
+                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">
+                    Round {round.round_number}
+                    {roundGender ? ` · ${roundGender}` : ''}
+                  </h2>
+                  {myVote && (
+                    <div className="glass-card border border-[var(--primary)]/25 px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
+                      <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
+                      {isPairGame(gameType)
+                        ? roundParts.map((p) => {
+                            const flag = flagForParticipant(myVote, p.id)
+                            if (!flag) return null
+                            const meta = slotMeta(gameType, flag)
+                            return (
+                              <span key={p.id} className="text-sm" style={{ color: meta.textColor }}>
+                                {p.name}: {meta.emoji}
+                              </span>
+                            )
+                          })
+                        : voteSlots(gameType).map((slot) => {
+                            const participantId =
+                              slot === 'kiss'
+                                ? myVote.kiss_participant_id
+                                : slot === 'marry'
+                                  ? myVote.marry_participant_id
+                                  : myVote.kill_participant_id
+                            if (!participantId) return null
+                            const meta = slotMeta(gameType, slot)
+                            return (
+                              <span key={slot} className="text-sm" style={{ color: meta.textColor }}>
+                                {meta.emoji} {participants.find((p) => p.id === participantId)?.name}
+                              </span>
+                            )
+                          })}
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    {(() => {
+                      const tallies = tallyRoundVotes(
+                        roundParts.map((p) => p.id),
+                        roundVotes
+                      )
+                      const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
+                      return (
+                        <ParticipantRoundResults
+                          gameType={gameType}
+                          tallies={tallies}
+                          nameById={nameById}
+                          voterCount={roundVotes.length}
+                          participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
+                          renderCard={
+                            isPairGame(gameType)
+                              ? undefined
+                              : ({ tally, name, maxes, isWinner }) => (
+                                  <div key={tally.id} className="glass-card p-4">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <Avatar name={name} size="sm" />
+                                      <p className="font-bold text-body">{name}</p>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      {getVoteCategories(gameType).map((category) => {
+                                        const meta = getCategoryMeta(gameType, category)
+                                        return (
+                                          <VoteCountStat
+                                            key={category}
+                                            emoji={meta.emoji}
+                                            label={meta.label}
+                                            count={tally[category]}
+                                            max={maxes[category]}
+                                            color={meta.color}
+                                            isWinner={isWinner(category)}
+                                          />
+                                        )
+                                      })}
+                                    </div>
                                   </div>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    {getVoteCategories(gameType).map((category) => {
-                                      const meta = getCategoryMeta(gameType, category)
-                                      return (
-                                        <VoteCountStat
-                                          key={category}
-                                          emoji={meta.emoji}
-                                          label={meta.label}
-                                          count={tally[category]}
-                                          max={maxes[category]}
-                                          color={meta.color}
-                                          isWinner={isWinner(category)}
-                                        />
-                                      )
-                                    })}
-                                  </div>
-                                </div>
-                              )
-                        }
-                      />
-                    )
-                  })()}
+                                )
+                          }
+                        />
+                      )
+                    })()}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-      </div>
       )}
 
       {/* All hot takes */}

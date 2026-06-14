@@ -11,7 +11,12 @@ import {
   isCustomGame,
   parseGameType,
 } from '@/lib/game-types'
-import { supportsGenderToggle, isGameGenderBased, defaultGenderBasedForType, isGenderFreeVoting } from '@/lib/gender-based'
+import {
+  supportsGenderToggle,
+  isGameGenderBased,
+  defaultGenderBasedForType,
+  isGenderFreeVoting,
+} from '@/lib/gender-based'
 import { HOT_SEAT_MIN_PLAYERS, HOT_SEAT_MAX_ROUNDS_CAP } from '@/lib/hot-seat'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
@@ -84,10 +89,11 @@ export function participantsNeedGender(gameType?: GameType | string): boolean {
 
 export function participantsNeedGenderForGame(
   gameType?: GameType | string,
-  opts?: { genderBased?: boolean; customSlots?: CustomSlotsConfig | null; game?: Pick<
-    import('@/types').Game,
-    'game_type' | 'gender_based' | 'custom_slots'
-  > | null }
+  opts?: {
+    genderBased?: boolean
+    customSlots?: CustomSlotsConfig | null
+    game?: Pick<import('@/types').Game, 'game_type' | 'gender_based' | 'custom_slots'> | null
+  }
 ): boolean {
   if (opts?.game) return isGameGenderBased(opts.game)
   const type = parseGameType(gameType)
@@ -502,11 +508,7 @@ export function joinChoicesFromPlayerGender(
   return { identity: gender, voteBoth: false }
 }
 
-export function joinGenderHint(
-  identity: ParticipantGender,
-  voteBoth: boolean,
-  isJoinersMode: boolean
-): string {
+export function joinGenderHint(identity: ParticipantGender, voteBoth: boolean, isJoinersMode: boolean): string {
   if (voteBoth) {
     return isJoinersMode
       ? `You'll vote every round — your name is in the ${identity === 'male' ? "men's" : "women's"} poll`

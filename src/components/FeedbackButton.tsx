@@ -230,11 +230,7 @@ export function FeedbackButton() {
           <Field label="About which game?">
             <div className="flex flex-wrap gap-2">
               {GAME_OPTIONS.map((option) => (
-                <Chip
-                  key={option.value}
-                  active={gameType === option.value}
-                  onClick={() => setGameType(option.value)}
-                >
+                <Chip key={option.value} active={gameType === option.value} onClick={() => setGameType(option.value)}>
                   {option.label}
                 </Chip>
               ))}
@@ -244,11 +240,7 @@ export function FeedbackButton() {
           <Field label="What kind of feedback?">
             <div className="flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((option) => (
-                <Chip
-                  key={option.value}
-                  active={category === option.value}
-                  onClick={() => setCategory(option.value)}
-                >
+                <Chip key={option.value} active={category === option.value} onClick={() => setCategory(option.value)}>
                   {option.emoji} {option.label}
                 </Chip>
               ))}

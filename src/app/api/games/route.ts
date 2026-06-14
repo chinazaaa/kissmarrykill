@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
-import { normalizeGender, hasEnoughForRounds, participantsNeedGenderForGame, type ParticipantInput } from '@/lib/participants'
+import {
+  normalizeGender,
+  hasEnoughForRounds,
+  participantsNeedGenderForGame,
+  type ParticipantInput,
+} from '@/lib/participants'
 import {
   parseGameType,
   roundPoolSize,
@@ -122,7 +127,8 @@ export async function POST(req: NextRequest) {
 
   const game_type = parseGameType(rawGameType)
   const gender_based = supportsGenderToggle(game_type)
-    ? rawGenderBased ?? (isCustomGame(game_type) ? custom_slots?.gender_based === true : defaultGenderBasedForType(game_type))
+    ? (rawGenderBased ??
+      (isCustomGame(game_type) ? custom_slots?.gender_based === true : defaultGenderBasedForType(game_type)))
     : false
   const participantOpts = { genderBased: gender_based, customSlots: custom_slots ?? null }
   const theme = parseThemeId(rawTheme)
@@ -177,10 +183,10 @@ export async function POST(req: NextRequest) {
   const roundsCount = isAnonymousMessagesGame(game_type)
     ? 1
     : isWhoSaidThis(game_type)
-    ? wstAutoRoundCount(participants.length)
-    : isHotSeat(game_type)
-      ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
-      : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
+      ? wstAutoRoundCount(participants.length)
+      : isHotSeat(game_type)
+        ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
+        : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
 
   if (question_source === 'custom' && custom_questions && roundsCount > custom_questions.length) {
     return NextResponse.json(
@@ -223,9 +229,10 @@ export async function POST(req: NextRequest) {
         : participant_filter === 'joined'
           ? 'joined'
           : 'all',
-    pair_vote_mode: isPairGame(game_type) || (isCustomGame(game_type) && (custom_slots?.slots?.length ?? 0) === 2)
-      ? parsePairVoteMode(rawPairVoteMode)
-      : 'any',
+    pair_vote_mode:
+      isPairGame(game_type) || (isCustomGame(game_type) && (custom_slots?.slots?.length ?? 0) === 2)
+        ? parsePairVoteMode(rawPairVoteMode)
+        : 'any',
     question_source: isWouldYouRather(game_type) || isMostLikelyTo(game_type) ? question_source : 'platform',
     custom_questions,
     game_type,

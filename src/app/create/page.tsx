@@ -63,10 +63,7 @@ import {
   questionRoundPickerOptions,
   clampLobbyQuestionRounds,
 } from '@/lib/custom-questions'
-import {
-  playerQuestionsOrderOptions,
-  parsePlayerQuestionsOrder,
-} from '@/lib/player-question-pool'
+import { playerQuestionsOrderOptions, parsePlayerQuestionsOrder } from '@/lib/player-question-pool'
 import { isPeoplePollGame, playerNameSubmissionHint } from '@/lib/player-participant-pool'
 import { CustomSlotBuilder } from '@/components/CustomSlotBuilder'
 import { GenderRoundModeControl } from '@/components/GenderRoundModeControl'
@@ -159,9 +156,9 @@ function CreateGameInner() {
         ...prev,
         game_type: type,
         ...(isLobbyGame(type) ? { participant_mode: 'joiners', anonymous: true } : {}),
-      ...(isAnonymousMessagesGame(type)
-        ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
-        : {}),
+        ...(isAnonymousMessagesGame(type)
+          ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -239,8 +236,7 @@ function CreateGameInner() {
     !isCustom || (customSlots && customSlots.slots.length >= 2 && customSlots.slots.every((s) => s.label.trim()))
 
   const isAnonymousRoom = isAnonymousMessagesGame(settings.game_type)
-  const needsParticipantStep =
-    !isAnonymousRoom && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
+  const needsParticipantStep = !isAnonymousRoom && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
 
@@ -282,10 +278,10 @@ function CreateGameInner() {
           : isMostLikelyTo(type)
             ? { participant_mode: 'voters' as const }
             : {}),
-      ...(isCustomGame(type) ? { participant_mode: 'import' as const, gender_based: defaultGenderBasedForType(type) } : {}),
-      ...(supportsGenderToggle(type) && !isCustomGame(type)
-        ? { gender_based: defaultGenderBasedForType(type) }
+      ...(isCustomGame(type)
+        ? { participant_mode: 'import' as const, gender_based: defaultGenderBasedForType(type) }
         : {}),
+      ...(supportsGenderToggle(type) && !isCustomGame(type) ? { gender_based: defaultGenderBasedForType(type) } : {}),
     })
   }
 
@@ -629,471 +625,481 @@ function CreateGameInner() {
                   </select>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Players join with one tap and get a random lobby name shown on their messages. The cap applies to
-                  the lobby before start; extra viewers can join during an active session (watch only). Anyone who
-                  joins after the session starts can watch only. Hosts can mute players for 5–30 minutes (default 10)
-                  — muted players can read but not send. Once over 1,000 messages, the oldest 100 are removed every 5
-                  minutes during the session. Sessions last up to 15 minutes — all messages are deleted when the
-                  session ends.
+                  Players join with one tap and get a random lobby name shown on their messages. The cap applies to the
+                  lobby before start; extra viewers can join during an active session (watch only). Anyone who joins
+                  after the session starts can watch only. Hosts can mute players for 5–30 minutes (default 10) — muted
+                  players can read but not send. Once over 1,000 messages, the oldest 100 are removed every 5 minutes
+                  during the session. Sessions last up to 15 minutes — all messages are deleted when the session ends.
                 </p>
               </SettingsGroup>
             ) : (
               <>
-            <SettingsGroup title="Round settings">
-              {isWst ? (
-                <div className="space-y-4">
-                  <Field label="Quote source">
-                    <SegmentedControl
-                      value={wstQuoteSource}
-                      onChange={(v) => setWstQuoteSource(v)}
-                      options={[
-                        {
-                          value: 'player' as WstQuoteSource,
-                          label: 'Player Quotes',
-                          hint: 'Players submit quotes in the lobby',
-                        },
-                        {
-                          value: 'anime' as WstQuoteSource,
-                          label: 'Anime Quotes',
-                          hint: 'Quotes from anime characters',
-                        },
-                        { value: 'both' as WstQuoteSource, label: 'Both', hint: 'Mix player + anime quotes' },
-                      ]}
-                    />
-                  </Field>
-                  <p className="text-faint text-sm leading-relaxed">
-                    {wstQuoteSource === 'anime'
-                      ? 'Anime quotes are fetched in the lobby — no player submissions needed.'
-                      : wstQuoteSource === 'both'
-                        ? 'Players submit quotes and anime quotes are fetched — both are shuffled together.'
-                        : 'Rounds are automatic — one turn per player who joins and claims their name. The count updates in the host lobby as people join.'}
-                  </p>
-                </div>
-              ) : isHotSeatGame ? (
-                <Field label="Max rounds">
-                  <p className="text-faint text-xs mb-2">
-                    One hot seat turn per player who joins and claims a name. The actual round count is set
-                    automatically in the lobby — enter the max cap ({HOT_SEAT_MIN_PLAYERS}–{hotSeatCreateCapUpper}).
-                  </p>
-                  <input
-                    type="number"
-                    min={HOT_SEAT_MIN_PLAYERS}
-                    max={hotSeatCreateCapUpper}
-                    step={1}
-                    value={settings.rounds_count}
-                    onChange={(e) => {
-                      const n = Number.parseInt(e.target.value, 10)
-                      if (!Number.isNaN(n)) {
-                        setSettings((prev) => ({ ...prev, rounds_count: n }))
-                      }
-                    }}
-                    onBlur={(e) => {
-                      setSettings((prev) => ({
-                        ...prev,
-                        rounds_count: clampHotSeatMaxCap(e.target.value, hotSeatCreateCapUpper),
-                      }))
-                    }}
-                    className="input-field w-28"
-                  />
-                </Field>
-              ) : (
-                <Field label="Rounds">
-                  {isLobbyQuestions && questionSource === 'custom' && customQuestionCount === 0 && (
-                    <p className="text-faint text-xs mb-2">
-                      Upload questions below to set how many rounds you can play.
-                    </p>
-                  )}
-                  {isLobbyQuestions && questionSource === 'custom' && customQuestionCount > 0 && (
-                    <p className="text-faint text-xs mb-2">
-                      {customQuestionCount} custom questions loaded — up to {customQuestionCount} rounds.
-                    </p>
-                  )}
-                  {isLobbyQuestions && questionCap > 0 && (
-                    <input
-                      type="number"
-                      min={1}
-                      max={questionCap}
-                      step={1}
-                      value={settings.rounds_count}
-                      onChange={(e) => {
-                        const n = Number.parseInt(e.target.value, 10)
-                        if (!Number.isNaN(n)) {
-                          setSettings((prev) => ({ ...prev, rounds_count: n }))
-                        }
-                      }}
-                      onBlur={(e) => {
-                        setSettings((prev) => ({
-                          ...prev,
-                          rounds_count: clampLobbyQuestionRounds(e.target.value, questionCap),
-                        }))
-                      }}
-                      className="input-field w-28 mb-2"
-                    />
-                  )}
-                  <ChipGrid>
-                    {roundOptions.map((n) => (
-                      <Chip
-                        key={n}
-                        active={settings.rounds_count === n}
-                        onClick={() => setSettings((prev) => ({ ...prev, rounds_count: n }))}
-                        className="!px-0 w-full"
-                      >
-                        {n}
-                      </Chip>
-                    ))}
-                  </ChipGrid>
-                </Field>
-              )}
-
-              <Field label="Time per round">
-                <SegmentedControl
-                  value={String(settings.timer_seconds) as '15' | '30' | '60'}
-                  onChange={(v) => setSettings({ ...settings, timer_seconds: Number(v) })}
-                  options={[
-                    { value: '15', label: '15s' },
-                    { value: '30', label: '30s' },
-                    { value: '60', label: '60s' },
-                  ]}
-                />
-              </Field>
-
-              {supportsGender && (
-                <GenderRoundModeControl
-                  value={settings.gender_based}
-                  onChange={(gender_based) => setSettings((prev) => ({ ...prev, gender_based }))}
-                />
-              )}
-
-              {isCustom && <CustomSlotBuilder value={customSlots} onChange={setCustomSlots} />}
-
-              {(isPair || isCustomTwoSlot) && (
-                <Field label="Pair voting">
-                  <SegmentedControl
-                    value={settings.pair_vote_mode}
-                    onChange={(v) => setSettings({ ...settings, pair_vote_mode: v })}
-                    options={
-                      isCustomTwoSlot && customSlots?.slots
-                        ? customPairVoteModeOptions(customSlots.slots)
-                        : pairVoteModeOptions(settings.game_type)
-                    }
-                  />
-                </Field>
-              )}
-            </SettingsGroup>
-
-            {isLobbyQuestions && (
-              <SettingsGroup title="Questions">
-                <Field label="Player submissions">
-                  <SegmentedControl
-                    value={playerQuestionsEnabled ? 'on' : 'off'}
-                    onChange={(v) => setPlayerQuestionsEnabled(v === 'on')}
-                    options={[
-                      { value: 'on', label: 'Allowed' },
-                      { value: 'off', label: 'Disabled' },
-                    ]}
-                  />
-                  <p className="text-faint text-xs mt-2">
-                    {playerQuestionsEnabled
-                      ? 'Players can add their own questions in the lobby before you start.'
-                      : 'Only your uploaded or platform questions will be used.'}
-                  </p>
-                </Field>
-
-                {playerQuestionsEnabled && (
-                  <Field label="Question mix">
-                    <SegmentedControl
-                      value={playerQuestionsOrder}
-                      onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
-                      options={playerQuestionsOrderOptions({
-                        game_type: settings.game_type,
-                        question_source: isTot ? 'custom' : questionSource,
-                      }).map((opt) => ({ value: opt.value, label: opt.label }))}
-                    />
-                    <p className="text-faint text-xs mt-2">
-                      {
-                        playerQuestionsOrderOptions({
-                          game_type: settings.game_type,
-                          question_source: isTot ? 'custom' : questionSource,
-                        }).find((opt) => opt.value === playerQuestionsOrder)?.hint
-                      }
-                    </p>
-                  </Field>
-                )}
-
-                {isLobbyQuestions && !isTot && (
-                  <SegmentedControl
-                    value={questionSource}
-                    onChange={(v) => {
-                      setQuestionSource(v)
-                      if (v === 'platform') {
-                        setCustomWyrQuestions([])
-                        setCustomMltQuestions([])
-                        setQuestionsUploadError(null)
-                      }
-                    }}
-                    options={questionSourceOptions(settings.game_type)}
-                  />
-                )}
-
-                {isLobbyQuestions && (isTot || questionSource === 'custom') && (
-                  <div className="space-y-4 pt-1">
-                    <SegmentedControl
-                      value={questionTab}
-                      onChange={setQuestionTab}
-                      options={[
-                        {
-                          value: 'upload',
-                          label: 'Upload file',
-                          hint: questionUploadHint(settings.game_type),
-                        },
-                        {
-                          value: 'manual',
-                          label: 'Add manually',
-                          hint: isWyr
-                            ? 'Type or paste option pairs.'
-                            : isTot
-                              ? 'Type “Coffee or Tea?” style prompts.'
-                              : 'Type or paste one question per line.',
-                        },
-                      ]}
-                    />
-
-                    {questionTab === 'upload' ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => questionsFileRef.current?.click()}
-                            className="btn-secondary !py-3"
-                          >
-                            Choose file
-                          </button>
-                          <a
-                            href={questionSampleFile(settings.game_type).href}
-                            download={questionSampleFile(settings.game_type).download}
-                            className="btn-secondary !py-3 text-center no-underline flex items-center justify-center"
-                          >
-                            Sample CSV
-                          </a>
-                        </div>
-                        <input
-                          ref={questionsFileRef}
-                          type="file"
-                          accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                          className="hidden"
-                          onChange={handleQuestionsFileUpload}
+                <SettingsGroup title="Round settings">
+                  {isWst ? (
+                    <div className="space-y-4">
+                      <Field label="Quote source">
+                        <SegmentedControl
+                          value={wstQuoteSource}
+                          onChange={(v) => setWstQuoteSource(v)}
+                          options={[
+                            {
+                              value: 'player' as WstQuoteSource,
+                              label: 'Player Quotes',
+                              hint: 'Players submit quotes in the lobby',
+                            },
+                            {
+                              value: 'anime' as WstQuoteSource,
+                              label: 'Anime Quotes',
+                              hint: 'Quotes from anime characters',
+                            },
+                            { value: 'both' as WstQuoteSource, label: 'Both', hint: 'Mix player + anime quotes' },
+                          ]}
                         />
-                        <p className="text-faint text-xs text-center">{questionUploadHint(settings.game_type)}</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {isWyr ? (
-                          <div className="space-y-2">
-                            <input
-                              value={wyrOptionA}
-                              onChange={(e) => setWyrOptionA(e.target.value)}
-                              placeholder="Option A"
-                              className="input-field py-2.5 text-sm"
-                            />
-                            <input
-                              value={wyrOptionB}
-                              onChange={(e) => setWyrOptionB(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
-                              placeholder="Option B"
-                              className="input-field py-2.5 text-sm"
-                            />
-                          </div>
-                        ) : (
-                          <input
-                            value={mltQuestionInput}
-                            onChange={(e) => setMltQuestionInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
-                            placeholder={isTot ? 'Coffee or Tea?' : 'Who is most likely to…'}
-                            className="input-field py-2.5 text-sm"
-                          />
-                        )}
-                        <button
-                          type="button"
-                          onClick={addManualQuestion}
-                          className="btn-secondary w-full text-sm py-2.5"
-                        >
-                          Add question
-                        </button>
-                        <textarea
-                          value={questionsBulkPaste}
-                          onChange={(e) => setQuestionsBulkPaste(e.target.value)}
-                          placeholder={
-                            isWyr
-                              ? 'Paste from Excel:\nNever have pizza,Never have tacos\nLive without music,Live without movies'
-                              : isTot
-                                ? 'Paste questions:\nCoffee or Tea?\nBeach vacation or Mountain getaway?'
-                                : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
+                      </Field>
+                      <p className="text-faint text-sm leading-relaxed">
+                        {wstQuoteSource === 'anime'
+                          ? 'Anime quotes are fetched in the lobby — no player submissions needed.'
+                          : wstQuoteSource === 'both'
+                            ? 'Players submit quotes and anime quotes are fetched — both are shuffled together.'
+                            : 'Rounds are automatic — one turn per player who joins and claims their name. The count updates in the host lobby as people join.'}
+                      </p>
+                    </div>
+                  ) : isHotSeatGame ? (
+                    <Field label="Max rounds">
+                      <p className="text-faint text-xs mb-2">
+                        One hot seat turn per player who joins and claims a name. The actual round count is set
+                        automatically in the lobby — enter the max cap ({HOT_SEAT_MIN_PLAYERS}–{hotSeatCreateCapUpper}).
+                      </p>
+                      <input
+                        type="number"
+                        min={HOT_SEAT_MIN_PLAYERS}
+                        max={hotSeatCreateCapUpper}
+                        step={1}
+                        value={settings.rounds_count}
+                        onChange={(e) => {
+                          const n = Number.parseInt(e.target.value, 10)
+                          if (!Number.isNaN(n)) {
+                            setSettings((prev) => ({ ...prev, rounds_count: n }))
                           }
-                          rows={4}
-                          className="input-field resize-none font-medium text-sm"
-                        />
-                        {questionsBulkPaste.trim() && (
-                          <button
-                            type="button"
-                            onClick={addBulkQuestions}
-                            className="btn-secondary w-full text-sm py-2.5"
-                          >
-                            Import pasted list
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {questionsUploadError && <p className="text-red-400 text-sm">{questionsUploadError}</p>}
-
-                    {customQuestionCount > 0 && (
-                      <div className="surface-inset border border-theme rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
-                        <p className="text-muted text-xs uppercase tracking-wider">Loaded ({customQuestionCount})</p>
-                        {isBinaryLobby
-                          ? customWyrQuestions.map((q, i) => (
-                              <div key={i} className="flex items-start gap-2 text-sm">
-                                <p className="text-body flex-1 min-w-0">
-                                  <span className="text-violet-300">A:</span> {q.optionA}
-                                  <span className="text-faint mx-1">·</span>
-                                  <span className="text-sky-300">B:</span> {q.optionB}
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => removeCustomQuestion(i)}
-                                  className="text-faint hover:text-red-300 text-xs shrink-0"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ))
-                          : customMltQuestions.map((q, i) => (
-                              <div key={i} className="flex items-start gap-2 text-sm">
-                                <p className="text-body flex-1 min-w-0">{q}</p>
-                                <button
-                                  type="button"
-                                  onClick={() => removeCustomQuestion(i)}
-                                  className="text-faint hover:text-red-300 text-xs shrink-0"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ))}
-                      </div>
-                    )}
-
-                    {questionSource === 'custom' &&
-                      customQuestionCount > 0 &&
-                      customQuestionCount < settings.rounds_count && (
-                        <p className="text-amber-200/90 text-xs">
-                          Need at least {settings.rounds_count} questions for {settings.rounds_count} rounds.
+                        }}
+                        onBlur={(e) => {
+                          setSettings((prev) => ({
+                            ...prev,
+                            rounds_count: clampHotSeatMaxCap(e.target.value, hotSeatCreateCapUpper),
+                          }))
+                        }}
+                        className="input-field w-28"
+                      />
+                    </Field>
+                  ) : (
+                    <Field label="Rounds">
+                      {isLobbyQuestions && questionSource === 'custom' && customQuestionCount === 0 && (
+                        <p className="text-faint text-xs mb-2">
+                          Upload questions below to set how many rounds you can play.
                         </p>
                       )}
-                  </div>
-                )}
-              </SettingsGroup>
-            )}
+                      {isLobbyQuestions && questionSource === 'custom' && customQuestionCount > 0 && (
+                        <p className="text-faint text-xs mb-2">
+                          {customQuestionCount} custom questions loaded — up to {customQuestionCount} rounds.
+                        </p>
+                      )}
+                      {isLobbyQuestions && questionCap > 0 && (
+                        <input
+                          type="number"
+                          min={1}
+                          max={questionCap}
+                          step={1}
+                          value={settings.rounds_count}
+                          onChange={(e) => {
+                            const n = Number.parseInt(e.target.value, 10)
+                            if (!Number.isNaN(n)) {
+                              setSettings((prev) => ({ ...prev, rounds_count: n }))
+                            }
+                          }}
+                          onBlur={(e) => {
+                            setSettings((prev) => ({
+                              ...prev,
+                              rounds_count: clampLobbyQuestionRounds(e.target.value, questionCap),
+                            }))
+                          }}
+                          className="input-field w-28 mb-2"
+                        />
+                      )}
+                      <ChipGrid>
+                        {roundOptions.map((n) => (
+                          <Chip
+                            key={n}
+                            active={settings.rounds_count === n}
+                            onClick={() => setSettings((prev) => ({ ...prev, rounds_count: n }))}
+                            className="!px-0 w-full"
+                          >
+                            {n}
+                          </Chip>
+                        ))}
+                      </ChipGrid>
+                    </Field>
+                  )}
 
-            {!isAnonymousRoom &&
-            (((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type)) || isHotSeatGame) ? (
-              <SettingsGroup title={isHotSeatGame ? "Who's in the game" : "Who's in the poll"}>
-                <SegmentedControl
-                  value={settings.participant_mode}
-                  onChange={(mode) => setSettings({ ...settings, participant_mode: mode })}
-                  options={participantModeOptions(settings.game_type)}
-                />
-              </SettingsGroup>
-            ) : null)}
-
-            {!isAnonymousRoom && isPeoplePollVoters && (
-              <SettingsGroup title="Poll names">
-                <Field label="Player submissions">
-                  <SegmentedControl
-                    value={playerQuestionsEnabled ? 'on' : 'off'}
-                    onChange={(v) => setPlayerQuestionsEnabled(v === 'on')}
-                    options={[
-                      { value: 'on', label: 'Allowed' },
-                      { value: 'off', label: 'Disabled' },
-                    ]}
-                  />
-                  <p className="text-faint text-xs mt-2">
-                    {playerQuestionsEnabled
-                      ? playerNameSubmissionHint()
-                      : 'Only names from your list will appear in rounds.'}
-                  </p>
-                </Field>
-
-                {playerQuestionsEnabled && (
-                  <Field label="Name mix">
+                  <Field label="Time per round">
                     <SegmentedControl
-                      value={playerQuestionsOrder}
-                      onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
-                      options={playerQuestionsOrderOptions({
-                        game_type: settings.game_type,
-                        question_source: questionSource,
-                      }).map((opt) => ({ value: opt.value, label: opt.label }))}
+                      value={String(settings.timer_seconds) as '15' | '30' | '60'}
+                      onChange={(v) => setSettings({ ...settings, timer_seconds: Number(v) })}
+                      options={[
+                        { value: '15', label: '15s' },
+                        { value: '30', label: '30s' },
+                        { value: '60', label: '60s' },
+                      ]}
                     />
-                    <p className="text-faint text-xs mt-2">
-                      {
-                        playerQuestionsOrderOptions({
-                          game_type: settings.game_type,
-                          question_source: questionSource,
-                        }).find((opt) => opt.value === playerQuestionsOrder)?.hint
-                      }
-                    </p>
                   </Field>
-                )}
-              </SettingsGroup>
-            )}
 
-            {!isAnonymousRoom && settings.participant_mode === 'import' && !isBinaryLobby && !isWst && !isHotSeatGame && (
-              <SettingsGroup title="Who appears in rounds">
-                <SegmentedControl
-                  value={settings.participant_filter}
-                  onChange={(v) => setSettings({ ...settings, participant_filter: v })}
-                  options={[
-                    { value: 'all', label: 'Everyone on the list' },
-                    { value: 'joined', label: 'Only people who join' },
-                  ]}
-                />
-              </SettingsGroup>
-            )}
+                  {supportsGender && (
+                    <GenderRoundModeControl
+                      value={settings.gender_based}
+                      onChange={(gender_based) => setSettings((prev) => ({ ...prev, gender_based }))}
+                    />
+                  )}
 
-            {!isAnonymousRoom && (
-            <SettingsGroup title="Advanced" description="Timer behavior & privacy" collapsible defaultOpen={false}>
-              <Field label="When timer runs out">
-                <SegmentedControl
-                  value={settings.auto_submit_behavior}
-                  onChange={(v) => setSettings({ ...settings, auto_submit_behavior: v })}
-                  options={[
-                    { value: 'random', label: 'Random fill', hint: 'Incomplete votes get random choices.' },
-                    { value: 'no_answer', label: 'No answer', hint: 'Incomplete votes count as no vote.' },
-                  ]}
-                />
-              </Field>
+                  {isCustom && <CustomSlotBuilder value={customSlots} onChange={setCustomSlots} />}
 
-              <div className="space-y-2">
-                {!isAnonymousGame(settings.game_type) && (
-                  <Toggle
-                    label="Anonymous responses"
-                    description="Hide who voted for what"
-                    value={settings.anonymous}
-                    onChange={(v) => setSettings({ ...settings, anonymous: v })}
-                  />
+                  {(isPair || isCustomTwoSlot) && (
+                    <Field label="Pair voting">
+                      <SegmentedControl
+                        value={settings.pair_vote_mode}
+                        onChange={(v) => setSettings({ ...settings, pair_vote_mode: v })}
+                        options={
+                          isCustomTwoSlot && customSlots?.slots
+                            ? customPairVoteModeOptions(customSlots.slots)
+                            : pairVoteModeOptions(settings.game_type)
+                        }
+                      />
+                    </Field>
+                  )}
+                </SettingsGroup>
+
+                {isLobbyQuestions && (
+                  <SettingsGroup title="Questions">
+                    <Field label="Player submissions">
+                      <SegmentedControl
+                        value={playerQuestionsEnabled ? 'on' : 'off'}
+                        onChange={(v) => setPlayerQuestionsEnabled(v === 'on')}
+                        options={[
+                          { value: 'on', label: 'Allowed' },
+                          { value: 'off', label: 'Disabled' },
+                        ]}
+                      />
+                      <p className="text-faint text-xs mt-2">
+                        {playerQuestionsEnabled
+                          ? 'Players can add their own questions in the lobby before you start.'
+                          : 'Only your uploaded or platform questions will be used.'}
+                      </p>
+                    </Field>
+
+                    {playerQuestionsEnabled && (
+                      <Field label="Question mix">
+                        <SegmentedControl
+                          value={playerQuestionsOrder}
+                          onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
+                          options={playerQuestionsOrderOptions({
+                            game_type: settings.game_type,
+                            question_source: isTot ? 'custom' : questionSource,
+                          }).map((opt) => ({ value: opt.value, label: opt.label }))}
+                        />
+                        <p className="text-faint text-xs mt-2">
+                          {
+                            playerQuestionsOrderOptions({
+                              game_type: settings.game_type,
+                              question_source: isTot ? 'custom' : questionSource,
+                            }).find((opt) => opt.value === playerQuestionsOrder)?.hint
+                          }
+                        </p>
+                      </Field>
+                    )}
+
+                    {isLobbyQuestions && !isTot && (
+                      <SegmentedControl
+                        value={questionSource}
+                        onChange={(v) => {
+                          setQuestionSource(v)
+                          if (v === 'platform') {
+                            setCustomWyrQuestions([])
+                            setCustomMltQuestions([])
+                            setQuestionsUploadError(null)
+                          }
+                        }}
+                        options={questionSourceOptions(settings.game_type)}
+                      />
+                    )}
+
+                    {isLobbyQuestions && (isTot || questionSource === 'custom') && (
+                      <div className="space-y-4 pt-1">
+                        <SegmentedControl
+                          value={questionTab}
+                          onChange={setQuestionTab}
+                          options={[
+                            {
+                              value: 'upload',
+                              label: 'Upload file',
+                              hint: questionUploadHint(settings.game_type),
+                            },
+                            {
+                              value: 'manual',
+                              label: 'Add manually',
+                              hint: isWyr
+                                ? 'Type or paste option pairs.'
+                                : isTot
+                                  ? 'Type “Coffee or Tea?” style prompts.'
+                                  : 'Type or paste one question per line.',
+                            },
+                          ]}
+                        />
+
+                        {questionTab === 'upload' ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => questionsFileRef.current?.click()}
+                                className="btn-secondary !py-3"
+                              >
+                                Choose file
+                              </button>
+                              <a
+                                href={questionSampleFile(settings.game_type).href}
+                                download={questionSampleFile(settings.game_type).download}
+                                className="btn-secondary !py-3 text-center no-underline flex items-center justify-center"
+                              >
+                                Sample CSV
+                              </a>
+                            </div>
+                            <input
+                              ref={questionsFileRef}
+                              type="file"
+                              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                              className="hidden"
+                              onChange={handleQuestionsFileUpload}
+                            />
+                            <p className="text-faint text-xs text-center">{questionUploadHint(settings.game_type)}</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {isWyr ? (
+                              <div className="space-y-2">
+                                <input
+                                  value={wyrOptionA}
+                                  onChange={(e) => setWyrOptionA(e.target.value)}
+                                  placeholder="Option A"
+                                  className="input-field py-2.5 text-sm"
+                                />
+                                <input
+                                  value={wyrOptionB}
+                                  onChange={(e) => setWyrOptionB(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
+                                  placeholder="Option B"
+                                  className="input-field py-2.5 text-sm"
+                                />
+                              </div>
+                            ) : (
+                              <input
+                                value={mltQuestionInput}
+                                onChange={(e) => setMltQuestionInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
+                                placeholder={isTot ? 'Coffee or Tea?' : 'Who is most likely to…'}
+                                className="input-field py-2.5 text-sm"
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={addManualQuestion}
+                              className="btn-secondary w-full text-sm py-2.5"
+                            >
+                              Add question
+                            </button>
+                            <textarea
+                              value={questionsBulkPaste}
+                              onChange={(e) => setQuestionsBulkPaste(e.target.value)}
+                              placeholder={
+                                isWyr
+                                  ? 'Paste from Excel:\nNever have pizza,Never have tacos\nLive without music,Live without movies'
+                                  : isTot
+                                    ? 'Paste questions:\nCoffee or Tea?\nBeach vacation or Mountain getaway?'
+                                    : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
+                              }
+                              rows={4}
+                              className="input-field resize-none font-medium text-sm"
+                            />
+                            {questionsBulkPaste.trim() && (
+                              <button
+                                type="button"
+                                onClick={addBulkQuestions}
+                                className="btn-secondary w-full text-sm py-2.5"
+                              >
+                                Import pasted list
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {questionsUploadError && <p className="text-red-400 text-sm">{questionsUploadError}</p>}
+
+                        {customQuestionCount > 0 && (
+                          <div className="surface-inset border border-theme rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                            <p className="text-muted text-xs uppercase tracking-wider">
+                              Loaded ({customQuestionCount})
+                            </p>
+                            {isBinaryLobby
+                              ? customWyrQuestions.map((q, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-sm">
+                                    <p className="text-body flex-1 min-w-0">
+                                      <span className="text-violet-300">A:</span> {q.optionA}
+                                      <span className="text-faint mx-1">·</span>
+                                      <span className="text-sky-300">B:</span> {q.optionB}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeCustomQuestion(i)}
+                                      className="text-faint hover:text-red-300 text-xs shrink-0"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))
+                              : customMltQuestions.map((q, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-sm">
+                                    <p className="text-body flex-1 min-w-0">{q}</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeCustomQuestion(i)}
+                                      className="text-faint hover:text-red-300 text-xs shrink-0"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                          </div>
+                        )}
+
+                        {questionSource === 'custom' &&
+                          customQuestionCount > 0 &&
+                          customQuestionCount < settings.rounds_count && (
+                            <p className="text-amber-200/90 text-xs">
+                              Need at least {settings.rounds_count} questions for {settings.rounds_count} rounds.
+                            </p>
+                          )}
+                      </div>
+                    )}
+                  </SettingsGroup>
                 )}
-                {isAnonymousGame(settings.game_type) && (
-                  <p className="text-faint text-xs px-1">
-                    Would You Rather, Most Likely To, and Who Said This are always anonymous.
-                  </p>
+
+                {!isAnonymousRoom &&
+                  ((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type)) || isHotSeatGame ? (
+                    <SettingsGroup title={isHotSeatGame ? "Who's in the game" : "Who's in the poll"}>
+                      <SegmentedControl
+                        value={settings.participant_mode}
+                        onChange={(mode) => setSettings({ ...settings, participant_mode: mode })}
+                        options={participantModeOptions(settings.game_type)}
+                      />
+                    </SettingsGroup>
+                  ) : null)}
+
+                {!isAnonymousRoom && isPeoplePollVoters && (
+                  <SettingsGroup title="Poll names">
+                    <Field label="Player submissions">
+                      <SegmentedControl
+                        value={playerQuestionsEnabled ? 'on' : 'off'}
+                        onChange={(v) => setPlayerQuestionsEnabled(v === 'on')}
+                        options={[
+                          { value: 'on', label: 'Allowed' },
+                          { value: 'off', label: 'Disabled' },
+                        ]}
+                      />
+                      <p className="text-faint text-xs mt-2">
+                        {playerQuestionsEnabled
+                          ? playerNameSubmissionHint()
+                          : 'Only names from your list will appear in rounds.'}
+                      </p>
+                    </Field>
+
+                    {playerQuestionsEnabled && (
+                      <Field label="Name mix">
+                        <SegmentedControl
+                          value={playerQuestionsOrder}
+                          onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
+                          options={playerQuestionsOrderOptions({
+                            game_type: settings.game_type,
+                            question_source: questionSource,
+                          }).map((opt) => ({ value: opt.value, label: opt.label }))}
+                        />
+                        <p className="text-faint text-xs mt-2">
+                          {
+                            playerQuestionsOrderOptions({
+                              game_type: settings.game_type,
+                              question_source: questionSource,
+                            }).find((opt) => opt.value === playerQuestionsOrder)?.hint
+                          }
+                        </p>
+                      </Field>
+                    )}
+                  </SettingsGroup>
                 )}
-                <Toggle
-                  label="Auto-reveal results"
-                  description="Show results after the last round automatically"
-                  value={settings.auto_reveal}
-                  onChange={(v) => setSettings({ ...settings, auto_reveal: v })}
-                />
-              </div>
-            </SettingsGroup>
-            )}
+
+                {!isAnonymousRoom &&
+                  settings.participant_mode === 'import' &&
+                  !isBinaryLobby &&
+                  !isWst &&
+                  !isHotSeatGame && (
+                    <SettingsGroup title="Who appears in rounds">
+                      <SegmentedControl
+                        value={settings.participant_filter}
+                        onChange={(v) => setSettings({ ...settings, participant_filter: v })}
+                        options={[
+                          { value: 'all', label: 'Everyone on the list' },
+                          { value: 'joined', label: 'Only people who join' },
+                        ]}
+                      />
+                    </SettingsGroup>
+                  )}
+
+                {!isAnonymousRoom && (
+                  <SettingsGroup
+                    title="Advanced"
+                    description="Timer behavior & privacy"
+                    collapsible
+                    defaultOpen={false}
+                  >
+                    <Field label="When timer runs out">
+                      <SegmentedControl
+                        value={settings.auto_submit_behavior}
+                        onChange={(v) => setSettings({ ...settings, auto_submit_behavior: v })}
+                        options={[
+                          { value: 'random', label: 'Random fill', hint: 'Incomplete votes get random choices.' },
+                          { value: 'no_answer', label: 'No answer', hint: 'Incomplete votes count as no vote.' },
+                        ]}
+                      />
+                    </Field>
+
+                    <div className="space-y-2">
+                      {!isAnonymousGame(settings.game_type) && (
+                        <Toggle
+                          label="Anonymous responses"
+                          description="Hide who voted for what"
+                          value={settings.anonymous}
+                          onChange={(v) => setSettings({ ...settings, anonymous: v })}
+                        />
+                      )}
+                      {isAnonymousGame(settings.game_type) && (
+                        <p className="text-faint text-xs px-1">
+                          Would You Rather, Most Likely To, and Who Said This are always anonymous.
+                        </p>
+                      )}
+                      <Toggle
+                        label="Auto-reveal results"
+                        description="Show results after the last round automatically"
+                        value={settings.auto_reveal}
+                        onChange={(v) => setSettings({ ...settings, auto_reveal: v })}
+                      />
+                    </div>
+                  </SettingsGroup>
+                )}
               </>
             )}
 
@@ -1198,7 +1204,9 @@ function CreateGameInner() {
                 className="hidden"
                 onChange={handleFileUpload}
               />
-              <p className="text-faint text-xs text-center">{participantUploadHint(settings.game_type, participantOpts)}</p>
+              <p className="text-faint text-xs text-center">
+                {participantUploadHint(settings.game_type, participantOpts)}
+              </p>
               {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
             </div>
           ) : (

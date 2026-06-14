@@ -300,8 +300,8 @@ export function WyrRoundResults({
         <p className="text-body-muted text-sm text-center leading-relaxed">
           {isTot ? (
             <>
-              <span className={labelAClass}>{optionA}</span> or{' '}
-              <span className="label-sky font-medium">{optionB}</span>?
+              <span className={labelAClass}>{optionA}</span> or <span className="label-sky font-medium">{optionB}</span>
+              ?
             </>
           ) : (
             <>

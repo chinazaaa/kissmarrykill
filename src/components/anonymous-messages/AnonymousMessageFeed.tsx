@@ -93,71 +93,65 @@ export function AnonymousMessageFeed({
 
       <div ref={scrollRef} className="max-h-[min(52vh,28rem)] overflow-y-auto scrollbar-thin">
         <div className="space-y-2 pb-10">
-        {messages.length === 0 ? (
-          <p className="text-muted text-sm text-center py-8">{emptyLabel}</p>
-        ) : (
-          messages.map((message, i) => {
-            const quoted = message.reply_to_text?.trim()
-            const isHighlighted = highlightMessageId === message.id
+          {messages.length === 0 ? (
+            <p className="text-muted text-sm text-center py-8">{emptyLabel}</p>
+          ) : (
+            messages.map((message, i) => {
+              const quoted = message.reply_to_text?.trim()
+              const isHighlighted = highlightMessageId === message.id
 
-            return (
-              <div
-                key={message.id}
-                className={`confession-slide-in px-3 py-2.5 rounded-xl border transition-colors ${
-                  isHighlighted
-                    ? 'bg-violet-500/15 border-violet-400/40'
-                    : 'bg-white/5 border-white/5'
-                }`}
-                style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}
-              >
-                {quoted && (
-                  <div className="mb-2 pl-2 border-l-2 border-violet-400/70">
-                    <p className="text-faint text-[10px] uppercase tracking-wider mb-0.5">Replying to</p>
-                    <p className="text-body-muted/80 text-xs leading-snug line-clamp-2">{quoted}</p>
+              return (
+                <div
+                  key={message.id}
+                  className={`confession-slide-in px-3 py-2.5 rounded-xl border transition-colors ${
+                    isHighlighted ? 'bg-violet-500/15 border-violet-400/40' : 'bg-white/5 border-white/5'
+                  }`}
+                  style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}
+                >
+                  {quoted && (
+                    <div className="mb-2 pl-2 border-l-2 border-violet-400/70">
+                      <p className="text-faint text-[10px] uppercase tracking-wider mb-0.5">Replying to</p>
+                      <p className="text-body-muted/80 text-xs leading-snug line-clamp-2">{quoted}</p>
+                    </div>
+                  )}
+
+                  <p className="text-violet-300/90 text-xs font-semibold mb-1">{message.player_name ?? 'Unknown'}</p>
+
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-body-muted text-sm leading-relaxed flex-1 min-w-0">{message.text}</p>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {canReply && onReply && (
+                        <button
+                          type="button"
+                          onClick={() => onReply(message)}
+                          className="text-faint hover:text-violet-300 text-xs"
+                          aria-label="Reply to message"
+                        >
+                          Reply
+                        </button>
+                      )}
+                      {canRemove && onRemove && (
+                        <button
+                          type="button"
+                          onClick={() => onRemove(message.id)}
+                          disabled={removingId === message.id}
+                          className="text-faint hover:text-red-400 text-xs disabled:opacity-50"
+                          aria-label="Remove message"
+                        >
+                          {removingId === message.id ? '…' : 'Remove'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                )}
-
-                <p className="text-violet-300/90 text-xs font-semibold mb-1">{message.player_name ?? 'Unknown'}</p>
-
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-body-muted text-sm leading-relaxed flex-1 min-w-0">
-                    {message.text}
-                  </p>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {canReply && onReply && (
-                      <button
-                        type="button"
-                        onClick={() => onReply(message)}
-                        className="text-faint hover:text-violet-300 text-xs"
-                        aria-label="Reply to message"
-                      >
-                        Reply
-                      </button>
-                    )}
-                    {canRemove && onRemove && (
-                      <button
-                        type="button"
-                        onClick={() => onRemove(message.id)}
-                        disabled={removingId === message.id}
-                        className="text-faint hover:text-red-400 text-xs disabled:opacity-50"
-                        aria-label="Remove message"
-                      >
-                        {removingId === message.id ? '…' : 'Remove'}
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-faint text-[10px] mt-1.5">{new Date(message.created_at).toLocaleTimeString()}</p>
                 </div>
-                <p className="text-faint text-[10px] mt-1.5">{new Date(message.created_at).toLocaleTimeString()}</p>
-              </div>
-            )
-          })
-        )}
+              )
+            })
+          )}
         </div>
       </div>
 
-      {readOnly && messages.length > 0 && (
-        <p className="text-faint text-xs">Lobby names are shown on each message.</p>
-      )}
+      {readOnly && messages.length > 0 && <p className="text-faint text-xs">Lobby names are shown on each message.</p>}
 
       <style jsx>{`
         @keyframes confessionSlideIn {

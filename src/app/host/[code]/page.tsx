@@ -56,7 +56,13 @@ import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
-import { questionPoolCap, parseQuestionSource, customQuestionCount, questionRoundPickerOptions, clampLobbyQuestionRounds } from '@/lib/custom-questions'
+import {
+  questionPoolCap,
+  parseQuestionSource,
+  customQuestionCount,
+  questionRoundPickerOptions,
+  clampLobbyQuestionRounds,
+} from '@/lib/custom-questions'
 import {
   lobbyAllowsPlayerQuestions,
   playerQuestionsOrderOptions,
@@ -93,7 +99,12 @@ import {
   AnimeWstRoundResults,
   HotSeatRoundResults,
 } from '@/components/VoteResults'
-import { FinalGenderLeaderboards, FinalGenderBreakdown, FinalOverallLeaderboards, FinalOverallBreakdown } from '@/components/FinalLeaderboard'
+import {
+  FinalGenderLeaderboards,
+  FinalGenderBreakdown,
+  FinalOverallLeaderboards,
+  FinalOverallBreakdown,
+} from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import {
   hotSeatEffectiveRounds,
@@ -112,11 +123,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
-import {
-  finalResultsAutoRevealSeconds,
-  msUntilDeadline,
-  ROUND_RESULTS_AUTO_ADVANCE_SECONDS,
-} from '@/lib/round-timing'
+import { finalResultsAutoRevealSeconds, msUntilDeadline, ROUND_RESULTS_AUTO_ADVANCE_SECONDS } from '@/lib/round-timing'
 import type {
   Game,
   Participant,
@@ -361,10 +368,7 @@ export default function HostPage() {
       supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
       supabase.from('votes').select('*').eq('game_id', gameCode),
       supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
-      supabase
-        .from('hot_seat_submissions')
-        .select('id, round_id, text, submission_type')
-        .eq('game_id', gameCode),
+      supabase.from('hot_seat_submissions').select('id, round_id, text, submission_type').eq('game_id', gameCode),
     ])
     setAllRounds(rounds || [])
     setVotes(vs || [])
@@ -635,29 +639,25 @@ export default function HostPage() {
     async function refreshLobby() {
       const gameType = parseGameType(game?.game_type)
       const fetchPlayerQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
-      const fetchPlayerNames =
-        isPeoplePollGame(gameType) && game?.participant_mode === 'voters'
+      const fetchPlayerNames = isPeoplePollGame(gameType) && game?.participant_mode === 'voters'
       const [{ data: plrs }, { data: parts }, { data: pool }, { count: pqCount }, { count: pnCount }] =
         await Promise.all([
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        isWhoSaidThis(gameType)
-          ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
-          : Promise.resolve({ data: null }),
-        fetchPlayerQuestions
-          ? supabase
-              .from('player_questions')
-              .select('id', { count: 'exact', head: true })
-              .eq('game_id', gameCode)
-          : Promise.resolve({ count: 0 }),
-        fetchPlayerNames
-          ? supabase
-              .from('participants')
-              .select('id', { count: 'exact', head: true })
-              .eq('game_id', gameCode)
-              .not('submitted_by_player_id', 'is', null)
-          : Promise.resolve({ count: 0 }),
-      ])
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+          isWhoSaidThis(gameType)
+            ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
+            : Promise.resolve({ data: null }),
+          fetchPlayerQuestions
+            ? supabase.from('player_questions').select('id', { count: 'exact', head: true }).eq('game_id', gameCode)
+            : Promise.resolve({ count: 0 }),
+          fetchPlayerNames
+            ? supabase
+                .from('participants')
+                .select('id', { count: 'exact', head: true })
+                .eq('game_id', gameCode)
+                .not('submitted_by_player_id', 'is', null)
+            : Promise.resolve({ count: 0 }),
+        ])
       if (plrs) setPlayers(plrs)
       if (parts) setParticipants(parts)
       if (pool) setWstPool(dedupeWstPool(pool))
@@ -687,10 +687,7 @@ export default function HostPage() {
     if (!game.auto_reveal || autoFinishTriggeredRef.current) return
 
     autoFinishTriggeredRef.current = true
-    const delay = msUntilDeadline(
-      lastFinishedRound.ended_at,
-      finalResultsAutoRevealSeconds(game.game_type)
-    )
+    const delay = msUntilDeadline(lastFinishedRound.ended_at, finalResultsAutoRevealSeconds(game.game_type))
     const timer = setTimeout(() => {
       handleFinishGame()
     }, delay)
@@ -1332,11 +1329,10 @@ export default function HostPage() {
           : wstSubmitters.length >= 1
             ? `${wstSubmitters.length} players joined — waiting for quotes in the lobby`
             : 'Players claim a name and submit a quote before start'
-          : isBinaryLobby || isMlt
+      : isBinaryLobby || isMlt
         ? (() => {
             const uploaded = customQuestionCount(game)
-            const useCustom =
-              parseQuestionSource(game.question_source, gameType) === 'custom' && uploaded > 0
+            const useCustom = parseQuestionSource(game.question_source, gameType) === 'custom' && uploaded > 0
             const parts: string[] = []
             if (useCustom) parts.push(`${uploaded} uploaded`)
             else if (isTot) parts.push(`${uploaded} custom questions loaded`)
@@ -1356,14 +1352,15 @@ export default function HostPage() {
               }
               return `${parts.join(' · ')} → up to ${maxRounds} rounds`
             })()
-        : roundLimitHint(participantInputs, gameType, gameGenderBased, participantOpts)
+          : roundLimitHint(participantInputs, gameType, gameGenderBased, participantOpts)
     const hotSeatEffective = hotSeatLobby ? hotSeatEffectiveRounds(hotSeatJoinedCount, game.rounds_count) : 0
     const roundsTooHigh = hotSeatLobby ? false : maxRounds > 0 && game.rounds_count > maxRounds
-    const roundOptions = isBinaryLobby || isMlt
-      ? questionRoundPickerOptions(lobbyQuestionMax)
-      : isWst
+    const roundOptions =
+      isBinaryLobby || isMlt
         ? questionRoundPickerOptions(lobbyQuestionMax)
-        : kmkRoundPickerOptions(maxRounds)
+        : isWst
+          ? questionRoundPickerOptions(lobbyQuestionMax)
+          : kmkRoundPickerOptions(maxRounds)
     const voterCheck = hasVotersForPolls(roundParticipants, players)
     const wstSource = game?.wst_quote_source ?? 'player'
     const animeQuoteCount = animePool.length
@@ -1378,7 +1375,9 @@ export default function HostPage() {
       : hotSeatLobby
         ? hotSeatEffective >= HOT_SEAT_MIN_PLAYERS
         : isVoterOnly
-          ? participants.length >= minPool && players.length > 0 && !roundsTooHigh &&
+          ? participants.length >= minPool &&
+            players.length > 0 &&
+            !roundsTooHigh &&
             (gameGenderBased ? voterCheck.ok : true)
           : isMlt
             ? players.length >= 2 && !roundsTooHigh
@@ -1407,9 +1406,9 @@ export default function HostPage() {
                 ? `${hotSeatEffective} rounds · ${game.timer_seconds}s each`
                 : `${game.rounds_count} rounds · ${game.timer_seconds}s each`}
             </p>
-            {((isBinaryLobby || isMlt) &&
+            {(isBinaryLobby || isMlt) &&
               ((parseQuestionSource(game.question_source, gameType) === 'custom' && customQuestionCount(game) > 0) ||
-                (isTot && playerQuestionCount > 0))) && (
+                (isTot && playerQuestionCount > 0)) && (
                 <p className="text-faint text-xs mt-1">
                   {isTot && playerQuestionCount > 0
                     ? `${customQuestionCount(game)} uploaded · ${playerQuestionCount} from players`
@@ -1427,11 +1426,11 @@ export default function HostPage() {
                       ? 'This or That — your custom prompts, players pick A or B each round'
                       : isWyr
                         ? 'Would You Rather — players join and pick A or B each round'
-                      : hotSeatLobby
-                        ? 'Hot Seat — upload names, players claim theirs, then take turns in the spotlight'
-                        : isJoinersMode
-                          ? 'Join & play — joiners are the names in the poll'
-                          : 'Pre-set roster — players claim their name from the list'}
+                        : hotSeatLobby
+                          ? 'Hot Seat — upload names, players claim theirs, then take turns in the spotlight'
+                          : isJoinersMode
+                            ? 'Join & play — joiners are the names in the poll'
+                            : 'Pre-set roster — players claim their name from the list'}
             </p>
           </div>
           <div className="text-right">
@@ -1450,7 +1449,9 @@ export default function HostPage() {
           ) : hotSeatLobby ? (
             <>
               <p className="font-bold text-body text-2xl">{hotSeatEffective > 0 ? hotSeatEffective : '—'}</p>
-              <p className="text-faint text-xs">{hotSeatLobbyRoundsHint(hotSeatJoinedCount, game.rounds_count, game.participant_mode)}</p>
+              <p className="text-faint text-xs">
+                {hotSeatLobbyRoundsHint(hotSeatJoinedCount, game.rounds_count, game.participant_mode)}
+              </p>
               <div className="space-y-2 pt-2">
                 <p className="text-muted text-[10px] uppercase tracking-wider">Max rounds (cap)</p>
                 <input
@@ -1520,9 +1521,12 @@ export default function HostPage() {
                 </p>
               )}
             </>
-          ) : (isJoinersMode
-              ? participants.length >= minPool && hasEnoughForRounds(participantInputs, gameType, participantOpts)
-              : roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType, participantOpts)) ? (
+          ) : (
+              isJoinersMode
+                ? participants.length >= minPool && hasEnoughForRounds(participantInputs, gameType, participantOpts)
+                : roundParticipants.length >= minPool &&
+                  hasEnoughForRounds(participantInputs, gameType, participantOpts)
+            ) ? (
             <>
               {roundsHint && <p className="text-faint text-xs">{roundsHint}</p>}
               <div className="flex gap-2 flex-wrap">
@@ -1822,9 +1826,7 @@ export default function HostPage() {
                   }
                 }}
                 options={
-                  isCustomTwoSlot
-                    ? customPairVoteModeOptions(getCustomSlots(game))
-                    : pairVoteModeOptions(gameType)
+                  isCustomTwoSlot ? customPairVoteModeOptions(getCustomSlots(game)) : pairVoteModeOptions(gameType)
                 }
               />
               {savingPairVoteMode && <p className="text-faint text-xs px-0.5">Saving…</p>}
@@ -1887,7 +1889,8 @@ export default function HostPage() {
           )}
           {!isJoinersMode && !hotSeatLobby && isVoterOnly && (
             <p className="text-faint text-xs">
-              {players.length} voter{players.length === 1 ? '' : 's'} joined — all {participants.length} names on the list appear in rounds
+              {players.length} voter{players.length === 1 ? '' : 's'} joined — all {participants.length} names on the
+              list appear in rounds
             </p>
           )}
           {hotSeatLobby && !hotSeatLegacyJoiners && (
@@ -2099,9 +2102,11 @@ export default function HostPage() {
                   : `Need at least ${minPool} names to start`}
               </p>
             )}
-          {!hotSeatLobby && gameGenderBased && !voterCheck.ok && players.length > 0 && roundParticipants.length >= minPool && (
-            <p className="callout-warning text-center">{voterCheck.message}</p>
-          )}
+          {!hotSeatLobby &&
+            gameGenderBased &&
+            !voterCheck.ok &&
+            players.length > 0 &&
+            roundParticipants.length >= minPool && <p className="callout-warning text-center">{voterCheck.message}</p>}
           {!isJoinersMode && !isVoterOnly && roundParticipants.length < minPool && players.length > 0 && (
             <p className="callout-warning text-center">
               Need at least {minPool} people to join before starting ({roundParticipants.length}/{minPool} joined)
@@ -2293,9 +2298,9 @@ export default function HostPage() {
                                               ? `Lower to ${maxRounds} rounds max`
                                               : !voterCheck.ok
                                                 ? 'Need voters for each list'
-                                            : gameGenderBased
-                                              ? `Need ${minPool}+ joined of one gender`
-                                              : `Need ${minPool}+ names joined`
+                                                : gameGenderBased
+                                                  ? `Need ${minPool}+ joined of one gender`
+                                                  : `Need ${minPool}+ names joined`
               : hotSeatLobby
                 ? `Start Game (${hotSeatEffective} round${hotSeatEffective === 1 ? '' : 's'})`
                 : `Start Game (${players.length} players)`}
@@ -2740,9 +2745,7 @@ export default function HostPage() {
     const roundVotes = votes.filter((v) => v.round_id === lastFinishedRound.id)
     const roundParts = participants.filter((p) => lastFinishedRound.participant_ids.includes(p.id))
     const roundConfessions = confessions.filter((c) => c.round_id === lastFinishedRound.id)
-    const roundGender = isGenderFreeVoting(game)
-      ? null
-      : roundGenderLabel(roundParts.map((p) => p.gender))
+    const roundGender = isGenderFreeVoting(game) ? null : roundGenderLabel(roundParts.map((p) => p.gender))
     const isLastRound = lastFinishedRound.round_number >= game.rounds_count
     const hotSeatPlayerName = isHotSeatGame
       ? hotSeatPlayerDisplayName(lastFinishedRound.submitter_player_id, players, participants)

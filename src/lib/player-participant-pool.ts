@@ -15,9 +15,7 @@ export function isPeoplePollGame(gameType?: string): boolean {
 }
 
 /** Player name submissions — voters-only (import list, vote only). */
-export function supportsPlayerNameSubmissions(
-  game: Pick<Game, 'game_type' | 'participant_mode'>
-): boolean {
+export function supportsPlayerNameSubmissions(game: Pick<Game, 'game_type' | 'participant_mode'>): boolean {
   return isPeoplePollGame(game.game_type) && (game.participant_mode ?? 'import') === 'voters'
 }
 

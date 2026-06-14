@@ -10,11 +10,7 @@ export async function POST(req: NextRequest) {
   const gameId = String(raw.gameId ?? '').toUpperCase()
   if (!gameId) return NextResponse.json({ error: 'gameId is required' }, { status: 400 })
 
-  const { data: game } = await supabase
-    .from('games')
-    .select('status, game_type')
-    .eq('id', gameId)
-    .maybeSingle()
+  const { data: game } = await supabase.from('games').select('status, game_type').eq('id', gameId).maybeSingle()
 
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (!isAnonymousMessagesGame(parseGameType(game.game_type))) {
