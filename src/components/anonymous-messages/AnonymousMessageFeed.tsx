@@ -33,7 +33,8 @@ export function AnonymousMessageFeed({
 
   useEffect(() => {
     if (messages.length > prevCountRef.current && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      const el = scrollRef.current
+      el.scrollTo({ top: el.scrollHeight - el.clientHeight, behavior: 'smooth' })
     }
     prevCountRef.current = messages.length
   }, [messages.length])
@@ -45,7 +46,8 @@ export function AnonymousMessageFeed({
         <span className="text-faint text-xs tabular-nums">{messages.length}</span>
       </div>
 
-      <div ref={scrollRef} className="max-h-[min(52vh,28rem)] overflow-y-auto space-y-2 scrollbar-thin">
+      <div ref={scrollRef} className="max-h-[min(52vh,28rem)] overflow-y-auto scrollbar-thin">
+        <div className="space-y-2 pb-10">
         {messages.length === 0 ? (
           <p className="text-muted text-sm text-center py-8">{emptyLabel}</p>
         ) : (
@@ -105,6 +107,7 @@ export function AnonymousMessageFeed({
             )
           })
         )}
+        </div>
       </div>
 
       {readOnly && messages.length > 0 && (
