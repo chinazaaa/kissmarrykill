@@ -99,6 +99,30 @@ export async function trimAnonymousMessages(
     )
 }
 
+/** Wipe live session data when an anonymous room ends — messages are not kept. */
+export async function clearAnonymousRoomSessionData(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error: messagesError } = await supabase.from('anonymous_messages').delete().eq('game_id', gameId)
+  if (messagesError) return { error: messagesError.message }
+
+  const { error: bansError } = await supabase.from('anonymous_room_bans').delete().eq('game_id', gameId)
+  if (bansError) return { error: bansError.message }
+
+  return { error: null }
+}
+
+export async function finishAnonymousRoomSession(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error: gameError } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+  if (gameError) return { error: gameError.message }
+
+  return clearAnonymousRoomSessionData(supabase, gameId)
+}
+
 export async function finishExpiredAnonymousSession(
   supabase: SupabaseClient,
   game: { id: string; status: string; game_type: string; session_started_at?: string | null }
@@ -106,6 +130,6 @@ export async function finishExpiredAnonymousSession(
   if (game.status !== 'active') return false
   if (!anonymousSessionExpired(game.session_started_at)) return false
 
-  const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', game.id)
+  const { error } = await finishAnonymousRoomSession(supabase, game.id)
   return !error
 }

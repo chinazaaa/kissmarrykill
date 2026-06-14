@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { assertAdminRequest } from '@/lib/admin-api'
+import { finishAnonymousRoomSession } from '@/lib/anonymous-messages'
+import { isAnonymousMessagesGame, parseGameType } from '@/lib/game-types'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -10,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const gameId = code.toUpperCase()
   const supabase = getSupabaseAdmin()
 
-  const { data: game } = await supabase.from('games').select('id, status').eq('id', gameId).maybeSingle()
+  const { data: game } = await supabase.from('games').select('id, status, game_type').eq('id', gameId).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.status !== 'active' && game.status !== 'waiting') {
     return NextResponse.json({ error: 'Only waiting or active games can be ended' }, { status: 400 })
@@ -25,6 +28,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .eq('status', 'active')
 
   if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+  if (isAnonymousMessagesGame(parseGameType(game.game_type))) {
+    const { error } = await finishAnonymousRoomSession(supabase, gameId)
+    if (error) return NextResponse.json({ error }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
 
   const { error: gameError } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
   if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
