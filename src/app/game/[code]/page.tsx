@@ -143,6 +143,7 @@ import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { useGameChannel } from '@/hooks/useGameChannel'
+import { useRoundTimer } from '@/hooks/useRoundTimer'
 import { HOT_SEAT_SUBMISSION_TYPES, hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
 import {
@@ -179,7 +180,6 @@ export default function GamePage() {
 
   // Active round state
   const [currentRound, setCurrentRound] = useState<Round | null>(null)
-  const [timeLeft, setTimeLeft] = useState(0)
   const [assignment, setAssignment] = useState<VoteAssignment>(emptyAssignment())
   const [pairAssignment, setPairAssignment] = useState<PairAssignmentMap>({})
   const [wyrChoice, setWyrChoice] = useState<WyrChoice | null>(null)
@@ -351,7 +351,6 @@ export default function GamePage() {
   myPlayerIdRef.current = myPlayerId
   const myPlayerGenderRef = useRef(myPlayerGender)
   myPlayerGenderRef.current = myPlayerGender
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const announcedRoundIdRef = useRef<string | null>(null)
   const suppressRoundSoundRef = useRef(true)
   const joinGenderTouchedRef = useRef(false)
@@ -842,28 +841,17 @@ export default function GamePage() {
     }
   }, [view, myPlayerId, wstPool])
 
-  useTimerTickSound(timeLeft, view === 'round')
+  const timeLeft = useRoundTimer({
+    game,
+    currentRound,
+    active: view === 'round' && !!currentRound?.started_at && !!game,
+    onExpire: () => {
+      if (submittedRef.current) return
 
-  // ── Timer — NO `submitted` in deps so it keeps running after submit ───────
-  useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current)
-
-    if (view !== 'round' || !currentRound?.started_at || !game) return
-
-    const gameType = parseGameType(game.game_type)
-    const isWst = isWhoSaidThis(gameType)
-    const timerStartMs =
-      isWst && currentRound.quote_text && currentRound.quote_submitted_at
-        ? new Date(currentRound.quote_submitted_at).getTime()
-        : new Date(currentRound.started_at).getTime()
-    const endMs = timerStartMs + game.timer_seconds * 1000
-
-    const tick = () => {
-      const remaining = Math.max(0, Math.ceil((endMs - Date.now()) / 1000))
-
-      setTimeLeft(remaining)
-
-      const roundGender = getRoundParticipantGender(currentRound.participant_ids, participantsRef.current)
+      const roundGender = getRoundParticipantGender(
+        currentRoundRef.current?.participant_ids ?? [],
+        participantsRef.current
+      )
       const gameType = parseGameType(gameRef.current?.game_type)
       const playerGender = myPlayerGenderRef.current ?? getPlayerSession(gameCode)?.playerGender ?? null
       const r = currentRoundRef.current
@@ -876,7 +864,7 @@ export default function GamePage() {
           ? !!myPlayerIdRef.current
           : !!roundGender && !!playerGender && canPlayerVoteInRound(playerGender, roundGender)
 
-      if (remaining === 0 && !submittedRef.current && canVote) {
+      if (canVote) {
         void autoSubmitFromRefs().then((didSubmit) => {
           if (didSubmit) {
             submittedRef.current = true
@@ -885,24 +873,10 @@ export default function GamePage() {
           }
         })
       }
-    }
+    },
+  })
 
-    tick()
-    timerRef.current = setInterval(tick, 500)
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    view,
-    currentRound?.id,
-    currentRound?.started_at,
-    currentRound?.quote_text,
-    currentRound?.quote_submitted_at,
-    game?.timer_seconds,
-    game?.game_type,
-  ])
-  // Note: `submitted` intentionally excluded — the timer always counts to zero
+  useTimerTickSound(timeLeft, view === 'round')
 
   // Uses only refs so it never causes stale closure issues
   async function autoSubmitFromRefs(): Promise<boolean> {
