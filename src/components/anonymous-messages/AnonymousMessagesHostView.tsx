@@ -24,6 +24,7 @@ import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
 import type { Game, Player } from '@/types'
+import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
 
 const LOBBY_PAGE_SIZE = 10
@@ -52,6 +53,7 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   }, [bans.length])
 
   const messagesEnabled = game?.status === 'active'
+  const { reactions: reactionsMap } = useAnonymousReactions(gameCode, game?.status === 'active')
   const { messages, removeMessage } = useAnonymousMessages(gameCode, !!messagesEnabled, players)
   useAnonymousMessageTrim(gameCode, !!messagesEnabled)
   const lobbyPagination = usePagination(players.length, LOBBY_PAGE_SIZE)
@@ -370,6 +372,9 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
             canRemove
             removingId={removingId}
             onRemove={removeMessageByHost}
+            reactionsMap={reactionsMap}
+            myPlayerName=""
+            onReact={() => {}}
           />
           <button type="button" onClick={endSession} disabled={ending} className="btn-secondary w-full">
             {ending ? 'Ending…' : 'End session'}
