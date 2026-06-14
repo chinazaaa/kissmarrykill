@@ -54,6 +54,9 @@ import {
   questionSourceOptions,
 } from '@/lib/custom-questions'
 import { CustomSlotBuilder } from '@/components/CustomSlotBuilder'
+import { GenderRoundModeControl } from '@/components/GenderRoundModeControl'
+import { customPairVoteModeOptions } from '@/lib/custom-game'
+import { supportsGenderToggle, defaultGenderBasedForType } from '@/lib/gender-based'
 import type { CustomSlotsConfig } from '@/types'
 import { GameTypeModal } from '@/components/GameTypeModal'
 import { GameTypeCard } from '@/components/GameTypeCard'
@@ -75,6 +78,7 @@ interface Settings {
   game_type: GameType
   theme: ThemeId
   participant_filter: 'all' | 'joined'
+  gender_based: boolean
 }
 
 type Step = 'settings' | 'participants' | 'done'
@@ -100,6 +104,7 @@ function CreateGameInner() {
     game_type: 'smash_marry_kill',
     theme: 'default',
     participant_filter: 'all' as 'all' | 'joined',
+    gender_based: true,
   })
   const [participants, setParticipants] = useState<ParticipantInput[]>([])
   const [nameInput, setNameInput] = useState('')
@@ -152,10 +157,16 @@ function CreateGameInner() {
   const hotSeatCreateCapUpper = isHotSeatGame ? hotSeatMaxCapUpperBound(0, participants.length) : 20
   const isPair = isPairGame(settings.game_type)
   const isCustom = isCustomGame(settings.game_type)
-  const needsGender = participantsNeedGenderForGame(settings.game_type, customSlots)
+  const isCustomTwoSlot = isCustom && (customSlots?.slots.length ?? 0) === 2
+  const supportsGender = supportsGenderToggle(settings.game_type)
+  const participantOpts = {
+    genderBased: settings.gender_based,
+    customSlots: customSlots,
+  }
+  const needsGender = participantsNeedGenderForGame(settings.game_type, participantOpts)
   const minPool = isCustom && customSlots ? customSlots.slots.length : roundPoolSize(settings.game_type)
   const canCreateImport =
-    participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type, customSlots)
+    participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type, participantOpts)
   const canCreateJoiners = !!settings.title.trim()
   const isLobbyQuestions = isWyr || isMlt
   const customQuestionCount = isWyr ? customWyrQuestions.length : customMltQuestions.length
@@ -214,7 +225,10 @@ function CreateGameInner() {
             ...(isHotSeat(type) ? { rounds_count: HOT_SEAT_MIN_PLAYERS } : {}),
           }
         : {}),
-      ...(isCustomGame(type) ? { participant_mode: 'import' as const } : {}),
+      ...(isCustomGame(type) ? { participant_mode: 'import' as const, gender_based: defaultGenderBasedForType(type) } : {}),
+      ...(supportsGenderToggle(type) && !isCustomGame(type)
+        ? { gender_based: defaultGenderBasedForType(type) }
+        : {}),
     })
   }
 
@@ -235,7 +249,7 @@ function CreateGameInner() {
   const addBulkParticipants = () => {
     if (!bulkPaste.trim()) return
     setUploadError(null)
-    const rows = parseParticipantsForGame(bulkPaste, settings.game_type, customSlots)
+    const rows = parseParticipantsForGame(bulkPaste, settings.game_type, participantOpts)
     if (rows.length === 0) {
       setUploadError(needsGender ? 'Use two columns: name and gender (e.g. Sarah,female)' : 'Add one name per line')
       return
@@ -248,7 +262,7 @@ function CreateGameInner() {
     const text = e.clipboardData.getData('text')
     if (!/[\n\r\t,;]/.test(text)) return
     e.preventDefault()
-    const rows = parseParticipantsForGame(text, settings.game_type, customSlots)
+    const rows = parseParticipantsForGame(text, settings.game_type, participantOpts)
     if (rows.length > 0) {
       addParticipantsFromRows(rows)
       setNameInput('')
@@ -273,7 +287,7 @@ function CreateGameInner() {
     try {
       if (ext === 'csv') {
         const text = await file.text()
-        const rows = parseParticipantsForGame(text, settings.game_type, customSlots)
+        const rows = parseParticipantsForGame(text, settings.game_type, participantOpts)
         if (rows.length === 0) {
           setUploadError(
             needsGender
@@ -288,7 +302,7 @@ function CreateGameInner() {
 
       if (ext === 'xlsx' || ext === 'xls') {
         const buffer = await file.arrayBuffer()
-        const rows = await parseExcelParticipants(buffer, settings.game_type, customSlots)
+        const rows = await parseExcelParticipants(buffer, settings.game_type, participantOpts)
         if (rows.length === 0) {
           setUploadError(
             needsGender
@@ -439,6 +453,7 @@ function CreateGameInner() {
           participants: isJoinersMode ? [] : participants,
           wst_quote_source: isWst ? wstQuoteSource : undefined,
           custom_slots: isCustom ? customSlots : null,
+          gender_based: supportsGender ? settings.gender_based : undefined,
         }),
       })
       const data = await res.json()
@@ -596,14 +611,25 @@ function CreateGameInner() {
                 />
               </Field>
 
+              {supportsGender && (
+                <GenderRoundModeControl
+                  value={settings.gender_based}
+                  onChange={(gender_based) => setSettings((prev) => ({ ...prev, gender_based }))}
+                />
+              )}
+
               {isCustom && <CustomSlotBuilder value={customSlots} onChange={setCustomSlots} />}
 
-              {isPair && (
+              {(isPair || isCustomTwoSlot) && (
                 <Field label="Pair voting">
                   <SegmentedControl
                     value={settings.pair_vote_mode}
                     onChange={(v) => setSettings({ ...settings, pair_vote_mode: v })}
-                    options={pairVoteModeOptions(settings.game_type)}
+                    options={
+                      isCustomTwoSlot && customSlots?.slots
+                        ? customPairVoteModeOptions(customSlots.slots)
+                        : pairVoteModeOptions(settings.game_type)
+                    }
                   />
                 </Field>
               )}
@@ -872,7 +898,7 @@ function CreateGameInner() {
   }
 
   if (step === 'participants') {
-    const sampleFile = participantSampleFile(settings.game_type, customSlots)
+    const sampleFile = participantSampleFile(settings.game_type, participantOpts)
     return (
       <PageShell>
         <BackBtn onClick={() => setStep('settings')} />
@@ -881,7 +907,7 @@ function CreateGameInner() {
         <div>
           <p className="label-caps mb-1">Step 2</p>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title-subtle">Add People</h1>
-          <p className="text-muted text-sm mt-1.5">{participantImportStepHint(settings.game_type, customSlots)}</p>
+          <p className="text-muted text-sm mt-1.5">{participantImportStepHint(settings.game_type, participantOpts)}</p>
         </div>
 
         <div className="glass-card p-5 space-y-4">
@@ -927,7 +953,7 @@ function CreateGameInner() {
                 className="hidden"
                 onChange={handleFileUpload}
               />
-              <p className="text-faint text-xs text-center">{participantUploadHint(settings.game_type, customSlots)}</p>
+              <p className="text-faint text-xs text-center">{participantUploadHint(settings.game_type, participantOpts)}</p>
               {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
             </div>
           ) : (
@@ -1027,7 +1053,7 @@ function CreateGameInner() {
           )}
           {needsGender &&
             !isMlt &&
-            !hasEnoughForRounds(participants, settings.game_type, customSlots) &&
+            !hasEnoughForRounds(participants, settings.game_type, participantOpts) &&
             participants.length > 0 && (
               <p className="text-amber-500 text-xs text-center">
                 Need at least {minPool} people of the same gender to run rounds

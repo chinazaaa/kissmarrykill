@@ -16,7 +16,8 @@ import {
   voteSlots,
   isCustomGame,
 } from '@/lib/game-types'
-import { parseCustomAssignments, isCustomAssignmentValid, isCustomGenderBased } from '@/lib/custom-game'
+import { isGameGenderBased, supportsGenderToggle } from '@/lib/gender-based'
+import { parseCustomAssignments, isCustomAssignmentValid, customAssignmentMode } from '@/lib/custom-game'
 import type { PairFlag, WyrChoice } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     supabase.from('rounds').select('participant_ids, submitter_player_id, quote_text').eq('id', roundId).maybeSingle(),
     supabase
       .from('games')
-      .select('game_type, participant_mode, pair_vote_mode, custom_slots')
+      .select('game_type, participant_mode, pair_vote_mode, custom_slots, gender_based')
       .eq('id', gameId.toUpperCase())
       .maybeSingle(),
   ])
@@ -213,7 +214,7 @@ export async function POST(req: NextRequest) {
 
     const { data: fullGame } = await supabase
       .from('games')
-      .select('custom_slots')
+      .select('custom_slots, pair_vote_mode')
       .eq('id', gameId.toUpperCase())
       .maybeSingle()
 
@@ -222,8 +223,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Game has no custom slots configured' }, { status: 400 })
     }
 
-    if (!isCustomAssignmentValid(customAssignments, roundIds, slotKeys)) {
-      return NextResponse.json({ error: 'Invalid assignment — assign one person per category' }, { status: 400 })
+    const customMode = customAssignmentMode(
+      { pair_vote_mode: fullGame?.pair_vote_mode, custom_slots: fullGame?.custom_slots },
+      roundIds.length,
+      slotKeys
+    )
+
+    if (!isCustomAssignmentValid(customAssignments, roundIds, slotKeys, customMode)) {
+      return NextResponse.json(
+        {
+          error:
+            customMode === 'one_each'
+              ? 'Invalid assignment — assign one person per category'
+              : 'Pick a category for each person',
+        },
+        { status: 400 }
+      )
     }
 
     row = {
@@ -296,7 +311,7 @@ export async function POST(req: NextRequest) {
     !isLobbyGame(gameType) &&
     !isMostLikelyTo(gameType) &&
     !isWhoSaidThis(gameType) &&
-    !(isCustomGame(gameType) && !isCustomGenderBased(game))
+    !(supportsGenderToggle(gameType) && !isGameGenderBased(game))
   ) {
     const { data: participants } = await supabase
       .from('participants')

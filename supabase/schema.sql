@@ -261,6 +261,9 @@ create policy "public_hot_seat_submissions" on hot_seat_submissions for all to a
 
 ALTER TABLE games ADD COLUMN IF NOT EXISTS custom_slots jsonb;
 
+ALTER TABLE games ADD COLUMN IF NOT EXISTS gender_based boolean NOT NULL DEFAULT true;
+
 -- If upgrading:
+-- alter table games add column if not exists gender_based boolean not null default true;
 -- alter table games drop constraint if exists games_game_type_check;
 -- alter table games add constraint games_game_type_check check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass', 'would_you_rather', 'most_likely_to', 'who_said_this', 'hot_seat', 'custom'));

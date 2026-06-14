@@ -88,6 +88,7 @@ export const createGameSchema = z.object({
   theme: themeEnum.optional(),
   wst_quote_source: wstQuoteSourceEnum.optional(),
   participant_filter: participantFilterEnum.optional(),
+  gender_based: z.boolean().optional(),
   custom_slots: z
     .object({
       slots: z
@@ -128,6 +129,8 @@ export const updateGameSchema = z.object({
   rounds_count: z.coerce.number().int().min(1, 'rounds_count is required').optional(),
   timer_seconds: z.coerce.number().optional(),
   participant_filter: participantFilterEnum.optional(),
+  gender_based: z.boolean().optional(),
+  pair_vote_mode: pairVoteModeEnum.optional(),
 })
 
 export type UpdateGameInput = z.infer<typeof updateGameSchema>
@@ -196,11 +199,11 @@ export type DeleteParticipantInput = z.infer<typeof deleteParticipantSchema>
 
 export const createPlayerSchema = z.object({
   gameCode: gameCodeString(),
-  playerName: sanitizedString(1, 50).optional(),
-  gender: playerGenderEnum.or(z.string()).optional(),
-  pollGender: participantGenderEnum.or(z.string()).optional(),
-  identityGender: participantGenderEnum.or(z.string()).optional(),
-  participantId: uuidString('participantId').optional(),
+  playerName: sanitizedString(1, 50).nullish(),
+  gender: playerGenderEnum.or(z.string()).nullish(),
+  pollGender: participantGenderEnum.or(z.string()).nullish(),
+  identityGender: participantGenderEnum.or(z.string()).nullish(),
+  participantId: uuidString('participantId').nullish(),
 })
 
 export type CreatePlayerInput = z.infer<typeof createPlayerSchema>

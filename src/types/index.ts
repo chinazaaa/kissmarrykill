@@ -57,6 +57,8 @@ export interface Game {
   created_at: string
   wst_quote_source?: WstQuoteSource
   custom_slots?: CustomSlotsConfig | null
+  /** When true, rounds use same-gender groups and opposite-gender voting. Default true for SMK/pair, false for custom. */
+  gender_based?: boolean
 }
 
 export interface Participant {

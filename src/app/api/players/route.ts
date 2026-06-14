@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isNameOnlyPlayerJoin, isWhoSaidThis, isImportNameClaimGame, isCustomGame } from '@/lib/game-types'
-import { isCustomGenderFreeImport } from '@/lib/custom-game'
-import type { Game } from '@/types'
+import { parseGameType, isNameOnlyPlayerJoin, isWhoSaidThis, isImportNameClaimGame } from '@/lib/game-types'
+import { isGenderFreeImportJoin, isGenderFreeJoinersJoin } from '@/lib/gender-based'
 import {
   assertHostGame,
   deleteJoinerPair,
@@ -19,7 +18,7 @@ async function assertWaitingGame(gameCode: string) {
   const id = gameCode.toUpperCase()
   const { data: game } = await supabase
     .from('games')
-    .select('status, participant_mode, game_type, custom_slots')
+    .select('status, participant_mode, game_type, custom_slots, gender_based')
     .eq('id', id)
     .maybeSingle()
 
@@ -107,10 +106,56 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  if (
-    (isImportNameClaimGame(gameType) || isCustomGenderFreeImport(game as Game)) &&
-    game!.participant_mode === 'import'
-  ) {
+  if (isGenderFreeJoinersJoin(game as import('@/types').Game)) {
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+    if (await nameTaken(id, name)) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    const { data: existingPlayers } = await supabase.from('players').select('id, name').eq('game_id', id)
+    const displayOrder = existingPlayers?.length ?? 0
+
+    const { data: participant, error: partError } = await supabase
+      .from('participants')
+      .insert({
+        game_id: id,
+        name,
+        gender: 'female',
+        display_order: displayOrder,
+      })
+      .select()
+      .single()
+
+    if (partError) return NextResponse.json({ error: partError.message }, { status: 500 })
+
+    const { data: player, error: playerError } = await supabase
+      .from('players')
+      .insert({
+        game_id: id,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: participant.id,
+      })
+      .select()
+      .single()
+
+    if (playerError) {
+      await supabase.from('participants').delete().eq('id', participant.id)
+      return NextResponse.json({ error: playerError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      playerId: player.id,
+      playerName: player.name,
+      playerGender: player.gender,
+      playerIdentityGender: player.identity_gender,
+    })
+  }
+
+  if (isGenderFreeImportJoin(game as import('@/types').Game) && game!.participant_mode === 'import') {
     const participantId = String(rawParticipantId ?? '').trim()
     if (!participantId) {
       return NextResponse.json({ error: 'Select your name from the game list' }, { status: 400 })
@@ -216,7 +261,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    await syncImportParticipantBallot(supabase, id, participantId, gender, identityGender, rawPollGender)
+    await syncImportParticipantBallot(supabase, id, participantId, gender, identityGender, rawPollGender ?? undefined)
 
     return NextResponse.json({
       playerId: player.id,
@@ -358,10 +403,38 @@ export async function PATCH(req: NextRequest) {
     })
   }
 
-  if (
-    (isImportNameClaimGame(gameType) || isCustomGenderFreeImport(game as Game)) &&
-    game!.participant_mode === 'import'
-  ) {
+  if (isGenderFreeJoinersJoin(game as import('@/types').Game)) {
+    if (rawName === undefined) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    }
+    const name = String(rawName).trim()
+    if (!name) return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 })
+    if (await nameTaken(id, name, playerId)) {
+      return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
+    }
+
+    const { data: updatedPlayer, error } = await supabase
+      .from('players')
+      .update({ name })
+      .eq('id', playerId)
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    if (player.participant_id) {
+      await supabase.from('participants').update({ name }).eq('id', player.participant_id)
+    }
+
+    return NextResponse.json({
+      playerId: updatedPlayer.id,
+      playerName: updatedPlayer.name,
+      playerGender: updatedPlayer.gender,
+      playerIdentityGender: updatedPlayer.identity_gender,
+    })
+  }
+
+  if (isGenderFreeImportJoin(game as import('@/types').Game) && game!.participant_mode === 'import') {
     if (rawParticipantId === undefined) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }

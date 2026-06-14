@@ -23,6 +23,7 @@ import { parseQuestionSource, parseStoredWyrQuestions, parseStoredMltQuestions }
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import type { ParticipantMode, QuestionSource, CustomSlotsConfig } from '@/types'
 import { createGameSchema, stripHtml } from '@/lib/validation'
+import { supportsGenderToggle, defaultGenderBasedForType } from '@/lib/gender-based'
 import { parseThemeId } from '@/lib/themes'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -30,12 +31,12 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 function parseParticipants(
   raw: unknown,
   gameType: ReturnType<typeof parseGameType>,
-  customSlots?: CustomSlotsConfig | null
+  genderBased: boolean
 ): ParticipantInput[] | null {
   if (!Array.isArray(raw)) return null
 
   const parsed: ParticipantInput[] = []
-  const needGender = participantsNeedGenderForGame(gameType, customSlots)
+  const needGender = participantsNeedGenderForGame(gameType, { genderBased })
   for (const item of raw) {
     if (typeof item === 'string') {
       const name = stripHtml(item.trim())
@@ -106,9 +107,14 @@ export async function POST(req: NextRequest) {
     participants: rawParticipants,
     participant_filter,
     custom_slots,
+    gender_based: rawGenderBased,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
+  const gender_based = supportsGenderToggle(game_type)
+    ? rawGenderBased ?? (isCustomGame(game_type) ? custom_slots?.gender_based === true : defaultGenderBasedForType(game_type))
+    : false
+  const participantOpts = { genderBased: gender_based, customSlots: custom_slots ?? null }
   const theme = parseThemeId(rawTheme)
   const question_source = parseQuestionSource(rawQuestionSource, game_type)
   let custom_questions: unknown[] | null = null
@@ -133,7 +139,7 @@ export async function POST(req: NextRequest) {
   if (participant_mode === 'import') {
     const customMinPool =
       isCustomGame(game_type) && custom_slots?.slots?.length ? custom_slots.slots.length : roundPoolSize(game_type)
-    const participantsParsed = parseParticipants(rawParticipants, game_type, custom_slots)
+    const participantsParsed = parseParticipants(rawParticipants, game_type, gender_based)
     if (!participantsParsed || participantsParsed.length < customMinPool) {
       return NextResponse.json({ error: `At least ${customMinPool} participants required` }, { status: 400 })
     }
@@ -149,9 +155,9 @@ export async function POST(req: NextRequest) {
       if (participantsParsed.length < 3) {
         return NextResponse.json({ error: 'Need at least 3 names on the list for Hot Seat' }, { status: 400 })
       }
-    } else if (!hasEnoughForRounds(participantsParsed, game_type, custom_slots)) {
+    } else if (!hasEnoughForRounds(participantsParsed, game_type, participantOpts)) {
       const min = isCustomGame(game_type) ? customMinPool : roundPoolSize(game_type)
-      const errorMsg = isCustomGame(game_type) && !custom_slots?.gender_based
+      const errorMsg = !gender_based
         ? `Need at least ${min} names on the list`
         : `Need at least ${min} people of the same gender (male or female) for rounds`
       return NextResponse.json({ error: errorMsg }, { status: 400 })
@@ -197,7 +203,9 @@ export async function POST(req: NextRequest) {
     auto_submit_behavior: auto_submit_behavior === 'random' ? 'random' : 'no_answer',
     participant_mode,
     participant_filter: isHotSeat(game_type) ? 'joined' : participant_filter === 'joined' ? 'joined' : 'all',
-    pair_vote_mode: isPairGame(game_type) ? parsePairVoteMode(rawPairVoteMode) : 'any',
+    pair_vote_mode: isPairGame(game_type) || (isCustomGame(game_type) && (custom_slots?.slots?.length ?? 0) === 2)
+      ? parsePairVoteMode(rawPairVoteMode)
+      : 'any',
     question_source: isWouldYouRather(game_type) || isMostLikelyTo(game_type) ? question_source : 'platform',
     custom_questions,
     game_type,
@@ -205,7 +213,15 @@ export async function POST(req: NextRequest) {
     status: 'waiting',
     current_round_number: 0,
     wst_quote_source: parsed.data.wst_quote_source ?? 'player',
-    ...(isCustomGame(game_type) && parsed.data.custom_slots ? { custom_slots: parsed.data.custom_slots } : {}),
+    gender_based: supportsGenderToggle(game_type) ? gender_based : true,
+    ...(isCustomGame(game_type) && parsed.data.custom_slots
+      ? {
+          custom_slots: {
+            ...parsed.data.custom_slots,
+            gender_based: supportsGenderToggle(game_type) ? gender_based : false,
+          },
+        }
+      : {}),
   })
 
   if (gameError) {

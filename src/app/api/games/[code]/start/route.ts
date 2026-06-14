@@ -16,7 +16,8 @@ import {
   isHotSeat,
   isCustomGame,
 } from '@/lib/game-types'
-import { getCustomSlotCount, isCustomGenderBased } from '@/lib/custom-game'
+import { isGameGenderBased } from '@/lib/gender-based'
+import { getCustomSlotCount } from '@/lib/custom-game'
 import { buildHotSeatRoundRows } from '@/lib/hot-seat'
 import { buildRoundsFromQuotePool, buildRoundsFromAnimePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
@@ -442,7 +443,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const participantIds = roundPool.map((p) => p.id)
-    const genderBased = isCustomGenderBased(game)
+    const genderBased = isGameGenderBased(game)
     let groups: string[][]
 
     if (genderBased) {
@@ -525,12 +526,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     )
   }
 
+  const genderBased = isGameGenderBased(game)
   const participantInputs = roundPool.map((p) => ({
     name: p.name,
     gender: parseParticipantGenderFromDb(p.gender) ?? ('female' as const),
   }))
 
-  const maxRounds = maxRecommendedRounds(participantInputs, gameType)
+  const maxRounds = maxRecommendedRounds(participantInputs, gameType, genderBased, { game })
   if (game.rounds_count > maxRounds) {
     return NextResponse.json(
       {
@@ -545,17 +547,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     gender: parseParticipantGenderFromDb(p.gender) ?? ('female' as const),
   }))
 
-  const trios = generateRoundsByGender(participants, game.rounds_count, poolSize)
-  if (trios.length === 0) {
-    return NextResponse.json(
-      { error: `Need at least ${minPool} joined people of the same gender to start` },
-      { status: 400 }
-    )
-  }
+  let trios: string[][]
+  if (genderBased) {
+    trios = generateRoundsByGender(participants, game.rounds_count, poolSize)
+    if (trios.length === 0) {
+      return NextResponse.json(
+        { error: `Need at least ${minPool} joined people of the same gender to start` },
+        { status: 400 }
+      )
+    }
 
-  const voterCheck = hasVotersForPolls(participants, playersData)
-  if (!voterCheck.ok) {
-    return NextResponse.json({ error: voterCheck.message }, { status: 400 })
+    const voterCheck = hasVotersForPolls(participants, playersData)
+    if (!voterCheck.ok) {
+      return NextResponse.json({ error: voterCheck.message }, { status: 400 })
+    }
+  } else {
+    trios = generateNRounds(
+      participants.map((p) => p.id),
+      game.rounds_count,
+      poolSize
+    )
+    if (trios.length === 0) {
+      return NextResponse.json({ error: `Need at least ${minPool} people to start` }, { status: 400 })
+    }
   }
 
   const roundRows = trios.map((trio, index) => ({
