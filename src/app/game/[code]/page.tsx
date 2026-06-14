@@ -2483,7 +2483,7 @@ export default function GamePage() {
 
           <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
 
-          <ReactionBar className="pt-1" />
+          <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -2520,7 +2520,7 @@ export default function GamePage() {
             myChoice={myVote?.wyr_choice ?? null}
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
-          <ReactionBar className="pt-1" />
+          <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
           <ShareRoundResults
             game={game!}
             round={lastFinishedRound}
@@ -2622,7 +2622,7 @@ export default function GamePage() {
             myPickName={myPickName}
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
-          <ReactionBar className="pt-1" />
+          <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
           <ShareRoundResults
             game={game!}
             round={lastFinishedRound}
@@ -2670,7 +2670,7 @@ export default function GamePage() {
             myPickName={myPickName}
           />
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
-          <ReactionBar className="pt-1" />
+          <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
           <ShareRoundResults
             game={game!}
             round={lastFinishedRound}
@@ -2850,7 +2850,7 @@ export default function GamePage() {
         {/* Hot takes for this round */}
         <ConfessionsTicker confessions={roundConfessions} />
 
-        <ReactionBar className="pt-1" />
+        <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
 
         <ShareRoundResults
           game={game!}

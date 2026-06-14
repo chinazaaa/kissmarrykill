@@ -135,6 +135,7 @@ export default function HostPage() {
 
   const [starting, setStarting] = useState(false)
   const [savingPairVoteMode, setSavingPairVoteMode] = useState(false)
+  const [savingParticipantFilter, setSavingParticipantFilter] = useState(false)
   const [advancing, setAdvancing] = useState(false)
   const [ending, setEnding] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -1563,22 +1564,47 @@ export default function HostPage() {
             </span>
           </div>
           {!isJoinersMode && !isMltImport && !isWyr && !isMlt && !isWst && (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted shrink-0">Rounds include:</span>
+            <div className="space-y-1">
+              <p className="text-muted text-xs uppercase tracking-wider">Rounds include:</p>
               <SegmentedControl
                 value={game.participant_filter ?? 'all'}
-                onChange={async (v: string) => {
-                  await fetch(`/api/games/${game.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ hostToken, participant_filter: v }),
-                  })
+                onChange={async (v) => {
+                  const nextFilter = v as 'all' | 'joined'
+                  setSavingParticipantFilter(true)
+                  setGame((prev) => (prev ? { ...prev, participant_filter: nextFilter } : prev))
+                  try {
+                    const res = await fetch(`/api/games/${game.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ hostToken, participant_filter: nextFilter }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) {
+                      toast.error(data.error || 'Failed to save rounds setting')
+                      const { data: gameData } = await supabase
+                        .from('games')
+                        .select('*')
+                        .eq('id', gameCode)
+                        .maybeSingle()
+                      if (gameData) setGame(gameData)
+                      return
+                    }
+                    if (data.game) setGame(data.game)
+                  } finally {
+                    setSavingParticipantFilter(false)
+                  }
                 }}
                 options={[
                   { value: 'all', label: 'Everyone' },
                   { value: 'joined', label: 'Joined only' },
                 ]}
               />
+              {savingParticipantFilter && <p className="text-faint text-xs px-0.5">Saving…</p>}
+              <p className="text-faint text-xs">
+                {game.participant_filter === 'all'
+                  ? `All ${participants.length} names will appear in rounds`
+                  : `${roundParticipants.length} of ${participants.length} on the list have joined — only joined names appear in rounds`}
+              </p>
             </div>
           )}
           {supportsGender && (
@@ -1632,13 +1658,9 @@ export default function HostPage() {
               {savingPairVoteMode && <p className="text-faint text-xs px-0.5">Saving…</p>}
             </div>
           )}
-          {!isJoinersMode && !hotSeatLobby && (
+          {!isJoinersMode && !hotSeatLobby && isMltImport && (
             <p className="text-faint text-xs">
-              {isMltImport
-                ? `${players.length} of ${participants.length} voters joined — all names appear in rounds`
-                : game.participant_filter === 'all'
-                  ? `All ${participants.length} names will appear in rounds`
-                  : `${roundParticipants.length} of ${participants.length} on the list have joined — only joined names appear in rounds`}
+              {`${players.length} of ${participants.length} voters joined — all names appear in rounds`}
             </p>
           )}
           {hotSeatLobby && !hotSeatLegacyJoiners && (
@@ -2684,31 +2706,24 @@ export default function HostPage() {
           </p>
         </div>
 
-        <div className="glass-card p-5 space-y-4 text-center">
-          <div>
-            <p className="font-semibold text-body">Same room, fresh game</p>
-            <p className="text-faint text-sm mt-1">
-              Send everyone back to the lobby with the same link and settings. Players stay joined — you start when
-              ready.
-            </p>
-          </div>
-          <button onClick={handlePlayAgain} disabled={playingAgain} className="btn-primary w-full">
-            {playingAgain ? 'Resetting…' : '↻ Play Again'}
-          </button>
-
-          <div className="border-t border-theme pt-4 space-y-3">
-            <div>
-              <p className="font-semibold text-body">New game</p>
-              <p className="text-faint text-sm mt-1">
-                Create a new room with a fresh code and link. Same game mode — set up names and settings from scratch.
-              </p>
-            </div>
+        <div className="glass-card p-4 space-y-3">
+          <p className="text-muted text-xs uppercase tracking-wider text-center">What&apos;s next?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handlePlayAgain}
+              disabled={playingAgain}
+              className="btn-primary py-3 flex flex-col items-center gap-0.5 min-h-[3.25rem]"
+            >
+              <span>{playingAgain ? 'Resetting…' : '↻ Play Again'}</span>
+              <span className="text-[10px] font-normal opacity-80 leading-tight">Same room & link</span>
+            </button>
             <button
               type="button"
               onClick={() => router.push(`/create?type=${gameType}`)}
-              className="btn-secondary w-full"
+              className="btn-secondary py-3 flex flex-col items-center gap-0.5 min-h-[3.25rem]"
             >
-              + New Game
+              <span>+ New Game</span>
+              <span className="text-[10px] font-normal text-faint leading-tight">Fresh code</span>
             </button>
           </div>
         </div>
