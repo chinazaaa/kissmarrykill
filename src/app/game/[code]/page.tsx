@@ -198,7 +198,6 @@ export default function GamePage() {
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
   const [joinIdentityGender, setJoinIdentityGender] = useState<ParticipantGender>('female')
   const [voteBothGenders, setVoteBothGenders] = useState(false)
-  const [joinPollGender, setJoinPollGender] = useState<ParticipantGender>('female')
   const [joining, setJoining] = useState(false)
   const [editingJoin, setEditingJoin] = useState(false)
 
@@ -248,7 +247,6 @@ export default function GamePage() {
   const setJoinIdentity = (gender: ParticipantGender) => {
     joinGenderTouchedRef.current = true
     setJoinIdentityGender(gender)
-    if (isJoinersMode && !voteBothGenders) setJoinPollGender(gender)
   }
 
   const namePickerOptions = useMemo(() => {
@@ -275,7 +273,6 @@ export default function GamePage() {
     if (p && !isJoinersMode && changed && !joinGenderTouchedRef.current) {
       setJoinIdentityGender(p.gender)
       setVoteBothGenders(false)
-      setJoinPollGender(p.gender)
     }
   }
 
@@ -1248,7 +1245,7 @@ export default function GamePage() {
                   playerName: nameInput.trim(),
                   gender: joinPlayerGender,
                   identityGender: joinIdentityGender,
-                  ...(voteBothGenders ? { pollGender: joinPollGender } : {}),
+                  ...(voteBothGenders ? { pollGender: joinIdentityGender } : {}),
                 }
               : {
                   gameCode,
@@ -1303,7 +1300,6 @@ export default function GamePage() {
       me?.identity_gender ? (parseParticipantGenderFromDb(me.identity_gender) ?? 'female') : (part?.gender ?? 'female')
     )
     setVoteBothGenders(voteBoth)
-    setJoinPollGender(part?.gender ?? 'female')
     joinGenderTouchedRef.current = true
     setEditingJoin(true)
     setView('join')
@@ -1341,7 +1337,6 @@ export default function GamePage() {
         setSelectedParticipantId(null)
         setJoinIdentityGender('female')
         setVoteBothGenders(false)
-        setJoinPollGender('female')
         joinGenderTouchedRef.current = false
         setEditingJoin(false)
         setView('join')
@@ -1454,19 +1449,6 @@ export default function GamePage() {
                   <span className="block text-faint text-xs mt-0.5">You'll vote on men's and women's rounds</span>
                 </span>
               </label>
-              {isJoinersMode && voteBothGenders && (
-                <div>
-                  <p className="text-faint text-xs mb-2 text-center">Your name appears in the</p>
-                  <SegmentedControl
-                    value={joinPollGender}
-                    onChange={setJoinPollGender}
-                    options={[
-                      { value: 'female', label: "Women's poll" },
-                      { value: 'male', label: "Men's poll" },
-                    ]}
-                  />
-                </div>
-              )}
               <p className="text-faint text-xs text-center">
                 {isNameOnlyJoin
                   ? isMltImport
@@ -1476,7 +1458,7 @@ export default function GamePage() {
                       : 'Pick between two options each round — your choice stays anonymous'
                   : isWstGame
                     ? 'Claim your name, then submit a quote and who said it while you wait'
-                    : joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode, joinPollGender)}
+                    : joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode)}
               </p>
             </>
           )}

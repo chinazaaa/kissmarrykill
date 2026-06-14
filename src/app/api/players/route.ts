@@ -282,17 +282,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (game!.participant_mode === 'joiners') {
-    const pollGender = gender === 'both' ? normalizeGender(String(rawPollGender ?? '')) : gender
-    if (!pollGender) {
-      return NextResponse.json(
-        {
-          error: gender === 'both' ? 'Pick which poll you appear in (male or female)' : 'Please select male or female',
-        },
-        { status: 400 }
-      )
-    }
-    const identityGender = resolveIdentityGender(rawIdentityGender, gender, pollGender)
+    const identityGender = resolveIdentityGender(rawIdentityGender, gender, null)
     if (!identityGender) {
+      return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
+    }
+    const pollGender =
+      gender === 'both' ? normalizeGender(String(rawPollGender ?? '')) ?? identityGender : gender
+    if (!pollGender) {
       return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
     }
     const displayOrder = existingPlayers?.length ?? 0
@@ -583,11 +579,12 @@ export async function PATCH(req: NextRequest) {
   const pollGender = pollGenderForPlayer(
     voteGender,
     rawPollGender,
-    participant?.gender ?? (voteGender === 'both' ? 'female' : voteGender)
+    participant?.gender ?? (voteGender === 'both' ? 'female' : voteGender),
+    normalizeGender(String(updates.identity_gender ?? player.identity_gender ?? ''))
   )
 
   if (game!.participant_mode === 'joiners' && voteGender === 'both' && !pollGender) {
-    return NextResponse.json({ error: 'Pick which poll they appear in (male or female)' }, { status: 400 })
+    return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
   }
 
   const { data: updatedPlayer, error } = await supabase

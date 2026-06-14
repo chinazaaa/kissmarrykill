@@ -472,12 +472,11 @@ export function joinChoicesFromPlayerGender(
 export function joinGenderHint(
   identity: ParticipantGender,
   voteBoth: boolean,
-  isJoinersMode: boolean,
-  pollGender?: ParticipantGender
+  isJoinersMode: boolean
 ): string {
   if (voteBoth) {
     return isJoinersMode
-      ? `You'll vote every round — your name is in the ${pollGender === 'male' ? "men's" : "women's"} poll`
+      ? `You'll vote every round — your name is in the ${identity === 'male' ? "men's" : "women's"} poll`
       : "You'll vote on both men's and women's rounds"
   }
   const opposite = identity === 'male' ? "women's" : "men's"
