@@ -8,10 +8,7 @@ type RawAnonymousMessage = Omit<AnonymousMessage, 'player_name'> & {
   players?: { name: string } | { name: string }[] | null
 }
 
-function playerNameFromRow(
-  row: RawAnonymousMessage,
-  nameById: Map<string, string>
-): string {
+function playerNameFromRow(row: RawAnonymousMessage, nameById: Map<string, string>): string {
   const nested = row.players
   if (nested) {
     const name = Array.isArray(nested) ? nested[0]?.name : nested.name
@@ -28,11 +25,7 @@ function normalizeMessage(row: RawAnonymousMessage, nameById: Map<string, string
   }
 }
 
-export function useAnonymousMessages(
-  gameCode: string,
-  enabled: boolean,
-  players: Pick<Player, 'id' | 'name'>[] = []
-) {
+export function useAnonymousMessages(gameCode: string, enabled: boolean, players: Pick<Player, 'id' | 'name'>[] = []) {
   const [messages, setMessages] = useState<AnonymousMessage[]>([])
   const [loading, setLoading] = useState(true)
 

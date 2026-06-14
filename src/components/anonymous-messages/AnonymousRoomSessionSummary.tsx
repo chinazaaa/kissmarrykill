@@ -55,9 +55,7 @@ export function AnonymousRoomSessionSummary({
         )}
       </div>
 
-      <p className="text-faint text-xs leading-relaxed">
-        Messages from this session are not stored in game history.
-      </p>
+      <p className="text-faint text-xs leading-relaxed">Messages from this session are not stored in game history.</p>
     </div>
   )
 }

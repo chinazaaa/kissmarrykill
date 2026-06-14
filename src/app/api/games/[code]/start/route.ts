@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateRoundsByGender, generateNRounds } from '@/lib/utils'
-import {
-  hasVotersForPolls,
-  parseParticipantGenderFromDb,
-  maxRecommendedRounds,
-} from '@/lib/participants'
+import { hasVotersForPolls, parseParticipantGenderFromDb, maxRecommendedRounds } from '@/lib/participants'
 import {
   parseGameType,
   roundPoolSize,
@@ -122,7 +118,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isAnonymousMessagesGame(gameType)) {
     if (playersData.length < ANONYMOUS_ROOM_MIN_PLAYERS) {
-      return NextResponse.json({ error: `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players to start` }, { status: 400 })
+      return NextResponse.json(
+        { error: `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players to start` },
+        { status: 400 }
+      )
     }
 
     const { error: gameError } = await supabase
@@ -409,7 +408,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const customPool = parseStoredWyrQuestions(game.custom_questions)
     const totalAvailable = customPool.length + effectivePlayerCount
     if (totalAvailable === 0) {
-      return NextResponse.json({ error: 'No questions available — upload prompts or wait for player submissions' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'No questions available — upload prompts or wait for player submissions' },
+        { status: 400 }
+      )
     }
     if (game.rounds_count > totalAvailable) {
       return NextResponse.json(

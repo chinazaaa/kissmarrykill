@@ -28,13 +28,7 @@ import { useToast } from '@/components/ui/Toast'
 
 const LOBBY_PAGE_SIZE = 10
 
-export function AnonymousMessagesHostView({
-  gameCode,
-  hostToken,
-}: {
-  gameCode: string
-  hostToken: string
-}) {
+export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const router = useRouter()
   const { error: toastError, success } = useToast()
   const [game, setGame] = useState<Game | null>(null)
@@ -303,16 +297,13 @@ export function AnonymousMessagesHostView({
             visibleLobbyPlayers.map((player) => {
               const ban = banForPlayer(player.id)
               const muted = isPlayerBanned(ban?.banned_until)
-              const mutedLabel =
-                muted && ban ? `Muted · ${formatBanCountdown(banSecondsLeft(ban.banned_until))}` : null
+              const mutedLabel = muted && ban ? `Muted · ${formatBanCountdown(banSecondsLeft(ban.banned_until))}` : null
 
               return (
                 <div key={player.id} className="flex items-center justify-between gap-3 py-1.5">
                   <div className="min-w-0">
                     <span className="chip text-xs">{player.name}</span>
-                    {mutedLabel && (
-                      <p className="text-red-300/90 text-[10px] mt-1 tabular-nums">{mutedLabel}</p>
-                    )}
+                    {mutedLabel && <p className="text-red-300/90 text-[10px] mt-1 tabular-nums">{mutedLabel}</p>}
                   </div>
                   {lobbyActionsEnabled && (
                     <div className="flex shrink-0 items-center gap-2">
@@ -361,13 +352,12 @@ export function AnonymousMessagesHostView({
       </div>
 
       {game.status === 'waiting' && (
-        <button
-          type="button"
-          onClick={startSession}
-          disabled={!canStart || starting}
-          className="btn-primary w-full"
-        >
-          {starting ? 'Starting…' : canStart ? 'Start anonymous session' : `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players`}
+        <button type="button" onClick={startSession} disabled={!canStart || starting} className="btn-primary w-full">
+          {starting
+            ? 'Starting…'
+            : canStart
+              ? 'Start anonymous session'
+              : `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players`}
         </button>
       )}
 

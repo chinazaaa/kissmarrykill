@@ -11,10 +11,7 @@ export function useAnonymousRoomBans(gameCode: string, enabled: boolean) {
   const activeBans = bans.filter((ban) => isPlayerBanned(ban.banned_until))
 
   const loadBans = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('anonymous_room_bans')
-      .select('*')
-      .eq('game_id', gameCode)
+    const { data, error } = await supabase.from('anonymous_room_bans').select('*').eq('game_id', gameCode)
 
     if (!error) {
       setBans((data ?? []).filter((ban) => isPlayerBanned(ban.banned_until)))

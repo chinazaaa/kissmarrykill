@@ -1,5 +1,12 @@
 import type { Game, PlayerQuestionsOrder } from '@/types'
-import { parseGameType, isBinaryChoiceGame, isMostLikelyTo, isPairGame, isThreeChoiceGame, isCustomGame } from '@/lib/game-types'
+import {
+  parseGameType,
+  isBinaryChoiceGame,
+  isMostLikelyTo,
+  isPairGame,
+  isThreeChoiceGame,
+  isCustomGame,
+} from '@/lib/game-types'
 import { parseQuestionSource } from '@/lib/custom-questions'
 
 export function parsePlayerQuestionsEnabled(raw: unknown): boolean {
@@ -11,9 +18,7 @@ export function parsePlayerQuestionsOrder(raw: unknown): PlayerQuestionsOrder {
   return 'players_first'
 }
 
-export function lobbyAllowsPlayerQuestions(
-  game: Pick<Game, 'game_type' | 'player_questions_enabled'>
-): boolean {
+export function lobbyAllowsPlayerQuestions(game: Pick<Game, 'game_type' | 'player_questions_enabled'>): boolean {
   const type = parseGameType(game.game_type)
   if (!isBinaryChoiceGame(type) && !isMostLikelyTo(type)) return false
   return game.player_questions_enabled !== false
@@ -27,9 +32,7 @@ export function effectivePlayerQuestionCount(
 }
 
 /** Label for the host-uploaded / platform side of the question mix. */
-export function lobbyPoolSourceLabel(
-  game: Pick<Game, 'game_type' | 'question_source'>
-): string {
+export function lobbyPoolSourceLabel(game: Pick<Game, 'game_type' | 'question_source'>): string {
   const type = parseGameType(game.game_type)
   if (isPairGame(type) || isThreeChoiceGame(type) || isCustomGame(type)) return 'Host list'
   if (parseQuestionSource(game.question_source, type) === 'custom' || type === 'this_or_that') {

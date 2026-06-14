@@ -73,7 +73,10 @@ export default async function GameLandingRoute({ params }: Props) {
         <Link href="/" className="pointer-events-auto">
           <FateRoundLogo className="h-8 w-auto max-w-[9.5rem] sm:max-w-[11rem]" />
         </Link>
-        <Link href="/games" className="pointer-events-auto text-faint text-xs font-medium hover:text-body transition-colors">
+        <Link
+          href="/games"
+          className="pointer-events-auto text-faint text-xs font-medium hover:text-body transition-colors"
+        >
           All games
         </Link>
       </header>

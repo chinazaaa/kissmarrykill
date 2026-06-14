@@ -1,13 +1,7 @@
 import { gameLobbySummaryChips, customGameDisplayTitle } from '@/lib/game-lobby-summary'
 import type { Game } from '@/types'
 
-export function GameLobbySummary({
-  game,
-  className = '',
-}: {
-  game: Game
-  className?: string
-}) {
+export function GameLobbySummary({ game, className = '' }: { game: Game; className?: string }) {
   const chips = gameLobbySummaryChips(game)
   const customTitle = customGameDisplayTitle(game)
 

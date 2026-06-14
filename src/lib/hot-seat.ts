@@ -127,11 +127,7 @@ export function hotSeatEffectiveRounds(joinedCount: number, maxCap: number): num
   return Math.min(joinedCount, cap)
 }
 
-export function hotSeatLobbyRoundsHint(
-  joinedCount: number,
-  maxCap: number,
-  participantMode?: string | null
-): string {
+export function hotSeatLobbyRoundsHint(joinedCount: number, maxCap: number, participantMode?: string | null): string {
   const joiners = (participantMode ?? 'import') === 'joiners'
   if (joinedCount < HOT_SEAT_MIN_PLAYERS) {
     return joiners

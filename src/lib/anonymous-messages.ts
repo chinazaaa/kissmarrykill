@@ -109,9 +109,7 @@ export async function trimAnonymousMessagesIfDue(
 
   if (gameError) return { trimmed: 0 }
 
-  const lastTrimMs = game?.anonymous_messages_trimmed_at
-    ? new Date(game.anonymous_messages_trimmed_at).getTime()
-    : 0
+  const lastTrimMs = game?.anonymous_messages_trimmed_at ? new Date(game.anonymous_messages_trimmed_at).getTime() : 0
 
   if (Date.now() - lastTrimMs < ANONYMOUS_ROOM_TRIM_INTERVAL_MS) {
     return { trimmed: 0 }
@@ -136,10 +134,7 @@ export async function trimAnonymousMessagesIfDue(
 
   if (deleteError) return { trimmed: 0 }
 
-  await supabase
-    .from('games')
-    .update({ anonymous_messages_trimmed_at: new Date().toISOString() })
-    .eq('id', gameId)
+  await supabase.from('games').update({ anonymous_messages_trimmed_at: new Date().toISOString() }).eq('id', gameId)
 
   return { trimmed: oldest.length }
 }

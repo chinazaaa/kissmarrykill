@@ -60,12 +60,7 @@ export function AnonymousMessageComposer({
         maxLength={500}
         className="input-field resize-none w-full"
       />
-      <button
-        type="button"
-        onClick={onSend}
-        disabled={sending || !value.trim()}
-        className="btn-primary w-full"
-      >
+      <button type="button" onClick={onSend} disabled={sending || !value.trim()} className="btn-primary w-full">
         {sending ? 'Sending…' : replyTo ? 'Send reply' : 'Send anonymously'}
       </button>
     </div>

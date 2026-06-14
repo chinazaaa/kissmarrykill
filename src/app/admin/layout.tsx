@@ -50,15 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   )
 }
 
-function AdminNavLink({
-  href,
-  active,
-  children,
-}: {
-  href: string
-  active: boolean
-  children: React.ReactNode
-}) {
+function AdminNavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}

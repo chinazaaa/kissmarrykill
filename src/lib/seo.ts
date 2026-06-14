@@ -92,8 +92,7 @@ export function createMetadata(): Metadata {
     alternates: { canonical: '/create' },
     openGraph: {
       title: `Create a Game | ${SITE_NAME}`,
-      description:
-        'Start a free online party game room and share the code with friends. No sign-up required.',
+      description: 'Start a free online party game room and share the code with friends. No sign-up required.',
       url: '/create',
       images: [OG_IMAGE],
     },
