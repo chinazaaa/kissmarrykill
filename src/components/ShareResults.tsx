@@ -6,7 +6,7 @@ import {
   parseGameType,
   gameTypeConfig,
   isPairGame,
-  isWouldYouRather,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isCustomGame,
@@ -41,7 +41,7 @@ function buildShareText({
   lines.push(`${config.label} - ${players.length} players, ${rounds.length} rounds`)
   lines.push('')
 
-  const isWyr = isWouldYouRather(gameType)
+  const isWyr = isBinaryChoiceGame(gameType)
   const isMlt = isMostLikelyTo(gameType)
   const isWst = isWhoSaidThis(gameType)
 

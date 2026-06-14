@@ -204,6 +204,48 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  this_or_that: {
+    id: 'this_or_that',
+    label: 'This or That',
+    tagline: 'Pick between two options — upload your own prompts',
+    headerEmoji: '↔️🎯',
+    card: {
+      accent: '#f472b6',
+      accentSoft: 'rgba(244, 114, 182, 0.15)',
+      emoji: '↔️',
+      players: '2+ players',
+      vibe: 'Quick picks',
+    },
+    slots: {
+      kiss: {
+        emoji: 'A',
+        label: 'Option A',
+        color: '#f472b6',
+        leaderboardLabel: 'Option A',
+        activeClass: 'bg-pink-500/20 text-pink-100 border-pink-400',
+        borderClass: 'border-pink-500/50 bg-pink-500/10',
+        textColor: '#f9a8d4',
+      },
+      marry: {
+        emoji: 'B',
+        label: 'Option B',
+        color: '#38bdf8',
+        leaderboardLabel: 'Option B',
+        activeClass: 'bg-sky-500/20 text-sky-100 border-sky-400',
+        borderClass: 'border-sky-500/50 bg-sky-500/10',
+        textColor: '#7dd3fc',
+      },
+      kill: {
+        emoji: 'B',
+        label: 'Option B',
+        color: '#38bdf8',
+        leaderboardLabel: 'Option B',
+        activeClass: 'bg-sky-500/20 text-sky-100 border-sky-400',
+        borderClass: 'border-sky-500/50 bg-sky-500/10',
+        textColor: '#7dd3fc',
+      },
+    },
+  },
   most_likely_to: {
     id: 'most_likely_to',
     label: 'Most Likely To',
@@ -380,6 +422,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'red_flag_green_flag',
   'smash_or_pass',
   'would_you_rather',
+  'this_or_that',
   'most_likely_to',
   'who_said_this',
   'hot_seat',
@@ -390,6 +433,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'red_flag_green_flag') return 'red_flag_green_flag'
   if (raw === 'smash_or_pass') return 'smash_or_pass'
   if (raw === 'would_you_rather') return 'would_you_rather'
+  if (raw === 'this_or_that') return 'this_or_that'
   if (raw === 'most_likely_to') return 'most_likely_to'
   if (raw === 'who_said_this') return 'who_said_this'
   if (raw === 'hot_seat') return 'hot_seat'
@@ -414,6 +458,8 @@ export function gameHowItWorks(
       return "Upload everyone's names on the next step. Players claim their name when joining, then submit a quote and who said it in the lobby. Only quotes in the pool become rounds — if 5 of 10 submit, that's 5 rounds."
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
+    case 'this_or_that':
+      return 'Upload your own “Coffee or Tea?” style prompts. Players join with any name — each round shows two options and everyone picks A or B. Votes stay anonymous.'
     case 'hot_seat':
       return "Upload everyone's names on the next step. Players claim their name when joining. One round per player who joins — you set a max cap; the host lobby shows the final count."
     case 'most_likely_to':
@@ -585,6 +631,15 @@ export function isWouldYouRather(gameType: GameType | string | undefined): boole
   return parseGameType(gameType) === 'would_you_rather'
 }
 
+export function isThisOrThat(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'this_or_that'
+}
+
+/** WYR + This or That — pick option A or B each round. */
+export function isBinaryChoiceGame(gameType: GameType | string | undefined): boolean {
+  return isWouldYouRather(gameType) || isThisOrThat(gameType)
+}
+
 export function isMostLikelyTo(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'most_likely_to'
 }
@@ -599,10 +654,10 @@ export function isHotSeat(gameType: GameType | string | undefined): boolean {
 
 type LobbyCounts = { participantMode?: string; participantCount: number }
 
-/** WYR + MLT player join: free name entry, no list. Hot Seat uses import + name claim (see isImportNameClaimGame). */
+/** WYR + MLT + This or That player join: free name entry, no list. Hot Seat uses import + name claim (see isImportNameClaimGame). */
 export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'most_likely_to'
+  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to'
 }
 
 /** Import list + claim your name when joining (no gender) — Who Said This & Hot Seat. */
@@ -627,9 +682,10 @@ export function isPlayerOnlyJoinLobby(gameType: GameType | string | undefined, o
   return false
 }
 
-/** Would You Rather — forced joiners, no gender, always anonymous. */
+/** WYR + This or That — forced joiners, no gender, always anonymous. */
 export function isLobbyGame(gameType: GameType | string | undefined): boolean {
-  return parseGameType(gameType) === 'would_you_rather'
+  const type = parseGameType(gameType)
+  return type === 'would_you_rather' || type === 'this_or_that'
 }
 
 export function isAnonymousGame(gameType: GameType | string | undefined): boolean {
@@ -645,7 +701,7 @@ export function isCustomGame(gameType: GameType | string | undefined): boolean {
 }
 
 export function roundPoolSize(gameType: GameType | string | undefined): 2 | 3 {
-  if (isWouldYouRather(gameType) || isMostLikelyTo(gameType) || isWhoSaidThis(gameType)) return 2
+  if (isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType) || isWhoSaidThis(gameType)) return 2
   return isPairGame(gameType) ? 2 : 3
 }
 

@@ -20,6 +20,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   red_flag_green_flag: 'red-flag-green-flag',
   smash_or_pass: 'smash-or-pass',
   would_you_rather: 'would-you-rather',
+  this_or_that: 'this-or-that',
   most_likely_to: 'most-likely-to',
   who_said_this: 'who-said-this',
   hot_seat: 'hot-seat',
@@ -147,6 +148,28 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Pick A or B', description: 'Vote each round, reveal the split, and argue about the minority.' },
     ],
     perfectFor: ['Road trips (passenger mode)', 'Zoom hangs', 'Icebreakers', 'Late-night nonsense'],
+  }),
+
+  this_or_that: landing('this_or_that', {
+    seoTitle: 'This or That Game Online — Free with Custom Questions',
+    seoDescription:
+      'Play This or That online with friends. Upload your own “Coffee or Tea?” prompts — anonymous A/B votes, instant reveals, no sign-up.',
+    keywords: ['this or that game', 'this or that online', 'this or that with friends', 'coffee or tea game'],
+    heroSubtitle:
+      'Your prompts, your vibe. Upload “Coffee or Tea?” style questions — everyone picks A or B and you see where the group lands.',
+    highlights: ['Upload your own CSV', 'Anonymous voting', '2+ players, zero setup'],
+    features: [
+      { title: 'Your question list', description: 'Bring a CSV of “X or Y?” prompts — or type them in when creating a room.', emoji: '📋' },
+      { title: 'Fully anonymous', description: 'Nobody knows who picked what until you reveal — if you reveal.', emoji: '🎭' },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Upload prompts', description: 'Add your This or That questions when creating — one per row like “Coffee or Tea?”' },
+      { title: 'Friends join', description: 'Share the link. Everyone enters a display name and waits.' },
+      { title: 'Pick A or B', description: 'Vote each round, reveal the split, and argue about the minority.' },
+    ],
+    perfectFor: ['Icebreakers', 'Team meetings', 'Group chats', 'Custom themed nights'],
   }),
 
   most_likely_to: landing('most_likely_to', {

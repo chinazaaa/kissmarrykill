@@ -6,7 +6,7 @@ import {
   parseGameType,
   gameTypeConfig,
   isPairGame,
-  isWouldYouRather,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isCustomGame,
@@ -42,7 +42,7 @@ function buildRoundShareText({
   const config = gameTypeConfig(gameType)
   const lines: string[] = []
 
-  if (isWouldYouRather(gameType)) {
+  if (isBinaryChoiceGame(gameType)) {
     const { countA, countB } = tallyWyrVotes(votes)
     const optA = round.wyr_option_a ?? 'Option A'
     const optB = round.wyr_option_b ?? 'Option B'

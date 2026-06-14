@@ -27,6 +27,8 @@ import {
   roundPoolSize,
   isPairGame,
   isWouldYouRather,
+  isThisOrThat,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
@@ -153,6 +155,7 @@ export default function HostPage() {
   const [updatingTimer, setUpdatingTimer] = useState(false)
   const [listSearch, setListSearch] = useState('')
   const [playersSearch, setPlayersSearch] = useState('')
+  const [playerQuestionCount, setPlayerQuestionCount] = useState(0)
   const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
   const [animePool, setAnimePool] = useState<AnimeQuotePoolEntry[]>([])
   const [animeFetching, setAnimeFetching] = useState(false)
@@ -605,16 +608,25 @@ export default function HostPage() {
     if (game?.status !== 'waiting') return
 
     async function refreshLobby() {
-      const [{ data: plrs }, { data: parts }, { data: pool }] = await Promise.all([
+      const gameType = parseGameType(game?.game_type)
+      const fetchPlayerQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
+      const [{ data: plrs }, { data: parts }, { data: pool }, { count: pqCount }] = await Promise.all([
         supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
         supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        isWhoSaidThis(parseGameType(game?.game_type))
+        isWhoSaidThis(gameType)
           ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
           : Promise.resolve({ data: null }),
+        fetchPlayerQuestions
+          ? supabase
+              .from('player_questions')
+              .select('id', { count: 'exact', head: true })
+              .eq('game_id', gameCode)
+          : Promise.resolve({ count: 0 }),
       ])
       if (plrs) setPlayers(plrs)
       if (parts) setParticipants(parts)
       if (pool) setWstPool(dedupeWstPool(pool))
+      if (fetchPlayerQuestions) setPlayerQuestionCount(pqCount ?? 0)
     }
 
     refreshLobby()
@@ -1170,6 +1182,8 @@ export default function HostPage() {
   if (game?.status === 'waiting') {
     const gameType = parseGameType(game.game_type)
     const isWyr = isWouldYouRather(gameType)
+    const isTot = isThisOrThat(gameType)
+    const isBinaryLobby = isWyr || isTot
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
     const isHotSeatGame = isHotSeat(gameType)
@@ -1209,15 +1223,17 @@ export default function HostPage() {
       ? hotSeatMaxCapUpperBound(hotSeatJoinedCount, participants.length)
       : HOT_SEAT_MAX_ROUNDS_CAP
     const lobbyQuestionMax =
-      isWyr || isMlt
-        ? questionPoolCap(game)
-        : isWst
+      isTot
+        ? Math.min(20, customQuestionCount(game) + playerQuestionCount)
+        : isBinaryLobby || isMlt
+          ? questionPoolCap(game) + (isBinaryLobby ? playerQuestionCount : 0)
+          : isWst
           ? wstAutoRoundCount(wstPool.length || wstSubmitters.length)
           : isHotSeatGame
             ? hotSeatCapUpper
             : maxRecommendedRounds(participantInputs, gameType, gameGenderBased, participantOpts)
     const maxRounds =
-      isWyr || isMlt
+      isBinaryLobby || isMlt
         ? lobbyQuestionMax
         : isWst
           ? lobbyQuestionMax
@@ -1232,16 +1248,20 @@ export default function HostPage() {
           : wstSubmitters.length >= 1
             ? `${wstSubmitters.length} players joined — waiting for quotes in the lobby`
             : 'Players claim a name and submit a quote before start'
-      : isWyr || isMlt
+          : isBinaryLobby || isMlt
         ? parseQuestionSource(game.question_source, gameType) === 'custom' && customQuestionCount(game) > 0
           ? `${customQuestionCount(game)} custom questions → up to ${lobbyQuestionMax} rounds`
-          : isWyr
-            ? `Platform pool → up to ${lobbyQuestionMax} rounds`
-            : `Platform prompts → up to ${lobbyQuestionMax} rounds`
+          : isTot
+            ? playerQuestionCount > 0
+              ? `${customQuestionCount(game)} uploaded · ${playerQuestionCount} from players → up to ${lobbyQuestionMax} rounds`
+              : `${customQuestionCount(game) || 0} custom questions loaded`
+            : isWyr
+              ? `Platform pool → up to ${lobbyQuestionMax} rounds`
+              : `Platform prompts → up to ${lobbyQuestionMax} rounds`
         : roundLimitHint(participantInputs, gameType, gameGenderBased, participantOpts)
     const hotSeatEffective = hotSeatLobby ? hotSeatEffectiveRounds(hotSeatJoinedCount, game.rounds_count) : 0
     const roundsTooHigh = hotSeatLobby ? false : maxRounds > 0 && game.rounds_count > maxRounds
-    const roundOptions = isWyr
+    const roundOptions = isBinaryLobby
       ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
       : isMlt
         ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
@@ -1266,8 +1286,8 @@ export default function HostPage() {
             (gameGenderBased ? voterCheck.ok : true)
           : isMlt
             ? players.length >= 2 && !roundsTooHigh
-            : isWyr
-              ? players.length > 0 && !roundsTooHigh
+            : isBinaryLobby
+              ? players.length > 0 && !roundsTooHigh && (!isTot || customQuestionCount(game) + playerQuestionCount > 0)
               : isJoinersMode
                 ? players.length > 0 &&
                   participants.length >= minPool &&
@@ -1291,10 +1311,14 @@ export default function HostPage() {
                 ? `${hotSeatEffective} rounds · ${game.timer_seconds}s each`
                 : `${game.rounds_count} rounds · ${game.timer_seconds}s each`}
             </p>
-            {(isWyr || isMlt) &&
-              parseQuestionSource(game.question_source, gameType) === 'custom' &&
-              customQuestionCount(game) > 0 && (
-                <p className="text-faint text-xs mt-1">{customQuestionCount(game)} custom questions loaded</p>
+            {((isBinaryLobby || isMlt) &&
+              ((parseQuestionSource(game.question_source, gameType) === 'custom' && customQuestionCount(game) > 0) ||
+                (isTot && playerQuestionCount > 0))) && (
+                <p className="text-faint text-xs mt-1">
+                  {isTot && playerQuestionCount > 0
+                    ? `${customQuestionCount(game)} uploaded · ${playerQuestionCount} from players`
+                    : `${customQuestionCount(game)} custom questions loaded`}
+                </p>
               )}
             <p className="text-[var(--primary)] text-xs mt-1 font-medium">
               {isVoterOnly
@@ -1303,8 +1327,10 @@ export default function HostPage() {
                   ? 'Most Likely To — players join and vote for a friend each round'
                   : isWst
                     ? 'Who Said This — players submit quotes in the lobby, then guess who said each one'
-                    : isWyr
-                      ? 'Would You Rather — players join and pick A or B each round'
+                    : isTot
+                      ? 'This or That — your custom prompts, players pick A or B each round'
+                      : isWyr
+                        ? 'Would You Rather — players join and pick A or B each round'
                       : hotSeatLobby
                         ? 'Hot Seat — upload names, players claim theirs, then take turns in the spotlight'
                         : isJoinersMode
@@ -1351,7 +1377,7 @@ export default function HostPage() {
                 />
               </div>
             </>
-          ) : isWyr ||
+          ) : isBinaryLobby ||
             isMlt ||
             (isJoinersMode
               ? participants.length >= minPool && hasEnoughForRounds(participantInputs, gameType, participantOpts)
@@ -1387,7 +1413,7 @@ export default function HostPage() {
             </>
           ) : (
             <p className="text-faint text-xs">
-              {isWyr || isMlt
+              {isBinaryLobby || isMlt
                 ? 'Set how many questions to play'
                 : hotSeatLobby
                   ? hotSeatLegacyJoiners
@@ -1824,21 +1850,23 @@ export default function HostPage() {
                   >
                     <Avatar name={p.name} size="sm" />
                     <span className="text-body-muted text-sm truncate flex-1">{p.name}</span>
-                    <div className="flex gap-1 shrink-0">
-                      {(['female', 'male'] as const).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          disabled={adminBusy === p.id}
-                          onClick={() => hostUpdatePlayerIdentity(p.id, g)}
-                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
-                            identity === g ? 'chip-active' : 'chip'
-                          }`}
-                        >
-                          {g === 'male' ? 'M' : 'F'}
-                        </button>
-                      ))}
-                    </div>
+                    {gameGenderBased && (
+                      <div className="flex gap-1 shrink-0">
+                        {(['female', 'male'] as const).map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            disabled={adminBusy === p.id}
+                            onClick={() => hostUpdatePlayerIdentity(p.id, g)}
+                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                              identity === g ? 'chip-active' : 'chip'
+                            }`}
+                          >
+                            {g === 'male' ? 'M' : 'F'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <button
                       type="button"
                       disabled={adminBusy === p.id}
@@ -2081,6 +2109,8 @@ export default function HostPage() {
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
     const isWyr = isWouldYouRather(gameType)
+    const isTot = isThisOrThat(gameType)
+    const isBinaryGame = isBinaryChoiceGame(gameType)
     const isHotSeatGame = isHotSeat(gameType)
     const roundVotes = votes.filter((v) => v.round_id === currentRound.id)
     const roundParts = participants.filter((p) => currentRound.participant_ids.includes(p.id))
@@ -2212,7 +2242,7 @@ export default function HostPage() {
       )
     }
 
-    if (isWyr) {
+    if (isBinaryGame) {
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
           <div className="flex items-center justify-between">
@@ -2227,7 +2257,9 @@ export default function HostPage() {
           </div>
 
           <div className="glass-card p-5 space-y-3">
-            <p className="text-muted text-xs uppercase tracking-wider text-center">Would you rather…</p>
+            <p className="text-muted text-xs uppercase tracking-wider text-center">
+              {isTot ? 'This or that…' : 'Would you rather…'}
+            </p>
             <p className="text-body text-sm leading-relaxed text-center">
               <span className="label-violet font-medium">{currentRound.wyr_option_a}</span> or{' '}
               <span className="label-sky font-medium">{currentRound.wyr_option_b}</span>?
@@ -2497,6 +2529,8 @@ export default function HostPage() {
   if (game?.status === 'active' && !currentRound && lastFinishedRound) {
     const gameType = parseGameType(game.game_type)
     const isWyr = isWouldYouRather(gameType)
+    const isTot = isThisOrThat(gameType)
+    const isBinaryGame = isBinaryChoiceGame(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
     const isHotSeatGame = isHotSeat(gameType)
@@ -2521,7 +2555,7 @@ export default function HostPage() {
         <div className="text-center">
           <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game.rounds_count}
-            {!isWyr && !isMlt && !isHotSeatGame && roundGender ? ` · ${roundGender}` : ''}
+            {!isBinaryGame && !isMlt && !isHotSeatGame && roundGender ? ` · ${roundGender}` : ''}
           </p>
           <h1 className="text-3xl font-black tracking-tight mt-1">
             {isHotSeatGame ? 'Hot Seat Reveal! 🪑🔥' : 'Results are in! 🗳️'}
@@ -2581,7 +2615,7 @@ export default function HostPage() {
             maxCount={mltTally.maxCount}
             winnerNames={mltTally.winnerNames}
           />
-        ) : isWyr ? (
+        ) : isBinaryGame ? (
           <WyrRoundResults
             optionA={lastFinishedRound.wyr_option_a ?? ''}
             optionB={lastFinishedRound.wyr_option_b ?? ''}
@@ -2692,6 +2726,8 @@ export default function HostPage() {
   if (game?.status === 'finished') {
     const gameType = parseGameType(game.game_type)
     const isWyr = isWouldYouRather(gameType)
+    const isTot = isThisOrThat(gameType)
+    const isBinaryGame = isBinaryChoiceGame(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
     const isMltImport = isMltImportGame(game)
@@ -2711,7 +2747,7 @@ export default function HostPage() {
               ? ` · ${pollCount} in poll`
               : isWst
                 ? ` · ${participants.length} names`
-                : !isWyr && !isMlt
+                : !isBinaryGame && !isMlt
                   ? ` · ${playedParticipants.length} in game`
                   : ''}
           </p>
@@ -2751,7 +2787,7 @@ export default function HostPage() {
           />
         )}
 
-        {isWyr ? (
+        {isBinaryGame ? (
           <div className="space-y-8">
             {allRounds.map((round) => {
               const roundVotes = votes.filter((v) => v.round_id === round.id)

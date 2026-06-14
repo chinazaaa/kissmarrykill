@@ -17,7 +17,7 @@ import {
   slotMeta,
   voteSlots,
   isPairGame,
-  isWouldYouRather,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
 } from '@/lib/game-types'
@@ -214,7 +214,7 @@ export default function GameHistoryPage() {
                   </p>
                 </div>
 
-                {isWouldYouRather(gameType) ? (
+                {isBinaryChoiceGame(gameType) ? (
                   (() => {
                     const wyrTally = tallyWyrVotes(roundVotes)
                     return (

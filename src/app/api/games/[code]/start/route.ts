@@ -11,6 +11,8 @@ import {
   parseGameType,
   roundPoolSize,
   isWouldYouRather,
+  isThisOrThat,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
@@ -335,6 +337,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       round_number: index + 1,
       participant_ids: [],
       mlt_question: question,
+      status: index === 0 ? 'active' : 'pending',
+      started_at: index === 0 ? now : null,
+      ended_at: null,
+    }))
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({ status: 'active', current_round_number: 1 })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  }
+
+  if (isThisOrThat(gameType)) {
+    const { data: playerWyrRows } = await supabase
+      .from('player_questions')
+      .select('option_a, option_b')
+      .eq('game_id', code.toUpperCase())
+      .eq('question_type', 'wyr')
+    const playerTotQuestions = (playerWyrRows ?? [])
+      .filter((q) => q.option_a?.trim() && q.option_b?.trim())
+      .map((q) => ({ optionA: q.option_a!, optionB: q.option_b! }))
+      .sort(() => Math.random() - 0.5)
+
+    const customPool = parseStoredWyrQuestions(game.custom_questions)
+    const totalAvailable = customPool.length + playerTotQuestions.length
+    if (totalAvailable === 0) {
+      return NextResponse.json({ error: 'No questions available — upload prompts or wait for player submissions' }, { status: 400 })
+    }
+    if (game.rounds_count > totalAvailable) {
+      return NextResponse.json(
+        { error: `Too many rounds — lower to ${totalAvailable} or fewer before starting` },
+        { status: 400 }
+      )
+    }
+
+    const poolNeeded = Math.max(0, game.rounds_count - playerTotQuestions.length)
+    const poolQuestions = pickCustomWyrQuestions(customPool, poolNeeded)
+    const questions = [...playerTotQuestions.slice(0, game.rounds_count), ...poolQuestions].slice(0, game.rounds_count)
+    const roundRows = questions.map((q, index) => ({
+      game_id: code.toUpperCase(),
+      round_number: index + 1,
+      participant_ids: [],
+      wyr_option_a: q.optionA,
+      wyr_option_b: q.optionB,
       status: index === 0 ? 'active' : 'pending',
       started_at: index === 0 ? now : null,
       ended_at: null,

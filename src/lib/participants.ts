@@ -1,6 +1,8 @@
 import {
   roundPoolSize,
   isWouldYouRather,
+  isBinaryChoiceGame,
+  isThisOrThat,
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
@@ -288,7 +290,7 @@ export function hasEnoughForRounds(
   gameType?: GameType | string,
   opts?: ParticipantGameOpts
 ): boolean {
-  if (isWouldYouRather(gameType)) return true
+  if (isBinaryChoiceGame(gameType)) return true
   if (isHotSeat(gameType)) return participants.length >= HOT_SEAT_MIN_PLAYERS
   if (isMostLikelyTo(gameType)) return participants.length >= roundPoolSize(gameType)
   if (isWhoSaidThis(gameType)) return participants.length >= 2
@@ -323,6 +325,7 @@ export function maxRecommendedRounds(
   opts?: ParticipantGameOpts
 ): number {
   if (isWouldYouRather(gameType)) return Math.min(20, WYR_QUESTION_COUNT)
+  if (isThisOrThat(gameType)) return 0
   if (isHotSeat(gameType)) return participants.length >= HOT_SEAT_MIN_PLAYERS ? participants.length : 0
   if (isMostLikelyTo(gameType)) return Math.min(20, MLT_QUESTION_COUNT)
   if (isWhoSaidThis(gameType)) return Math.min(20, Math.max(participants.length, 2))
@@ -350,6 +353,7 @@ export function roundLimitHint(
   if (isWouldYouRather(gameType)) {
     return `${WYR_QUESTION_COUNT} questions available → up to ${Math.min(20, WYR_QUESTION_COUNT)} rounds`
   }
+  if (isThisOrThat(gameType)) return null
   if (isHotSeat(gameType)) {
     if (participants.length < HOT_SEAT_MIN_PLAYERS) return null
     return `Up to ${participants.length} rounds (one per player who joins) — set a max cap below`

@@ -11,6 +11,7 @@ export type GameType =
   | 'red_flag_green_flag'
   | 'smash_or_pass'
   | 'would_you_rather'
+  | 'this_or_that'
   | 'most_likely_to'
   | 'who_said_this'
   | 'hot_seat'

@@ -29,8 +29,10 @@ import {
 import {
   roundPoolSize,
   isLobbyGame,
-  isMostLikelyTo,
   isWouldYouRather,
+  isThisOrThat,
+  isBinaryChoiceGame,
+  isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
   isAnonymousGame,
@@ -45,8 +47,11 @@ import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import {
   parseWyrQuestionRows,
+  parseThisOrThatQuestionRows,
+  parseOrSplitQuestion,
   parseMltQuestionRows,
   parseExcelWyrQuestions,
+  parseExcelThisOrThatQuestions,
   parseExcelMltQuestions,
   mergeWyrQuestions,
   mergeMltQuestions,
@@ -154,6 +159,8 @@ function CreateGameInner() {
   const genderCounts = countByGender(participants)
   const isJoinersMode = settings.participant_mode === 'joiners'
   const isWyr = isWouldYouRather(settings.game_type)
+  const isTot = isThisOrThat(settings.game_type)
+  const isBinaryLobby = isWyr || isTot
   const isMlt = isMostLikelyTo(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -171,20 +178,22 @@ function CreateGameInner() {
   const canCreateImport =
     participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type, participantOpts)
   const canCreateJoiners = !!settings.title.trim()
-  const isLobbyQuestions = isWyr || isMlt
-  const customQuestionCount = isWyr ? customWyrQuestions.length : customMltQuestions.length
+  const isLobbyQuestions = isBinaryLobby || isMlt
+  const customQuestionCount = isBinaryLobby ? customWyrQuestions.length : customMltQuestions.length
   const questionCap =
     questionSource === 'custom' && customQuestionCount > 0
       ? customQuestionCount
-      : isWyr
-        ? WYR_QUESTION_COUNT
-        : isMlt
-          ? MLT_QUESTION_COUNT
-          : 10
+      : isTot
+        ? customQuestionCount
+        : isWyr
+          ? WYR_QUESTION_COUNT
+          : isMlt
+            ? MLT_QUESTION_COUNT
+            : 10
   const mltRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
   const wyrRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= questionCap)
   const wstRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= Math.max(participants.length, 2))
-  const roundOptions = isWyr
+  const roundOptions = isBinaryLobby
     ? wyrRoundOptions
     : isMlt
       ? mltRoundOptions
@@ -192,14 +201,15 @@ function CreateGameInner() {
         ? wstRoundOptions
         : [2, 3, 4, 5, 6, 8, 10]
   const hasEnoughCustomQuestions =
-    questionSource === 'platform' ||
-    (isLobbyQuestions && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
+    (isTot && customQuestionCount >= settings.rounds_count && customQuestionCount > 0) ||
+    (questionSource === 'platform' && !isTot) ||
+    (isLobbyQuestions && !isTot && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
   const canCreateQuickLobby = !!settings.title.trim() && hasEnoughCustomQuestions
 
   const customSlotsValid =
     !isCustom || (customSlots && customSlots.slots.length >= 2 && customSlots.slots.every((s) => s.label.trim()))
 
-  const needsParticipantStep = !isWyr && !(isMlt && isJoinersMode) && !isJoinersMode
+  const needsParticipantStep = !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
 
@@ -212,7 +222,7 @@ function CreateGameInner() {
   const selectGameType = (type: GameType) => {
     setCustomSlots(null)
     setWstQuoteSource('player')
-    setQuestionSource('platform')
+    setQuestionSource(isThisOrThat(type) ? 'custom' : 'platform')
     setCustomWyrQuestions([])
     setCustomMltQuestions([])
     setQuestionsUploadError(null)
@@ -333,7 +343,7 @@ function CreateGameInner() {
   const removeParticipant = (i: number) => setParticipants((prev) => prev.filter((_, idx) => idx !== i))
 
   const addCustomQuestionsFromRows = (wyrRows: WyrQuestion[], mltRows: string[]) => {
-    if (isWyr && wyrRows.length > 0) {
+    if ((isWyr || isTot) && wyrRows.length > 0) {
       setCustomWyrQuestions((prev) => mergeWyrQuestions(prev, wyrRows))
     }
     if (isMlt && mltRows.length > 0) {
@@ -352,6 +362,16 @@ function CreateGameInner() {
       setWyrOptionB('')
       return
     }
+    if (isTot) {
+      const parsed = parseOrSplitQuestion(mltQuestionInput)
+      if (!parsed) {
+        setQuestionsUploadError('Use “Coffee or Tea?” format with “ or ” between options')
+        return
+      }
+      addCustomQuestionsFromRows([parsed], [])
+      setMltQuestionInput('')
+      return
+    }
     if (isMlt) {
       const question = mltQuestionInput.trim()
       if (!question) return
@@ -367,6 +387,13 @@ function CreateGameInner() {
       const rows = parseWyrQuestionRows(questionsBulkPaste)
       if (rows.length === 0) {
         setQuestionsUploadError('Use two columns: option_a and option_b')
+        return
+      }
+      addCustomQuestionsFromRows(rows, [])
+    } else if (isTot) {
+      const rows = parseThisOrThatQuestionRows(questionsBulkPaste)
+      if (rows.length === 0) {
+        setQuestionsUploadError('Add one question per line (e.g. Coffee or Tea?)')
         return
       }
       addCustomQuestionsFromRows(rows, [])
@@ -399,6 +426,13 @@ function CreateGameInner() {
             return
           }
           addCustomQuestionsFromRows(rows, [])
+        } else if (isTot) {
+          const rows = parseThisOrThatQuestionRows(text)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Use one question per line (e.g. Coffee or Tea?).')
+            return
+          }
+          addCustomQuestionsFromRows(rows, [])
         } else if (isMlt) {
           const rows = parseMltQuestionRows(text)
           if (rows.length === 0) {
@@ -416,6 +450,13 @@ function CreateGameInner() {
           const rows = await parseExcelWyrQuestions(buffer)
           if (rows.length === 0) {
             setQuestionsUploadError('No valid rows. Use option_a and option_b columns.')
+            return
+          }
+          addCustomQuestionsFromRows(rows, [])
+        } else if (isTot) {
+          const rows = await parseExcelThisOrThatQuestions(buffer)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Use one question per line (e.g. Coffee or Tea?).')
             return
           }
           addCustomQuestionsFromRows(rows, [])
@@ -437,7 +478,7 @@ function CreateGameInner() {
   }
 
   const removeCustomQuestion = (index: number) => {
-    if (isWyr) setCustomWyrQuestions((prev) => prev.filter((_, i) => i !== index))
+    if (isWyr || isTot) setCustomWyrQuestions((prev) => prev.filter((_, i) => i !== index))
     if (isMlt) setCustomMltQuestions((prev) => prev.filter((_, i) => i !== index))
   }
 
@@ -452,9 +493,13 @@ function CreateGameInner() {
         body: JSON.stringify({
           ...settings,
           rounds_count: isWst ? Math.max(participants.length, 2) : settings.rounds_count,
-          question_source: isLobbyQuestions ? questionSource : 'platform',
+          question_source: isTot ? 'custom' : isLobbyQuestions ? questionSource : 'platform',
           custom_questions:
-            isLobbyQuestions && questionSource === 'custom' ? (isWyr ? customWyrQuestions : customMltQuestions) : null,
+            isLobbyQuestions && (isTot || questionSource === 'custom')
+              ? isBinaryLobby
+                ? customWyrQuestions
+                : customMltQuestions
+              : null,
           participants: isJoinersMode ? [] : participants,
           wst_quote_source: isWst ? wstQuoteSource : undefined,
           custom_slots: isCustom ? customSlots : null,
@@ -642,20 +687,22 @@ function CreateGameInner() {
 
             {isLobbyQuestions && (
               <SettingsGroup title="Questions">
-                <SegmentedControl
-                  value={questionSource}
-                  onChange={(v) => {
-                    setQuestionSource(v)
-                    if (v === 'platform') {
-                      setCustomWyrQuestions([])
-                      setCustomMltQuestions([])
-                      setQuestionsUploadError(null)
-                    }
-                  }}
-                  options={questionSourceOptions(settings.game_type)}
-                />
+                {!isTot && (
+                  <SegmentedControl
+                    value={questionSource}
+                    onChange={(v) => {
+                      setQuestionSource(v)
+                      if (v === 'platform') {
+                        setCustomWyrQuestions([])
+                        setCustomMltQuestions([])
+                        setQuestionsUploadError(null)
+                      }
+                    }}
+                    options={questionSourceOptions(settings.game_type)}
+                  />
+                )}
 
-                {questionSource === 'custom' && (
+                {(isTot || questionSource === 'custom') && (
                   <div className="space-y-4 pt-1">
                     <SegmentedControl
                       value={questionTab}
@@ -669,7 +716,11 @@ function CreateGameInner() {
                         {
                           value: 'manual',
                           label: 'Add manually',
-                          hint: isWyr ? 'Type or paste option pairs.' : 'Type or paste one question per line.',
+                          hint: isWyr
+                            ? 'Type or paste option pairs.'
+                            : isTot
+                              ? 'Type “Coffee or Tea?” style prompts.'
+                              : 'Type or paste one question per line.',
                         },
                       ]}
                     />
@@ -724,7 +775,7 @@ function CreateGameInner() {
                             value={mltQuestionInput}
                             onChange={(e) => setMltQuestionInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
-                            placeholder="Who is most likely to…"
+                            placeholder={isTot ? 'Coffee or Tea?' : 'Who is most likely to…'}
                             className="input-field py-2.5 text-sm"
                           />
                         )}
@@ -741,7 +792,9 @@ function CreateGameInner() {
                           placeholder={
                             isWyr
                               ? 'Paste from Excel:\nNever have pizza,Never have tacos\nLive without music,Live without movies'
-                              : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
+                              : isTot
+                                ? 'Paste questions:\nCoffee or Tea?\nBeach vacation or Mountain getaway?'
+                                : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
                           }
                           rows={4}
                           className="input-field resize-none font-medium text-sm"
@@ -763,7 +816,7 @@ function CreateGameInner() {
                     {customQuestionCount > 0 && (
                       <div className="surface-inset border border-theme rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
                         <p className="text-muted text-xs uppercase tracking-wider">Loaded ({customQuestionCount})</p>
-                        {isWyr
+                        {isBinaryLobby
                           ? customWyrQuestions.map((q, i) => (
                               <div key={i} className="flex items-start gap-2 text-sm">
                                 <p className="text-body flex-1 min-w-0">
@@ -813,7 +866,7 @@ function CreateGameInner() {
               </p>
             </SettingsGroup>
 
-            {!isWyr && !isWst && !isHotSeatGame && (
+            {!isBinaryLobby && !isWst && !isHotSeatGame && (
               <SettingsGroup title="Who's in the poll">
                 <SegmentedControl
                   value={settings.participant_mode}
@@ -823,7 +876,7 @@ function CreateGameInner() {
               </SettingsGroup>
             )}
 
-            {settings.participant_mode === 'import' && !isWyr && !isWst && !isHotSeatGame && (
+            {settings.participant_mode === 'import' && !isBinaryLobby && !isWst && !isHotSeatGame && (
               <SettingsGroup title="Who appears in rounds">
                 <SegmentedControl
                   value={settings.participant_filter}
@@ -873,7 +926,7 @@ function CreateGameInner() {
           </div>
 
           <StickyActionBar>
-            {isWyr || (isMlt && isJoinersMode) ? (
+            {isBinaryLobby || (isMlt && isJoinersMode) ? (
               <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading || !customSlotsValid}>
                 {loading ? 'Creating...' : 'Create Game'}
               </PrimaryBtn>

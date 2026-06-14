@@ -2,7 +2,7 @@ import type { Game, GameType, QuestionSource } from '@/types'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
-import { isWouldYouRather, isMostLikelyTo, parseGameType } from '@/lib/game-types'
+import { isWouldYouRather, isMostLikelyTo, isThisOrThat, isBinaryChoiceGame, parseGameType } from '@/lib/game-types'
 
 function splitRow(line: string): string[] {
   if (line.includes('\t')) return line.split('\t').map((s) => s.trim())
@@ -24,14 +24,61 @@ function isMltHeader(cols: string[]): boolean {
   return a === 'question' || a === 'prompt' || a === 'questions'
 }
 
+function isTotHeader(cols: string[]): boolean {
+  const a = cols[0]?.trim().toLowerCase()
+  return a === 'question' || a === 'questions'
+}
+
+function looksLikeOrQuestion(text: string): boolean {
+  return /\s+or\s+/i.test(text.trim())
+}
+
+export function parseOrSplitQuestion(text: string): WyrQuestion | null {
+  const q = text.trim().replace(/^["']|["']$/g, '')
+  const match = q.match(/^(.+?)\s+or\s+(.+)$/i)
+  if (!match) return null
+  const optionA = match[1].trim()
+  const optionB = match[2].trim().replace(/\?+$/, '').trim()
+  if (!optionA || !optionB) return null
+  return { optionA, optionB }
+}
+
+export function parseThisOrThatQuestionRows(text: string): WyrQuestion[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  const rows: WyrQuestion[] = []
+
+  for (const line of lines) {
+    const cols = splitRow(line)
+    if (rows.length === 0 && (isTotHeader(cols) || isMltHeader(cols))) continue
+
+    if (cols.length >= 2 && !looksLikeOrQuestion(cols[0])) {
+      const optionA = cols[0].trim()
+      const optionB = cols[1].trim()
+      if (optionA && optionB) rows.push({ optionA, optionB })
+      continue
+    }
+
+    const question = (cols.length >= 2 ? cols.join(', ') : cols[0])?.trim()
+    if (!question) continue
+    const parsed = parseOrSplitQuestion(question)
+    if (parsed) rows.push(parsed)
+  }
+
+  return rows
+}
+
 export function parseQuestionSource(raw: unknown, gameType?: GameType | string): QuestionSource {
+  if (isThisOrThat(gameType)) return 'custom'
   if (!isWouldYouRather(gameType) && !isMostLikelyTo(gameType)) return 'platform'
   return raw === 'custom' ? 'custom' : 'platform'
 }
 
 export function isLobbyQuestionGame(gameType?: GameType | string): boolean {
   const type = parseGameType(gameType)
-  return isWouldYouRather(type) || isMostLikelyTo(type)
+  return isWouldYouRather(type) || isThisOrThat(type) || isMostLikelyTo(type)
 }
 
 export function parseWyrQuestionRows(text: string): WyrQuestion[] {
@@ -91,6 +138,10 @@ async function sheetBufferToText(buffer: ArrayBuffer): Promise<string> {
     .join('\n')
 }
 
+export async function parseExcelThisOrThatQuestions(buffer: ArrayBuffer): Promise<WyrQuestion[]> {
+  return parseThisOrThatQuestionRows(await sheetBufferToText(buffer))
+}
+
 export async function parseExcelWyrQuestions(buffer: ArrayBuffer): Promise<WyrQuestion[]> {
   return parseWyrQuestionRows(await sheetBufferToText(buffer))
 }
@@ -126,6 +177,9 @@ export function mergeMltQuestions(existing: string[], incoming: string[]): strin
 }
 
 export function questionSampleFile(gameType?: GameType | string): { href: string; download: string } {
+  if (isThisOrThat(gameType)) {
+    return { href: '/this-or-that-questions-sample.csv', download: 'this-or-that-questions-sample.csv' }
+  }
   if (isMostLikelyTo(gameType)) {
     return { href: '/mlt-questions-sample.csv', download: 'mlt-questions-sample.csv' }
   }
@@ -133,6 +187,9 @@ export function questionSampleFile(gameType?: GameType | string): { href: string
 }
 
 export function questionUploadHint(gameType?: GameType | string): string {
+  if (isThisOrThat(gameType)) {
+    return '.csv or .xlsx — one question per row (e.g. Coffee or Tea?)'
+  }
   if (isMostLikelyTo(gameType)) {
     return '.csv or .xlsx — one question per row (question column)'
   }
@@ -169,7 +226,7 @@ export function parseStoredMltQuestions(raw: unknown): string[] {
 
 export function customQuestionCount(game: Pick<Game, 'game_type' | 'question_source' | 'custom_questions'>): number {
   if (parseQuestionSource(game.question_source, game.game_type) !== 'custom') return 0
-  if (isWouldYouRather(game.game_type)) return parseStoredWyrQuestions(game.custom_questions).length
+  if (isBinaryChoiceGame(game.game_type)) return parseStoredWyrQuestions(game.custom_questions).length
   if (isMostLikelyTo(game.game_type)) return parseStoredMltQuestions(game.custom_questions).length
   return 0
 }
@@ -177,9 +234,9 @@ export function customQuestionCount(game: Pick<Game, 'game_type' | 'question_sou
 /** Max rounds selectable for WYR / MLT based on question source. */
 export function questionPoolCap(game: Pick<Game, 'game_type' | 'question_source' | 'custom_questions'>): number {
   const type = parseGameType(game.game_type)
-  if (isWouldYouRather(type)) {
+  if (isBinaryChoiceGame(type)) {
     const custom = customQuestionCount(game)
-    return custom > 0 ? Math.min(20, custom) : Math.min(20, WYR_QUESTION_COUNT)
+    return custom > 0 ? Math.min(20, custom) : isThisOrThat(type) ? 0 : Math.min(20, WYR_QUESTION_COUNT)
   }
   if (isMostLikelyTo(type)) {
     const custom = customQuestionCount(game)
@@ -212,6 +269,15 @@ export function questionSourceOptions(gameType: GameType | string): {
   label: string
   hint: string
 }[] {
+  if (isThisOrThat(gameType)) {
+    return [
+      {
+        value: 'custom',
+        label: 'Your own',
+        hint: 'Upload a CSV with “Coffee or Tea?” style prompts.',
+      },
+    ]
+  }
   const platformCount = isMostLikelyTo(gameType) ? MLT_QUESTION_COUNT : WYR_QUESTION_COUNT
   return [
     {

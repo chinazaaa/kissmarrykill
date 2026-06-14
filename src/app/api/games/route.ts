@@ -7,6 +7,8 @@ import {
   roundPoolSize,
   isLobbyGame,
   isWouldYouRather,
+  isThisOrThat,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
@@ -60,11 +62,11 @@ function lobbyMaxRounds(
   customQuestions: unknown[] | null
 ): number {
   if (questionSource === 'custom') {
-    if (isWouldYouRather(gameType)) return parseStoredWyrQuestions(customQuestions).length
+    if (isBinaryChoiceGame(gameType)) return parseStoredWyrQuestions(customQuestions).length
     if (isMostLikelyTo(gameType)) return parseStoredMltQuestions(customQuestions).length
     return 20
   }
-  if (isWouldYouRather(gameType)) return WYR_QUESTION_COUNT
+  if (isBinaryChoiceGame(gameType)) return isThisOrThat(gameType) ? 0 : WYR_QUESTION_COUNT
   if (isMostLikelyTo(gameType)) return MLT_QUESTION_COUNT
   return 20
 }
@@ -74,7 +76,7 @@ function parseCustomQuestionsBody(
   gameType: ReturnType<typeof parseGameType>
 ): WyrQuestion[] | string[] | null {
   if (!Array.isArray(raw)) return null
-  if (isWouldYouRather(gameType)) {
+  if (isBinaryChoiceGame(gameType)) {
     const parsed = parseStoredWyrQuestions(raw)
     return parsed.length > 0 ? parsed : null
   }
@@ -120,7 +122,7 @@ export async function POST(req: NextRequest) {
   const question_source = parseQuestionSource(rawQuestionSource, game_type)
   let custom_questions: unknown[] | null = null
 
-  if (question_source === 'custom' && (isWouldYouRather(game_type) || isMostLikelyTo(game_type))) {
+  if (question_source === 'custom' && (isBinaryChoiceGame(game_type) || isMostLikelyTo(game_type))) {
     const cqParsed = parseCustomQuestionsBody(rawCustomQuestions, game_type)
     if (!cqParsed) {
       return NextResponse.json({ error: 'Upload at least one custom question' }, { status: 400 })

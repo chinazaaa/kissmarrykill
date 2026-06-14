@@ -53,6 +53,8 @@ import {
   isThreeChoiceGame,
   isPairGame,
   isWouldYouRather,
+  isThisOrThat,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isNameOnlyPlayerJoin,
@@ -109,6 +111,7 @@ import {
 } from '@/lib/custom-game'
 import { isGameGenderBased, supportsGenderToggle, isGenderFreeVoting } from '@/lib/gender-based'
 import { isImportClaimMode, isVoterOnlyMode } from '@/lib/participant-mode'
+import { parseOrSplitQuestion } from '@/lib/custom-questions'
 import { CustomVoteCard } from '@/components/CustomVoteCard'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { ShareResults } from '@/components/ShareResults'
@@ -206,6 +209,7 @@ export default function GamePage() {
   // Player question submission (WYR/MLT lobby)
   const [pqWyrA, setPqWyrA] = useState('')
   const [pqWyrB, setPqWyrB] = useState('')
+  const [pqTotText, setPqTotText] = useState('')
   const [pqMltText, setPqMltText] = useState('')
   const [pqSubmitting, setPqSubmitting] = useState(false)
   const [pqList, setPqList] = useState<
@@ -244,6 +248,8 @@ export default function GamePage() {
   const joinNeedsGender = game ? isGameGenderBased(game) : false
   const isWstGame = isWhoSaidThis(game?.game_type)
   const isWyrGame = isWouldYouRather(game?.game_type)
+  const isTotGame = isThisOrThat(game?.game_type)
+  const isBinaryGame = isBinaryChoiceGame(game?.game_type)
   const isMltImport = game ? isMltImportGame(game) : false
   const joinPlayerGender: PlayerGender =
     isNameOnlyJoin || !joinNeedsGender ? 'both' : playerGenderFromJoin(joinIdentityGender, voteBothGenders)
@@ -375,7 +381,7 @@ export default function GamePage() {
                 .maybeSingle()
               if (existingVote) {
                 const gameType = parseGameType(gameData.game_type)
-                if (isWouldYouRather(gameType)) {
+                if (isBinaryChoiceGame(gameType)) {
                   setWyrChoice(existingVote.wyr_choice)
                 } else if (isMostLikelyTo(gameType)) {
                   const targetId = isMltImportGame(gameData)
@@ -803,7 +809,7 @@ export default function GamePage() {
 
   // Poll player-submitted questions in lobby (WYR/MLT only)
   useEffect(() => {
-    if (view !== 'waiting' || (!isWyrGame && !isMostLikelyTo(game?.game_type))) return
+    if (view !== 'waiting' || (!isBinaryGame && !isMostLikelyTo(game?.game_type))) return
     async function fetchPQ() {
       const { data } = await supabase.from('player_questions').select('*').eq('game_id', gameCode).order('created_at')
       if (data) setPqList(data)
@@ -811,7 +817,7 @@ export default function GamePage() {
     fetchPQ()
     const id = setInterval(fetchPQ, 4000)
     return () => clearInterval(id)
-  }, [view, gameCode, isWyrGame, game?.game_type])
+  }, [view, gameCode, isBinaryGame, game?.game_type])
 
   // Poll during round / results — fallback when realtime misses round transitions
   useEffect(() => {
@@ -985,7 +991,7 @@ export default function GamePage() {
 
     // Only auto-fill random choices if the player has started voting
     // (picked at least one option). If they haven't touched anything, skip.
-    const hasStartedVoting = isWouldYouRather(gameType)
+    const hasStartedVoting = isBinaryChoiceGame(gameType)
       ? !!wyr
       : isAnimeWst
         ? !!animeCh
@@ -998,7 +1004,7 @@ export default function GamePage() {
               : Object.values(a).some(Boolean)
 
     if (useRandom && hasStartedVoting) {
-      if (isWouldYouRather(gameType)) {
+      if (isBinaryChoiceGame(gameType)) {
         wyr = Math.random() < 0.5 ? 'a' : 'b'
       } else if (isMostLikelyTo(gameType)) {
         const targets = mltVoteTargets(g, parts, plrs)
@@ -1042,7 +1048,7 @@ export default function GamePage() {
 
     let voteBody: Record<string, unknown> | null = null
 
-    if (isWouldYouRather(gameType)) {
+    if (isBinaryChoiceGame(gameType)) {
       if (!wyr) return false
       voteBody = { wyrChoice: wyr }
     } else if (isMostLikelyTo(gameType)) {
@@ -1183,7 +1189,7 @@ export default function GamePage() {
       const customMode = customAssignmentMode(game, roundIds.length, slotKeys)
       if (!isCustomAssignmentValid(customAssignments, roundIds, slotKeys, customMode)) return
     }
-    const voteBody = isWouldYouRather(submitGameType)
+    const voteBody = isBinaryChoiceGame(submitGameType)
       ? { wyrChoice }
       : isMostLikelyTo(submitGameType)
         ? isMltImportGame(game!)
@@ -1415,7 +1421,7 @@ export default function GamePage() {
               }
             />
           )}
-          {!isWouldYouRather(game?.game_type) &&
+          {!isBinaryChoiceGame(game?.game_type) &&
             !isMostLikelyTo(game?.game_type) &&
             !isWhoSaidThis(game?.game_type) && (
               <p className="text-faint text-xs text-center leading-snug">
@@ -1495,7 +1501,8 @@ export default function GamePage() {
     const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
     const myPoolEntry = isWst && myPlayerId ? wstPool.find((e) => e.player_id === myPlayerId) : null
     const canSubmitPoolQuote = !!me?.participant_id
-    const isPeopleMode = !isWouldYouRather(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst
+    const isPeopleMode =
+      !isBinaryChoiceGame(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly
     const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
     const canUploadPhoto = isPeopleMode && !!me?.participant_id
 
@@ -1656,7 +1663,9 @@ export default function GamePage() {
         )}
 
         <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
-          <p className="text-muted text-xs uppercase tracking-wider">Players Joined ({players.length})</p>
+          <p className="text-muted text-xs uppercase tracking-wider">
+            {isVoterOnly ? `Voters joined (${players.length})` : `Players joined (${players.length})`}
+          </p>
           {canUploadPhoto && (
             <p className="text-faint text-xs leading-snug">
               Your name is marked <span className="text-[var(--primary)] font-medium">(you)</span> in the list — tap
@@ -1732,7 +1741,7 @@ export default function GamePage() {
           </div>
         </div>
         {/* Player question submission for WYR / MLT */}
-        {(isWyrGame || isMostLikelyTo(game?.game_type)) && myPlayerId && (
+        {(isBinaryGame || isMostLikelyTo(game?.game_type)) && myPlayerId && (
           <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">
             <button
               type="button"
@@ -1798,6 +1807,60 @@ export default function GamePage() {
                       }}
                       className={
                         pqWyrA.trim() && pqWyrB.trim()
+                          ? 'btn-primary text-sm w-full'
+                          : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
+                      }
+                    >
+                      {pqSubmitting ? 'Submitting...' : 'Add Question'}
+                    </button>
+                  </div>
+                ) : isTotGame ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Coffee or Tea?"
+                      value={pqTotText}
+                      onChange={(e) => setPqTotText(e.target.value)}
+                      maxLength={200}
+                      className="input-field text-sm"
+                      disabled={pqSubmitting}
+                    />
+                    <button
+                      type="button"
+                      disabled={!pqTotText.trim() || pqSubmitting}
+                      onClick={async () => {
+                        const parsed = parseOrSplitQuestion(pqTotText)
+                        if (!parsed) {
+                          toast.error('Use “Coffee or Tea?” format with “ or ” between options')
+                          return
+                        }
+                        setPqSubmitting(true)
+                        try {
+                          const res = await fetch('/api/player-questions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              gameId: gameCode,
+                              playerId: myPlayerId,
+                              questionType: 'wyr',
+                              optionA: parsed.optionA,
+                              optionB: parsed.optionB,
+                            }),
+                          })
+                          if (res.ok) {
+                            const { question } = await res.json()
+                            setPqList((prev) => [...prev, question])
+                            setPqTotText('')
+                          } else {
+                            const { error } = await res.json()
+                            toast.error(error || 'Failed to submit')
+                          }
+                        } finally {
+                          setPqSubmitting(false)
+                        }
+                      }}
+                      className={
+                        pqTotText.trim()
                           ? 'btn-primary text-sm w-full'
                           : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
                       }
@@ -1893,7 +1956,7 @@ export default function GamePage() {
         )}
 
         {/* Participant gallery for games with photo cards */}
-        {participants.length > 0 && !isWyrGame && !isMostLikelyTo(game?.game_type) && !isWst && (
+        {participants.length > 0 && !isBinaryGame && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly && (
           <ParticipantGallery participants={participants} />
         )}
 
@@ -2078,7 +2141,7 @@ export default function GamePage() {
   }
 
   // ROUND — Would You Rather
-  if (view === 'round' && currentRound && isWouldYouRather(game?.game_type)) {
+  if (view === 'round' && currentRound && isBinaryChoiceGame(game?.game_type)) {
     const gameType = parseGameType(game?.game_type)
     const optionA = currentRound.wyr_option_a ?? ''
     const optionB = currentRound.wyr_option_b ?? ''
@@ -2508,7 +2571,7 @@ export default function GamePage() {
       )
     }
 
-    if (isWouldYouRather(gameType)) {
+    if (isBinaryChoiceGame(gameType)) {
       const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
       const { countA, countB, voterCount } = tallyWyrVotes(lastRoundVotes)
       const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
@@ -2945,7 +3008,7 @@ function FinalResultsView({
 }) {
   const gameType = parseGameType(game.game_type)
   const playedParticipants = filterParticipantsInRounds(participants, rounds)
-  const isWyr = isWouldYouRather(gameType)
+  const isBinaryGameType = isBinaryChoiceGame(gameType)
   const isMlt = isMostLikelyTo(gameType)
   const isWst = isWhoSaidThis(gameType)
   const isMltImport = isMltImportGame(game)
@@ -2968,7 +3031,7 @@ function FinalResultsView({
             ? ` · ${mltVoteTargets(game, participants, players).length} in poll`
             : isWst
               ? ` · ${participants.length} names`
-              : !isWyr && !isMlt
+              : !isBinaryGameType && !isMlt
                 ? ` · ${playedParticipants.length} in game`
                 : ''}
         </p>
@@ -3018,7 +3081,7 @@ function FinalResultsView({
           })()
         : null}
 
-      {!isWyr && !isMlt && !isWst && !isCustomGame(gameType) && (
+      {!isBinaryGameType && !isMlt && !isWst && !isCustomGame(gameType) && (
         <>
           <FinalGenderLeaderboards
             gameType={gameType}
@@ -3054,7 +3117,7 @@ function FinalResultsView({
               )
             }
 
-            if (isWyr) {
+            if (isBinaryGameType) {
               const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
               return (
                 <div key={round.id}>

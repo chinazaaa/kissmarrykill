@@ -7,7 +7,7 @@ import {
   isAssignmentComplete,
   isPairGame,
   isThreeChoiceGame,
-  isWouldYouRather,
+  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isLobbyGame,
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
         target_participant_id: null,
       }
     }
-  } else if (isWouldYouRather(gameType)) {
+  } else if (isBinaryChoiceGame(gameType)) {
     const wyrChoice = rawWyrChoice === 'a' || rawWyrChoice === 'b' ? rawWyrChoice : null
     if (!wyrChoice) {
       return NextResponse.json({ error: 'Pick option A or B' }, { status: 400 })
