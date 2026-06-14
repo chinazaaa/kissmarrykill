@@ -53,7 +53,7 @@ export interface Game {
   pair_vote_mode: PairVoteMode
   question_source?: QuestionSource
   custom_questions?: unknown[] | null
-  /** WYR / MLT / This or That: allow players to submit questions in the lobby. */
+  /** WYR / MLT / This or That: allow players to submit questions. People poll games: allow name submissions. */
   player_questions_enabled?: boolean
   /** Order to mix player submissions with uploaded/platform questions when the game starts. */
   player_questions_order?: PlayerQuestionsOrder
@@ -78,6 +78,8 @@ export interface Participant {
   display_order: number
   /** MLT import mode: host adds names from the list into the poll. */
   in_mlt_poll?: boolean | null
+  /** Player-submitted name for people-based poll games (RFGF, SMK, etc.). */
+  submitted_by_player_id?: string | null
 }
 
 export interface Player {

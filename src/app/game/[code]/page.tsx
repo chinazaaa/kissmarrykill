@@ -113,6 +113,7 @@ import { isGameGenderBased, supportsGenderToggle, isGenderFreeVoting } from '@/l
 import { isImportClaimMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import { parseOrSplitQuestion } from '@/lib/custom-questions'
 import { lobbyAllowsPlayerQuestions } from '@/lib/player-question-pool'
+import { isPeoplePollGame, lobbyAllowsPlayerNameSubmissions, playerNameSubmissionHint, playerNameSubmissionPlaceholder, playerNameSubmissionPanelTitle } from '@/lib/player-participant-pool'
 import { CustomVoteCard } from '@/components/CustomVoteCard'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { ShareResults } from '@/components/ShareResults'
@@ -224,6 +225,13 @@ export default function GamePage() {
     }[]
   >([])
   const [pqOpen, setPqOpen] = useState(false)
+
+  // Player name submission (people poll games — RFGF, SMK, etc.)
+  const [pnNameInput, setPnNameInput] = useState('')
+  const [pnGender, setPnGender] = useState<ParticipantGender>('female')
+  const [pnSubmitting, setPnSubmitting] = useState(false)
+  const [pnList, setPnList] = useState<Participant[]>([])
+  const [pnOpen, setPnOpen] = useState(false)
 
   // Photo upload (people-based modes)
   const [photoUploading, setPhotoUploading] = useState(false)
@@ -819,6 +827,28 @@ export default function GamePage() {
     const id = setInterval(fetchPQ, 4000)
     return () => clearInterval(id)
   }, [view, gameCode, isBinaryGame, game?.game_type, game?.player_questions_enabled])
+
+  // Poll player-submitted names in lobby (people poll games)
+  useEffect(() => {
+    if (
+      view !== 'waiting' ||
+      !game ||
+      !isPeoplePollGame(game.game_type) ||
+      !lobbyAllowsPlayerNameSubmissions(game)
+    ) {
+      return
+    }
+    async function fetchPN() {
+      const res = await fetch(`/api/player-participants?gameId=${gameCode}`)
+      if (res.ok) {
+        const { participants: subs } = await res.json()
+        setPnList(subs ?? [])
+      }
+    }
+    fetchPN()
+    const id = setInterval(fetchPN, 4000)
+    return () => clearInterval(id)
+  }, [view, gameCode, game?.game_type, game?.player_questions_enabled])
 
   // Poll during round / results — fallback when realtime misses round transitions
   useEffect(() => {
@@ -1949,6 +1979,125 @@ export default function GamePage() {
                 {pqList.length > 0 && (
                   <p className="text-faint text-[10px] text-center">
                     {pqList.length} question{pqList.length === 1 ? '' : 's'} submitted by all players
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Player name submission for people poll games (RFGF, SMK, etc.) */}
+        {game && isPeoplePollGame(game.game_type) && lobbyAllowsPlayerNameSubmissions(game) && myPlayerId && (
+          <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">
+            <button
+              type="button"
+              onClick={() => setPnOpen(!pnOpen)}
+              className="w-full flex items-center justify-between"
+            >
+              <p className="text-muted text-xs uppercase tracking-wider">
+                {playerNameSubmissionPanelTitle()}{' '}
+                {pnList.length > 0 ? `(${pnList.length})` : ''}
+              </p>
+              <span className="text-faint text-xs">{pnOpen ? '−' : '+'}</span>
+            </button>
+            {pnOpen && (
+              <div className="space-y-3">
+                <p className="text-faint text-xs leading-relaxed">{playerNameSubmissionHint()}</p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder={playerNameSubmissionPlaceholder()}
+                    value={pnNameInput}
+                    onChange={(e) => setPnNameInput(e.target.value)}
+                    maxLength={50}
+                    className="input-field text-sm"
+                    disabled={pnSubmitting}
+                  />
+                  {joinNeedsGender && (
+                    <SegmentedControl
+                      value={pnGender}
+                      onChange={(v) => setPnGender(v as ParticipantGender)}
+                      options={[
+                        { value: 'female', label: 'Female' },
+                        { value: 'male', label: 'Male' },
+                      ]}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    disabled={!pnNameInput.trim() || pnSubmitting}
+                    onClick={async () => {
+                      setPnSubmitting(true)
+                      try {
+                        const res = await fetch('/api/player-participants', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            gameId: gameCode,
+                            playerId: myPlayerId,
+                            name: pnNameInput.trim(),
+                            ...(joinNeedsGender ? { gender: pnGender } : {}),
+                          }),
+                        })
+                        if (res.ok) {
+                          const { participant } = await res.json()
+                          setPnList((prev) => [...prev, participant])
+                          setPnNameInput('')
+                          const { data: parts } = await supabase
+                            .from('participants')
+                            .select('*')
+                            .eq('game_id', gameCode)
+                            .order('display_order')
+                          if (parts) setParticipants(parts)
+                        } else {
+                          const { error } = await res.json()
+                          toast.error(error || 'Failed to submit')
+                        }
+                      } finally {
+                        setPnSubmitting(false)
+                      }
+                    }}
+                    className={
+                      pnNameInput.trim()
+                        ? 'btn-primary text-sm w-full'
+                        : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
+                    }
+                  >
+                    {pnSubmitting ? 'Submitting...' : 'Add Name'}
+                  </button>
+                </div>
+                {pnList.filter((p) => p.submitted_by_player_id === myPlayerId).length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-theme">
+                    <p className="text-faint text-[10px] uppercase tracking-wider">Your names</p>
+                    {pnList
+                      .filter((p) => p.submitted_by_player_id === myPlayerId)
+                      .map((p) => (
+                        <div key={p.id} className="flex items-start gap-2 text-sm">
+                          <span className="flex-1 min-w-0 text-body-muted truncate">{p.name}</span>
+                          <button
+                            type="button"
+                            className="text-faint hover:text-red-400 text-xs shrink-0"
+                            onClick={async () => {
+                              await fetch('/api/player-participants', {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ participantId: p.id, playerId: myPlayerId }),
+                              })
+                              setPnList((prev) => prev.filter((x) => x.id !== p.id))
+                            }}
+                          >
+                            x
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+                {pnList.length > 0 && (
+                  <p className="text-faint text-[10px] text-center">
+                    {pnList.length} player-submitted name{pnList.length === 1 ? '' : 's'}
+                    {isVoterOnly && participants.length > pnList.length
+                      ? ` · ${participants.length - pnList.length} from host list`
+                      : ''}
                   </p>
                 )}
               </div>

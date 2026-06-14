@@ -66,6 +66,7 @@ import {
   playerQuestionsOrderOptions,
   parsePlayerQuestionsOrder,
 } from '@/lib/player-question-pool'
+import { isPeoplePollGame, playerNameSubmissionHint } from '@/lib/player-participant-pool'
 import { CustomSlotBuilder } from '@/components/CustomSlotBuilder'
 import { GenderRoundModeControl } from '@/components/GenderRoundModeControl'
 import { customPairVoteModeOptions } from '@/lib/custom-game'
@@ -194,6 +195,9 @@ function CreateGameInner() {
     participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type, participantOpts)
   const canCreateJoiners = !!settings.title.trim()
   const isLobbyQuestions = isBinaryLobby || isMlt
+  const isPeoplePoll = isPeoplePollGame(settings.game_type)
+  const isPeoplePollVoters = isPeoplePoll && settings.participant_mode === 'voters'
+  const isPlayerSubmissions = isLobbyQuestions || isPeoplePollVoters
   const customQuestionCount = isBinaryLobby ? customWyrQuestions.length : customMltQuestions.length
   const questionCap =
     questionSource === 'custom' && customQuestionCount > 0
@@ -527,8 +531,8 @@ function CreateGameInner() {
           wst_quote_source: isWst ? wstQuoteSource : undefined,
           custom_slots: isCustom ? customSlots : null,
           gender_based: supportsGender ? settings.gender_based : undefined,
-          player_questions_enabled: isLobbyQuestions ? playerQuestionsEnabled : undefined,
-          player_questions_order: isLobbyQuestions ? playerQuestionsOrder : undefined,
+          player_questions_enabled: isPlayerSubmissions ? playerQuestionsEnabled : undefined,
+          player_questions_order: isPlayerSubmissions ? playerQuestionsOrder : undefined,
         }),
       })
       const data = await res.json()
@@ -732,8 +736,8 @@ function CreateGameInner() {
               )}
             </SettingsGroup>
 
-            {isLobbyQuestions && (
-              <SettingsGroup title="Questions">
+            {(isLobbyQuestions || isPeoplePollVoters) && (
+              <SettingsGroup title={isPeoplePollVoters ? 'Poll names' : 'Questions'}>
                 <Field label="Player submissions">
                   <SegmentedControl
                     value={playerQuestionsEnabled ? 'on' : 'off'}
@@ -745,13 +749,17 @@ function CreateGameInner() {
                   />
                   <p className="text-faint text-xs mt-2">
                     {playerQuestionsEnabled
-                      ? 'Players can add their own questions in the lobby before you start.'
-                      : 'Only your uploaded or platform questions will be used.'}
+                      ? isPeoplePollVoters
+                        ? playerNameSubmissionHint()
+                        : 'Players can add their own questions in the lobby before you start.'
+                      : isPeoplePollVoters
+                        ? 'Only names from your list will appear in rounds.'
+                        : 'Only your uploaded or platform questions will be used.'}
                   </p>
                 </Field>
 
                 {playerQuestionsEnabled && (
-                  <Field label="Question mix">
+                  <Field label={isPeoplePollVoters ? 'Name mix' : 'Question mix'}>
                     <SegmentedControl
                       value={playerQuestionsOrder}
                       onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
@@ -771,7 +779,7 @@ function CreateGameInner() {
                   </Field>
                 )}
 
-                {!isTot && (
+                {isLobbyQuestions && !isTot && (
                   <SegmentedControl
                     value={questionSource}
                     onChange={(v) => {
@@ -786,7 +794,7 @@ function CreateGameInner() {
                   />
                 )}
 
-                {(isTot || questionSource === 'custom') && (
+                {isLobbyQuestions && (isTot || questionSource === 'custom') && (
                   <div className="space-y-4 pt-1">
                     <SegmentedControl
                       value={questionTab}

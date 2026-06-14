@@ -19,6 +19,7 @@ import {
   kmkRoundPickerOptions,
   roundLimitHint,
   minPoolForGame,
+  parseParticipantGenderFromDb,
 } from '@/lib/participants'
 import type { ParticipantGender, PairVoteMode, PlayerQuestionsOrder } from '@/types'
 import { tallyRoundVotes, getCategoryMeta, getVoteCategories, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
@@ -59,6 +60,12 @@ import {
   playerQuestionsOrderOptions,
   parsePlayerQuestionsOrder,
 } from '@/lib/player-question-pool'
+import {
+  isPeoplePollGame,
+  lobbyAllowsPlayerNameSubmissions,
+  buildPeoplePollParticipantPool,
+  playerNameSubmissionHint,
+} from '@/lib/player-participant-pool'
 import {
   wstVoteTargets,
   wstCorrectNameFromRound,
@@ -162,6 +169,7 @@ export default function HostPage() {
   const [listSearch, setListSearch] = useState('')
   const [playersSearch, setPlayersSearch] = useState('')
   const [playerQuestionCount, setPlayerQuestionCount] = useState(0)
+  const [playerNameSubmissionCount, setPlayerNameSubmissionCount] = useState(0)
   const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
   const [animePool, setAnimePool] = useState<AnimeQuotePoolEntry[]>([])
   const [animeFetching, setAnimeFetching] = useState(false)
@@ -616,7 +624,10 @@ export default function HostPage() {
     async function refreshLobby() {
       const gameType = parseGameType(game?.game_type)
       const fetchPlayerQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
-      const [{ data: plrs }, { data: parts }, { data: pool }, { count: pqCount }] = await Promise.all([
+      const fetchPlayerNames =
+        isPeoplePollGame(gameType) && game?.participant_mode === 'voters'
+      const [{ data: plrs }, { data: parts }, { data: pool }, { count: pqCount }, { count: pnCount }] =
+        await Promise.all([
         supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
         supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
         isWhoSaidThis(gameType)
@@ -628,11 +639,19 @@ export default function HostPage() {
               .select('id', { count: 'exact', head: true })
               .eq('game_id', gameCode)
           : Promise.resolve({ count: 0 }),
+        fetchPlayerNames
+          ? supabase
+              .from('participants')
+              .select('id', { count: 'exact', head: true })
+              .eq('game_id', gameCode)
+              .not('submitted_by_player_id', 'is', null)
+          : Promise.resolve({ count: 0 }),
       ])
       if (plrs) setPlayers(plrs)
       if (parts) setParticipants(parts)
       if (pool) setWstPool(dedupeWstPool(pool))
       if (fetchPlayerQuestions) setPlayerQuestionCount(pqCount ?? 0)
+      if (fetchPlayerNames) setPlayerNameSubmissionCount(pnCount ?? 0)
     }
 
     refreshLobby()
@@ -1231,10 +1250,12 @@ export default function HostPage() {
     const isTot = isThisOrThat(gameType)
     const isBinaryLobby = isWyr || isTot
     const isMlt = isMostLikelyTo(gameType)
+    const isPeoplePoll = isPeoplePollGame(gameType)
     const isWst = isWhoSaidThis(gameType)
     const isHotSeatGame = isHotSeat(gameType)
     const isMltImport = isMltImportGame(game)
     const isVoterOnly = isVoterOnlyMode(game)
+    const isPeoplePollVoters = isPeoplePoll && isVoterOnly
     const lobbyOpts = { participantMode: game.participant_mode, participantCount: participants.length }
     const playerOnlyLobby = isPlayerOnlyJoinLobby(gameType, lobbyOpts)
     const hotSeatLobby = isHotSeatLobbyGame(gameType, lobbyOpts)
@@ -1250,8 +1271,9 @@ export default function HostPage() {
     const hotSeatLegacyJoiners = isHotSeatGame && isJoinersMode
     const wstSubmitters = wstEligibleSubmitters(players)
     const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
-    const roundParticipants =
-      isHotSeatGame && !hotSeatLegacyJoiners
+    const roundParticipants = isPeoplePoll
+      ? buildPeoplePollParticipantPool(game, participants, players)
+      : isHotSeatGame && !hotSeatLegacyJoiners
         ? participantsWhoJoined(participants, players)
         : isJoinersMode
           ? participants
@@ -1262,7 +1284,10 @@ export default function HostPage() {
               : participantsWhoJoined(participants, players)
     const participantInputs = hotSeatLegacyJoiners
       ? players.map((p) => ({ name: p.name, gender: 'female' as ParticipantGender }))
-      : roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
+      : roundParticipants.map((p) => ({
+          name: p.name,
+          gender: parseParticipantGenderFromDb(String(p.gender)) ?? ('female' as ParticipantGender),
+        }))
     const genderCounts = countByGender(participantInputs)
     const hotSeatJoinedCount = hotSeatLegacyJoiners ? players.length : roundParticipants.length
     const hotSeatCapUpper = hotSeatLobby
@@ -1307,6 +1332,15 @@ export default function HostPage() {
             }
             return `${parts.join(' · ')} → up to ${lobbyQuestionMax} rounds`
           })()
+        : isPeoplePollVoters
+          ? (() => {
+              const hostCount = participants.filter((p) => !p.submitted_by_player_id).length
+              const parts = [`${hostCount} on list`]
+              if (playerNameSubmissionCount > 0 && lobbyAllowsPlayerNameSubmissions(game)) {
+                parts.push(`${playerNameSubmissionCount} from players`)
+              }
+              return `${parts.join(' · ')} → up to ${maxRounds} rounds`
+            })()
         : roundLimitHint(participantInputs, gameType, gameGenderBased, participantOpts)
     const hotSeatEffective = hotSeatLobby ? hotSeatEffectiveRounds(hotSeatJoinedCount, game.rounds_count) : 0
     const roundsTooHigh = hotSeatLobby ? false : maxRounds > 0 && game.rounds_count > maxRounds
@@ -1781,12 +1815,16 @@ export default function HostPage() {
               {savingPairVoteMode && <p className="text-faint text-xs px-0.5">Saving…</p>}
             </div>
           )}
-          {(isBinaryLobby || isMlt) && (
+          {(isBinaryLobby || isMlt || isPeoplePollVoters) && (
             <div className="space-y-3">
               <div className="space-y-1">
                 <p className="text-muted text-xs uppercase tracking-wider">Player submissions</p>
                 <SegmentedControl
-                  value={lobbyAllowsPlayerQuestions(game) ? 'on' : 'off'}
+                  value={
+                    (isPeoplePollVoters ? lobbyAllowsPlayerNameSubmissions(game) : lobbyAllowsPlayerQuestions(game))
+                      ? 'on'
+                      : 'off'
+                  }
                   onChange={(v) => {
                     hostUpdatePlayerQuestions({ player_questions_enabled: v === 'on' })
                   }}
@@ -1796,14 +1834,20 @@ export default function HostPage() {
                   ]}
                 />
                 <p className="text-faint text-xs">
-                  {lobbyAllowsPlayerQuestions(game)
-                    ? 'Players can submit their own questions in the lobby before start.'
-                    : 'Only your uploaded or platform questions will be used.'}
+                  {isPeoplePollVoters
+                    ? lobbyAllowsPlayerNameSubmissions(game)
+                      ? playerNameSubmissionHint()
+                      : 'Only names from your list will appear in rounds.'
+                    : lobbyAllowsPlayerQuestions(game)
+                      ? 'Players can submit their own questions in the lobby before start.'
+                      : 'Only your uploaded or platform questions will be used.'}
                 </p>
               </div>
-              {lobbyAllowsPlayerQuestions(game) && (
+              {(isPeoplePollVoters ? lobbyAllowsPlayerNameSubmissions(game) : lobbyAllowsPlayerQuestions(game)) && (
                 <div className="space-y-1">
-                  <p className="text-muted text-xs uppercase tracking-wider">Question mix</p>
+                  <p className="text-muted text-xs uppercase tracking-wider">
+                    {isPeoplePollVoters ? 'Name mix' : 'Question mix'}
+                  </p>
                   <SegmentedControl
                     value={parsePlayerQuestionsOrder(game.player_questions_order)}
                     onChange={(v) => {

@@ -9,10 +9,9 @@ import { clampHotSeatMaxCap, hotSeatJoinedPlayers, hotSeatMaxCapUpperBound } fro
 import {
   parsePlayerQuestionsEnabled,
   parsePlayerQuestionsOrder,
-  combineLobbyQuestions,
-  poolPickCountForLobby,
   lobbyAllowsPlayerQuestions,
 } from '@/lib/player-question-pool'
+import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -93,17 +92,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
 
   const gameType = parseGameType(auth.game!.game_type)
   const isLobbyQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
+  const isPeoplePoll = isPeoplePollGame(gameType)
+  const supportsPlayerSubmissions =
+    isLobbyQuestions || supportsPlayerNameSubmissions({ game_type: gameType, participant_mode: auth.game!.participant_mode })
 
   if (parsed.data.player_questions_enabled !== undefined) {
-    if (!isLobbyQuestions) {
-      return NextResponse.json({ error: 'This game type does not support player question settings' }, { status: 400 })
+    if (!supportsPlayerSubmissions) {
+      return NextResponse.json({ error: 'This game type does not support player submission settings' }, { status: 400 })
     }
     updatePayload.player_questions_enabled = parsePlayerQuestionsEnabled(parsed.data.player_questions_enabled)
   }
 
   if (parsed.data.player_questions_order !== undefined) {
-    if (!isLobbyQuestions) {
-      return NextResponse.json({ error: 'This game type does not support player question settings' }, { status: 400 })
+    if (!supportsPlayerSubmissions) {
+      return NextResponse.json({ error: 'This game type does not support player submission settings' }, { status: 400 })
     }
     updatePayload.player_questions_order = parsePlayerQuestionsOrder(parsed.data.player_questions_order)
   }

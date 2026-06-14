@@ -4,7 +4,6 @@ import { generateRoundsByGender, generateNRounds } from '@/lib/utils'
 import {
   hasVotersForPolls,
   parseParticipantGenderFromDb,
-  participantsWhoJoined,
   maxRecommendedRounds,
 } from '@/lib/participants'
 import {
@@ -40,6 +39,7 @@ import {
   parsePlayerQuestionsOrder,
 } from '@/lib/player-question-pool'
 import { useFullHostListForRounds } from '@/lib/participant-mode'
+import { buildPeoplePollParticipantPool } from '@/lib/player-participant-pool'
 import { hostActionSchema } from '@/lib/validation'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -513,7 +513,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     const { data: participantsData } = await supabase
       .from('participants')
-      .select('id, gender, name')
+      .select('id, gender, name, submitted_by_player_id')
       .eq('game_id', code.toUpperCase())
       .order('display_order')
 
@@ -524,8 +524,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       )
     }
 
-    const useAllParticipants = useFullHostListForRounds(game)
-    const roundPool = useAllParticipants ? participantsData : participantsWhoJoined(participantsData, playersData)
+    const roundPool = buildPeoplePollParticipantPool(game, participantsData, playersData)
 
     if (roundPool.length < slotCount) {
       return NextResponse.json({ error: `Need at least ${slotCount} people to join before starting` }, { status: 400 })
@@ -596,22 +595,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: participantsData } = await supabase
     .from('participants')
-    .select('id, gender, name')
+    .select('id, gender, name, submitted_by_player_id')
     .eq('game_id', code.toUpperCase())
     .order('display_order')
 
-  if (!participantsData || participantsData.length < minPool) {
-    return NextResponse.json({ error: `Need at least ${minPool} names on the list` }, { status: 400 })
-  }
-
-  const useAllParticipants = useFullHostListForRounds(game)
-  const roundPool = useAllParticipants ? participantsData : participantsWhoJoined(participantsData, playersData)
+  const roundPool = buildPeoplePollParticipantPool(game, participantsData ?? [], playersData)
 
   if (roundPool.length < minPool) {
-    return NextResponse.json(
-      { error: `Need at least ${minPool} people to join before starting — only joined names appear in rounds` },
-      { status: 400 }
-    )
+    const hostOnly = (participantsData ?? []).filter((p) => !p.submitted_by_player_id)
+    const useAllHost = useFullHostListForRounds(game)
+    const message =
+      !useAllHost && hostOnly.length >= minPool
+        ? `Need at least ${minPool} people to join before starting — only joined names appear in rounds`
+        : `Need at least ${minPool} names on the list`
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 
   const genderBased = isGameGenderBased(game)
