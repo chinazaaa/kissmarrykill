@@ -23,8 +23,7 @@ import {
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
 import { useToast } from '@/components/ui/Toast'
-
-const APP_URL = 'kissmarrykill.app'
+import { appDomain } from '@/lib/site'
 
 function buildRoundShareText({
   game,
@@ -137,7 +136,7 @@ function buildRoundShareText({
   }
 
   lines.push('')
-  lines.push(`Play at ${APP_URL}`)
+  lines.push(`Play at ${appDomain()}`)
 
   return lines.join('\n')
 }

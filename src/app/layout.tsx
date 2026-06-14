@@ -11,8 +11,13 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Party Games — Vote, Laugh, Reveal',
-  description: 'Five party game modes in one app. Create a room, share the code, and let the chaos begin.',
+  title: 'Fate Round — Vote, Laugh, Reveal',
+  description: 'Party game modes in one app. Create a room, share the code, and let the chaos begin.',
+  applicationName: 'Fate Round',
+  icons: {
+    icon: [{ url: '/icon.png', type: 'image/png' }],
+    apple: [{ url: '/icon.png', type: 'image/png' }],
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

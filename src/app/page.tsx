@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
 import { GameTypeModal } from '@/components/GameTypeModal'
@@ -31,9 +32,18 @@ export default function Home() {
         <div className="relative z-10 w-full max-w-sm flex flex-col gap-6">
           {/* Hero */}
           <div className="text-center space-y-3 shrink-0">
-            <div className="premium-badge mx-auto">
-              <span>🎉</span>
-              <span>Party Games</span>
+            <div className="flex flex-col items-center gap-2.5">
+              <Image
+                src="/icon.png"
+                alt="Fate Round"
+                width={64}
+                height={64}
+                className="rounded-2xl shadow-[0_8px_24px_rgba(244,63,94,0.25)]"
+                priority
+              />
+              <div className="premium-badge">
+                <span>Fate Round</span>
+              </div>
             </div>
 
             <h1 className="text-[2.75rem] sm:text-5xl font-black tracking-tighter leading-[0.95] gradient-title">
