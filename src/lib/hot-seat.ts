@@ -8,7 +8,7 @@ export const HOT_SEAT_MAX_ROUNDS_CAP = 100
 export function hotSeatMaxCapUpperBound(joinedCount: number, listSize?: number): number {
   const candidate = Math.max(
     joinedCount >= HOT_SEAT_MIN_PLAYERS ? joinedCount : 0,
-    (listSize ?? 0) >= HOT_SEAT_MIN_PLAYERS ? listSize ?? 0 : 0,
+    (listSize ?? 0) >= HOT_SEAT_MIN_PLAYERS ? (listSize ?? 0) : 0,
     HOT_SEAT_MIN_PLAYERS
   )
   return Math.min(HOT_SEAT_MAX_ROUNDS_CAP, candidate)
@@ -72,9 +72,7 @@ export function buildHotSeatRoundRows(opts: {
   participantMode?: string | null
   maxRoundsCap: number
   now: string
-}):
-  | { ok: true; roundRows: Array<Record<string, unknown>>; roundsCount: number }
-  | { ok: false; error: string } {
+}): { ok: true; roundRows: Array<Record<string, unknown>>; roundsCount: number } | { ok: false; error: string } {
   const joined = hotSeatJoinedPlayers(opts.players, opts.participants, opts.participantMode)
   if (joined.length < HOT_SEAT_MIN_PLAYERS) {
     return {

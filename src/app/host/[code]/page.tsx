@@ -32,7 +32,10 @@ import {
   isHotSeatLobbyGame,
   isPlayerOnlyJoinLobby,
   isNameOnlyPlayerJoin,
+  isCustomGame,
 } from '@/lib/game-types'
+import { getCustomSlots, tallyCustomVotes, buildCustomLeaderboard } from '@/lib/custom-game'
+import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isMltImportGame, mltTargetIdFromVote, mltVoteTargets } from '@/lib/mlt'
@@ -138,12 +141,10 @@ export default function HostPage() {
   const [animePool, setAnimePool] = useState<AnimeQuotePoolEntry[]>([])
   const [animeFetching, setAnimeFetching] = useState(false)
   const [animeError, setAnimeError] = useState<string | null>(null)
-  const [hotSeatSubmissions, setHotSeatSubmissions] = useState<
-    { id: string; text: string; submission_type: string }[]
-  >([])
-  const [activeHotSeatSubs, setActiveHotSeatSubs] = useState<
-    { id: string; player_id: string; round_id: string }[]
-  >([])
+  const [hotSeatSubmissions, setHotSeatSubmissions] = useState<{ id: string; text: string; submission_type: string }[]>(
+    []
+  )
+  const [activeHotSeatSubs, setActiveHotSeatSubs] = useState<{ id: string; player_id: string; round_id: string }[]>([])
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
@@ -360,9 +361,7 @@ export default function HostPage() {
     prev: { id: string; player_id: string; round_id: string }[],
     sub: { id: string; player_id: string; round_id: string }
   ) {
-    const idx = prev.findIndex(
-      (s) => s.id === sub.id || (s.player_id === sub.player_id && s.round_id === sub.round_id)
-    )
+    const idx = prev.findIndex((s) => s.id === sub.id || (s.player_id === sub.player_id && s.round_id === sub.round_id))
     if (idx >= 0) {
       const next = [...prev]
       next[idx] = sub
@@ -721,9 +720,7 @@ export default function HostPage() {
       const eligible = joined.filter((p) => p.id !== hotSeatPlayerId)
       if (eligible.length === 0) return
       const eligibleIds = new Set(eligible.map((p) => p.id))
-      const roundSubs = activeHotSeatSubs.filter(
-        (s) => s.round_id === currentRound.id && eligibleIds.has(s.player_id)
-      )
+      const roundSubs = activeHotSeatSubs.filter((s) => s.round_id === currentRound.id && eligibleIds.has(s.player_id))
       if (roundSubs.length >= eligible.length) {
         handleEndRound()
       }
@@ -1169,15 +1166,16 @@ export default function HostPage() {
     const hotSeatLegacyJoiners = isHotSeatGame && isJoinersMode && participants.length === 0
     const wstSubmitters = wstEligibleSubmitters(players)
     const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
-    const roundParticipants = isHotSeatGame && !hotSeatLegacyJoiners
-      ? participantsWhoJoined(participants, players)
-      : isJoinersMode
-        ? participants
-        : isMltImport
+    const roundParticipants =
+      isHotSeatGame && !hotSeatLegacyJoiners
+        ? participantsWhoJoined(participants, players)
+        : isJoinersMode
           ? participants
-          : game.participant_filter === 'all'
+          : isMltImport
             ? participants
-            : participantsWhoJoined(participants, players)
+            : game.participant_filter === 'all'
+              ? participants
+              : participantsWhoJoined(participants, players)
     const participantInputs = hotSeatLegacyJoiners
       ? players.map((p) => ({ name: p.name, gender: 'female' as ParticipantGender }))
       : roundParticipants.map((p) => ({ name: p.name, gender: p.gender }))
@@ -1223,7 +1221,7 @@ export default function HostPage() {
       ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
       : isMlt
         ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
-          : isWst
+        : isWst
           ? [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= lobbyQuestionMax)
           : kmkRoundPickerOptions(maxRounds)
     const voterCheck = hasVotersForPolls(roundParticipants, players)
@@ -1239,23 +1237,23 @@ export default function HostPage() {
           : participants.length >= 2 && wstSubmitters.length >= 2 && wstPool.length >= 2
       : hotSeatLobby
         ? hotSeatEffective >= HOT_SEAT_MIN_PLAYERS
-      : isMltImport
-        ? participants.length >= 2 && players.length > 0 && !roundsTooHigh
-        : isMlt
-          ? players.length >= 2 && !roundsTooHigh
-          : isWyr
-            ? players.length > 0 && !roundsTooHigh
-            : isJoinersMode
-              ? players.length > 0 &&
-                participants.length >= minPool &&
-                hasEnoughForRounds(participantInputs, gameType) &&
-                !roundsTooHigh &&
-                voterCheck.ok
-              : players.length > 0 &&
-                roundParticipants.length >= minPool &&
-                hasEnoughForRounds(participantInputs, gameType) &&
-                !roundsTooHigh &&
-                voterCheck.ok
+        : isMltImport
+          ? participants.length >= 2 && players.length > 0 && !roundsTooHigh
+          : isMlt
+            ? players.length >= 2 && !roundsTooHigh
+            : isWyr
+              ? players.length > 0 && !roundsTooHigh
+              : isJoinersMode
+                ? players.length > 0 &&
+                  participants.length >= minPool &&
+                  hasEnoughForRounds(participantInputs, gameType) &&
+                  !roundsTooHigh &&
+                  voterCheck.ok
+                : players.length > 0 &&
+                  roundParticipants.length >= minPool &&
+                  hasEnoughForRounds(participantInputs, gameType) &&
+                  !roundsTooHigh &&
+                  voterCheck.ok
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -1284,9 +1282,9 @@ export default function HostPage() {
                       ? 'Would You Rather — players join and pick A or B each round'
                       : hotSeatLobby
                         ? 'Hot Seat — upload names, players claim theirs, then take turns in the spotlight'
-                      : isJoinersMode
-                        ? 'Join & play — joiners are the names in the poll'
-                        : 'Import list — voters join separately'}
+                        : isJoinersMode
+                          ? 'Join & play — joiners are the names in the poll'
+                          : 'Import list — voters join separately'}
             </p>
           </div>
           <div className="text-right">
@@ -1328,7 +1326,9 @@ export default function HostPage() {
                 />
               </div>
             </>
-          ) : isWyr || isMlt || (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
+          ) : isWyr ||
+            isMlt ||
+            (roundParticipants.length >= minPool && hasEnoughForRounds(participantInputs, gameType)) ? (
             <>
               {roundsHint && <p className="text-faint text-xs">{roundsHint}</p>}
               <div className="flex gap-2 flex-wrap">
@@ -1573,7 +1573,9 @@ export default function HostPage() {
           {isJoinersMode && participants.length > 0 && !hotSeatLobby && (
             <p className="text-faint text-xs">Tap to fix poll placement or gender · Remove to kick out</p>
           )}
-          {(playerOnlyLobby || hotSeatLegacyJoiners || !isJoinersMode ? players.length : joinerParticipantsWithPlayers.length) > 8 && (
+          {(playerOnlyLobby || hotSeatLegacyJoiners || !isJoinersMode
+            ? players.length
+            : joinerParticipantsWithPlayers.length) > 8 && (
             <div className="space-y-1">
               <div className="relative">
                 <input
@@ -1912,22 +1914,22 @@ export default function HostPage() {
                                   : hotSeatLobby && !hotSeatLegacyJoiners && participants.length < 3
                                     ? `Need at least 3 names on the list (${participants.length}/3)`
                                     : isWyr && players.length === 0
-                                  ? 'Waiting for players...'
-                                  : isJoinersMode
-                                  ? participants.length < minPool
-                                    ? `Need ${minPool - participants.length} more to start`
-                                    : roundsTooHigh
-                                      ? `Lower to ${maxRounds} rounds max`
-                                      : `Need ${minPool}+ of one gender to start`
-                                  : players.length === 0
-                                    ? 'Waiting for players...'
-                                    : roundParticipants.length < minPool
-                                      ? `Need ${minPool - roundParticipants.length} more to join (${roundParticipants.length}/${minPool})`
-                                      : roundsTooHigh
-                                        ? `Lower to ${maxRounds} rounds max`
-                                        : !voterCheck.ok
-                                          ? 'Need voters for each list'
-                                          : `Need ${minPool}+ joined of one gender`
+                                      ? 'Waiting for players...'
+                                      : isJoinersMode
+                                        ? participants.length < minPool
+                                          ? `Need ${minPool - participants.length} more to start`
+                                          : roundsTooHigh
+                                            ? `Lower to ${maxRounds} rounds max`
+                                            : `Need ${minPool}+ of one gender to start`
+                                        : players.length === 0
+                                          ? 'Waiting for players...'
+                                          : roundParticipants.length < minPool
+                                            ? `Need ${minPool - roundParticipants.length} more to join (${roundParticipants.length}/${minPool})`
+                                            : roundsTooHigh
+                                              ? `Lower to ${maxRounds} rounds max`
+                                              : !voterCheck.ok
+                                                ? 'Need voters for each list'
+                                                : `Need ${minPool}+ joined of one gender`
               : hotSeatLobby
                 ? `Start Game (${hotSeatEffective} round${hotSeatEffective === 1 ? '' : 's'})`
                 : `Start Game (${players.length} players)`}
@@ -2126,9 +2128,7 @@ export default function HostPage() {
       const joinedPlayers = hotSeatJoinedPlayers(players, participants, game.participant_mode)
       const submitters = joinedPlayers.filter((p) => p.id !== hotSeatPlayerId)
       const submitterIds = new Set(submitters.map((p) => p.id))
-      const roundSubs = activeHotSeatSubs.filter(
-        (s) => s.round_id === currentRound.id && submitterIds.has(s.player_id)
-      )
+      const roundSubs = activeHotSeatSubs.filter((s) => s.round_id === currentRound.id && submitterIds.has(s.player_id))
       const submissionCount = roundSubs.length
       const submittedPlayerIds = new Set(roundSubs.map((s) => s.player_id))
       const allSubmitted = submissionCount >= submitters.length && submitters.length > 0
@@ -2272,7 +2272,36 @@ export default function HostPage() {
         </div>
 
         {/* Live vote counts (if not anonymous) */}
-        {!game.anonymous && roundVotes.length > 0 && (
+        {isCustomGame(gameType) && game && !game.anonymous && roundVotes.length > 0 && (
+          <div>
+            <p className="text-muted text-xs uppercase tracking-wider mb-2">Live Tally</p>
+            <div className="space-y-2">
+              {roundParts.map((p) => {
+                const slots = getCustomSlots(game)
+                const counts = slots.map((slot) => ({
+                  slot,
+                  count: roundVotes.filter((v) => {
+                    const assignments = v.pair_assignments as Record<string, string> | null
+                    return assignments?.[p.id] === slot.key
+                  }).length,
+                }))
+                return (
+                  <div key={p.id} className="glass-card px-4 py-3 flex items-center gap-4">
+                    <p className="font-semibold text-body w-24 truncate">{p.name}</p>
+                    <div className="flex gap-3 text-sm">
+                      {counts.map(({ slot, count }) => (
+                        <span key={slot.key} style={{ color: slot.color }}>
+                          {slot.emoji} {count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {!isCustomGame(gameType) && !game.anonymous && roundVotes.length > 0 && (
           <div>
             <p className="text-muted text-xs uppercase tracking-wider mb-2">Live Tally</p>
             <div className="space-y-2">
@@ -2420,6 +2449,14 @@ export default function HostPage() {
             countB={countB}
             voterCount={voterCount}
           />
+        ) : isCustomGame(gameType) && game ? (
+          (() => {
+            const slots = getCustomSlots(game)
+            const slotKeys = slots.map((s) => s.key)
+            const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+            const tally = tallyCustomVotes(roundVotes, lastFinishedRound.participant_ids, nameMap, slotKeys)
+            return <CustomRoundResults tally={tally} slots={slots} />
+          })()
         ) : (
           (() => {
             const tallies = tallyRoundVotes(
@@ -2652,6 +2689,43 @@ export default function HostPage() {
                     maxCount={maxCount}
                     winnerNames={winnerNames}
                   />
+                </div>
+              )
+            })}
+          </div>
+        ) : isCustomGame(gameType) && game ? (
+          <div className="space-y-8">
+            {(() => {
+              const slots = getCustomSlots(game)
+              const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+              return (
+                <div className="glass-card border border-theme-strong p-4 space-y-4">
+                  <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
+                  {leaderboard.map((entry) => (
+                    <div key={entry.slot.key} className="space-y-1">
+                      <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
+                        {entry.slot.emoji} Most {entry.slot.label}
+                      </p>
+                      {entry.entries.slice(0, 3).map((e, i) => (
+                        <p key={e.name} className="text-body text-sm pl-6">
+                          {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
+                        </p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+            {allRounds.map((round) => {
+              const roundVotesForRound = votes.filter((v) => v.round_id === round.id)
+              const slots = getCustomSlots(game)
+              const slotKeys = slots.map((s) => s.key)
+              const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+              const tally = tallyCustomVotes(roundVotesForRound, round.participant_ids, nameMap, slotKeys)
+              return (
+                <div key={round.id}>
+                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                  <CustomRoundResults tally={tally} slots={slots} />
                 </div>
               )
             })}

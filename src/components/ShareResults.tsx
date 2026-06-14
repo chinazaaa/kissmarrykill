@@ -9,7 +9,9 @@ import {
   isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
+  isCustomGame,
 } from '@/lib/game-types'
+import { buildCustomLeaderboard } from '@/lib/custom-game'
 import { getCategoryMeta, getVoteCategories, flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstPlayerScores } from '@/lib/who-said-this'
@@ -85,6 +87,15 @@ function buildShareText({
     topScores.forEach((s, i) => {
       lines.push(`  ${medals[i]}: ${s.name} (${s.correctGuesses} correct)`)
     })
+  } else if (isCustomGame(gameType)) {
+    const slots = game.custom_slots?.slots ?? []
+    const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+    for (const entry of leaderboard) {
+      const top = entry.entries[0]
+      if (top) {
+        lines.push(`${entry.slot.emoji} Most ${entry.slot.label}: ${top.name}`)
+      }
+    }
   } else {
     // Trio and pair games - show category leaders
     const playedParticipants = filterParticipantsInRounds(participants, rounds)

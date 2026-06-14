@@ -14,7 +14,9 @@ import {
   parsePairVoteMode,
   isPairAssignmentValid,
   voteSlots,
+  isCustomGame,
 } from '@/lib/game-types'
+import { parseCustomAssignments, isCustomAssignmentValid } from '@/lib/custom-game'
 import type { PairFlag, WyrChoice } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
     kiss_participant_id: string | null
     marry_participant_id: string | null
     kill_participant_id: string | null
-    pair_assignments: Record<string, PairFlag> | null
+    pair_assignments: Record<string, PairFlag | string> | null
     wyr_choice: WyrChoice | null
     target_player_id: string | null
     target_participant_id: string | null
@@ -200,6 +202,36 @@ export async function POST(req: NextRequest) {
       kill_participant_id: null,
       pair_assignments: null,
       wyr_choice: wyrChoice,
+      target_player_id: null,
+      target_participant_id: null,
+    }
+  } else if (isCustomGame(gameType)) {
+    const customAssignments = parseCustomAssignments(parsed.data.customAssignments)
+    if (!customAssignments) {
+      return NextResponse.json({ error: 'Assign everyone to a category' }, { status: 400 })
+    }
+
+    const { data: fullGame } = await supabase
+      .from('games')
+      .select('custom_slots')
+      .eq('id', gameId.toUpperCase())
+      .maybeSingle()
+
+    const slotKeys = fullGame?.custom_slots?.slots?.map((s: { key: string }) => s.key) ?? []
+    if (slotKeys.length === 0) {
+      return NextResponse.json({ error: 'Game has no custom slots configured' }, { status: 400 })
+    }
+
+    if (!isCustomAssignmentValid(customAssignments, roundIds, slotKeys)) {
+      return NextResponse.json({ error: 'Invalid assignment — assign one person per category' }, { status: 400 })
+    }
+
+    row = {
+      kiss_participant_id: null,
+      marry_participant_id: null,
+      kill_participant_id: null,
+      pair_assignments: customAssignments as Record<string, string>,
+      wyr_choice: null,
       target_player_id: null,
       target_participant_id: null,
     }

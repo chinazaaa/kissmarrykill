@@ -35,6 +35,7 @@ import {
   isAnonymousGame,
   parseGameType,
   isPairGame,
+  isCustomGame,
   pairVoteModeOptions,
   gameHowItWorks,
 } from '@/lib/game-types'
@@ -52,15 +53,13 @@ import {
   questionUploadHint,
   questionSourceOptions,
 } from '@/lib/custom-questions'
+import { CustomSlotBuilder } from '@/components/CustomSlotBuilder'
+import type { CustomSlotsConfig } from '@/types'
 import { GameTypeModal } from '@/components/GameTypeModal'
 import { GameTypeCard } from '@/components/GameTypeCard'
 import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/components/ui/PageShell'
 import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGrid } from '@/components/ui/CreateWizard'
-import {
-  clampHotSeatMaxCap,
-  hotSeatMaxCapUpperBound,
-  HOT_SEAT_MIN_PLAYERS,
-} from '@/lib/hot-seat'
+import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useToast } from '@/components/ui/Toast'
 
@@ -122,6 +121,7 @@ function CreateGameInner() {
   const [mltQuestionInput, setMltQuestionInput] = useState('')
   const [questionsBulkPaste, setQuestionsBulkPaste] = useState('')
   const [wstQuoteSource, setWstQuoteSource] = useState<WstQuoteSource>('player')
+  const [customSlots, setCustomSlots] = useState<CustomSlotsConfig | null>(null)
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -180,6 +180,10 @@ function CreateGameInner() {
     (isLobbyQuestions && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
   const canCreateQuickLobby = !!settings.title.trim() && hasEnoughCustomQuestions
 
+  const isCustom = isCustomGame(settings.game_type)
+  const customSlotsValid =
+    !isCustom || (customSlots && customSlots.slots.length >= 2 && customSlots.slots.every((s) => s.label.trim()))
+
   const needsParticipantStep = !isWyr && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
@@ -191,6 +195,7 @@ function CreateGameInner() {
   }, [customQuestionCount, questionSource, settings.rounds_count])
 
   const selectGameType = (type: GameType) => {
+    setCustomSlots(null)
     setWstQuoteSource('player')
     setQuestionSource('platform')
     setCustomWyrQuestions([])
@@ -208,6 +213,7 @@ function CreateGameInner() {
             ...(isHotSeat(type) ? { rounds_count: HOT_SEAT_MIN_PLAYERS } : {}),
           }
         : {}),
+      ...(isCustomGame(type) ? { participant_mode: 'import' as const } : {}),
     })
   }
 
@@ -431,6 +437,7 @@ function CreateGameInner() {
             isLobbyQuestions && questionSource === 'custom' ? (isWyr ? customWyrQuestions : customMltQuestions) : null,
           participants: isJoinersMode ? [] : participants,
           wst_quote_source: isWst ? wstQuoteSource : undefined,
+          custom_slots: isCustom ? customSlots : null,
         }),
       })
       const data = await res.json()
@@ -587,6 +594,8 @@ function CreateGameInner() {
                   ]}
                 />
               </Field>
+
+              {isCustom && <CustomSlotBuilder value={customSlots} onChange={setCustomSlots} />}
 
               {isPair && (
                 <Field label="Pair voting">
@@ -833,15 +842,18 @@ function CreateGameInner() {
 
           <StickyActionBar>
             {isWyr || (isMlt && isJoinersMode) ? (
-              <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading}>
+              <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading || !customSlotsValid}>
                 {loading ? 'Creating...' : 'Create Game'}
               </PrimaryBtn>
             ) : isJoinersMode ? (
-              <PrimaryBtn onClick={createGame} disabled={!canCreateJoiners || loading}>
+              <PrimaryBtn onClick={createGame} disabled={!canCreateJoiners || loading || !customSlotsValid}>
                 {loading ? 'Creating...' : 'Create Game'}
               </PrimaryBtn>
             ) : (
-              <PrimaryBtn onClick={() => setStep('participants')} disabled={!settings.title.trim()}>
+              <PrimaryBtn
+                onClick={() => setStep('participants')}
+                disabled={!settings.title.trim() || !customSlotsValid}
+              >
                 Next: Add People →
               </PrimaryBtn>
             )}

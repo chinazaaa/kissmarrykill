@@ -13,6 +13,7 @@ import {
   isAnonymousGame,
   isPairGame,
   parsePairVoteMode,
+  isCustomGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
@@ -188,8 +189,7 @@ export async function POST(req: NextRequest) {
     auto_reveal: auto_reveal !== false,
     auto_submit_behavior: auto_submit_behavior === 'random' ? 'random' : 'no_answer',
     participant_mode,
-    participant_filter:
-      isHotSeat(game_type) ? 'joined' : participant_filter === 'joined' ? 'joined' : 'all',
+    participant_filter: isHotSeat(game_type) ? 'joined' : participant_filter === 'joined' ? 'joined' : 'all',
     pair_vote_mode: isPairGame(game_type) ? parsePairVoteMode(rawPairVoteMode) : 'any',
     question_source: isWouldYouRather(game_type) || isMostLikelyTo(game_type) ? question_source : 'platform',
     custom_questions,
@@ -198,6 +198,7 @@ export async function POST(req: NextRequest) {
     status: 'waiting',
     current_round_number: 0,
     wst_quote_source: parsed.data.wst_quote_source ?? 'player',
+    ...(isCustomGame(game_type) && parsed.data.custom_slots ? { custom_slots: parsed.data.custom_slots } : {}),
   })
 
   if (gameError) {

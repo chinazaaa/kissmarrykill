@@ -19,7 +19,12 @@ export async function assertHostGameSettings(supabase: SupabaseClient, gameCode:
   if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
   if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
   if (game.status !== 'waiting' && game.status !== 'finished') {
-    return { error: 'Settings can only be changed in the lobby or after the game ends', status: 400 as const, game: null, id }
+    return {
+      error: 'Settings can only be changed in the lobby or after the game ends',
+      status: 400 as const,
+      game: null,
+      id,
+    }
   }
   return { error: null, status: 200 as const, game, id }
 }

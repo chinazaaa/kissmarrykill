@@ -643,11 +643,13 @@ function hotSeatSubmissionStyle(type: string) {
     roast: { emoji: '🔥', border: 'border-red-500/30', bg: 'bg-red-500/10' },
     observation: { emoji: '👀', border: 'border-slate-500/30', bg: 'bg-slate-500/10' },
   } as const
-  return styles[type as keyof typeof styles] ?? {
-    emoji: '💬',
-    border: 'border-slate-500/30',
-    bg: 'bg-slate-500/10',
-  }
+  return (
+    styles[type as keyof typeof styles] ?? {
+      emoji: '💬',
+      border: 'border-slate-500/30',
+      bg: 'bg-slate-500/10',
+    }
+  )
 }
 
 export function HotSeatRoundResults({

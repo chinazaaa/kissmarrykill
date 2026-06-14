@@ -9,7 +9,9 @@ import {
   isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
+  isCustomGame,
 } from '@/lib/game-types'
+import { getCustomSlots, tallyCustomVotes } from '@/lib/custom-game'
 import { getCategoryMeta, getVoteCategories, flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import {
@@ -81,6 +83,22 @@ function buildRoundShareText({
       const { correctCount } = tallyWstVotes(votes, targets, correctId)
       const voterCount = votes.filter((v) => v.target_participant_id).length
       lines.push(`Answer: ${correctName ?? 'Unknown'} (${correctCount} of ${voterCount} guessed right)`)
+    }
+  } else if (isCustomGame(gameType)) {
+    const slots = getCustomSlots(game)
+    const slotKeys = slots.map((s) => s.key)
+    const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
+    const nameMap = new Map(roundParts.map((p) => [p.id, p.name]))
+    const tally = tallyCustomVotes(votes, round.participant_ids, nameMap, slotKeys)
+
+    lines.push(
+      `\u270F\uFE0F ${game.custom_slots?.title ?? 'Custom Game'} - Round ${round.round_number} of ${game.rounds_count}`
+    )
+    for (const slot of slots) {
+      const winner = tally.slotWinners[slot.key]
+      if (winner) {
+        lines.push(`${slot.emoji} Most ${slot.label}: ${winner.name} (${winner.count} votes)`)
+      }
     }
   } else {
     // Trio and pair games (SMK, RF/GF, SoP)

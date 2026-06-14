@@ -45,6 +45,7 @@ const gameTypeEnum = z.enum([
   'most_likely_to',
   'who_said_this',
   'hot_seat',
+  'custom',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners'])
@@ -87,6 +88,23 @@ export const createGameSchema = z.object({
   theme: themeEnum.optional(),
   wst_quote_source: wstQuoteSourceEnum.optional(),
   participant_filter: participantFilterEnum.optional(),
+  custom_slots: z
+    .object({
+      slots: z
+        .array(
+          z.object({
+            key: z.string(),
+            label: sanitizedString(1, 20),
+            emoji: z.string().min(1).max(4),
+            color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+          })
+        )
+        .min(2)
+        .max(5),
+      title: sanitizedString(1, 100),
+    })
+    .optional()
+    .nullable(),
   participants: z.array(participantItemSchema).optional(),
 })
 
@@ -231,6 +249,7 @@ export const createVoteSchema = z.object({
   targetPlayerId: z.string().optional().nullable(),
   targetParticipantId: z.string().optional().nullable(),
   animeChoice: z.string().max(200).optional().nullable(),
+  customAssignments: z.record(z.string(), z.string()).optional().nullable(),
 })
 
 export type CreateVoteInput = z.infer<typeof createVoteSchema>
