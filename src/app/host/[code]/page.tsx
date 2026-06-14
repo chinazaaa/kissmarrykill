@@ -250,7 +250,6 @@ export default function HostPage() {
     }
   }, [currentRound?.id, game?.game_type])
 
-
   // ── Apply theme CSS variables ─────────────────────────────────────────────
   useEffect(() => {
     const themeId = parseThemeId(game?.theme)
@@ -472,52 +471,57 @@ export default function HostPage() {
   }
 
   // ── Realtime ──────────────────────────────────────────────────────────────
-  useGameChannel(gameCode, `host-${gameCode}`, {
-    setGame,
-    setPlayers,
-    setParticipants,
-    setWstPool,
-    setConfessions,
-  }, {
-    onGameUpdate: async (g) => {
-      if (g.status === 'active') {
-        const { data: roundData } = await supabase
-          .from('rounds')
-          .select('*')
-          .eq('game_id', gameCode)
-          .eq('status', 'active')
-          .maybeSingle()
-        if (roundData) {
-          setCurrentRound((prev) => mergeActiveRound(prev, roundData))
-          advancingRef.current = false
+  useGameChannel(
+    gameCode,
+    `host-${gameCode}`,
+    {
+      setGame,
+      setPlayers,
+      setParticipants,
+      setWstPool,
+      setConfessions,
+    },
+    {
+      onGameUpdate: async (g) => {
+        if (g.status === 'active') {
+          const { data: roundData } = await supabase
+            .from('rounds')
+            .select('*')
+            .eq('game_id', gameCode)
+            .eq('status', 'active')
+            .maybeSingle()
+          if (roundData) {
+            setCurrentRound((prev) => mergeActiveRound(prev, roundData))
+            advancingRef.current = false
+          }
         }
-      }
-      if (g.status === 'finished') {
-        await loadResults()
-      }
-      if (g.status === 'waiting') {
-        resetHostLobbyState()
-      }
-    },
-    onRoundUpdate: (r) => {
-      if (r.status === 'active') {
-        setCurrentRound((prev) => mergeActiveRound(prev, r))
-        setLastFinishedRound(null)
-        advancingRef.current = false
-        setAdvancing(false)
-      }
-      if (r.status === 'finished') {
-        setCurrentRound(null)
-        setLastFinishedRound(r)
-        advancingRef.current = false
-        setEnding(false)
-      }
-    },
-    onVoteInsert: (vote) => setVotes((prev) => mergeVote(prev, vote)),
-    onVoteUpdate: (vote) => setVotes((prev) => mergeVote(prev, vote)),
-    onHotSeatSubInsert: (sub) => setActiveHotSeatSubs((prev) => mergeHotSeatSub(prev, sub)),
-    onHotSeatSubUpdate: (sub) => setActiveHotSeatSubs((prev) => mergeHotSeatSub(prev, sub)),
-  })
+        if (g.status === 'finished') {
+          await loadResults()
+        }
+        if (g.status === 'waiting') {
+          resetHostLobbyState()
+        }
+      },
+      onRoundUpdate: (r) => {
+        if (r.status === 'active') {
+          setCurrentRound((prev) => mergeActiveRound(prev, r))
+          setLastFinishedRound(null)
+          advancingRef.current = false
+          setAdvancing(false)
+        }
+        if (r.status === 'finished') {
+          setCurrentRound(null)
+          setLastFinishedRound(r)
+          advancingRef.current = false
+          setEnding(false)
+        }
+      },
+      onVoteInsert: (vote) => setVotes((prev) => mergeVote(prev, vote)),
+      onVoteUpdate: (vote) => setVotes((prev) => mergeVote(prev, vote)),
+      onHotSeatSubInsert: (sub) => setActiveHotSeatSubs((prev) => mergeHotSeatSub(prev, sub)),
+      onHotSeatSubUpdate: (sub) => setActiveHotSeatSubs((prev) => mergeHotSeatSub(prev, sub)),
+    }
+  )
 
   // Poll lobby while waiting for players — fallback if realtime is slow or unavailable
   useEffect(() => {

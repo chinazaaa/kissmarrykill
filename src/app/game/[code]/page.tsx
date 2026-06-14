@@ -583,95 +583,100 @@ export default function GamePage() {
   }
 
   // ── Real-time subscriptions ───────────────────────────────────────────────
-  useGameChannel(gameCode, `game-player-${gameCode}`, {
-    setGame,
-    setPlayers,
-    setParticipants,
-    setWstPool,
-    setConfessions: setAllConfessions,
-  }, {
-    onGameUpdate: async (newGame) => {
-      if (newGame.status === 'active' && myPlayerIdRef.current) {
-        const [{ data: activeRound }, { data: parts }] = await Promise.all([
-          supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        ])
-        if (parts) setParticipants(parts)
-        if (activeRound) {
-          applyActiveRound(activeRound)
+  useGameChannel(
+    gameCode,
+    `game-player-${gameCode}`,
+    {
+      setGame,
+      setPlayers,
+      setParticipants,
+      setWstPool,
+      setConfessions: setAllConfessions,
+    },
+    {
+      onGameUpdate: async (newGame) => {
+        if (newGame.status === 'active' && myPlayerIdRef.current) {
+          const [{ data: activeRound }, { data: parts }] = await Promise.all([
+            supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+            supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
+          ])
+          if (parts) setParticipants(parts)
+          if (activeRound) {
+            applyActiveRound(activeRound)
+          }
         }
-      }
-      if (newGame.status === 'finished') {
-        await loadAllResults()
-        setView('results')
-      }
-      if (newGame.status === 'waiting') {
-        resetPlayerForLobby(!!myPlayerIdRef.current)
-      }
-    },
-    onRoundInsert: async (round) => {
-      if (round.status === 'active' && myPlayerIdRef.current) {
-        const { data: parts } = await supabase
-          .from('participants')
-          .select('*')
-          .eq('game_id', gameCode)
-          .order('display_order')
-        if (parts) setParticipants(parts)
-        applyActiveRound(round)
-      }
-    },
-    onRoundUpdate: async (round) => {
-      if (round.status === 'active') {
-        const priorId = roundFormIdRef.current
-        applyActiveRound(round, { switchView: priorId !== round.id })
-      }
-      if (round.status === 'finished') {
-        const [{ data: rv }, { data: rc }] = await Promise.all([
-          supabase.from('votes').select('*').eq('round_id', round.id),
-          supabase.from('confessions').select('*').eq('round_id', round.id).order('created_at'),
-        ])
-        setLastFinishedRound(round)
-        setLastRoundVotes(rv || [])
-        setAllConfessions((prev) => {
-          const ids = new Set(prev.map((c) => c.id))
-          return [...prev, ...(rc || []).filter((c) => !ids.has(c.id))]
-        })
-        setAllVotes((prev) => {
-          const ids = new Set(prev.map((v) => v.id))
-          return [...prev, ...(rv || []).filter((v) => !ids.has(v.id))]
-        })
-        setAllRounds((prev) => {
-          const ids = new Set(prev.map((r) => r.id))
-          return ids.has(round.id) ? prev.map((r) => (r.id === round.id ? round : r)) : [...prev, round]
-        })
-        setView('round_results')
-      }
-    },
-    onPlayerUpdate: (p) => {
-      if (p.id === myPlayerIdRef.current) {
-        setMyPlayerName(p.name)
-        const voteGender = playerVoteGenderForRound(p, participantsRef.current)
-        if (voteGender) {
-          setMyPlayerGender(voteGender)
-          setPlayerSession(gameCode, p.id, p.name, voteGender)
+        if (newGame.status === 'finished') {
+          await loadAllResults()
+          setView('results')
         }
-      }
-    },
-    onPlayerDelete: (p) => {
-      if (p.id === myPlayerIdRef.current) {
-        clearPlayerSession(gameCode)
-        setMyPlayerId(null)
-        setMyPlayerName(null)
-        setMyPlayerGender(null)
-        setEditingJoin(false)
-        setView('join')
-      }
-    },
-    onConfessionInsert: () => {
-      // Trigger re-render for live confessions in round results
-      setLastRoundVotes((prev) => prev)
-    },
-  })
+        if (newGame.status === 'waiting') {
+          resetPlayerForLobby(!!myPlayerIdRef.current)
+        }
+      },
+      onRoundInsert: async (round) => {
+        if (round.status === 'active' && myPlayerIdRef.current) {
+          const { data: parts } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('game_id', gameCode)
+            .order('display_order')
+          if (parts) setParticipants(parts)
+          applyActiveRound(round)
+        }
+      },
+      onRoundUpdate: async (round) => {
+        if (round.status === 'active') {
+          const priorId = roundFormIdRef.current
+          applyActiveRound(round, { switchView: priorId !== round.id })
+        }
+        if (round.status === 'finished') {
+          const [{ data: rv }, { data: rc }] = await Promise.all([
+            supabase.from('votes').select('*').eq('round_id', round.id),
+            supabase.from('confessions').select('*').eq('round_id', round.id).order('created_at'),
+          ])
+          setLastFinishedRound(round)
+          setLastRoundVotes(rv || [])
+          setAllConfessions((prev) => {
+            const ids = new Set(prev.map((c) => c.id))
+            return [...prev, ...(rc || []).filter((c) => !ids.has(c.id))]
+          })
+          setAllVotes((prev) => {
+            const ids = new Set(prev.map((v) => v.id))
+            return [...prev, ...(rv || []).filter((v) => !ids.has(v.id))]
+          })
+          setAllRounds((prev) => {
+            const ids = new Set(prev.map((r) => r.id))
+            return ids.has(round.id) ? prev.map((r) => (r.id === round.id ? round : r)) : [...prev, round]
+          })
+          setView('round_results')
+        }
+      },
+      onPlayerUpdate: (p) => {
+        if (p.id === myPlayerIdRef.current) {
+          setMyPlayerName(p.name)
+          const voteGender = playerVoteGenderForRound(p, participantsRef.current)
+          if (voteGender) {
+            setMyPlayerGender(voteGender)
+            setPlayerSession(gameCode, p.id, p.name, voteGender)
+          }
+        }
+      },
+      onPlayerDelete: (p) => {
+        if (p.id === myPlayerIdRef.current) {
+          clearPlayerSession(gameCode)
+          setMyPlayerId(null)
+          setMyPlayerName(null)
+          setMyPlayerGender(null)
+          setEditingJoin(false)
+          setView('join')
+        }
+      },
+      onConfessionInsert: () => {
+        // Trigger re-render for live confessions in round results
+        setLastRoundVotes((prev) => prev)
+      },
+    }
+  )
 
   // Poll during final results — return to lobby when host resets
   useEffect(() => {

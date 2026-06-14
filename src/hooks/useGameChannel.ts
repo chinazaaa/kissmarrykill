@@ -94,9 +94,7 @@ export function useGameChannel(
         (payload) => {
           const p = payload.new as Participant
           state.setParticipants((prev) =>
-            prev.some((x) => x.id === p.id)
-              ? prev
-              : [...prev, p].sort((a, b) => a.display_order - b.display_order)
+            prev.some((x) => x.id === p.id) ? prev : [...prev, p].sort((a, b) => a.display_order - b.display_order)
           )
         }
       )
@@ -182,12 +180,14 @@ export function useGameChannel(
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'hot_seat_submissions', filter: `game_id=eq.${gameCode}` },
-        (payload) => cbRef.current.onHotSeatSubInsert?.(payload.new as { id: string; player_id: string; round_id: string })
+        (payload) =>
+          cbRef.current.onHotSeatSubInsert?.(payload.new as { id: string; player_id: string; round_id: string })
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'hot_seat_submissions', filter: `game_id=eq.${gameCode}` },
-        (payload) => cbRef.current.onHotSeatSubUpdate?.(payload.new as { id: string; player_id: string; round_id: string })
+        (payload) =>
+          cbRef.current.onHotSeatSubUpdate?.(payload.new as { id: string; player_id: string; round_id: string })
       )
 
       .subscribe()

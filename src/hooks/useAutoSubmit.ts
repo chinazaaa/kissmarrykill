@@ -24,7 +24,16 @@ import {
 } from '@/lib/custom-game'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { wstVoteTargets } from '@/lib/who-said-this'
-import type { Game, Participant, Player, Round, VoteAssignment, PairAssignmentMap, WyrChoice, PlayerGender } from '@/types'
+import type {
+  Game,
+  Participant,
+  Player,
+  Round,
+  VoteAssignment,
+  PairAssignmentMap,
+  WyrChoice,
+  PlayerGender,
+} from '@/types'
 
 function shuffleCopy<T>(arr: T[]): T[] {
   const a = [...arr]
