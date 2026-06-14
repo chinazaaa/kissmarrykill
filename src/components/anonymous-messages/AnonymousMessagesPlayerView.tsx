@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
+import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { GameLobbySummary } from '@/components/GameLobbySummary'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
+import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
@@ -26,7 +28,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   const [messageInput, setMessageInput] = useState('')
   const [sending, setSending] = useState(false)
 
-  const messagesEnabled = screen === 'active' || screen === 'finished'
+  const messagesEnabled = screen === 'active'
   const { messages } = useAnonymousMessages(gameCode, messagesEnabled)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
@@ -189,8 +191,10 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     return (
       <PageShell>
         <Header game={game} />
-        <p className="text-muted text-sm text-center">Session ended — here&apos;s what was shared.</p>
-        <AnonymousMessageFeed messages={messages} readOnly />
+        <AnonymousRoomSessionSummary game={game!} playerCount={players.length} />
+        <button type="button" onClick={() => router.push('/')} className="btn-secondary w-full">
+          Back home
+        </button>
       </PageShell>
     )
   }
@@ -198,6 +202,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   return (
     <PageShell>
       <Header game={game} />
+      <AnonymousSessionTimerBar gameCode={gameCode} game={game} />
       <PlayerBar name={myPlayerName} subtitle="Your lobby name — messages stay anonymous" />
       <AnonymousMessageFeed messages={messages} />
       <div className="space-y-3">

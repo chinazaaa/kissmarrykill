@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createAnonymousMessageSchema, deleteAnonymousMessageSchema } from '@/lib/validation'
 import { parseGameType, isAnonymousMessagesGame } from '@/lib/game-types'
+import {
+  anonymousSessionExpired,
+  finishExpiredAnonymousSession,
+  trimAnonymousMessages,
+} from '@/lib/anonymous-messages'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -17,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const { data: game } = await supabase
     .from('games')
-    .select('status, game_type')
+    .select('status, game_type, session_started_at')
     .eq('id', gameCode)
     .maybeSingle()
 
@@ -27,6 +32,10 @@ export async function POST(req: NextRequest) {
   }
   if (game.status !== 'active') {
     return NextResponse.json({ error: 'Session is not active' }, { status: 400 })
+  }
+  if (anonymousSessionExpired(game.session_started_at)) {
+    await finishExpiredAnonymousSession(supabase, { ...game, id: gameCode })
+    return NextResponse.json({ error: 'Session has ended' }, { status: 400 })
   }
 
   const { data: player } = await supabase
@@ -45,6 +54,8 @@ export async function POST(req: NextRequest) {
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await trimAnonymousMessages(supabase, gameCode)
 
   return NextResponse.json({ success: true })
 }

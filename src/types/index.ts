@@ -63,6 +63,8 @@ export interface Game {
   status: GameStatus
   current_round_number: number
   created_at: string
+  /** Anonymous room — when the live session started (15 min cap). */
+  session_started_at?: string | null
   wst_quote_source?: WstQuoteSource
   custom_slots?: CustomSlotsConfig | null
   /** When true, rounds use same-gender groups and opposite-gender voting. Default true for SMK/pair, false for custom. */

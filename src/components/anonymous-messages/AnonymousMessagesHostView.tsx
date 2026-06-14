@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
+import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
+import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
@@ -27,7 +29,7 @@ export function AnonymousMessagesHostView({
   const [playingAgain, setPlayingAgain] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
-  const messagesEnabled = game?.status === 'active' || game?.status === 'finished'
+  const messagesEnabled = game?.status === 'active'
   const { messages, removeMessage } = useAnonymousMessages(gameCode, !!messagesEnabled)
 
   const load = useCallback(async () => {
@@ -213,6 +215,7 @@ export function AnonymousMessagesHostView({
 
       {game.status === 'active' && (
         <>
+          <AnonymousSessionTimerBar gameCode={gameCode} game={game} />
           <AnonymousMessageFeed
             messages={messages}
             title="Live anonymous messages"
@@ -228,7 +231,7 @@ export function AnonymousMessagesHostView({
 
       {game.status === 'finished' && (
         <>
-          <AnonymousMessageFeed messages={messages} title="Session transcript" readOnly />
+          <AnonymousRoomSessionSummary game={game} playerCount={players.length} />
           <div className="flex gap-3">
             <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary flex-1">
               {playingAgain ? 'Resetting…' : 'Play again'}

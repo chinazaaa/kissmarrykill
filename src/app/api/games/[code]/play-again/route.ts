@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: updated, error: gameError } = await supabase
     .from('games')
-    .update({ status: 'waiting', current_round_number: 0 })
+    .update({ status: 'waiting', current_round_number: 0, session_started_at: null })
     .eq('id', gameId)
     .select()
     .single()

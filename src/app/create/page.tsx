@@ -607,7 +607,8 @@ function CreateGameInner() {
               <SettingsGroup title="Session">
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with one tap and get a random lobby name. When you start, everyone posts anonymous
-                  messages live. End the session whenever you&apos;re done — no rounds, no timer.
+                  messages live. Sessions last up to 15 minutes and only the latest 1,000 messages are kept — end
+                  whenever you&apos;re done.
                 </p>
               </SettingsGroup>
             ) : (

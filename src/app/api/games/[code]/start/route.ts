@@ -126,7 +126,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     const { error: gameError } = await supabase
       .from('games')
-      .update({ status: 'active', current_round_number: 1, rounds_count: 1 })
+      .update({
+        status: 'active',
+        current_round_number: 1,
+        rounds_count: 1,
+        session_started_at: now,
+      })
       .eq('id', code.toUpperCase())
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })

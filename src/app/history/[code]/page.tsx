@@ -23,7 +23,9 @@ import {
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
+  isAnonymousMessagesGame,
 } from '@/lib/game-types'
+import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import {
@@ -87,6 +89,21 @@ export default function GameHistoryPage() {
         return
       }
 
+      const isAnonymousRoom = isAnonymousMessagesGame(parseGameType(gameData.game_type))
+
+      if (isAnonymousRoom) {
+        const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        setLoadState('ready')
+        return
+      }
+
       const [{ data: parts }, { data: plrs }, { data: rds }, { data: vts }, { data: confs }, { data: subs }] =
         await Promise.all([
         supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
@@ -140,6 +157,39 @@ export default function GameHistoryPage() {
 
   const playerNameById = new Map(players.map((p) => [p.id, p.name]))
   const gameType = parseGameType(game.game_type)
+
+  if (isAnonymousMessagesGame(gameType)) {
+    return (
+      <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="label-caps">Game history</p>
+            <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
+            <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/history" className="btn-secondary text-sm py-2 px-4">
+              Search
+            </Link>
+            {game.status !== 'finished' && (
+              <Link href={`/game/${game.id}`} className="btn-primary text-sm py-2 px-4">
+                Open game
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <AnonymousRoomSessionSummary game={game} playerCount={players.length} />
+
+        <p className="text-center pb-4">
+          <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
+            ← Back home
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
   const voteColumns = voteSlots(gameType).map((slot) => ({
     slot,
     meta: slotMeta(gameType, slot),
