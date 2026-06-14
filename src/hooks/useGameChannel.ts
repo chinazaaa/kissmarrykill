@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { mergeActiveRound, dedupeWstPool, mergeWstPoolEntry } from '@/lib/who-said-this'
+import { mergeWstPoolEntry } from '@/lib/who-said-this'
 import type { Game, Participant, Player, Round, Vote, Confession, WstQuotePoolEntry } from '@/types'
 
 export interface GameChannelState {

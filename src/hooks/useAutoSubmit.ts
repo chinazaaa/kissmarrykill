@@ -4,7 +4,6 @@
 import { useRef } from 'react'
 import {
   parseGameType,
-  isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
   isPairGame,
@@ -37,19 +36,19 @@ function shuffleCopy<T>(arr: T[]): T[] {
 }
 
 export interface AutoSubmitRefs {
-  assignmentRef: React.MutableRefObject<VoteAssignment>
-  pairAssignmentRef: React.MutableRefObject<PairAssignmentMap>
-  customAssignmentsRef: React.MutableRefObject<Record<string, string>>
-  wyrChoiceRef: React.MutableRefObject<WyrChoice | null>
-  mltTargetPlayerIdRef: React.MutableRefObject<string | null>
-  animeChoiceRef: React.MutableRefObject<string | null>
-  playersRef: React.MutableRefObject<Player[]>
-  currentRoundRef: React.MutableRefObject<Round | null>
-  gameRef: React.MutableRefObject<Game | null>
-  participantsRef: React.MutableRefObject<Participant[]>
-  myPlayerIdRef: React.MutableRefObject<string | null>
-  myPlayerGenderRef: React.MutableRefObject<PlayerGender | null>
-  submittedRef: React.MutableRefObject<boolean>
+  assignmentRef: React.RefObject<VoteAssignment>
+  pairAssignmentRef: React.RefObject<PairAssignmentMap>
+  customAssignmentsRef: React.RefObject<Record<string, string>>
+  wyrChoiceRef: React.RefObject<WyrChoice | null>
+  mltTargetPlayerIdRef: React.RefObject<string | null>
+  animeChoiceRef: React.RefObject<string | null>
+  playersRef: React.RefObject<Player[]>
+  currentRoundRef: React.RefObject<Round | null>
+  gameRef: React.RefObject<Game | null>
+  participantsRef: React.RefObject<Participant[]>
+  myPlayerIdRef: React.RefObject<string | null>
+  myPlayerGenderRef: React.RefObject<PlayerGender | null>
+  submittedRef: React.RefObject<boolean>
 }
 
 export function useAutoSubmit(
