@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { FeedbackButton } from '@/components/FeedbackButton'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog'
 import { AppBackground } from '@/components/AppBackground'
@@ -32,6 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <ConfirmProvider>
               <AppBackground />
               <ThemeToggle />
+              <FeedbackButton />
               {children}
             </ConfirmProvider>
           </ToastProvider>

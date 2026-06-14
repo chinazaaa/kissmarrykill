@@ -331,6 +331,39 @@ export const hotSeatSubmissionSchema = z.object({
 export type HotSeatSubmissionInput = z.infer<typeof hotSeatSubmissionSchema>
 
 // ---------------------------------------------------------------------------
+// App feedback (POST /api/feedback)
+// ---------------------------------------------------------------------------
+
+const feedbackGameTypeEnum = z.enum([
+  'general',
+  'smash_marry_kill',
+  'red_flag_green_flag',
+  'smash_or_pass',
+  'would_you_rather',
+  'this_or_that',
+  'most_likely_to',
+  'who_said_this',
+  'hot_seat',
+  'custom',
+])
+
+const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])
+
+export const createAppFeedbackSchema = z.object({
+  gameType: feedbackGameTypeEnum,
+  category: feedbackCategoryEnum,
+  message: sanitizedString(10, 2000),
+  pageUrl: z
+    .string()
+    .max(500)
+    .optional()
+    .nullable()
+    .transform((s) => (s ? stripHtml(s.trim()) : null)),
+})
+
+export type CreateAppFeedbackInput = z.infer<typeof createAppFeedbackSchema>
+
+// ---------------------------------------------------------------------------
 // Re-exports for convenience
 // ---------------------------------------------------------------------------
 
