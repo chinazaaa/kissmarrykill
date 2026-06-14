@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import {
-  parseGameType,
-  isNameOnlyPlayerJoin,
-  isWhoSaidThis,
-  isImportNameClaimGame,
-  isHotSeat,
-  isAnonymousMessagesGame,
-} from '@/lib/game-types'
+import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame } from '@/lib/game-types'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { anonymousPlayerCanChat, anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'

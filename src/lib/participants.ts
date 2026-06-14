@@ -17,7 +17,6 @@ import {
   defaultGenderBasedForType,
   isGenderFreeVoting,
 } from '@/lib/gender-based'
-import { HOT_SEAT_MIN_PLAYERS, HOT_SEAT_MAX_ROUNDS_CAP } from '@/lib/hot-seat'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import type { CustomSlotsConfig, GameType, ParticipantMode } from '@/types'

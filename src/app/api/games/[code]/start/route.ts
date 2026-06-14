@@ -7,7 +7,6 @@ import {
   roundPoolSize,
   isWouldYouRather,
   isThisOrThat,
-  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,

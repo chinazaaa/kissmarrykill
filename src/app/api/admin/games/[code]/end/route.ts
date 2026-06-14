@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { finishAnonymousRoomSession } from '@/lib/anonymous-messages'
 import { isAnonymousMessagesGame, parseGameType } from '@/lib/game-types'

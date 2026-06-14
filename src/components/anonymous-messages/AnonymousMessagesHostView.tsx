@@ -12,7 +12,6 @@ import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/Anonym
 import {
   ANONYMOUS_ROOM_BAN_MINUTE_OPTIONS,
   ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES,
-  ANONYMOUS_ROOM_MAX_PLAYERS,
   ANONYMOUS_ROOM_MIN_PLAYERS,
   anonymousRoomMaxPlayers,
   banSecondsLeft,

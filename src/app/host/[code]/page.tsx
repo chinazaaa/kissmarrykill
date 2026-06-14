@@ -46,7 +46,6 @@ import {
   getCustomSlots,
   tallyCustomVotes,
   buildCustomLeaderboard,
-  getCustomSlotCount,
   customPairVoteModeOptions,
   isCustomTwoSlotGame,
 } from '@/lib/custom-game'
@@ -2177,7 +2176,6 @@ export default function HostPage() {
     const isNameOnly = isNameOnlyPlayerJoin(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
-    const isWyr = isWouldYouRather(gameType)
     const isTot = isThisOrThat(gameType)
     const isBinaryGame = isBinaryChoiceGame(gameType)
     const isHotSeatGame = isHotSeat(gameType)
@@ -2597,7 +2595,6 @@ export default function HostPage() {
   // ── BETWEEN ROUNDS (results) ──────────────────────────────────────────────
   if (game?.status === 'active' && !currentRound && lastFinishedRound) {
     const gameType = parseGameType(game.game_type)
-    const isWyr = isWouldYouRather(gameType)
     const isTot = isThisOrThat(gameType)
     const isBinaryGame = isBinaryChoiceGame(gameType)
     const isMlt = isMostLikelyTo(gameType)
@@ -2797,7 +2794,6 @@ export default function HostPage() {
   // ── FINISHED ──────────────────────────────────────────────────────────────
   if (game?.status === 'finished') {
     const gameType = parseGameType(game.game_type)
-    const isWyr = isWouldYouRather(gameType)
     const isTot = isThisOrThat(gameType)
     const isBinaryGame = isBinaryChoiceGame(gameType)
     const isMlt = isMostLikelyTo(gameType)

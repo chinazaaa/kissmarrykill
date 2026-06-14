@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
+import { normalizeGender, type ParticipantGender } from '@/lib/participants'
 
 export async function assertHostGame(supabase: SupabaseClient, gameCode: string, hostToken: string) {
   const id = gameCode.toUpperCase()
