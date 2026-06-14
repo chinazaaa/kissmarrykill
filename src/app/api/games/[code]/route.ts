@@ -3,8 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { assertHostGameSettings } from '@/lib/game-admin'
 import { questionPoolCap } from '@/lib/custom-questions'
 import { parseTimerSeconds, updateGameSchema } from '@/lib/validation'
-import { parseGameType, isHotSeat, isCustomGame, isPairGame, parsePairVoteMode } from '@/lib/game-types'
-import { supportsGenderToggle } from '@/lib/gender-based'
+import { parseGameType, isHotSeat, isPairGame, parsePairVoteMode } from '@/lib/game-types'
 import { isCustomTwoSlotGame } from '@/lib/custom-game'
 import { clampHotSeatMaxCap, hotSeatJoinedPlayers, hotSeatMaxCapUpperBound } from '@/lib/hot-seat'
 
@@ -62,14 +61,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
   }
 
   if (parsed.data.gender_based !== undefined) {
-    const gameType = parseGameType(auth.game!.game_type)
-    if (!supportsGenderToggle(gameType)) {
-      return NextResponse.json({ error: 'This game type does not support gender settings' }, { status: 400 })
-    }
-    updatePayload.gender_based = parsed.data.gender_based
-    if (isCustomGame(gameType) && auth.game!.custom_slots) {
-      updatePayload.custom_slots = { ...auth.game!.custom_slots, gender_based: parsed.data.gender_based }
-    }
+    return NextResponse.json(
+      { error: 'Who\'s in each round is set when the game is created — create a new game to change it' },
+      { status: 400 }
+    )
   }
 
   if (parsed.data.pair_vote_mode !== undefined) {

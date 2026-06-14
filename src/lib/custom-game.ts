@@ -45,14 +45,14 @@ export function customPairVoteModeOptions(slots: CustomSlot[]): {
   const second = slots[1]?.label?.trim() || 'Option B'
   return [
     {
-      value: 'any',
-      label: 'Any combo',
-      hint: `Players can pick 2 ${first}, 2 ${second}, or 1 of each.`,
-    },
-    {
       value: 'one_each',
       label: 'One each',
       hint: `Must pick one ${first} and one ${second} every round.`,
+    },
+    {
+      value: 'any',
+      label: 'Any combo',
+      hint: `Players can pick 2 ${first}, 2 ${second}, or 1 of each.`,
     },
   ]
 }

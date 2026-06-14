@@ -448,7 +448,7 @@ export function isPairGame(gameType: GameType | string | undefined): boolean {
 }
 
 export function parsePairVoteMode(raw: unknown): PairVoteMode {
-  return raw === 'one_each' ? 'one_each' : 'any'
+  return raw === 'any' ? 'any' : 'one_each'
 }
 
 export function isPairOneEachMode(game: {
@@ -468,14 +468,14 @@ export function pairVoteModeOptions(gameType: GameType | string): {
   const negative = type === 'smash_or_pass' ? 'Pass' : 'Red'
   return [
     {
-      value: 'any',
-      label: 'Any combo',
-      hint: `Players can pick 2 ${positive}, 2 ${negative}, or 1 of each.`,
-    },
-    {
       value: 'one_each',
       label: 'One each',
       hint: `Must pick one ${positive} and one ${negative} every round.`,
+    },
+    {
+      value: 'any',
+      label: 'Any combo',
+      hint: `Players can pick 2 ${positive}, 2 ${negative}, or 1 of each.`,
     },
   ]
 }

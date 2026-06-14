@@ -46,7 +46,6 @@ import {
   isCustomTwoSlotGame,
 } from '@/lib/custom-game'
 import { isGameGenderBased, supportsGenderToggle, isGenderFreeVoting } from '@/lib/gender-based'
-import { GenderRoundModeControl } from '@/components/GenderRoundModeControl'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
@@ -135,7 +134,6 @@ export default function HostPage() {
   const [confessions, setConfessions] = useState<Confession[]>([])
 
   const [starting, setStarting] = useState(false)
-  const [savingGenderBased, setSavingGenderBased] = useState(false)
   const [savingPairVoteMode, setSavingPairVoteMode] = useState(false)
   const [advancing, setAdvancing] = useState(false)
   const [ending, setEnding] = useState(false)
@@ -1585,35 +1583,13 @@ export default function HostPage() {
           )}
           {supportsGender && (
             <div className="space-y-1">
-              <GenderRoundModeControl
-                value={gameGenderBased}
-                onChange={async (gender_based) => {
-                  setSavingGenderBased(true)
-                  setGame((prev) => (prev ? { ...prev, gender_based } : prev))
-                  try {
-                    const res = await fetch(`/api/games/${game.id}`, {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ hostToken, gender_based }),
-                    })
-                    const data = await res.json()
-                    if (!res.ok) {
-                      toast.error(data.error || 'Failed to save round mode')
-                      const { data: gameData } = await supabase
-                        .from('games')
-                        .select('*')
-                        .eq('id', gameCode)
-                        .maybeSingle()
-                      if (gameData) setGame(gameData)
-                      return
-                    }
-                    if (data.game) setGame(data.game)
-                  } finally {
-                    setSavingGenderBased(false)
-                  }
-                }}
-              />
-              {savingGenderBased && <p className="text-faint text-xs px-0.5">Saving…</p>}
+              <p className="text-muted text-xs uppercase tracking-wider">Who&apos;s in each round?</p>
+              <p className="text-body text-sm font-semibold">{gameGenderBased ? 'Gender-based' : 'Names only'}</p>
+              <p className="text-faint text-xs">
+                {gameGenderBased
+                  ? 'Same-gender groups each round — set when you created the game.'
+                  : 'Anyone can appear in any round — set when you created the game.'}
+              </p>
             </div>
           )}
           {showPairVoting && (
@@ -2009,7 +1985,7 @@ export default function HostPage() {
 
         <button
           onClick={handleStart}
-          disabled={!canStart || starting || savingGenderBased || savingPairVoteMode}
+          disabled={!canStart || starting || savingPairVoteMode}
           className="btn-primary"
         >
           {starting
@@ -2716,8 +2692,7 @@ export default function HostPage() {
               ready.
             </p>
           </div>
-          <div className="text-left">{timerControl}</div>
-          <button onClick={handlePlayAgain} disabled={playingAgain || updatingTimer} className="btn-primary w-full">
+          <button onClick={handlePlayAgain} disabled={playingAgain} className="btn-primary w-full">
             {playingAgain ? 'Resetting…' : '↻ Play Again'}
           </button>
 

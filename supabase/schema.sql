@@ -13,7 +13,7 @@ create table if not exists games (
   auto_submit_behavior text not null default 'no_answer',
   participant_mode text not null default 'import' check (participant_mode in ('import', 'joiners')),
   participant_filter text not null default 'all' check (participant_filter in ('all', 'joined')),
-  pair_vote_mode text not null default 'any' check (pair_vote_mode in ('any', 'one_each')),
+  pair_vote_mode text not null default 'one_each' check (pair_vote_mode in ('any', 'one_each')),
   question_source text not null default 'platform' check (question_source in ('platform', 'custom')),
   custom_questions jsonb,
   game_type text not null default 'smash_marry_kill' check (game_type in ('smash_marry_kill', 'red_flag_green_flag', 'smash_or_pass', 'would_you_rather', 'most_likely_to', 'who_said_this', 'hot_seat')),
