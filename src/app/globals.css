@@ -641,3 +641,16 @@ body {
   border: 2px solid currentColor;
   animation: pulse-ring 1s ease-out infinite;
 }
+
+.logo-theme-light {
+  display: block;
+}
+.logo-theme-dark {
+  display: none;
+}
+[data-theme='dark'] .logo-theme-light {
+  display: none;
+}
+[data-theme='dark'] .logo-theme-dark {
+  display: block;
+}

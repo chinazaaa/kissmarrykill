@@ -1,9 +1,9 @@
 'use client'
 import { useState } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
 import { GameTypeModal } from '@/components/GameTypeModal'
+import { FateRoundLogo } from '@/components/FateRoundLogo'
 import type { GameType } from '@/types'
 
 export default function Home() {
@@ -28,25 +28,15 @@ export default function Home() {
 
   return (
     <>
-      <div className="page-wrap h-dvh max-h-dvh overflow-hidden flex flex-col items-center justify-center px-4 pt-12 pb-6">
-        <div className="relative z-10 w-full max-w-sm flex flex-col gap-6">
+      <header className="fixed top-0 inset-x-0 z-40 flex items-center px-4 py-3 pointer-events-none">
+        <FateRoundLogo className="h-8 w-auto max-w-[9.5rem] sm:max-w-[11rem] pointer-events-auto" />
+      </header>
+
+      <div className="page-wrap min-h-dvh flex flex-col items-center justify-center px-4 pt-14 pb-6 sm:py-8">
+        <div className="relative z-10 w-full max-w-sm flex flex-col gap-4 sm:gap-5">
           {/* Hero */}
           <div className="text-center space-y-3 shrink-0">
-            <div className="flex flex-col items-center gap-2.5">
-              <Image
-                src="/icon.png"
-                alt="Fate Round"
-                width={64}
-                height={64}
-                className="rounded-2xl shadow-[0_8px_24px_rgba(244,63,94,0.25)]"
-                priority
-              />
-              <div className="premium-badge">
-                <span>Fate Round</span>
-              </div>
-            </div>
-
-            <h1 className="text-[2.75rem] sm:text-5xl font-black tracking-tighter leading-[0.95] gradient-title">
+            <h1 className="text-[2.5rem] sm:text-5xl font-black tracking-tighter leading-[0.95] gradient-title">
               Vote.
               <br />
               Laugh.
