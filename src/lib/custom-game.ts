@@ -172,14 +172,15 @@ export function customVoteRecapItems(
   slots: CustomSlot[]
 ): { name: string; emoji: string; label: string; color: string }[] {
   if (!assignments) return []
-  const slotByKey = new Map(slots.map((s) => [s.key, s]))
+  const nameById = new Map(roundParticipants.map((p) => [p.id, p.name]))
   const items: { name: string; emoji: string; label: string; color: string }[] = []
-  for (const p of roundParticipants) {
-    const slotKey = assignments[p.id]
-    if (!slotKey) continue
-    const slot = slotByKey.get(slotKey)
-    if (!slot) continue
-    items.push({ name: p.name, emoji: slot.emoji, label: slot.label, color: slot.color })
+  for (const slot of slots) {
+    for (const [participantId, slotKey] of Object.entries(assignments)) {
+      if (slotKey !== slot.key) continue
+      const name = nameById.get(participantId)
+      if (!name) continue
+      items.push({ name, emoji: slot.emoji, label: slot.label, color: slot.color })
+    }
   }
   return items
 }

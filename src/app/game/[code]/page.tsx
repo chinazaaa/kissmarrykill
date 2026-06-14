@@ -1413,6 +1413,13 @@ export default function GamePage() {
               }
             />
           )}
+          {!isWouldYouRather(game?.game_type) &&
+            !isMostLikelyTo(game?.game_type) &&
+            !isWhoSaidThis(game?.game_type) && (
+              <p className="text-faint text-xs text-center leading-snug">
+                You can add a profile picture in the lobby after joining — it shows on voting cards.
+              </p>
+            )}
           {!joinNeedsGender && isNameOnlyJoin && (
             <p className="text-faint text-xs text-center">
               {isHotSeat(game?.game_type)
@@ -1655,6 +1662,12 @@ export default function GamePage() {
 
         <div className="surface-inset border border-theme rounded-2xl p-4 space-y-2">
           <p className="text-muted text-xs uppercase tracking-wider">Players Joined ({players.length})</p>
+          {canUploadPhoto && (
+            <p className="text-faint text-xs leading-snug">
+              Your name is marked <span className="text-[var(--primary)] font-medium">(you)</span> in the list — tap
+              the camera icon next to it to add or change your photo.
+            </p>
+          )}
           <div className="space-y-1.5 max-h-52 overflow-y-auto">
             {players.map((p) => {
               const isMe = p.name === myPlayerName
@@ -2725,18 +2738,21 @@ export default function GamePage() {
         {myVote && (
           <div className="glass-card border border-[var(--primary)]/30 p-4">
             <p className="text-[var(--primary)] text-xs uppercase tracking-wider mb-2">Your vote</p>
-            <div className="flex gap-4 flex-wrap">
-              {isCustomGame(gameType) && game
-                ? customVoteRecapItems(
-                    myVote.pair_assignments as Record<string, string> | null,
-                    roundParts,
-                    getCustomSlots(game)
-                  ).map((item) => (
-                    <span key={item.name} className="text-sm font-medium" style={{ color: item.color }}>
-                      {item.name}: {item.emoji} {item.label}
-                    </span>
-                  ))
-                : isPairGame(gameType)
+            {isCustomGame(gameType) && game ? (
+              <div className="space-y-1.5">
+                {customVoteRecapItems(
+                  myVote.pair_assignments as Record<string, string> | null,
+                  roundParts,
+                  getCustomSlots(game)
+                ).map((item) => (
+                  <p key={`${item.label}-${item.name}`} className="text-sm font-medium" style={{ color: item.color }}>
+                    {item.emoji} {item.label}: {item.name}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <div className="inline-flex flex-wrap gap-x-3 gap-y-1">
+                {isPairGame(gameType)
                   ? roundParts.map((p) => {
                       const flag = flagForParticipant(myVote, p.id)
                       if (!flag) return null
@@ -2762,7 +2778,8 @@ export default function GamePage() {
                         </span>
                       )
                     })}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
