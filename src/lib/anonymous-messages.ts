@@ -16,6 +16,27 @@ export function truncateReplyPreview(text: string, max = ANONYMOUS_REPLY_PREVIEW
   return `${trimmed.slice(0, max)}…`
 }
 
+/** Default mute length when the host bans someone. */
+export const ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES = 10
+
+export const ANONYMOUS_ROOM_BAN_MINUTE_OPTIONS = [5, 10, 15, 30] as const
+
+export function isPlayerBanned(bannedUntil: string | null | undefined): boolean {
+  if (!bannedUntil) return false
+  return new Date(bannedUntil).getTime() > Date.now()
+}
+
+export function banSecondsLeft(bannedUntil: string | null | undefined): number {
+  if (!bannedUntil) return 0
+  return Math.max(0, Math.ceil((new Date(bannedUntil).getTime() - Date.now()) / 1000))
+}
+
+export function formatBanCountdown(secondsLeft: number): string {
+  const m = Math.floor(secondsLeft / 60)
+  const s = secondsLeft % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 /** Players who join after the session starts may watch but not post. */
 export function anonymousPlayerCanChat(
   player: Pick<Player, 'joined_at'>,
@@ -24,6 +45,15 @@ export function anonymousPlayerCanChat(
   if (game.status === 'waiting') return true
   if (!game.session_started_at) return false
   return new Date(player.joined_at).getTime() < new Date(game.session_started_at).getTime()
+}
+
+export function anonymousPlayerCanPost(
+  player: Pick<Player, 'joined_at'>,
+  game: Pick<Game, 'status' | 'session_started_at'>,
+  bannedUntil?: string | null
+): boolean {
+  if (isPlayerBanned(bannedUntil)) return false
+  return anonymousPlayerCanChat(player, game)
 }
 
 export function anonymousSessionExpired(sessionStartedAt: string | null | undefined): boolean {

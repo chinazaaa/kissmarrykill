@@ -3,9 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import { createAnonymousMessageSchema, deleteAnonymousMessageSchema } from '@/lib/validation'
 import { parseGameType, isAnonymousMessagesGame } from '@/lib/game-types'
 import {
-  anonymousPlayerCanChat,
+  anonymousPlayerCanPost,
   anonymousSessionExpired,
   finishExpiredAnonymousSession,
+  isPlayerBanned,
   trimAnonymousMessages,
   truncateReplyPreview,
 } from '@/lib/anonymous-messages'
@@ -49,7 +50,17 @@ export async function POST(req: NextRequest) {
 
   if (!player) return NextResponse.json({ error: 'Player not in this game' }, { status: 403 })
 
-  if (!anonymousPlayerCanChat(player, game)) {
+  const { data: ban } = await supabase
+    .from('anonymous_room_bans')
+    .select('banned_until')
+    .eq('game_id', gameCode)
+    .eq('player_id', playerId)
+    .maybeSingle()
+
+  if (!anonymousPlayerCanPost(player, game, ban?.banned_until)) {
+    if (isPlayerBanned(ban?.banned_until)) {
+      return NextResponse.json({ error: 'You are muted and cannot send messages right now' }, { status: 403 })
+    }
     return NextResponse.json({ error: 'You can only view this session — late joiners cannot send messages' }, { status: 403 })
   }
 

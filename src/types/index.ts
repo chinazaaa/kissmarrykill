@@ -160,6 +160,14 @@ export interface AnonymousMessage {
   reply_to_text?: string | null
 }
 
+export interface AnonymousRoomBan {
+  id: string
+  game_id: string
+  player_id: string
+  banned_until: string
+  created_at: string
+}
+
 /** Lobby quote submission for Who Said This — one per player before the game starts. */
 export interface WstQuotePoolEntry {
   id: string

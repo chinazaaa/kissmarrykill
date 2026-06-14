@@ -7,6 +7,14 @@ import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/Ano
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
+import {
+  ANONYMOUS_ROOM_BAN_MINUTE_OPTIONS,
+  ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES,
+  banSecondsLeft,
+  formatBanCountdown,
+  isPlayerBanned,
+} from '@/lib/anonymous-messages'
+import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
@@ -29,6 +37,18 @@ export function AnonymousMessagesHostView({
   const [playingAgain, setPlayingAgain] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [removingPlayerId, setRemovingPlayerId] = useState<string | null>(null)
+  const [mutingPlayerId, setMutingPlayerId] = useState<string | null>(null)
+  const [muteMinutes, setMuteMinutes] = useState(ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES)
+
+  const lobbyActionsEnabled = game?.status === 'waiting' || game?.status === 'active'
+  const { bans, banForPlayer, reload: reloadBans } = useAnonymousRoomBans(gameCode, !!lobbyActionsEnabled)
+  const [, setBanTick] = useState(0)
+
+  useEffect(() => {
+    if (!bans.length) return
+    const id = window.setInterval(() => setBanTick((value) => value + 1), 1000)
+    return () => window.clearInterval(id)
+  }, [bans.length])
 
   const messagesEnabled = game?.status === 'active'
   const { messages, removeMessage } = useAnonymousMessages(gameCode, !!messagesEnabled, players)
@@ -171,6 +191,44 @@ export function AnonymousMessagesHostView({
     }
   }
 
+  const mutePlayer = async (playerId: string) => {
+    setMutingPlayerId(playerId)
+    try {
+      const res = await fetch('/api/anonymous-room/bans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId, hostToken, durationMinutes: muteMinutes }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to mute player')
+      await reloadBans()
+      success(`Player muted for ${muteMinutes} minutes`)
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to mute player')
+    } finally {
+      setMutingPlayerId(null)
+    }
+  }
+
+  const unmutePlayer = async (playerId: string) => {
+    setMutingPlayerId(playerId)
+    try {
+      const res = await fetch('/api/anonymous-room/bans', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId, hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to unmute player')
+      await reloadBans()
+      success('Player unmuted')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to unmute player')
+    } finally {
+      setMutingPlayerId(null)
+    }
+  }
+
   if (!game) {
     return (
       <div className="page-wrap flex items-center justify-center">
@@ -181,7 +239,6 @@ export function AnonymousMessagesHostView({
 
   const playerLink = `${appOrigin()}/game/${gameCode}`
   const canStart = players.length >= 2
-  const canRemovePlayers = game.status === 'waiting' || game.status === 'active'
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -206,29 +263,78 @@ export function AnonymousMessagesHostView({
       </div>
 
       <div className="glass-card p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <p className="text-muted text-xs uppercase tracking-wider">In the lobby</p>
           <span className="text-faint text-xs">{players.length} joined</span>
         </div>
+        {lobbyActionsEnabled && players.length > 0 && (
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-faint text-xs uppercase tracking-wider">Mute duration</span>
+            <select
+              value={muteMinutes}
+              onChange={(e) => setMuteMinutes(Number(e.target.value))}
+              className="input-field py-1.5 px-2 text-sm w-auto"
+            >
+              {ANONYMOUS_ROOM_BAN_MINUTE_OPTIONS.map((minutes) => (
+                <option key={minutes} value={minutes}>
+                  {minutes} min
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="space-y-2">
           {players.length === 0 ? (
             <p className="text-muted text-sm">Waiting for players…</p>
           ) : (
-            players.map((player) => (
-              <div key={player.id} className="flex items-center justify-between gap-3 py-1.5">
-                <span className="chip text-xs">{player.name}</span>
-                {canRemovePlayers && (
-                  <button
-                    type="button"
-                    onClick={() => removePlayerFromLobby(player.id)}
-                    disabled={removingPlayerId === player.id}
-                    className="text-faint hover:text-red-400 text-xs disabled:opacity-50"
-                  >
-                    {removingPlayerId === player.id ? 'Removing…' : 'Remove'}
-                  </button>
-                )}
-              </div>
-            ))
+            players.map((player) => {
+              const ban = banForPlayer(player.id)
+              const muted = isPlayerBanned(ban?.banned_until)
+              const mutedLabel =
+                muted && ban ? `Muted · ${formatBanCountdown(banSecondsLeft(ban.banned_until))}` : null
+
+              return (
+                <div key={player.id} className="flex items-center justify-between gap-3 py-1.5">
+                  <div className="min-w-0">
+                    <span className="chip text-xs">{player.name}</span>
+                    {mutedLabel && (
+                      <p className="text-red-300/90 text-[10px] mt-1 tabular-nums">{mutedLabel}</p>
+                    )}
+                  </div>
+                  {lobbyActionsEnabled && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {muted ? (
+                        <button
+                          type="button"
+                          onClick={() => unmutePlayer(player.id)}
+                          disabled={mutingPlayerId === player.id}
+                          className="text-faint hover:text-emerald-300 text-xs disabled:opacity-50"
+                        >
+                          {mutingPlayerId === player.id ? '…' : 'Unmute'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => mutePlayer(player.id)}
+                          disabled={mutingPlayerId === player.id}
+                          className="text-faint hover:text-amber-300 text-xs disabled:opacity-50"
+                        >
+                          {mutingPlayerId === player.id ? '…' : 'Mute'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removePlayerFromLobby(player.id)}
+                        disabled={removingPlayerId === player.id}
+                        className="text-faint hover:text-red-400 text-xs disabled:opacity-50"
+                      >
+                        {removingPlayerId === player.id ? '…' : 'Remove'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
         </div>
       </div>

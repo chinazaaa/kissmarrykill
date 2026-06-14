@@ -51,6 +51,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isAnonymousMessagesGame(parseGameType(game.game_type))) {
     const { error: messagesError } = await supabase.from('anonymous_messages').delete().eq('game_id', gameId)
     if (messagesError) return NextResponse.json({ error: messagesError.message }, { status: 500 })
+
+    const { error: bansError } = await supabase.from('anonymous_room_bans').delete().eq('game_id', gameId)
+    if (bansError) return NextResponse.json({ error: bansError.message }, { status: 500 })
   }
 
   const { data: updated, error: gameError } = await supabase

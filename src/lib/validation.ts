@@ -298,6 +298,23 @@ export const deleteAnonymousMessageSchema = z.object({
 
 export type DeleteAnonymousMessageInput = z.infer<typeof deleteAnonymousMessageSchema>
 
+export const anonymousRoomBanSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  hostToken: hostTokenString(),
+  durationMinutes: z.coerce.number().int().min(1).max(120),
+})
+
+export type AnonymousRoomBanInput = z.infer<typeof anonymousRoomBanSchema>
+
+export const anonymousRoomUnbanSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  hostToken: hostTokenString(),
+})
+
+export type AnonymousRoomUnbanInput = z.infer<typeof anonymousRoomUnbanSchema>
+
 // ---------------------------------------------------------------------------
 // Quote (POST /api/quote)
 // ---------------------------------------------------------------------------

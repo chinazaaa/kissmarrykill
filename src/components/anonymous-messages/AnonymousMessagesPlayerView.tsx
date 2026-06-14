@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
+import { AnonymousBanCountdownBar } from '@/components/anonymous-messages/AnonymousBanCountdownBar'
 import { AnonymousMessageComposer } from '@/components/anonymous-messages/AnonymousMessageComposer'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { GameLobbySummary } from '@/components/GameLobbySummary'
@@ -10,7 +11,8 @@ import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
-import { anonymousPlayerCanChat } from '@/lib/anonymous-messages'
+import { anonymousPlayerCanChat, anonymousPlayerCanPost, isPlayerBanned } from '@/lib/anonymous-messages'
+import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { AnonymousMessage, Game, Player } from '@/types'
@@ -32,7 +34,9 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   const [sending, setSending] = useState(false)
 
   const messagesEnabled = screen === 'active'
+  const bansEnabled = screen === 'active' || screen === 'waiting'
   const { messages } = useAnonymousMessages(gameCode, messagesEnabled, players)
+  const { banForPlayer } = useAnonymousRoomBans(gameCode, bansEnabled)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (gameData.status === 'waiting') {
@@ -229,33 +233,41 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   }
 
   const myPlayer = players.find((p) => p.id === myPlayerId) ?? null
+  const myBan = myPlayerId ? banForPlayer(myPlayerId) : null
+  const isMuted = isPlayerBanned(myBan?.banned_until)
   const canChat = game && myPlayer ? anonymousPlayerCanChat(myPlayer, game) : false
+  const canPost = game && myPlayer ? anonymousPlayerCanPost(myPlayer, game, myBan?.banned_until) : false
 
   return (
     <PageShell>
       <Header game={game} />
       <AnonymousSessionTimerBar gameCode={gameCode} game={game} sticky />
+      {isMuted && myBan && <AnonymousBanCountdownBar bannedUntil={myBan.banned_until} />}
       <PlayerBar
         name={myPlayerName}
         subtitle={
-          canChat
-            ? 'Your lobby name — shown on your messages'
-            : 'View-only — you joined after the session started'
+          isMuted
+            ? 'Muted — you can read but not send messages'
+            : canChat
+              ? 'Your lobby name — shown on your messages'
+              : 'View-only — you joined after the session started'
         }
       />
-      {!canChat && (
+      {!canPost && (
         <p className="callout-warning text-sm text-center">
-          View-only mode — you can read messages but cannot send or reply.
+          {isMuted
+            ? 'You are muted by the host — read-only until the timer ends.'
+            : 'View-only mode — you can read messages but cannot send or reply.'}
         </p>
       )}
       <AnonymousMessageFeed
         messages={messages}
-        readOnly={!canChat}
-        canReply={canChat}
-        onReply={canChat ? setReplyTo : undefined}
+        readOnly={!canPost}
+        canReply={canPost}
+        onReply={canPost ? setReplyTo : undefined}
         highlightMessageId={replyTo?.id ?? null}
       />
-      {canChat && (
+      {canPost && (
         <AnonymousMessageComposer
           value={messageInput}
           onChange={setMessageInput}
