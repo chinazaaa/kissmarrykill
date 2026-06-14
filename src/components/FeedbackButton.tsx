@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Chip, Field, PrimaryBtn } from '@/components/ui/PageShell'
@@ -58,6 +59,7 @@ function readStoredPos(): ButtonPos | null {
 }
 
 export function FeedbackButton() {
+  const pathname = usePathname()
   const { success, error } = useToast()
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dragRef = useRef({
@@ -189,6 +191,8 @@ export function FeedbackButton() {
     setDragging(false)
     e.currentTarget.releasePointerCapture(e.pointerId)
   }
+
+  if (pathname.startsWith('/admin')) return null
 
   return (
     <>
