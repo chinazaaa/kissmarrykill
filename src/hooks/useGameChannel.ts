@@ -41,7 +41,11 @@ export function useGameChannel(
 ) {
   // Stable ref for callbacks so the channel doesn't re-subscribe on every render
   const cbRef = useRef(callbacks)
-  cbRef.current = callbacks
+
+  // Sync ref in a passive effect to satisfy react-hooks/refs lint rule
+  useEffect(() => {
+    cbRef.current = callbacks
+  })
 
   useEffect(() => {
     const ch = supabase

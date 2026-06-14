@@ -1,7 +1,7 @@
 // src/hooks/useAutoSubmit.ts
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   parseGameType,
   isMostLikelyTo,
@@ -68,7 +68,9 @@ export function useAutoSubmit(
   triggerAutoSubmit: () => Promise<boolean>
 } {
   const onCustomAssignmentsChangeRef = useRef(opts?.onCustomAssignmentsChange)
-  onCustomAssignmentsChangeRef.current = opts?.onCustomAssignmentsChange
+  useEffect(() => {
+    onCustomAssignmentsChangeRef.current = opts?.onCustomAssignmentsChange
+  })
   const assignmentRef = useRef<VoteAssignment>({ kiss: null, marry: null, kill: null })
   const pairAssignmentRef = useRef<PairAssignmentMap>({})
   const customAssignmentsRef = useRef<Record<string, string>>({})

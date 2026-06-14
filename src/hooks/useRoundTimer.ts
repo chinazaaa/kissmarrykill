@@ -1,4 +1,3 @@
-// src/hooks/useRoundTimer.ts
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -21,11 +20,14 @@ export function useRoundTimer(opts: {
   const [timeLeft, setTimeLeft] = useState(0)
   const expiredRef = useRef(false)
   const onExpireRef = useRef(onExpire)
-  onExpireRef.current = onExpire
+
+  // Sync ref in a passive effect to satisfy react-hooks/refs lint rule
+  useEffect(() => {
+    onExpireRef.current = onExpire
+  })
 
   useEffect(() => {
     if (!active || !currentRound?.started_at || !game) {
-      setTimeLeft(0)
       return
     }
 
@@ -50,7 +52,11 @@ export function useRoundTimer(opts: {
 
     tick()
     const id = window.setInterval(tick, 500)
-    return () => window.clearInterval(id)
+    return () => {
+      window.clearInterval(id)
+      setTimeLeft(0)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     active,
     currentRound?.id,
