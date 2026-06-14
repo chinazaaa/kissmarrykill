@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { filterParticipantsInRounds } from '@/lib/utils'
+import { useGameRealtime } from '@/hooks/useGameRealtime'
 import { Avatar } from '@/components/Avatar'
 import {
   roundGenderLabel,
@@ -147,6 +148,9 @@ export default function HostPage() {
   const { confirm } = useConfirm()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
   const hostToken = searchParams.get('token') ?? ''
+
+  // Realtime → React Query cache bridge
+  useGameRealtime(gameCode)
 
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState(false)
