@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { parseGameType, isWhoSaidThis } from '@/lib/game-types'
 import type { Game, Round } from '@/types'
 
@@ -21,6 +21,7 @@ export function useRoundTimer(opts: {
   const expiredRef = useRef(false)
   const onExpireRef = useRef(onExpire)
 
+  // Sync ref in a passive effect to satisfy react-hooks/refs lint rule
   useEffect(() => {
     onExpireRef.current = onExpire
   })
@@ -55,6 +56,7 @@ export function useRoundTimer(opts: {
       window.clearInterval(id)
       setTimeLeft(0)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     active,
     currentRound?.id,
@@ -63,8 +65,6 @@ export function useRoundTimer(opts: {
     currentRound?.quote_submitted_at,
     game?.timer_seconds,
     game?.game_type,
-    game,
-    currentRound,
   ])
 
   return timeLeft
