@@ -179,7 +179,7 @@ export function useAutoSubmit(
       }
     }
 
-    let voteBody: Record<string, unknown> | null = null
+    let voteBody: Record<string, unknown>
 
     if (isBinaryChoiceGame(gameType)) {
       if (!wyr) return false
