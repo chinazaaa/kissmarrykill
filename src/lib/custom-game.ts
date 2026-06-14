@@ -101,17 +101,45 @@ export function isCustomAssignmentValid(
 }
 
 export function customDisabledSlots(
-  assignments: Record<string, string>,
-  participantId: string,
-  participantIds: string[],
-  slotKeys: string[],
-  mode: PairVoteMode
+  _assignments: Record<string, string>,
+  _participantId: string,
+  _participantIds: string[],
+  _slotKeys: string[],
+  _mode: PairVoteMode
 ): string[] {
-  if (mode !== 'one_each' || slotKeys.length !== 2 || participantIds.length !== 2) return []
-  const otherId = participantIds.find((id) => id !== participantId)
-  if (!otherId) return []
-  const otherSlot = assignments[otherId]
-  return otherSlot ? [otherSlot] : []
+  // Slots are never disabled — one-each uses tap-to-swap instead.
+  return []
+}
+
+/** Assign a custom slot; one-each mode swaps with whoever already has that slot. */
+export function assignCustomSlot(
+  prev: Record<string, string>,
+  participantId: string,
+  slotKey: string,
+  participantIds: string[],
+  mode: PairVoteMode
+): Record<string, string> {
+  if (prev[participantId] === slotKey) {
+    const next = { ...prev }
+    delete next[participantId]
+    return next
+  }
+
+  if (mode === 'any') {
+    return { ...prev, [participantId]: slotKey }
+  }
+
+  const myCurrent = prev[participantId]
+  const holderId = Object.entries(prev).find(([id, key]) => key === slotKey && id !== participantId)?.[0]
+  const next = { ...prev }
+
+  if (holderId) {
+    if (myCurrent) next[holderId] = myCurrent
+    else delete next[holderId]
+  }
+
+  next[participantId] = slotKey
+  return next
 }
 
 export function fillRandomCustomAssignment(

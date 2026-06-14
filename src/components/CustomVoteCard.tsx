@@ -9,7 +9,6 @@ interface CustomVoteCardProps {
   onAssign: (participantId: string, slotKey: string) => void
   disabled?: boolean
   disabledSlotKeys?: string[]
-  allowDuplicateSlots?: boolean
   getDisabledSlotKeys?: (participantId: string) => string[]
 }
 
@@ -20,9 +19,10 @@ export function CustomVoteCard({
   onAssign,
   disabled,
   disabledSlotKeys = [],
-  allowDuplicateSlots = false,
   getDisabledSlotKeys,
 }: CustomVoteCardProps) {
+  const nameById = new Map(participants.map((p) => [p.id, p.name]))
+
   return (
     <div className="space-y-3">
       {participants.map((p) => {
@@ -49,22 +49,28 @@ export function CustomVoteCard({
                 const isActive = currentSlot === slot.key
                 const perParticipantDisabled = getDisabledSlotKeys?.(p.id) ?? disabledSlotKeys
                 const isDisabled = perParticipantDisabled.includes(slot.key)
-                const usedByOther =
-                  !allowDuplicateSlots &&
-                  !isActive &&
-                  Object.entries(assignments).some(([id, key]) => id !== p.id && key === slot.key)
+                const holderId = Object.entries(assignments).find(
+                  ([id, key]) => key === slot.key && id !== p.id
+                )?.[0]
+                const holderName = holderId ? nameById.get(holderId) : null
+                const usedByOther = !!holderName
                 return (
                   <button
                     key={slot.key}
                     type="button"
                     onClick={() => onAssign(p.id, slot.key)}
                     disabled={disabled || isDisabled}
+                    title={
+                      usedByOther && !isActive
+                        ? `Swap with ${holderName} — they’ll get your current pick`
+                        : isActive
+                          ? 'Tap again to clear'
+                          : undefined
+                    }
                     className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
                       isActive
                         ? 'text-white'
-                        : usedByOther
-                          ? 'surface-inset border-dashed border-theme-strong text-muted hover:border-[var(--primary)]'
-                          : 'surface-inset border-theme text-muted hover:border-theme-strong'
+                        : 'surface-inset border-theme text-muted hover:border-theme-strong hover:text-body-muted'
                     }`}
                     style={
                       isActive

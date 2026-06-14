@@ -492,17 +492,44 @@ export function isPairAssignmentValid(
 }
 
 export function pairDisabledSlots(
-  pairAssignment: PairAssignmentMap,
+  _pairAssignment: PairAssignmentMap,
+  _participantId: string,
+  _participantIds: string[],
+  _mode: PairVoteMode
+): VoteSlot[] {
+  // Slots are never disabled — one-each uses tap-to-swap instead.
+  return []
+}
+
+/** Assign a pair flag; one-each with 2 people swaps with the other voter. */
+export function assignPairSlot(
+  prev: PairAssignmentMap,
   participantId: string,
+  action: PairFlag,
   participantIds: string[],
   mode: PairVoteMode
-): VoteSlot[] {
-  if (mode !== 'one_each' || participantIds.length !== 2) return []
-  const otherId = participantIds.find((id) => id !== participantId)
-  if (!otherId) return []
-  const other = pairAssignment[otherId]
-  if (other === 'kiss' || other === 'kill') return [other]
-  return []
+): PairAssignmentMap {
+  if (prev[participantId] === action) {
+    const next = { ...prev }
+    delete next[participantId]
+    return next
+  }
+
+  if (mode === 'any') {
+    return { ...prev, [participantId]: action }
+  }
+
+  const next = { ...prev }
+  const myCurrent = prev[participantId]
+  const holderId = Object.entries(prev).find(([id, flag]) => flag === action && id !== participantId)?.[0]
+
+  if (holderId) {
+    if (myCurrent) next[holderId] = myCurrent
+    else delete next[holderId]
+  }
+
+  next[participantId] = action
+  return next
 }
 
 export function fillRandomPairAssignment(participantIds: string[], mode: PairVoteMode): PairAssignmentMap {

@@ -62,6 +62,7 @@ import {
   isPairOneEachMode,
   isPairAssignmentValid,
   pairDisabledSlots,
+  assignPairSlot,
   completeRandomPairAssignment,
   isHotSeat,
   isCustomGame,
@@ -101,6 +102,7 @@ import {
   isCustomAssignmentValid,
   customAssignmentMode,
   customDisabledSlots,
+  assignCustomSlot,
   isCustomOneEachMode,
   isCustomTwoSlotGame,
   customVoteRecapItems,
@@ -1101,16 +1103,14 @@ export default function GamePage() {
     const gameType = parseGameType(game?.game_type)
     if (isPairGame(gameType) && (action === 'kiss' || action === 'kill')) {
       setPairAssignment((prev) => {
-        const next = { ...prev, [participantId]: action }
-        if (!game || !currentRound) return next
-        const roundIds = currentRound.participant_ids
-        if (isPairOneEachMode(game) && roundIds.length === 2) {
-          const otherId = roundIds.find((id) => id !== participantId)
-          if (otherId && next[otherId] === action) {
-            delete next[otherId]
-          }
-        }
-        return next
+        if (!game || !currentRound) return { ...prev, [participantId]: action }
+        return assignPairSlot(
+          prev,
+          participantId,
+          action,
+          currentRound.participant_ids,
+          parsePairVoteMode(game.pair_vote_mode)
+        )
       })
       return
     }
@@ -2318,14 +2318,33 @@ export default function GamePage() {
             {voteBanner && <p className="text-green-400/90 text-xs font-medium mt-1">{voteBanner}</p>}
             {isPair && isPairOneEachMode(game!) && (
               <p className="text-faint text-xs mt-1">
-                {gameType === 'smash_or_pass' ? 'Pick one Smash and one Pass' : 'Pick one Green and one Red'}
+                {gameType === 'smash_or_pass'
+                  ? 'One Smash and one Pass — tap the other person&apos;s choice to swap'
+                  : 'One Green and one Red — tap the other person&apos;s choice to swap'}
+              </p>
+            )}
+            {isPair && !isPairOneEachMode(game!) && roundParts.length === 2 && (
+              <p className="text-faint text-xs mt-1">
+                {gameType === 'smash_or_pass'
+                  ? 'Any combo — both Smash, both Pass, or one of each'
+                  : 'Any combo — both Green, both Red, or one of each'}
               </p>
             )}
             {isCustom && isCustomTwoSlotGame(game!) && isCustomOneEachMode(game!) && customSlots.length === 2 && (
               <p className="text-faint text-xs mt-1">
-                Pick one {customSlots[0].label || 'option'} and one {customSlots[1].label || 'option'}
+                One {customSlots[0].label || 'option'} and one {customSlots[1].label || 'option'} — tap the other
+                person&apos;s choice to swap
               </p>
             )}
+            {isCustom &&
+              isCustomTwoSlotGame(game!) &&
+              !isCustomOneEachMode(game!) &&
+              customSlots.length === 2 && (
+                <p className="text-faint text-xs mt-1">
+                  Any combo — both {customSlots[0].label || 'options'}, both {customSlots[1].label || 'options'}, or
+                  one of each
+                </p>
+              )}
           </div>
           {canVote ? (
             <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} />
@@ -2349,14 +2368,12 @@ export default function GamePage() {
               const roundPartsCustom = participants.filter((p) => currentRound.participant_ids.includes(p.id))
               const roundIdsCustom = roundPartsCustom.map((p) => p.id)
               const customMode = customAssignmentMode(game, roundIdsCustom.length, slots.map((s) => s.key))
-              const allowDuplicateSlots = customMode === 'any'
               return (
                 <div className="flex-1 mb-6">
                   <CustomVoteCard
                     participants={roundPartsCustom}
                     slots={slots}
                     assignments={customAssignments}
-                    allowDuplicateSlots={allowDuplicateSlots}
                     getDisabledSlotKeys={(participantId) =>
                       customDisabledSlots(
                         customAssignments,
@@ -2368,22 +2385,9 @@ export default function GamePage() {
                     }
                     onAssign={(pid, slotKey) => {
                       if (!canVote || submitted) return
-                      setCustomAssignments((prev) => {
-                        if (prev[pid] === slotKey) {
-                          const next = { ...prev }
-                          delete next[pid]
-                          return next
-                        }
-                        if (allowDuplicateSlots) {
-                          return { ...prev, [pid]: slotKey }
-                        }
-                        const cleaned: Record<string, string> = {}
-                        for (const [id, key] of Object.entries(prev)) {
-                          if (key !== slotKey && id !== pid) cleaned[id] = key
-                        }
-                        cleaned[pid] = slotKey
-                        return cleaned
-                      })
+                      setCustomAssignments((prev) =>
+                        assignCustomSlot(prev, pid, slotKey, roundIdsCustom, customMode)
+                      )
                     }}
                     disabled={submitted || !canVote}
                   />
