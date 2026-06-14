@@ -1,6 +1,8 @@
 'use client'
 
+import { useCallback, useEffect, useRef } from 'react'
 import type { AnonymousMessage } from '@/types'
+import { useAnonymousFeedAutoScroll } from '@/hooks/useAnonymousFeedAutoScroll'
 
 interface AnonymousMessageFeedProps {
   messages: AnonymousMessage[]
@@ -13,7 +15,10 @@ interface AnonymousMessageFeedProps {
   onRemove?: (messageId: string) => void
   onReply?: (message: AnonymousMessage) => void
   highlightMessageId?: string | null
+  showAutoScrollToggle?: boolean
 }
+
+const NEAR_BOTTOM_PX = 80
 
 export function AnonymousMessageFeed({
   messages,
@@ -26,15 +31,67 @@ export function AnonymousMessageFeed({
   onRemove,
   onReply,
   highlightMessageId = null,
+  showAutoScrollToggle = true,
 }: AnonymousMessageFeedProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const { autoScroll, toggleAutoScroll, ready } = useAnonymousFeedAutoScroll()
+  const lastMessageId = messages[messages.length - 1]?.id ?? null
+
+  const isNearBottom = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX
+  }, [])
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior })
+  }, [])
+
+  const prevAutoScrollRef = useRef(autoScroll)
+
+  useEffect(() => {
+    if (!ready) return
+
+    const turnedOn = !prevAutoScrollRef.current && autoScroll
+    prevAutoScrollRef.current = autoScroll
+
+    if (!autoScroll) return
+    if (turnedOn || (lastMessageId && isNearBottom())) {
+      scrollToBottom(messages.length <= 1 ? 'auto' : 'smooth')
+    }
+  }, [ready, autoScroll, lastMessageId, messages.length, isNearBottom, scrollToBottom])
+
+  const handleToggleAutoScroll = () => {
+    toggleAutoScroll()
+  }
+
   return (
     <div className="glass-card border border-white/10 p-4 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-muted text-xs uppercase tracking-wider">{title}</p>
-        <span className="text-faint text-xs tabular-nums">{messages.length}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          {showAutoScrollToggle && (
+            <button
+              type="button"
+              onClick={handleToggleAutoScroll}
+              className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-lg border transition-colors ${
+                autoScroll
+                  ? 'border-violet-400/40 text-violet-300/90 bg-violet-500/10'
+                  : 'border-white/10 text-faint hover:text-muted'
+              }`}
+              aria-pressed={autoScroll}
+              aria-label={autoScroll ? 'Turn auto-scroll off' : 'Turn auto-scroll on'}
+            >
+              Auto-scroll {autoScroll ? 'on' : 'off'}
+            </button>
+          )}
+          <span className="text-faint text-xs tabular-nums">{messages.length}</span>
+        </div>
       </div>
 
-      <div className="max-h-[min(52vh,28rem)] overflow-y-auto scrollbar-thin">
+      <div ref={scrollRef} className="max-h-[min(52vh,28rem)] overflow-y-auto scrollbar-thin">
         <div className="space-y-2 pb-10">
         {messages.length === 0 ? (
           <p className="text-muted text-sm text-center py-8">{emptyLabel}</p>
