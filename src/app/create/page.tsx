@@ -736,8 +736,8 @@ function CreateGameInner() {
               )}
             </SettingsGroup>
 
-            {(isLobbyQuestions || isPeoplePollVoters) && (
-              <SettingsGroup title={isPeoplePollVoters ? 'Poll names' : 'Questions'}>
+            {isLobbyQuestions && (
+              <SettingsGroup title="Questions">
                 <Field label="Player submissions">
                   <SegmentedControl
                     value={playerQuestionsEnabled ? 'on' : 'off'}
@@ -749,17 +749,13 @@ function CreateGameInner() {
                   />
                   <p className="text-faint text-xs mt-2">
                     {playerQuestionsEnabled
-                      ? isPeoplePollVoters
-                        ? playerNameSubmissionHint()
-                        : 'Players can add their own questions in the lobby before you start.'
-                      : isPeoplePollVoters
-                        ? 'Only names from your list will appear in rounds.'
-                        : 'Only your uploaded or platform questions will be used.'}
+                      ? 'Players can add their own questions in the lobby before you start.'
+                      : 'Only your uploaded or platform questions will be used.'}
                   </p>
                 </Field>
 
                 {playerQuestionsEnabled && (
-                  <Field label={isPeoplePollVoters ? 'Name mix' : 'Question mix'}>
+                  <Field label="Question mix">
                     <SegmentedControl
                       value={playerQuestionsOrder}
                       onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
@@ -967,6 +963,47 @@ function CreateGameInner() {
                 />
               </SettingsGroup>
             ) : null}
+
+            {isPeoplePollVoters && (
+              <SettingsGroup title="Poll names">
+                <Field label="Player submissions">
+                  <SegmentedControl
+                    value={playerQuestionsEnabled ? 'on' : 'off'}
+                    onChange={(v) => setPlayerQuestionsEnabled(v === 'on')}
+                    options={[
+                      { value: 'on', label: 'Allowed' },
+                      { value: 'off', label: 'Disabled' },
+                    ]}
+                  />
+                  <p className="text-faint text-xs mt-2">
+                    {playerQuestionsEnabled
+                      ? playerNameSubmissionHint()
+                      : 'Only names from your list will appear in rounds.'}
+                  </p>
+                </Field>
+
+                {playerQuestionsEnabled && (
+                  <Field label="Name mix">
+                    <SegmentedControl
+                      value={playerQuestionsOrder}
+                      onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
+                      options={playerQuestionsOrderOptions({
+                        game_type: settings.game_type,
+                        question_source: questionSource,
+                      }).map((opt) => ({ value: opt.value, label: opt.label }))}
+                    />
+                    <p className="text-faint text-xs mt-2">
+                      {
+                        playerQuestionsOrderOptions({
+                          game_type: settings.game_type,
+                          question_source: questionSource,
+                        }).find((opt) => opt.value === playerQuestionsOrder)?.hint
+                      }
+                    </p>
+                  </Field>
+                )}
+              </SettingsGroup>
+            )}
 
             {settings.participant_mode === 'import' && !isBinaryLobby && !isWst && !isHotSeatGame && (
               <SettingsGroup title="Who appears in rounds">

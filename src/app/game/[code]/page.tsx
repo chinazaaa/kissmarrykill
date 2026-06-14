@@ -196,6 +196,9 @@ export default function GamePage() {
   // All-game accumulation (for final results)
   const [allVotes, setAllVotes] = useState<Vote[]>([])
   const [allRounds, setAllRounds] = useState<Round[]>([])
+  const [allHotSeatSubmissions, setAllHotSeatSubmissions] = useState<
+    { id: string; round_id: string; text: string; submission_type: string }[]
+  >([])
   const [allConfessions, setAllConfessions] = useState<Confession[]>([])
 
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
@@ -500,14 +503,19 @@ export default function GamePage() {
   }, [view, game?.game_type, lastFinishedRound, gameCode])
 
   async function loadAllResults() {
-    const [{ data: rounds }, { data: votes }, { data: confs }] = await Promise.all([
+    const [{ data: rounds }, { data: votes }, { data: confs }, { data: subs }] = await Promise.all([
       supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
       supabase.from('votes').select('*').eq('game_id', gameCode),
       supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+      supabase
+        .from('hot_seat_submissions')
+        .select('id, round_id, text, submission_type')
+        .eq('game_id', gameCode),
     ])
     setAllRounds(rounds || [])
     setAllVotes(votes || [])
     setAllConfessions(confs || [])
+    setAllHotSeatSubmissions(subs ?? [])
   }
 
   function resetRoundPlayerState() {
@@ -3124,6 +3132,7 @@ export default function GamePage() {
         players={players}
         myPlayerId={myPlayerId}
         myPlayerName={myPlayerName}
+        hotSeatSubmissions={allHotSeatSubmissions}
       />
     )
   }
@@ -3156,6 +3165,7 @@ function FinalResultsView({
   players,
   myPlayerId,
   myPlayerName,
+  hotSeatSubmissions,
 }: {
   game: Game
   participants: Participant[]
@@ -3165,6 +3175,7 @@ function FinalResultsView({
   players: Player[]
   myPlayerId: string | null
   myPlayerName: string | null
+  hotSeatSubmissions: { id: string; round_id: string; text: string; submission_type: string }[]
 }) {
   const gameType = parseGameType(game.game_type)
   const playedParticipants = filterParticipantsInRounds(participants, rounds)
@@ -3274,7 +3285,27 @@ function FinalResultsView({
 
       {achievements.length > 0 && <AchievementBadges achievements={achievements} />}
 
-      {!isHotSeatGame && (
+      {isHotSeatGame ? (
+        <div>
+          <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>
+          <div className="space-y-8">
+            {rounds.map((round) => {
+              const hotSeatPlayerName = hotSeatPlayerDisplayName(round.submitter_player_id, players, participants)
+              const roundSubs = hotSeatSubmissions.filter((s) => s.round_id === round.id)
+              return (
+                <div key={round.id}>
+                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                  <HotSeatRoundResults
+                    hotSeatPlayerName={hotSeatPlayerName ?? 'Unknown'}
+                    submissions={roundSubs}
+                    animate={false}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
       <div>
         <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>
         <div className="space-y-8">

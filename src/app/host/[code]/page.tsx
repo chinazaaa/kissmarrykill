@@ -147,6 +147,9 @@ export default function HostPage() {
   const [currentRound, setCurrentRound] = useState<Round | null>(null)
   const [lastFinishedRound, setLastFinishedRound] = useState<Round | null>(null)
   const [allRounds, setAllRounds] = useState<Round[]>([])
+  const [allHotSeatSubmissions, setAllHotSeatSubmissions] = useState<
+    { id: string; round_id: string; text: string; submission_type: string }[]
+  >([])
   const [votes, setVotes] = useState<Vote[]>([])
   const [confessions, setConfessions] = useState<Confession[]>([])
 
@@ -352,20 +355,26 @@ export default function HostPage() {
   }, [gameCode, hostToken])
 
   async function loadResults() {
-    const [{ data: rounds }, { data: vs }, { data: confs }] = await Promise.all([
+    const [{ data: rounds }, { data: vs }, { data: confs }, { data: subs }] = await Promise.all([
       supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
       supabase.from('votes').select('*').eq('game_id', gameCode),
       supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+      supabase
+        .from('hot_seat_submissions')
+        .select('id, round_id, text, submission_type')
+        .eq('game_id', gameCode),
     ])
     setAllRounds(rounds || [])
     setVotes(vs || [])
     setConfessions(confs || [])
+    setAllHotSeatSubmissions(subs ?? [])
   }
 
   function resetHostLobbyState() {
     setCurrentRound(null)
     setLastFinishedRound(null)
     setAllRounds([])
+    setAllHotSeatSubmissions([])
     setVotes([])
     setConfessions([])
     setWstPool([])
@@ -3077,12 +3086,18 @@ export default function HostPage() {
           </div>
         ) : isHotSeatGame ? (
           <div className="space-y-8">
+            <h2 className="text-muted text-xs uppercase tracking-wider">All round results</h2>
             {allRounds.map((round) => {
               const hotSeatPlayerName = hotSeatPlayerDisplayName(round.submitter_player_id, players, participants)
+              const roundSubs = allHotSeatSubmissions.filter((s) => s.round_id === round.id)
               return (
                 <div key={round.id}>
                   <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
-                  <p className="text-faint text-sm mb-3">🪑 {hotSeatPlayerName} was in the hot seat</p>
+                  <HotSeatRoundResults
+                    hotSeatPlayerName={hotSeatPlayerName ?? 'Unknown'}
+                    submissions={roundSubs}
+                    animate={false}
+                  />
                 </div>
               )
             })}

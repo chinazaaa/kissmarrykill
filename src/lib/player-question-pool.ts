@@ -42,21 +42,22 @@ export function playerQuestionsOrderOptions(
   game: Pick<Game, 'game_type' | 'question_source'>
 ): { value: PlayerQuestionsOrder; label: string; hint: string }[] {
   const pool = lobbyPoolSourceLabel(game)
+  const items = pool === 'Host list' ? 'names' : 'questions'
   return [
     {
       value: 'players_first',
       label: 'Players first',
-      hint: `Player submissions first, then ${pool.toLowerCase()} questions`,
+      hint: `Player submissions first, then ${pool.toLowerCase()} ${items}`,
     },
     {
       value: 'uploaded_first',
       label: `${pool} first`,
-      hint: `${pool} questions first, then player submissions`,
+      hint: `${pool} ${items} first, then player submissions`,
     },
     {
       value: 'mixed',
       label: 'Mix evenly',
-      hint: `Alternate between player and ${pool.toLowerCase()} questions`,
+      hint: `Alternate between player and ${pool.toLowerCase()} ${items}`,
     },
   ]
 }

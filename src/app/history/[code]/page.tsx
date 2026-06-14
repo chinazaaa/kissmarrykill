@@ -22,7 +22,9 @@ import {
   isThisOrThat,
   isMostLikelyTo,
   isWhoSaidThis,
+  isHotSeat,
 } from '@/lib/game-types'
+import { hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import {
   wstVoteTargets,
@@ -30,7 +32,7 @@ import {
   wstCorrectParticipantIdFromRound,
   tallyWstVotes,
 } from '@/lib/who-said-this'
-import { ParticipantRoundResults, WyrRoundResults, MltRoundResults, WstRoundResults } from '@/components/VoteResults'
+import { ParticipantRoundResults, WyrRoundResults, MltRoundResults, WstRoundResults, HotSeatRoundResults } from '@/components/VoteResults'
 import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
@@ -66,6 +68,9 @@ export default function GameHistoryPage() {
   const [rounds, setRounds] = useState<Round[]>([])
   const [votes, setVotes] = useState<Vote[]>([])
   const [confessions, setConfessions] = useState<Confession[]>([])
+  const [hotSeatSubmissions, setHotSeatSubmissions] = useState<
+    { id: string; round_id: string; text: string; submission_type: string }[]
+  >([])
 
   useEffect(() => {
     if (!gameCode || gameCode.length < 4) {
@@ -82,12 +87,17 @@ export default function GameHistoryPage() {
         return
       }
 
-      const [{ data: parts }, { data: plrs }, { data: rds }, { data: vts }, { data: confs }] = await Promise.all([
+      const [{ data: parts }, { data: plrs }, { data: rds }, { data: vts }, { data: confs }, { data: subs }] =
+        await Promise.all([
         supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
         supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
         supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
         supabase.from('votes').select('*').eq('game_id', gameCode),
         supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+        supabase
+          .from('hot_seat_submissions')
+          .select('id, round_id, text, submission_type')
+          .eq('game_id', gameCode),
       ])
 
       setGame(gameData)
@@ -96,6 +106,7 @@ export default function GameHistoryPage() {
       setRounds(rds ?? [])
       setVotes(vts ?? [])
       setConfessions(confs ?? [])
+      setHotSeatSubmissions(subs ?? [])
       setLoadState('ready')
     }
 
@@ -141,6 +152,10 @@ export default function GameHistoryPage() {
   }))
   const tallyCategories = getVoteCategories(gameType)
   const roundsWithVotes = rounds.filter((r) => votes.some((v) => v.round_id === r.id))
+  const isHotSeatGame = isHotSeat(gameType)
+  const roundsWithContent = isHotSeatGame
+    ? rounds.filter((r) => hotSeatSubmissions.some((s) => s.round_id === r.id) || r.status === 'finished')
+    : roundsWithVotes
 
   return (
     <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
@@ -189,13 +204,31 @@ export default function GameHistoryPage() {
 
       {rounds.length === 0 ? (
         <div className="glass-card p-8 text-center text-muted">No rounds yet — the host hasn't started this game.</div>
-      ) : roundsWithVotes.length === 0 ? (
+      ) : roundsWithContent.length === 0 ? (
         <div className="glass-card p-8 text-center text-muted">
-          {rounds.length} round{rounds.length === 1 ? '' : 's'} set up, but no votes recorded yet.
+          {isHotSeatGame
+            ? `${rounds.length} round${rounds.length === 1 ? '' : 's'} played, but no submissions recorded yet.`
+            : `${rounds.length} round${rounds.length === 1 ? '' : 's'} set up, but no votes recorded yet.`}
         </div>
       ) : (
         <div className="space-y-8">
           {rounds.map((round) => {
+            if (isHotSeatGame) {
+              const roundSubs = hotSeatSubmissions.filter((s) => s.round_id === round.id)
+              if (round.status !== 'finished' && roundSubs.length === 0) return null
+              const hotSeatPlayerName = hotSeatPlayerDisplayName(round.submitter_player_id, players, participants)
+              return (
+                <section key={round.id} className="space-y-3">
+                  <h2 className="text-lg font-bold text-body">Round {round.round_number}</h2>
+                  <HotSeatRoundResults
+                    hotSeatPlayerName={hotSeatPlayerName ?? 'Unknown'}
+                    submissions={roundSubs}
+                    animate={false}
+                  />
+                </section>
+              )
+            }
+
             const roundVotes = votes.filter((v) => v.round_id === round.id)
             if (roundVotes.length === 0) return null
 
