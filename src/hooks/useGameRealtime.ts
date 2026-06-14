@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { gameKeys } from '@/lib/query-keys'
-import type { Game, Round, Player, Participant, Confession } from '@/types'
+import type { Game, Round } from '@/types'
 
 /**
  * Subscribes to Supabase Realtime for a game and invalidates

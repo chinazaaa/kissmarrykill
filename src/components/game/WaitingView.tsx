@@ -20,10 +20,8 @@ interface WaitingViewProps {
   myPlayerName: string | null
   gameCode: string
   isWyrGame: boolean
-  isWstGame: boolean
   joinNeedsGender: boolean
   isNameOnlyJoin: boolean
-  isJoinersMode: boolean
   wstPool: WstQuotePoolEntry[]
   quoteInput: string
   setQuoteInput: (v: string) => void
@@ -64,10 +62,8 @@ export function WaitingView({
   myPlayerName,
   gameCode,
   isWyrGame,
-  isWstGame,
   joinNeedsGender,
   isNameOnlyJoin,
-  isJoinersMode,
   wstPool,
   quoteInput,
   setQuoteInput,

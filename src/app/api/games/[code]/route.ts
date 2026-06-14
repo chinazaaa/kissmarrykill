@@ -13,12 +13,8 @@ import {
 } from '@/lib/game-types'
 import { isCustomTwoSlotGame } from '@/lib/custom-game'
 import { clampHotSeatMaxCap, hotSeatJoinedPlayers, hotSeatMaxCapUpperBound } from '@/lib/hot-seat'
-import {
-  parsePlayerQuestionsEnabled,
-  parsePlayerQuestionsOrder,
-  lobbyAllowsPlayerQuestions,
-} from '@/lib/player-question-pool'
-import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
+import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/player-question-pool'
+import { supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -99,7 +95,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
 
   const gameType = parseGameType(auth.game!.game_type)
   const isLobbyQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
-  const isPeoplePoll = isPeoplePollGame(gameType)
   const supportsPlayerSubmissions =
     isLobbyQuestions ||
     supportsPlayerNameSubmissions({ game_type: gameType, participant_mode: auth.game!.participant_mode })

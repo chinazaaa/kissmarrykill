@@ -33,7 +33,6 @@ import {
   isAnonymousMessagesGame,
   isWouldYouRather,
   isThisOrThat,
-  isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isHotSeat,
