@@ -755,10 +755,23 @@ export async function DELETE(req: NextRequest) {
   let id: string
 
   if (hostToken) {
-    const auth = await assertHostGame(supabase, gameCode, hostToken)
-    if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
-    game = auth.game
-    id = auth.id
+    const code = gameCode.toUpperCase()
+    const { data: hostGame } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
+    if (!hostGame) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
+    if (hostGame.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+
+    if (isAnonymousMessagesGame(parseGameType(hostGame.game_type))) {
+      if (hostGame.status !== 'waiting' && hostGame.status !== 'active') {
+        return NextResponse.json({ error: 'Players can only be removed before the session ends' }, { status: 400 })
+      }
+      game = hostGame
+      id = code
+    } else {
+      const auth = await assertHostGame(supabase, gameCode, hostToken)
+      if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
+      game = auth.game
+      id = auth.id
+    }
   } else {
     const waiting = await assertWaitingGame(gameCode)
     if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })

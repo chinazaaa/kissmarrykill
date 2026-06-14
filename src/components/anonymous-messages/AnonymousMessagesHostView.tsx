@@ -28,9 +28,10 @@ export function AnonymousMessagesHostView({
   const [ending, setEnding] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [removingPlayerId, setRemovingPlayerId] = useState<string | null>(null)
 
   const messagesEnabled = game?.status === 'active'
-  const { messages, removeMessage } = useAnonymousMessages(gameCode, !!messagesEnabled)
+  const { messages, removeMessage } = useAnonymousMessages(gameCode, !!messagesEnabled, players)
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }] = await Promise.all([
@@ -151,6 +152,25 @@ export function AnonymousMessagesHostView({
     }
   }
 
+  const removePlayerFromLobby = async (playerId: string) => {
+    setRemovingPlayerId(playerId)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, playerId, hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to remove player')
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+      success('Player removed from lobby')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to remove player')
+    } finally {
+      setRemovingPlayerId(null)
+    }
+  }
+
   if (!game) {
     return (
       <div className="page-wrap flex items-center justify-center">
@@ -161,6 +181,7 @@ export function AnonymousMessagesHostView({
 
   const playerLink = `${appOrigin()}/game/${gameCode}`
   const canStart = players.length >= 2
+  const canRemovePlayers = game.status === 'waiting' || game.status === 'active'
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -170,7 +191,7 @@ export function AnonymousMessagesHostView({
           <h1 className="text-2xl font-black text-body mt-1">{game.title}</h1>
           <p className="text-muted text-sm">{gameTypeConfig(game.game_type).label}</p>
           <p className="text-[var(--primary)] text-xs mt-1 font-medium">
-            Anonymous room — players get auto names, messages are fully anonymous
+            Anonymous room — players get auto names shown on messages
           </p>
         </div>
         <div className="text-right">
@@ -189,14 +210,24 @@ export function AnonymousMessagesHostView({
           <p className="text-muted text-xs uppercase tracking-wider">In the lobby</p>
           <span className="text-faint text-xs">{players.length} joined</span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-2">
           {players.length === 0 ? (
             <p className="text-muted text-sm">Waiting for players…</p>
           ) : (
             players.map((player) => (
-              <span key={player.id} className="chip text-xs">
-                {player.name}
-              </span>
+              <div key={player.id} className="flex items-center justify-between gap-3 py-1.5">
+                <span className="chip text-xs">{player.name}</span>
+                {canRemovePlayers && (
+                  <button
+                    type="button"
+                    onClick={() => removePlayerFromLobby(player.id)}
+                    disabled={removingPlayerId === player.id}
+                    className="text-faint hover:text-red-400 text-xs disabled:opacity-50"
+                  >
+                    {removingPlayerId === player.id ? 'Removing…' : 'Remove'}
+                  </button>
+                )}
+              </div>
             ))
           )}
         </div>

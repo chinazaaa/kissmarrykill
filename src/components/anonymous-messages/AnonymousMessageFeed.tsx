@@ -70,6 +70,8 @@ export function AnonymousMessageFeed({
                   </div>
                 )}
 
+                <p className="text-violet-300/90 text-xs font-semibold mb-1">{message.player_name ?? 'Unknown'}</p>
+
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-body-muted text-sm leading-relaxed flex-1 min-w-0">
                     &ldquo;{message.text}&rdquo;
@@ -106,7 +108,7 @@ export function AnonymousMessageFeed({
       </div>
 
       {readOnly && messages.length > 0 && (
-        <p className="text-faint text-xs">Messages stay anonymous — no names are shown.</p>
+        <p className="text-faint text-xs">Lobby names are shown on each message.</p>
       )}
 
       <style jsx>{`

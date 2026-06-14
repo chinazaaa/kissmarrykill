@@ -11,7 +11,7 @@ import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { AnonymousMessage, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 
@@ -31,7 +31,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   const [sending, setSending] = useState(false)
 
   const messagesEnabled = screen === 'active'
-  const { messages } = useAnonymousMessages(gameCode, messagesEnabled)
+  const { messages } = useAnonymousMessages(gameCode, messagesEnabled, players)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (gameData.status === 'waiting') {
@@ -57,11 +57,17 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     setPlayers(plrs ?? [])
 
     const session = getPlayerSession(gameCode)
-    if (session) {
+    let playerId = session?.playerId ?? null
+    if (session && plrs && !plrs.some((p) => p.id === session.playerId)) {
+      clearPlayerSession(gameCode)
+      playerId = null
+      setMyPlayerId(null)
+      setMyPlayerName('')
+    } else if (session) {
       setMyPlayerId(session.playerId)
       setMyPlayerName(session.playerName)
     }
-    syncScreen(gameData, session?.playerId ?? null)
+    syncScreen(gameData, playerId)
   }, [gameCode, syncScreen])
 
   useEffect(() => {
@@ -93,6 +99,13 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
         { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const player = payload.old as Player
+          if (player.id === myPlayerId) {
+            clearPlayerSession(gameCode)
+            setMyPlayerId(null)
+            setMyPlayerName('')
+            setScreen('join')
+            toastError('You were removed from the room')
+          }
           setPlayers((prev) => prev.filter((p) => p.id !== player.id))
         }
       )
@@ -175,7 +188,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       <CenteredShell>
         <Header game={game} />
         <p className="text-muted text-sm text-center">
-          Join the anonymous room — you&apos;ll get a random name in the lobby, but your messages stay anonymous.
+          Join the anonymous room — you&apos;ll get a random lobby name shown on your messages.
         </p>
         <button type="button" onClick={join} disabled={joining} className="btn-primary w-full">
           {joining ? 'Joining…' : 'Join anonymously'}
@@ -211,7 +224,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     <PageShell>
       <Header game={game} />
       <AnonymousSessionTimerBar gameCode={gameCode} game={game} sticky />
-      <PlayerBar name={myPlayerName} subtitle="Your lobby name — messages stay anonymous" />
+      <PlayerBar name={myPlayerName} subtitle="Your lobby name — shown on your messages" />
       <AnonymousMessageFeed
         messages={messages}
         canReply
