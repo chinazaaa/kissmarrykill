@@ -123,6 +123,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
+import { useRoundTimer } from '@/hooks/useRoundTimer'
 import { useGameChannel } from '@/hooks/useGameChannel'
 import { finalResultsAutoRevealSeconds, msUntilDeadline, ROUND_RESULTS_AUTO_ADVANCE_SECONDS } from '@/lib/round-timing'
 import type {
@@ -171,7 +172,6 @@ export default function HostPage() {
   const [ending, setEnding] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(0)
   const [adminBusy, setAdminBusy] = useState<string | null>(null)
   const [addName, setAddName] = useState('')
   const [addGender, setAddGender] = useState<ParticipantGender>('female')
@@ -192,7 +192,6 @@ export default function HostPage() {
   )
   const [activeHotSeatSubs, setActiveHotSeatSubs] = useState<{ id: string; player_id: string; round_id: string }[]>([])
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const advancingRef = useRef(false)
   const autoFinishTriggeredRef = useRef(false)
   const autoAdvanceScheduledRef = useRef<string | null>(null)
@@ -249,7 +248,6 @@ export default function HostPage() {
     }
   }, [currentRound?.id, game?.game_type])
 
-  useTimerTickSound(timeLeft, game?.status === 'active' && !!currentRound)
 
   // ── Apply theme CSS variables ─────────────────────────────────────────────
   useEffect(() => {
@@ -612,41 +610,6 @@ export default function HostPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.status, game?.rounds_count, currentRound?.id, lastFinishedRound?.id, lastFinishedRound?.ended_at])
 
-  // ── Timer (host) ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    if (!currentRound?.started_at || !game || game.status !== 'active') return
-
-    const gameType = parseGameType(game.game_type)
-    const isWst = isWhoSaidThis(gameType)
-    const timerStartMs =
-      isWst && currentRound.quote_text && currentRound.quote_submitted_at
-        ? new Date(currentRound.quote_submitted_at).getTime()
-        : new Date(currentRound.started_at).getTime()
-    const endMs = timerStartMs + game.timer_seconds * 1000
-
-    const tick = () => {
-      const remaining = Math.max(0, Math.ceil((endMs - Date.now()) / 1000))
-      setTimeLeft(remaining)
-      if (remaining === 0) {
-        handleEndRound()
-      }
-    }
-    tick()
-    timerRef.current = setInterval(tick, 500)
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [
-    currentRound?.id,
-    currentRound?.started_at,
-    currentRound?.quote_text,
-    currentRound?.quote_submitted_at,
-    game?.timer_seconds,
-    game?.status,
-    game?.game_type,
-  ])
-
   // Auto-end round as soon as every eligible voter has voted; timer is the fallback
   useEffect(() => {
     if (!currentRound || !game || game.status !== 'active' || players.length === 0) return
@@ -741,6 +704,15 @@ export default function HostPage() {
       setEnding(false)
     }
   }
+
+  const timeLeft = useRoundTimer({
+    game,
+    currentRound,
+    active: game?.status === 'active' && !!currentRound,
+    onExpire: handleEndRound,
+  })
+
+  useTimerTickSound(timeLeft, game?.status === 'active' && !!currentRound)
 
   const handleNextRound = async () => {
     if (advancingRef.current) return
