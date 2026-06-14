@@ -29,7 +29,6 @@ import {
   playerGenderFromJoin,
   joinGenderHint,
   playerVoteGenderForRound,
-  playerJoinNeedsGender,
 } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
 import {
@@ -115,7 +114,7 @@ import {
   isCustomTwoSlotGame,
   customVoteRecapItems,
 } from '@/lib/custom-game'
-import { isGameGenderBased, supportsGenderToggle, isGenderFreeVoting } from '@/lib/gender-based'
+import { isGameGenderBased, isGenderFreeVoting } from '@/lib/gender-based'
 import { isImportClaimMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import { parseOrSplitQuestion } from '@/lib/custom-questions'
 import { lobbyAllowsPlayerQuestions } from '@/lib/player-question-pool'
