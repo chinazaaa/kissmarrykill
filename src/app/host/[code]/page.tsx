@@ -86,7 +86,6 @@ import {
   mergeActiveRound,
   wstQuotePoolStatus,
   dedupeWstPool,
-  mergeWstPoolEntry,
   isAnimeRound,
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
@@ -133,7 +132,6 @@ import type {
   Round,
   Vote,
   Confession,
-  VoteAssignment,
   WstQuotePoolEntry,
   AnimeQuotePoolEntry,
 } from '@/types'
