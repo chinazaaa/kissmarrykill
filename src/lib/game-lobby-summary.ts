@@ -13,6 +13,7 @@ import {
   pairVoteModeOptions,
 } from '@/lib/game-types'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
+import { anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
 import type { Game } from '@/types'
 
 export type LobbySummaryChip = {
@@ -55,6 +56,14 @@ function pairVoteChip(game: Game): LobbySummaryChip | null {
 export function gameLobbySummaryChips(game: Game): LobbySummaryChip[] {
   const chips: LobbySummaryChip[] = []
   const type = parseGameType(game.game_type)
+
+  if (isAnonymousMessagesGame(type)) {
+    chips.push({
+      key: 'room-capacity',
+      label: `Up to ${anonymousRoomMaxPlayers(game)} players`,
+      emoji: '👥',
+    })
+  }
 
   if (isCustomGame(type)) {
     for (const slot of getCustomSlots(game)) {

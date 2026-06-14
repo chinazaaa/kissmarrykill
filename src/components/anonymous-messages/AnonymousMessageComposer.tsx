@@ -32,7 +32,7 @@ export function AnonymousMessageComposer({
         <div className="glass-card px-3 py-2.5 flex items-start gap-3 border border-violet-400/30">
           <div className="flex-1 min-w-0 border-l-2 border-violet-400 pl-2">
             <p className="text-faint text-[10px] uppercase tracking-wider">Replying to</p>
-            <p className="text-body-muted text-sm line-clamp-2 mt-0.5">&ldquo;{replyTo.text}&rdquo;</p>
+            <p className="text-body-muted text-sm line-clamp-2 mt-0.5">{replyTo.text}</p>
           </div>
           <button
             type="button"

@@ -11,6 +11,9 @@ import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/Anonym
 import {
   ANONYMOUS_ROOM_BAN_MINUTE_OPTIONS,
   ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES,
+  ANONYMOUS_ROOM_MAX_PLAYERS,
+  ANONYMOUS_ROOM_MIN_PLAYERS,
+  anonymousRoomMaxPlayers,
   banSecondsLeft,
   formatBanCountdown,
   isPlayerBanned,
@@ -240,7 +243,8 @@ export function AnonymousMessagesHostView({
   }
 
   const playerLink = `${appOrigin()}/game/${gameCode}`
-  const canStart = players.length >= 2
+  const canStart = players.length >= ANONYMOUS_ROOM_MIN_PLAYERS
+  const roomCapacity = anonymousRoomMaxPlayers(game)
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -267,7 +271,9 @@ export function AnonymousMessagesHostView({
       <div className="glass-card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <p className="text-muted text-xs uppercase tracking-wider">In the lobby</p>
-          <span className="text-faint text-xs">{players.length} joined</span>
+          <span className="text-faint text-xs">
+            {players.length} / {roomCapacity}
+          </span>
         </div>
         {lobbyActionsEnabled && players.length > 0 && (
           <label className="flex items-center justify-between gap-3 text-sm">
@@ -348,7 +354,7 @@ export function AnonymousMessagesHostView({
           disabled={!canStart || starting}
           className="btn-primary w-full"
         >
-          {starting ? 'Starting…' : canStart ? 'Start anonymous session' : 'Need at least 2 players'}
+          {starting ? 'Starting…' : canStart ? 'Start anonymous session' : `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players`}
         </button>
       )}
 

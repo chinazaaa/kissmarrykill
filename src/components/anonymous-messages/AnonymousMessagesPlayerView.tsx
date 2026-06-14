@@ -12,7 +12,7 @@ import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
-import { anonymousPlayerCanChat, anonymousPlayerCanPost, isPlayerBanned } from '@/lib/anonymous-messages'
+import { anonymousPlayerCanChat, anonymousPlayerCanPost, anonymousRoomMaxPlayers, isPlayerBanned } from '@/lib/anonymous-messages'
 import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -196,16 +196,20 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
 
   if (screen === 'join') {
     const sessionInProgress = game?.status === 'active'
+    const roomCapacity = game ? anonymousRoomMaxPlayers(game) : null
+    const roomFull = roomCapacity != null && players.length >= roomCapacity
     return (
       <CenteredShell>
         <Header game={game} />
         <p className="text-muted text-sm text-center">
-          {sessionInProgress
-            ? 'This session is already in progress. You can join to watch live — late joiners cannot send messages.'
-            : 'Join the anonymous room — you&apos;ll get a random lobby name shown on your messages.'}
+          {roomFull
+            ? `This room is full (${roomCapacity} players max).`
+            : sessionInProgress
+              ? 'This session is already in progress. You can join to watch live — late joiners cannot send messages.'
+              : 'Join the anonymous room — you&apos;ll get a random lobby name shown on your messages.'}
         </p>
-        <button type="button" onClick={join} disabled={joining} className="btn-primary w-full">
-          {joining ? 'Joining…' : sessionInProgress ? 'Join as viewer' : 'Join anonymously'}
+        <button type="button" onClick={join} disabled={joining || roomFull} className="btn-primary w-full">
+          {joining ? 'Joining…' : roomFull ? 'Room full' : sessionInProgress ? 'Join as viewer' : 'Join anonymously'}
         </button>
       </CenteredShell>
     )

@@ -78,6 +78,11 @@ import { GameTypeCard } from '@/components/GameTypeCard'
 import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/components/ui/PageShell'
 import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGrid } from '@/components/ui/CreateWizard'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
+import {
+  ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS,
+  ANONYMOUS_ROOM_MAX_PLAYERS,
+  ANONYMOUS_ROOM_MIN_PLAYERS,
+} from '@/lib/anonymous-messages'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useToast } from '@/components/ui/Toast'
 
@@ -144,6 +149,7 @@ function CreateGameInner() {
   const [questionsBulkPaste, setQuestionsBulkPaste] = useState('')
   const [wstQuoteSource, setWstQuoteSource] = useState<WstQuoteSource>('player')
   const [customSlots, setCustomSlots] = useState<CustomSlotsConfig | null>(null)
+  const [anonymousMaxPlayers, setAnonymousMaxPlayers] = useState(ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS)
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -542,6 +548,7 @@ function CreateGameInner() {
           gender_based: supportsGender ? settings.gender_based : undefined,
           player_questions_enabled: isPlayerSubmissions ? playerQuestionsEnabled : undefined,
           player_questions_order: isPlayerSubmissions ? playerQuestionsOrder : undefined,
+          max_players: isAnonymousRoom ? anonymousMaxPlayers : undefined,
         }),
       })
       const data = await res.json()
@@ -605,6 +612,22 @@ function CreateGameInner() {
           <div className="glass-card p-5 space-y-5">
             {isAnonymousRoom ? (
               <SettingsGroup title="Session">
+                <Field label={`Max players (${ANONYMOUS_ROOM_MIN_PLAYERS}–${ANONYMOUS_ROOM_MAX_PLAYERS})`}>
+                  <select
+                    value={anonymousMaxPlayers}
+                    onChange={(e) => setAnonymousMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {Array.from(
+                      { length: ANONYMOUS_ROOM_MAX_PLAYERS - ANONYMOUS_ROOM_MIN_PLAYERS + 1 },
+                      (_, i) => i + ANONYMOUS_ROOM_MIN_PLAYERS
+                    ).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with one tap and get a random lobby name shown on their messages. Anyone who joins after
                   the session starts can watch only. Hosts can mute players for 5–30 minutes (default 10) — muted

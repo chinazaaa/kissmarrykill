@@ -13,6 +13,20 @@ export const ANONYMOUS_ROOM_TRIM_INTERVAL_MS = 5 * 60 * 1000
 /** Fixed session length for anonymous rooms (15 minutes). */
 export const ANONYMOUS_ROOM_SESSION_SECONDS = 15 * 60
 
+/** Lobby size limits for anonymous rooms. */
+export const ANONYMOUS_ROOM_MIN_PLAYERS = 2
+export const ANONYMOUS_ROOM_MAX_PLAYERS = 15
+export const ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS = 15
+
+export function clampAnonymousRoomMaxPlayers(value: number): number {
+  return Math.min(ANONYMOUS_ROOM_MAX_PLAYERS, Math.max(ANONYMOUS_ROOM_MIN_PLAYERS, value))
+}
+
+export function anonymousRoomMaxPlayers(game: Pick<Game, 'max_players'>): number {
+  if (game.max_players == null) return ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS
+  return clampAnonymousRoomMaxPlayers(game.max_players)
+}
+
 /** Snapshot length for quoted replies shown in the feed. */
 export const ANONYMOUS_REPLY_PREVIEW_MAX = 120
 

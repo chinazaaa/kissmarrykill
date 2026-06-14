@@ -4,7 +4,7 @@ import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/li
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
 import { parseGameType, isNameOnlyPlayerJoin, isWhoSaidThis, isImportNameClaimGame, isHotSeat, isAnonymousMessagesGame } from '@/lib/game-types'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
-import { anonymousPlayerCanChat } from '@/lib/anonymous-messages'
+import { anonymousPlayerCanChat, anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import {
@@ -86,6 +86,16 @@ export async function POST(req: NextRequest) {
     }
     if (gameRow.status !== 'waiting' && gameRow.status !== 'active') {
       return NextResponse.json({ error: 'Cannot join this session' }, { status: 400 })
+    }
+
+    const maxPlayers = anonymousRoomMaxPlayers(gameRow)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if ((playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This room is full' }, { status: 400 })
     }
 
     const { data: existingPlayers } = await supabase.from('players').select('name').eq('game_id', gameId)

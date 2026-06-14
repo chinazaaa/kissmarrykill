@@ -42,6 +42,7 @@ import {
 import { useFullHostListForRounds } from '@/lib/participant-mode'
 import { buildPeoplePollParticipantPool } from '@/lib/player-participant-pool'
 import { hostActionSchema } from '@/lib/validation'
+import { ANONYMOUS_ROOM_MIN_PLAYERS } from '@/lib/anonymous-messages'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -120,8 +121,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const now = new Date().toISOString()
 
   if (isAnonymousMessagesGame(gameType)) {
-    if (playersData.length < 2) {
-      return NextResponse.json({ error: 'Need at least 2 players to start' }, { status: 400 })
+    if (playersData.length < ANONYMOUS_ROOM_MIN_PLAYERS) {
+      return NextResponse.json({ error: `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const { error: gameError } = await supabase

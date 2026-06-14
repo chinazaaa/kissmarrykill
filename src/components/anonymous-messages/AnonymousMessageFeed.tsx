@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import type { AnonymousMessage } from '@/types'
 
 interface AnonymousMessageFeedProps {
@@ -28,17 +27,6 @@ export function AnonymousMessageFeed({
   onReply,
   highlightMessageId = null,
 }: AnonymousMessageFeedProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const prevCountRef = useRef(messages.length)
-
-  useEffect(() => {
-    if (messages.length > prevCountRef.current && scrollRef.current) {
-      const el = scrollRef.current
-      el.scrollTo({ top: el.scrollHeight - el.clientHeight, behavior: 'smooth' })
-    }
-    prevCountRef.current = messages.length
-  }, [messages.length])
-
   return (
     <div className="glass-card border border-white/10 p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -46,7 +34,7 @@ export function AnonymousMessageFeed({
         <span className="text-faint text-xs tabular-nums">{messages.length}</span>
       </div>
 
-      <div ref={scrollRef} className="max-h-[min(52vh,28rem)] overflow-y-auto scrollbar-thin">
+      <div className="max-h-[min(52vh,28rem)] overflow-y-auto scrollbar-thin">
         <div className="space-y-2 pb-10">
         {messages.length === 0 ? (
           <p className="text-muted text-sm text-center py-8">{emptyLabel}</p>
@@ -68,7 +56,7 @@ export function AnonymousMessageFeed({
                 {quoted && (
                   <div className="mb-2 pl-2 border-l-2 border-violet-400/70">
                     <p className="text-faint text-[10px] uppercase tracking-wider mb-0.5">Replying to</p>
-                    <p className="text-body-muted/80 text-xs leading-snug line-clamp-2">&ldquo;{quoted}&rdquo;</p>
+                    <p className="text-body-muted/80 text-xs leading-snug line-clamp-2">{quoted}</p>
                   </div>
                 )}
 
@@ -76,7 +64,7 @@ export function AnonymousMessageFeed({
 
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-body-muted text-sm leading-relaxed flex-1 min-w-0">
-                    &ldquo;{message.text}&rdquo;
+                    {message.text}
                   </p>
                   <div className="flex shrink-0 items-center gap-2">
                     {canReply && onReply && (
