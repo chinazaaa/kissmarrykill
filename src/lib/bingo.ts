@@ -9,6 +9,11 @@ export const BINGO_MAX_PLAYERS = 30
 export const BINGO_DEFAULT_MAX_PLAYERS = 20
 export const BINGO_FREE_INDEX = 12
 
+export type BingoCallMode = 'manual' | 'auto'
+export const BINGO_DEFAULT_CALL_MODE: BingoCallMode = 'manual'
+export const BINGO_CALL_INTERVAL_OPTIONS = [3, 5, 8, 10, 15] as const
+export const BINGO_DEFAULT_CALL_INTERVAL = 5
+
 const COLUMN_RANGES: Record<BingoColumn, [number, number]> = {
   B: [1, 15],
   I: [16, 30],
@@ -116,6 +121,75 @@ export function clampBingoMaxPlayers(value: number): number {
 export function bingoMaxPlayers(game: { max_players?: number | null }): number {
   if (game.max_players == null) return BINGO_DEFAULT_MAX_PLAYERS
   return clampBingoMaxPlayers(game.max_players)
+}
+
+export function parseBingoCallMode(raw: unknown): BingoCallMode {
+  return raw === 'auto' ? 'auto' : 'manual'
+}
+
+export function bingoCallModeFromGame(game: { bingo_call_mode?: string | null }): BingoCallMode {
+  return parseBingoCallMode(game.bingo_call_mode)
+}
+
+export function clampBingoCallInterval(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10)
+  if (!Number.isFinite(n)) return BINGO_DEFAULT_CALL_INTERVAL
+  const allowed = BINGO_CALL_INTERVAL_OPTIONS as readonly number[]
+  if (allowed.includes(n)) return n
+  return BINGO_DEFAULT_CALL_INTERVAL
+}
+
+export function bingoCallIntervalFromGame(game: { bingo_call_interval_seconds?: number | null }): number {
+  if (game.bingo_call_interval_seconds == null) return BINGO_DEFAULT_CALL_INTERVAL
+  return clampBingoCallInterval(game.bingo_call_interval_seconds)
+}
+
+export type BingoSyncCode = 'manual_mode' | 'not_active' | 'not_bingo' | 'game_not_found' | 'waiting' | 'called' | 'all_called' | 'call_failed'
+
+export type BingoSyncResult = {
+  ok: boolean
+  code: BingoSyncCode
+  number?: number
+}
+
+export async function syncBingoAutoCall(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<BingoSyncResult> {
+  const code = gameId.toUpperCase()
+  const { data: game } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
+  if (!game) return { ok: false, code: 'game_not_found' }
+  if (game.game_type !== 'bingo') return { ok: false, code: 'not_bingo' }
+  if (game.status !== 'active') return { ok: false, code: 'not_active' }
+  if (bingoCallModeFromGame(game) !== 'auto') return { ok: false, code: 'manual_mode' }
+
+  const { data: calledRows } = await supabase
+    .from('bingo_called_numbers')
+    .select('number, called_at')
+    .eq('game_id', code)
+    .order('called_at', { ascending: false })
+
+  const called = (calledRows ?? []).map((row) => row.number)
+  if (called.length >= 75) return { ok: true, code: 'all_called' }
+
+  const intervalMs = bingoCallIntervalFromGame(game) * 1000
+  const lastCalledAt = calledRows?.[0]?.called_at
+  if (lastCalledAt) {
+    const elapsed = Date.now() - new Date(lastCalledAt).getTime()
+    if (elapsed < intervalMs) return { ok: true, code: 'waiting' }
+  }
+
+  const number = pickRandomUncalledNumber(called)
+  if (number == null) return { ok: true, code: 'all_called' }
+
+  const { data: inserted, error } = await supabase
+    .from('bingo_called_numbers')
+    .insert({ game_id: code, number })
+    .select('number')
+    .single()
+
+  if (error || !inserted) return { ok: false, code: 'call_failed' }
+  return { ok: true, code: 'called', number: inserted.number }
 }
 
 export async function createBingoCardForPlayer(

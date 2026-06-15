@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BingoCardGrid, BingoCardLegend, CalledNumbersBoard } from '@/components/bingo/BingoCardGrid'
+import { BingoFinalResultsShareBlock } from '@/components/bingo/BingoFinalResultsShareBlock'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import { formatBingoNumber, hasBingoWin } from '@/lib/bingo'
@@ -11,6 +12,7 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/ut
 import type { BingoCalledNumber, BingoCard, BingoClaim, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification } from '@/hooks/useBingoNotifications'
+import { useBingoAutoCall } from '@/hooks/useBingoAutoCall'
 
 type Screen = 'loading' | 'join' | 'waiting' | 'active' | 'finished' | 'not_found'
 
@@ -159,6 +161,13 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
       supabase.removeChannel(channel)
     }
   }, [gameCode, myPlayerId, syncScreen, loadCard])
+
+  useBingoAutoCall({
+    gameCode,
+    game,
+    enabled: screen === 'active',
+    onSynced: load,
+  })
 
   const joinGame = async () => {
     const name = joinName.trim()
@@ -324,20 +333,12 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md space-y-4">
-          {iWon ? (
-            <div className="glass-card p-8 text-center space-y-3 border-amber-400/50 shadow-lg">
-              <p className="text-5xl">🏆</p>
-              <p className="text-3xl font-black text-amber-600 dark:text-amber-200">BINGO!</p>
-              <p className="text-xl font-bold">You won!</p>
-              <p className="text-muted text-sm">Nice one, {myPlayerName} 🎉</p>
-            </div>
-          ) : winnerPlayer ? (
-            <div className="glass-card p-8 text-center space-y-3">
-              <p className="text-4xl">🏁</p>
-              <p className="text-xl font-black">Round over</p>
-              <p className="text-lg font-bold text-amber-600 dark:text-amber-200">{winnerPlayer.name} got BINGO!</p>
-              <p className="text-muted text-sm">The host can start a new round.</p>
-            </div>
+          {winnerPlayer && game ? (
+            <BingoFinalResultsShareBlock
+              game={game}
+              players={players}
+              winnerName={iWon ? myPlayerName : winnerPlayer.name}
+            />
           ) : (
             <div className="glass-card p-6 text-center space-y-3">
               <p className="text-4xl">🏁</p>

@@ -11,6 +11,7 @@ import {
   isWhoSaidThis,
   isCustomGame,
   isTriviaGame,
+  isBingoGame,
 } from '@/lib/game-types'
 import { tallyTriviaPlayerScores } from '@/lib/trivia'
 import { buildCustomLeaderboard } from '@/lib/custom-game'
@@ -30,6 +31,7 @@ function buildShareText({
   rounds,
   players,
   triviaAnswers,
+  bingoWinnerName,
 }: {
   game: Game
   participants: Participant[]
@@ -37,9 +39,26 @@ function buildShareText({
   rounds: Round[]
   players: Player[]
   triviaAnswers?: TriviaAnswer[]
+  bingoWinnerName?: string
 }): string {
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
+
+  if (isBingoGame(gameType) && bingoWinnerName) {
+    return [
+      config.headerEmoji,
+      game.title,
+      '',
+      '🏆',
+      '',
+      'BINGO!',
+      '',
+      `${bingoWinnerName} wins!`,
+      '',
+      `Play at ${appDomain()}`,
+    ].join('\n')
+  }
+
   const lines: string[] = []
 
   lines.push(`${config.headerEmoji} ${game.title}`)
@@ -161,6 +180,7 @@ export function ShareResults({
   rounds,
   players,
   triviaAnswers,
+  bingoWinnerName,
 }: {
   captureRef?: RefObject<HTMLElement | null>
   game: Game
@@ -169,6 +189,7 @@ export function ShareResults({
   rounds: Round[]
   players: Player[]
   triviaAnswers?: TriviaAnswer[]
+  bingoWinnerName?: string
 }) {
   const { success, error } = useToast()
   const [sharing, setSharing] = useState(false)
@@ -202,7 +223,7 @@ export function ShareResults({
         return
       }
 
-      const text = buildShareText({ game, participants, votes, rounds, players, triviaAnswers })
+      const text = buildShareText({ game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName })
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
           await navigator.share({ text })
@@ -223,7 +244,7 @@ export function ShareResults({
       }
 
       try {
-        const text = buildShareText({ game, participants, votes, rounds, players, triviaAnswers })
+        const text = buildShareText({ game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName })
         await navigator.clipboard.writeText(text)
         success('Results copied to clipboard!')
       } catch {
@@ -233,7 +254,7 @@ export function ShareResults({
       sharingLock.current = false
       setSharing(false)
     }
-  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, success, error])
+  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName, success, error])
 
   return (
     <button

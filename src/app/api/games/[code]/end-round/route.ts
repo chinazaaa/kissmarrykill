@@ -28,6 +28,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .maybeSingle()
 
   if (!activeRound) {
+    const { data: pointerRound } = await supabase
+      .from('rounds')
+      .select('round_number, status')
+      .eq('game_id', gameId)
+      .eq('round_number', game.current_round_number)
+      .maybeSingle()
+
+    if (pointerRound?.status === 'finished') {
+      return NextResponse.json({
+        finished: true,
+        alreadyEnded: true,
+        isLastRound: pointerRound.round_number >= game.rounds_count,
+        roundNumber: pointerRound.round_number,
+      })
+    }
+
     return NextResponse.json({ error: 'No active round to end' }, { status: 400 })
   }
 

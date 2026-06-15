@@ -42,7 +42,7 @@ import { parseThemeId } from '@/lib/themes'
 import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/player-question-pool'
 import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 import { clampAnonymousRoomMaxPlayers, ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS } from '@/lib/anonymous-messages'
-import { clampBingoMaxPlayers, BINGO_DEFAULT_MAX_PLAYERS } from '@/lib/bingo'
+import { clampBingoMaxPlayers, BINGO_DEFAULT_MAX_PLAYERS, parseBingoCallMode, clampBingoCallInterval } from '@/lib/bingo'
 import { clampTriviaMaxPlayers, TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_DEFAULT_ROUNDS, clampTriviaTimer } from '@/lib/trivia'
 import {
   clampCodewordsMaxPlayers,
@@ -147,6 +147,8 @@ export async function POST(req: NextRequest) {
     codewords_player_picks: rawCodewordsPlayerPicks,
     codewords_late_join: rawCodewordsLateJoin,
     trivia_category: rawTriviaCategory,
+    bingo_call_mode: rawBingoCallMode,
+    bingo_call_interval_seconds: rawBingoCallInterval,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -311,6 +313,12 @@ export async function POST(req: NextRequest) {
           ? parsePlayerQuestionsOrder(rawPlayerQuestionsOrder)
           : 'players_first',
     ...(maxPlayers != null ? { max_players: maxPlayers } : {}),
+    ...(isBingoGame(game_type)
+      ? {
+          bingo_call_mode: parseBingoCallMode(rawBingoCallMode),
+          bingo_call_interval_seconds: clampBingoCallInterval(rawBingoCallInterval),
+        }
+      : {}),
     ...(isCustomGame(game_type) && parsed.data.custom_slots
       ? {
           custom_slots: {

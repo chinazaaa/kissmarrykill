@@ -104,6 +104,8 @@ export const createGameSchema = z.object({
   codewords_player_picks: z.boolean().optional(),
   codewords_late_join: z.boolean().optional(),
   trivia_category: triviaCategoryEnum.optional(),
+  bingo_call_mode: z.enum(['manual', 'auto']).optional(),
+  bingo_call_interval_seconds: z.coerce.number().optional(),
   custom_slots: z
     .object({
       slots: z
@@ -377,6 +379,16 @@ export const bingoClaimSchema = z.object({
 export type BingoCallInput = z.infer<typeof bingoCallSchema>
 export type BingoMarkInput = z.infer<typeof bingoMarkSchema>
 export type BingoClaimInput = z.infer<typeof bingoClaimSchema>
+
+export const bingoSettingsSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+  bingo_call_mode: z.enum(['manual', 'auto']).optional(),
+  bingo_call_interval_seconds: z.coerce.number().optional(),
+  max_players: z.coerce.number().int().min(2).max(30).optional(),
+})
+
+export type BingoSettingsInput = z.infer<typeof bingoSettingsSchema>
 
 export const triviaAnswerSchema = z.object({
   gameId: gameCodeString(),

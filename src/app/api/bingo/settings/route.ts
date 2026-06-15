@@ -1,0 +1,57 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { bingoSettingsSchema } from '@/lib/validation'
+import { parseGameType, isBingoGame } from '@/lib/game-types'
+import {
+  clampBingoCallInterval,
+  clampBingoMaxPlayers,
+  parseBingoCallMode,
+} from '@/lib/bingo'
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
+export async function POST(req: NextRequest) {
+  const raw = await req.json()
+  const parsed = bingoSettingsSchema.safeParse(raw)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
+  }
+
+  const { gameId, hostToken, bingo_call_mode, bingo_call_interval_seconds, max_players } = parsed.data
+  const code = gameId.toUpperCase()
+
+  if (
+    bingo_call_mode === undefined &&
+    bingo_call_interval_seconds === undefined &&
+    max_players === undefined
+  ) {
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  }
+
+  const { data: game } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
+  if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
+  if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  if (!isBingoGame(parseGameType(game.game_type))) {
+    return NextResponse.json({ error: 'Not a bingo game' }, { status: 400 })
+  }
+  if (game.status !== 'waiting') {
+    return NextResponse.json({ error: 'Settings can only be changed in the lobby before the game starts' }, { status: 400 })
+  }
+
+  const gameUpdate: Record<string, unknown> = {}
+  if (bingo_call_mode !== undefined) gameUpdate.bingo_call_mode = parseBingoCallMode(bingo_call_mode)
+  if (bingo_call_interval_seconds !== undefined) {
+    gameUpdate.bingo_call_interval_seconds = clampBingoCallInterval(bingo_call_interval_seconds)
+  }
+  if (max_players !== undefined) gameUpdate.max_players = clampBingoMaxPlayers(max_players)
+
+  const { data: updated, error } = await supabase
+    .from('games')
+    .update(gameUpdate)
+    .eq('id', code)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true, game: updated })
+}

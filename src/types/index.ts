@@ -24,6 +24,7 @@ export type GameType =
   | 'codewords'
   | 'trivia'
 export type TriviaCategory = 'tech' | 'general'
+export type BingoCallMode = 'manual' | 'auto'
 export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
 export type CodewordsTeam = 'red' | 'blue'
 export type CodewordsRole = 'spymaster' | 'operative'
@@ -134,6 +135,10 @@ export interface Game {
   pool_usage?: Record<string, unknown> | null
   /** Trivia — platform pool category when question_source is platform. */
   trivia_category?: TriviaCategory | null
+  /** Bingo — manual host calls vs automatic number calling. */
+  bingo_call_mode?: BingoCallMode | null
+  /** Bingo — seconds between automatic number calls. */
+  bingo_call_interval_seconds?: number | null
 }
 
 export interface TriviaQuestion {

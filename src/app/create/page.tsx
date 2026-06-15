@@ -92,9 +92,13 @@ import {
   ANONYMOUS_ROOM_MIN_PLAYERS,
 } from '@/lib/anonymous-messages'
 import {
+  BINGO_CALL_INTERVAL_OPTIONS,
+  BINGO_DEFAULT_CALL_INTERVAL,
+  BINGO_DEFAULT_CALL_MODE,
   BINGO_DEFAULT_MAX_PLAYERS,
   BINGO_MAX_PLAYERS,
   BINGO_MIN_PLAYERS,
+  type BingoCallMode,
 } from '@/lib/bingo'
 import {
   CODEWORDS_DEFAULT_MAX_PLAYERS,
@@ -182,6 +186,8 @@ function CreateGameInner() {
   const [customSlots, setCustomSlots] = useState<CustomSlotsConfig | null>(null)
   const [anonymousMaxPlayers, setAnonymousMaxPlayers] = useState(ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS)
   const [bingoMaxPlayers, setBingoMaxPlayers] = useState(BINGO_DEFAULT_MAX_PLAYERS)
+  const [bingoCallMode, setBingoCallMode] = useState<BingoCallMode>(BINGO_DEFAULT_CALL_MODE)
+  const [bingoCallInterval, setBingoCallInterval] = useState(BINGO_DEFAULT_CALL_INTERVAL)
   const [codewordsMaxPlayers, setCodewordsMaxPlayers] = useState(CODEWORDS_DEFAULT_MAX_PLAYERS)
   const [codewordsOperativeTimer, setCodewordsOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
   const [codewordsPlayerPicks, setCodewordsPlayerPicks] = useState(true)
@@ -693,6 +699,8 @@ function CreateGameInner() {
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? codewordsLateJoin : undefined,
+          bingo_call_mode: isBingo ? bingoCallMode : undefined,
+          bingo_call_interval_seconds: isBingo ? bingoCallInterval : undefined,
         }),
       })
       const data = await res.json()
@@ -806,9 +814,57 @@ function CreateGameInner() {
                     )}
                   </select>
                 </Field>
+                <Field label="Number calling">
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setBingoCallMode('manual')}
+                      className={[
+                        'rounded-2xl border-2 px-4 py-4 text-left',
+                        bingoCallMode === 'manual'
+                          ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                          : 'border-[var(--border-strong)] text-muted',
+                      ].join(' ')}
+                    >
+                      <span className="font-bold block text-base">Manual</span>
+                      <span className="text-faint text-xs sm:text-sm">You tap to call each number</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBingoCallMode('auto')}
+                      className={[
+                        'rounded-2xl border-2 px-4 py-4 text-left',
+                        bingoCallMode === 'auto'
+                          ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                          : 'border-[var(--border-strong)] text-muted',
+                      ].join(' ')}
+                    >
+                      <span className="font-bold block text-base">Automatic</span>
+                      <span className="text-faint text-xs sm:text-sm">Numbers called for you</span>
+                    </button>
+                  </div>
+                </Field>
+                {bingoCallMode === 'auto' && (
+                  <Field label="Seconds between calls">
+                    <select
+                      value={bingoCallInterval}
+                      onChange={(e) => setBingoCallInterval(Number(e.target.value))}
+                      className="input-field w-full"
+                    >
+                      {BINGO_CALL_INTERVAL_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s} seconds
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
                 <p className="text-faint text-sm leading-relaxed">
-                  Players join with their name and get a unique 5×5 card. You call numbers B1–O75 — called squares turn
-                  blue on their card; they tap blue to mark green, then tap BINGO when they complete a line.
+                  Players join with their name and get a unique 5×5 card. Called squares turn blue on their card; they
+                  tap blue to mark green, then tap BINGO when they complete a line.
+                  {bingoCallMode === 'auto'
+                    ? ' Numbers are called automatically — no tapping required from the host.'
+                    : ' You call numbers B1–O75 from the host panel.'}
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (

@@ -2,15 +2,24 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BingoCardGrid, CalledNumbersBoard } from '@/components/bingo/BingoCardGrid'
+import { CalledNumbersBoard } from '@/components/bingo/BingoCardGrid'
+import { BingoFinalResultsShareBlock } from '@/components/bingo/BingoFinalResultsShareBlock'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { gameTypeConfig } from '@/lib/game-types'
-import { BINGO_MIN_PLAYERS, formatBingoNumber } from '@/lib/bingo'
+import {
+  BINGO_CALL_INTERVAL_OPTIONS,
+  BINGO_DEFAULT_CALL_INTERVAL,
+  BINGO_MIN_PLAYERS,
+  bingoCallIntervalFromGame,
+  bingoCallModeFromGame,
+  formatBingoNumber,
+} from '@/lib/bingo'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
-import type { BingoCalledNumber, BingoClaim, Game, Player } from '@/types'
+import type { BingoCallMode, BingoCalledNumber, BingoClaim, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification } from '@/hooks/useBingoNotifications'
+import { useBingoAutoCall } from '@/hooks/useBingoAutoCall'
 
 export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const router = useRouter()
@@ -22,6 +31,10 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const [starting, setStarting] = useState(false)
   const [calling, setCalling] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [lobbyCallMode, setLobbyCallMode] = useState<BingoCallMode>('manual')
+  const [lobbyCallInterval, setLobbyCallInterval] = useState(BINGO_DEFAULT_CALL_INTERVAL)
+  const [lobbyMaxPlayers, setLobbyMaxPlayers] = useState(BINGO_MIN_PLAYERS)
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }, { data: called }, { data: claim }] = await Promise.all([
@@ -35,7 +48,12 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
         .eq('status', 'approved')
         .maybeSingle(),
     ])
-    if (gameData) setGame(gameData)
+    if (gameData) {
+      setGame(gameData)
+      setLobbyCallMode(bingoCallModeFromGame(gameData))
+      setLobbyCallInterval(bingoCallIntervalFromGame(gameData))
+      setLobbyMaxPlayers(gameData.max_players ?? BINGO_MIN_PLAYERS)
+    }
     setPlayers(plrs ?? [])
     setCalledNumbers(called ?? [])
     setWinner(claim ?? null)
@@ -51,7 +69,12 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
-        (payload) => setGame(payload.new as Game)
+        (payload) => {
+          const next = payload.new as Game
+          setGame(next)
+          setLobbyCallMode(bingoCallModeFromGame(next))
+          setLobbyCallInterval(bingoCallIntervalFromGame(next))
+        }
       )
       .on(
         'postgres_changes',
@@ -77,11 +100,25 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
       .subscribe()
 
     const poll = setInterval(load, 4000)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  useBingoAutoCall({
+    gameCode,
+    game,
+    enabled: game?.status === 'active',
+    onSynced: load,
+  })
 
   const startGame = async () => {
     setStarting(true)
@@ -99,6 +136,32 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
       toastError(err instanceof Error ? err.message : 'Failed to start')
     } finally {
       setStarting(false)
+    }
+  }
+
+  const saveLobbySettings = async () => {
+    setSavingSettings(true)
+    try {
+      const res = await fetch('/api/bingo/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId: gameCode,
+          hostToken,
+          bingo_call_mode: lobbyCallMode,
+          bingo_call_interval_seconds: lobbyCallInterval,
+          max_players: lobbyMaxPlayers,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to save settings')
+      if (data.game) setGame(data.game)
+      await load()
+      success('Settings saved')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to save settings')
+    } finally {
+      setSavingSettings(false)
     }
   }
 
@@ -144,6 +207,9 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const lastCalled = called.length > 0 ? called[called.length - 1] : null
   const winnerPlayer = winner ? players.find((p) => p.id === winner.player_id) : null
   const playerLink = `${appOrigin()}/game/${gameCode}`
+  const callMode = game ? bingoCallModeFromGame(game) : 'manual'
+  const callInterval = game ? bingoCallIntervalFromGame(game) : BINGO_DEFAULT_CALL_INTERVAL
+  const isAuto = callMode === 'auto'
 
   useBingoWinNotification({
     winner,
@@ -192,6 +258,77 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                 </ul>
               )}
             </div>
+
+            <div className="space-y-3 pt-2 border-t border-[var(--border-strong)]">
+              <p className="label-caps">Game settings</p>
+              <label className="block text-sm text-muted">
+                Max players
+                <select
+                  value={lobbyMaxPlayers}
+                  onChange={(e) => setLobbyMaxPlayers(Number(e.target.value))}
+                  className="input-field w-full mt-1"
+                >
+                  {Array.from({ length: 30 - BINGO_MIN_PLAYERS + 1 }, (_, i) => i + BINGO_MIN_PLAYERS).map((n) => (
+                    <option key={n} value={n}>
+                      {n} players
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLobbyCallMode('manual')}
+                  className={[
+                    'rounded-2xl border-2 px-4 py-3 text-left',
+                    lobbyCallMode === 'manual'
+                      ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                      : 'border-[var(--border-strong)] text-muted',
+                  ].join(' ')}
+                >
+                  <span className="font-bold block text-sm">Manual</span>
+                  <span className="text-faint text-xs">You call numbers</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLobbyCallMode('auto')}
+                  className={[
+                    'rounded-2xl border-2 px-4 py-3 text-left',
+                    lobbyCallMode === 'auto'
+                      ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                      : 'border-[var(--border-strong)] text-muted',
+                  ].join(' ')}
+                >
+                  <span className="font-bold block text-sm">Automatic</span>
+                  <span className="text-faint text-xs">Computer calls</span>
+                </button>
+              </div>
+              {lobbyCallMode === 'auto' && (
+                <label className="block text-sm text-muted">
+                  Seconds between calls
+                  <select
+                    value={lobbyCallInterval}
+                    onChange={(e) => setLobbyCallInterval(Number(e.target.value))}
+                    className="input-field w-full mt-1"
+                  >
+                    {BINGO_CALL_INTERVAL_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s} seconds
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={saveLobbySettings}
+                disabled={savingSettings}
+                className="btn-secondary w-full py-3"
+              >
+                {savingSettings ? 'Saving…' : 'Save settings'}
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={startGame}
@@ -206,17 +343,24 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
         {game.status === 'active' && (
           <>
             <div className="glass-card p-5 space-y-4">
-              <p className="label-caps">Call numbers</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => callNumber(true)}
-                  disabled={calling || called.length >= 75}
-                  className="btn-primary flex-1 min-w-[140px]"
-                >
-                  {calling ? 'Calling…' : 'Call random'}
-                </button>
-              </div>
+              <p className="label-caps">{isAuto ? 'Automatic calling' : 'Call numbers'}</p>
+              {isAuto ? (
+                <p className="text-center text-muted text-sm sm:text-base">
+                  Numbers are called automatically every <span className="font-bold text-body">{callInterval}s</span>.
+                  Keep this tab open or let players stay connected — anyone in the game keeps it running.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => callNumber(true)}
+                    disabled={calling || called.length >= 75}
+                    className="btn-primary flex-1 min-w-[140px]"
+                  >
+                    {calling ? 'Calling…' : 'Call random'}
+                  </button>
+                </div>
+              )}
               {lastCalled != null && (
                 <p className="text-center text-muted text-sm">
                   Last: <span className="font-bold text-blue-300">{formatBingoNumber(lastCalled)}</span> ·{' '}
@@ -232,11 +376,7 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
         )}
 
         {game.status === 'finished' && winnerPlayer && (
-          <div className="glass-card p-6 text-center space-y-2 border-amber-400/40">
-            <p className="text-4xl">🏆</p>
-            <p className="text-xl font-black text-amber-200">BINGO!</p>
-            <p className="text-lg font-bold">{winnerPlayer.name} wins!</p>
-          </div>
+          <BingoFinalResultsShareBlock game={game} players={players} winnerName={winnerPlayer.name} />
         )}
 
         {game.status === 'finished' && (

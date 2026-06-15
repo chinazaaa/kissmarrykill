@@ -141,7 +141,10 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       if (!res.ok) throw new Error(data.error ?? 'Failed to end round')
       await load()
     } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to end round')
+      const message = err instanceof Error ? err.message : 'Failed to end round'
+      if (message !== 'No active round to end') {
+        toastError(message)
+      }
       await load()
     } finally {
       setAdvancing(false)
@@ -173,8 +176,6 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     rounds,
     players,
     answers,
-    advancing,
-    onEndRound: endRound,
     gameCode,
     onReload: load,
     enabled: game?.status === 'active',
