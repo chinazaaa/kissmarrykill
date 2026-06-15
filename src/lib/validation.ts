@@ -153,6 +153,23 @@ export const hostActionSchema = z.object({
 
 export type HostActionInput = z.infer<typeof hostActionSchema>
 
+export const playAgainSchema = hostActionSchema.extend({
+  custom_questions: z.array(z.unknown()).optional(),
+  participants: z
+    .array(
+      z.union([
+        sanitizedString(1, 80),
+        z.object({
+          name: sanitizedString(1, 80),
+          gender: z.string().optional(),
+        }),
+      ])
+    )
+    .optional(),
+})
+
+export type PlayAgainInput = z.infer<typeof playAgainSchema>
+
 // ---------------------------------------------------------------------------
 // Participants (POST /api/participants)
 // ---------------------------------------------------------------------------

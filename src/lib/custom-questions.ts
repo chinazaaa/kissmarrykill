@@ -1,8 +1,9 @@
 import type { Game, GameType, QuestionSource } from '@/types'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
-import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
+import { WYR_QUESTION_COUNT, wyrQuestionKey } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { isWouldYouRather, isMostLikelyTo, isThisOrThat, isBinaryChoiceGame, parseGameType } from '@/lib/game-types'
+import { pickLeastUsed } from '@/lib/question-picker'
 
 function splitRow(line: string): string[] {
   if (line.includes('\t')) return line.split('\t').map((s) => s.trim())
@@ -271,23 +272,20 @@ export function clampLobbyQuestionRounds(value: number | string, upper: number):
   return Math.min(Math.max(n, 1), max)
 }
 
-function shuffleCopy<T>(items: T[]): T[] {
-  const arr = [...items]
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr
+export function pickCustomWyrQuestions(
+  pool: WyrQuestion[],
+  count: number,
+  usageCounts: Map<string, number> = new Map()
+): WyrQuestion[] {
+  return pickLeastUsed(pool, (q) => wyrQuestionKey(q.optionA, q.optionB), usageCounts, count)
 }
 
-export function pickCustomWyrQuestions(pool: WyrQuestion[], count: number): WyrQuestion[] {
-  if (count <= 0 || pool.length === 0) return []
-  return shuffleCopy(pool).slice(0, Math.min(count, pool.length))
-}
-
-export function pickCustomMltQuestions(pool: string[], count: number): string[] {
-  if (count <= 0 || pool.length === 0) return []
-  return shuffleCopy(pool).slice(0, Math.min(count, pool.length))
+export function pickCustomMltQuestions(
+  pool: string[],
+  count: number,
+  usageCounts: Map<string, number> = new Map()
+): string[] {
+  return pickLeastUsed(pool, (question) => question, usageCounts, count)
 }
 
 export function questionSourceOptions(gameType: GameType | string): {

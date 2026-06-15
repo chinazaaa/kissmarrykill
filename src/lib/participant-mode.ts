@@ -29,6 +29,26 @@ export function usesHostParticipantList(mode: ParticipantMode): boolean {
   return mode === 'import' || mode === 'voters'
 }
 
+/** Play again can reuse or replace the host-uploaded name list. */
+export function supportsHostListPlayAgain(game: Pick<Game, 'participant_mode'>): boolean {
+  return usesHostParticipantList(game.participant_mode)
+}
+
+export function hostListPlayAgainHint(
+  game: Pick<Game, 'participant_mode' | 'participant_filter' | 'game_type'>
+): string {
+  if (isVoterOnlyMode(game)) {
+    return 'Import list — vote only: your CSV stays by default. Names that were not in rounds last game are picked first.'
+  }
+  if (isImportClaimMode(game)) {
+    if (getFullHostListForRounds(game)) {
+      return 'Pre-set roster, everyone on the list: your CSV stays by default. Names that missed last game are prioritized in rounds.'
+    }
+    return 'Pre-set roster: your CSV stays by default. Among players who joined, those who missed last game are prioritized.'
+  }
+  return 'Your name list stays by default. People who did not appear in rounds last game are prioritized.'
+}
+
 /** Round pool uses every name on the host list (not only claimed/joined list names). */
 export function getFullHostListForRounds(
   game: Pick<Game, 'participant_mode' | 'participant_filter' | 'game_type'>

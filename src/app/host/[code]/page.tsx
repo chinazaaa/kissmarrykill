@@ -102,6 +102,7 @@ import {
   FinalOverallBreakdown,
 } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { PlayAgainSetup, playAgainNeedsSetup, type PlayAgainPayload } from '@/components/PlayAgainSetup'
 import {
   hotSeatEffectiveRounds,
   hotSeatLobbyRoundsHint,
@@ -170,6 +171,7 @@ export default function HostPage() {
   const [ending, setEnding] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
+  const [showPlayAgainSetup, setShowPlayAgainSetup] = useState(false)
   const [adminBusy, setAdminBusy] = useState<string | null>(null)
   const [addName, setAddName] = useState('')
   const [addGender, setAddGender] = useState<ParticipantGender>('female')
@@ -772,20 +774,21 @@ export default function HostPage() {
     }
   }
 
-  const handlePlayAgain = async () => {
+  const handlePlayAgain = async (payload: PlayAgainPayload = {}) => {
     if (playingAgain) return
     setPlayingAgain(true)
     try {
       const res = await fetch(`/api/games/${gameCode}/play-again`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
+        body: JSON.stringify({ hostToken, ...payload }),
       })
       const data = await res.json()
       if (!res.ok) {
         toast.error(data.error || 'Failed to reset for another game')
         return
       }
+      setShowPlayAgainSetup(false)
       resetHostLobbyState()
       if (data.game) setGame(data.game)
       await refreshLobbyLists()
@@ -794,6 +797,15 @@ export default function HostPage() {
     } finally {
       setPlayingAgain(false)
     }
+  }
+
+  const openPlayAgain = () => {
+    if (!game || playingAgain) return
+    if (playAgainNeedsSetup(game)) {
+      setShowPlayAgainSetup(true)
+      return
+    }
+    void handlePlayAgain()
   }
 
   const playerLinkUrl =
@@ -2829,7 +2841,7 @@ export default function HostPage() {
           <p className="text-muted text-xs uppercase tracking-wider text-center">What&apos;s next?</p>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={handlePlayAgain}
+              onClick={openPlayAgain}
               disabled={playingAgain}
               className="btn-primary py-3 flex flex-col items-center gap-0.5 min-h-[3.25rem]"
             >
@@ -3044,6 +3056,16 @@ export default function HostPage() {
               ))}
             </div>
           </div>
+        )}
+        {game && (
+          <PlayAgainSetup
+            open={showPlayAgainSetup}
+            onClose={() => setShowPlayAgainSetup(false)}
+            game={game}
+            participants={participants}
+            onConfirm={handlePlayAgain}
+            loading={playingAgain}
+          />
         )}
       </div>
     )

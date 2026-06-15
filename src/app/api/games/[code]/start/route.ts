@@ -38,6 +38,7 @@ import { getFullHostListForRounds } from '@/lib/participant-mode'
 import { buildPeoplePollParticipantPool } from '@/lib/player-participant-pool'
 import { hostActionSchema } from '@/lib/validation'
 import { ANONYMOUS_ROOM_MIN_PLAYERS } from '@/lib/anonymous-messages'
+import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -47,7 +48,8 @@ import type { ParticipantForRounds } from '@/lib/utils'
 function generateGenderBasedNRounds(
   participants: ParticipantForRounds[],
   roundCount: number,
-  poolSize: number
+  poolSize: number,
+  initialAppearanceCounts?: Map<string, number>
 ): string[][] {
   if (roundCount <= 0 || poolSize < 2) return []
 
@@ -60,13 +62,13 @@ function generateGenderBasedNRounds(
   if (eligible.length === 0) return []
 
   if (eligible.length === 1) {
-    return generateNRounds(byGender[eligible[0]], roundCount, poolSize)
+    return generateNRounds(byGender[eligible[0]], roundCount, poolSize, initialAppearanceCounts)
   }
 
   const maleCount = Math.ceil(roundCount / 2)
   const femaleCount = Math.floor(roundCount / 2)
-  const maleGroups = generateNRounds(byGender.male, maleCount, poolSize)
-  const femaleGroups = generateNRounds(byGender.female, femaleCount, poolSize)
+  const maleGroups = generateNRounds(byGender.male, maleCount, poolSize, initialAppearanceCounts)
+  const femaleGroups = generateNRounds(byGender.female, femaleCount, poolSize, initialAppearanceCounts)
 
   const result: string[][] = []
   let mi = 0
@@ -103,6 +105,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (game.status !== 'waiting') return NextResponse.json({ error: 'Game already started' }, { status: 400 })
 
   const gameType = parseGameType(game.game_type)
+  const poolUsage = parsePoolUsage(game.pool_usage)
+  const customWyrUsage = poolUsageToMap(poolUsage.wyr)
+  const customMltUsage = poolUsageToMap(poolUsage.mlt)
+  const hotSeatUsage = poolUsageToMap(poolUsage.hotSeat)
 
   const { data: playersData } = await supabase
     .from('players')
@@ -152,6 +158,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       participantMode: game.participant_mode,
       maxRoundsCap: game.rounds_count,
       now,
+      initialUsageCounts: hotSeatUsage,
     })
 
     if (!built.ok) {
@@ -352,8 +359,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       playerQuestionsEnabled
     )
     const platformQuestions = useCustom
-      ? pickCustomMltQuestions(customPool, poolNeeded)
-      : pickMltQuestions(poolNeeded, await fetchMltQuestionUsage(supabase))
+      ? pickCustomMltQuestions(customPool, poolNeeded, customMltUsage)
+      : pickMltQuestions(poolNeeded, mergeUsageMaps(await fetchMltQuestionUsage(supabase), customMltUsage))
     const questions = combineLobbyQuestions(
       playerQuestionsEnabled ? playerMltQuestions : [],
       platformQuestions,
@@ -425,7 +432,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       questionOrder,
       playerQuestionsEnabled
     )
-    const poolQuestions = pickCustomWyrQuestions(customPool, poolNeeded)
+    const poolQuestions = pickCustomWyrQuestions(customPool, poolNeeded, customWyrUsage)
     const questions = combineLobbyQuestions(
       playerQuestionsEnabled ? playerTotQuestions : [],
       poolQuestions,
@@ -489,8 +496,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       playerQuestionsEnabled
     )
     const platformQuestions = useCustom
-      ? pickCustomWyrQuestions(customPool, poolNeeded)
-      : pickWyrQuestions(poolNeeded, await fetchWyrQuestionUsage(supabase))
+      ? pickCustomWyrQuestions(customPool, poolNeeded, customWyrUsage)
+      : pickWyrQuestions(poolNeeded, mergeUsageMaps(await fetchWyrQuestionUsage(supabase), customWyrUsage))
     const questions = combineLobbyQuestions(
       playerQuestionsEnabled ? playerWyrQuestions : [],
       platformQuestions,
@@ -554,6 +561,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const participantIds = roundPool.map((p) => p.id)
+    const appearanceCounts = appearanceCountsForParticipants(roundPool, poolUsage.participants)
     const genderBased = isGameGenderBased(game)
     let groups: string[][]
 
@@ -564,8 +572,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       }))
       groups =
         slotCount <= 3
-          ? generateRoundsByGender(participants, game.rounds_count, slotCount as 2 | 3)
-          : generateGenderBasedNRounds(participants, game.rounds_count, slotCount)
+          ? generateRoundsByGender(participants, game.rounds_count, slotCount as 2 | 3, appearanceCounts)
+          : generateGenderBasedNRounds(participants, game.rounds_count, slotCount, appearanceCounts)
 
       if (groups.length === 0) {
         return NextResponse.json(
@@ -585,7 +593,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
         return NextResponse.json({ error: voterCheck.message }, { status: 400 })
       }
     } else {
-      groups = generateNRounds(participantIds, game.rounds_count, slotCount)
+      groups = generateNRounds(participantIds, game.rounds_count, slotCount, appearanceCounts)
       if (groups.length === 0) {
         return NextResponse.json({ error: `Need at least ${slotCount} people to start` }, { status: 400 })
       }
@@ -654,10 +662,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     id: p.id,
     gender: parseParticipantGenderFromDb(p.gender) ?? ('female' as const),
   }))
+  const appearanceCounts = appearanceCountsForParticipants(roundPool, poolUsage.participants)
 
   let trios: string[][]
   if (genderBased) {
-    trios = generateRoundsByGender(participants, game.rounds_count, poolSize)
+    trios = generateRoundsByGender(participants, game.rounds_count, poolSize, appearanceCounts)
     if (trios.length === 0) {
       return NextResponse.json(
         { error: `Need at least ${minPool} joined people of the same gender to start` },
@@ -673,7 +682,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     trios = generateNRounds(
       participants.map((p) => p.id),
       game.rounds_count,
-      poolSize
+      poolSize,
+      appearanceCounts
     )
     if (trios.length === 0) {
       return NextResponse.json({ error: `Need at least ${minPool} people to start` }, { status: 400 })

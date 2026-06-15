@@ -73,6 +73,8 @@ export interface Game {
   custom_slots?: CustomSlotsConfig | null
   /** When true, rounds use same-gender groups and opposite-gender voting. Default true for SMK/pair, false for custom. */
   gender_based?: boolean
+  /** Cumulative usage across play-again sessions — unused pool items are prioritized next game. */
+  pool_usage?: Record<string, unknown> | null
 }
 
 export interface Participant {
