@@ -92,6 +92,9 @@ import {
   CODEWORDS_DEFAULT_MAX_PLAYERS,
   CODEWORDS_MAX_PLAYERS,
   CODEWORDS_MIN_PLAYERS,
+  CODEWORDS_DEFAULT_SPYMASTER_TIMER,
+  CODEWORDS_DEFAULT_OPERATIVE_TIMER,
+  CODEWORDS_TIMER_OPTIONS,
 } from '@/lib/codewords'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useToast } from '@/components/ui/Toast'
@@ -163,6 +166,8 @@ function CreateGameInner() {
   const [anonymousMaxPlayers, setAnonymousMaxPlayers] = useState(ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS)
   const [bingoMaxPlayers, setBingoMaxPlayers] = useState(BINGO_DEFAULT_MAX_PLAYERS)
   const [codewordsMaxPlayers, setCodewordsMaxPlayers] = useState(CODEWORDS_DEFAULT_MAX_PLAYERS)
+  const [codewordsOperativeTimer, setCodewordsOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
+  const [codewordsPlayerPicks, setCodewordsPlayerPicks] = useState(true)
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -182,7 +187,12 @@ function CreateGameInner() {
           ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
           : {}),
         ...(isCodewordsGame(type)
-          ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+              timer_seconds: CODEWORDS_DEFAULT_SPYMASTER_TIMER,
+            }
           : {}),
         ...(isWhoSaidThis(type)
           ? {
@@ -299,7 +309,12 @@ function CreateGameInner() {
         ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
         : {}),
       ...(isCodewordsGame(type)
-        ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: CODEWORDS_DEFAULT_SPYMASTER_TIMER,
+          }
         : {}),
       ...(isWhoSaidThis(type)
         ? {
@@ -592,6 +607,8 @@ function CreateGameInner() {
               : isCodewords
                 ? codewordsMaxPlayers
                 : undefined,
+          operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
+          codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
         }),
       })
       const data = await res.json()
@@ -728,10 +745,53 @@ function CreateGameInner() {
                     ))}
                   </select>
                 </Field>
+                <Field label="Spymaster timer (per turn)">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    {CODEWORDS_TIMER_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s} seconds
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Operative timer (per turn)">
+                  <select
+                    value={codewordsOperativeTimer}
+                    onChange={(e) => setCodewordsOperativeTimer(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {CODEWORDS_TIMER_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s} seconds
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Team & role assignment">
+                  <SegmentedControl
+                    value={codewordsPlayerPicks ? 'players' : 'host'}
+                    onChange={(v) => setCodewordsPlayerPicks(v === 'players')}
+                    options={[
+                      {
+                        value: 'players',
+                        label: 'Players pick',
+                        hint: 'Each player chooses their team and role in the lobby',
+                      },
+                      {
+                        value: 'host',
+                        label: 'Host assigns',
+                        hint: 'You place everyone on teams from the host panel',
+                      },
+                    ]}
+                  />
+                </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Two teams of spymasters and operatives. Players pick Red or Blue in the lobby. Spymasters see the secret
-                  key and give one-word clues — operatives guess words on the 5×5 grid. First team to find all their words
-                  wins. Avoid the assassin!
+                  Two teams of spymasters and operatives. Spymasters give one-word clues — operatives guess words on the
+                  5×5 grid. First team to find all their words wins. Avoid the assassin!
                 </p>
               </SettingsGroup>
             ) : (

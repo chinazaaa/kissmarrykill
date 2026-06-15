@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { codewordsClueSchema } from '@/lib/validation'
 import { parseGameType, isCodewordsGame } from '@/lib/game-types'
+import { effectiveTurnPhase, guessPhaseUpdate } from '@/lib/codewords'
 import type { CodewordsBoard } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
   if (typedBoard.current_turn !== role.team) {
     return NextResponse.json({ error: 'Not your team\'s turn' }, { status: 400 })
   }
+  if (effectiveTurnPhase(typedBoard) !== 'clue') {
+    return NextResponse.json({ error: 'Wait for your operatives to finish guessing' }, { status: 400 })
+  }
   if (typedBoard.current_clue_word) {
     return NextResponse.json({ error: 'Wait for your operatives to finish guessing' }, { status: 400 })
   }
@@ -65,6 +69,7 @@ export async function POST(req: NextRequest) {
       current_clue_word: clueWord.trim(),
       current_clue_number: clueNumber,
       guesses_remaining: guessesRemaining,
+      ...guessPhaseUpdate(typedBoard.operative_timer_seconds ?? 60),
     })
     .eq('id', typedBoard.id)
     .select()

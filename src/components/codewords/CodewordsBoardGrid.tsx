@@ -9,6 +9,7 @@ type CodewordsBoardGridProps = {
   onGuess?: (index: number) => void
   guessable?: boolean
   disabled?: boolean
+  cellAttribution?: Record<number, string>
 }
 
 export function CodewordsBoardGrid({
@@ -17,6 +18,7 @@ export function CodewordsBoardGrid({
   onGuess,
   guessable = false,
   disabled = false,
+  cellAttribution,
 }: CodewordsBoardGridProps) {
   const revealed = new Set(board.revealed_indices)
   const key = board.key as CodewordsCellType[]
@@ -49,7 +51,12 @@ export function CodewordsBoardGrid({
               .filter(Boolean)
               .join(' ')}
           >
-            {word}
+            <span className="block">{word}</span>
+            {isRevealed && cellAttribution?.[index] && (
+              <span className="block text-[9px] font-semibold opacity-80 mt-0.5 truncate">
+                {cellAttribution[index]}
+              </span>
+            )}
           </button>
         )
       })}

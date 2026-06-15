@@ -1,0 +1,254 @@
+'use client'
+
+import { useState } from 'react'
+import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords/CodewordsGuessLog'
+import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
+import { CodewordsScoreboard, CodewordsTimerBar } from '@/components/codewords/CodewordsScoreboard'
+import {
+  effectiveTurnPhase,
+  guessAttributionMap,
+  roleLabel,
+  teamLabel,
+  waitingTurnMessage,
+} from '@/lib/codewords'
+import { useCodewordsTurnTimer } from '@/hooks/useCodewordsTurnTimer'
+import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Player } from '@/types'
+import { useToast } from '@/components/ui/Toast'
+
+export function CodewordsActiveRound({
+  gameCode,
+  game,
+  board,
+  myPlayerId,
+  myPlayerName,
+  myRole,
+  players,
+  roles,
+  guesses,
+  onBoardChange,
+  onReload,
+  hideKey = false,
+  compactHeader = false,
+}: {
+  gameCode: string
+  game: Game
+  board: CodewordsBoard
+  myPlayerId: string
+  myPlayerName: string
+  myRole: CodewordsPlayerRole
+  players: Player[]
+  roles: CodewordsPlayerRole[]
+  guesses: CodewordsGuess[]
+  onBoardChange: (board: CodewordsBoard) => void
+  onReload: () => void | Promise<void>
+  hideKey?: boolean
+  compactHeader?: boolean
+}) {
+  const { success, error: toastError } = useToast()
+  const [clueWord, setClueWord] = useState('')
+  const [clueNumber, setClueNumber] = useState(1)
+  const [submittingClue, setSubmittingClue] = useState(false)
+  const [guessing, setGuessing] = useState(false)
+  const [endingTurn, setEndingTurn] = useState(false)
+
+  const isSpymaster = myRole.role === 'spymaster'
+  const isOperative = myRole.role === 'operative'
+  const myTeam = myRole.team
+  const turnPhase = effectiveTurnPhase(board)
+  const isMyTurn = board.current_turn === myTeam && !board.winner
+  const canGiveClue = isMyTurn && isSpymaster && turnPhase === 'clue' && !board.current_clue_word
+  const canGuess = isMyTurn && isOperative && turnPhase === 'guess' && !!board.current_clue_word
+  const showKey = !hideKey && isSpymaster
+  const active = game.status === 'active' && !board.winner
+
+  const { secondsLeft, urgent } = useCodewordsTurnTimer(gameCode, board, active)
+  const playerNameById = new Map(players.map((p) => [p.id, p.name]))
+  const cellAttribution = guessAttributionMap(guesses, playerNameById)
+
+  const turnStatusMessage = () => {
+    if (!isMyTurn) return waitingTurnMessage(board, roles, playerNameById)
+    if (turnPhase === 'clue') {
+      if (isSpymaster) return 'Your turn — give a one-word clue'
+      const spymaster = roles.find((r) => r.team === myTeam && r.role === 'spymaster')
+      const name = spymaster ? playerNameById.get(spymaster.player_id) : null
+      return name
+        ? `Waiting for ${name} (your spymaster) to give a clue`
+        : 'Waiting for your spymaster to give a clue'
+    }
+    if (isOperative) return 'Your turn — tap words to guess'
+    return 'Your operatives are guessing…'
+  }
+
+  const timerLabel =
+    turnPhase === 'clue'
+      ? isMyTurn && isSpymaster
+        ? 'Spymaster timer'
+        : 'Waiting for clue'
+      : isMyTurn && isOperative
+        ? 'Operative timer'
+        : 'Operatives guessing'
+
+  const submitClue = async () => {
+    if (!clueWord.trim()) return
+    setSubmittingClue(true)
+    try {
+      const res = await fetch('/api/codewords/clue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId: gameCode,
+          playerId: myPlayerId,
+          clueWord: clueWord.trim(),
+          clueNumber,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to give clue')
+      onBoardChange(data.board)
+      setClueWord('')
+      success('Clue sent!')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to give clue')
+    } finally {
+      setSubmittingClue(false)
+    }
+  }
+
+  const guessCell = async (index: number) => {
+    if (guessing) return
+    setGuessing(true)
+    try {
+      const res = await fetch('/api/codewords/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, cellIndex: index }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to guess')
+      onBoardChange(data.board)
+      await onReload()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to guess')
+    } finally {
+      setGuessing(false)
+    }
+  }
+
+  const endTurn = async () => {
+    if (endingTurn) return
+    setEndingTurn(true)
+    try {
+      const res = await fetch('/api/codewords/end-turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to end turn')
+      onBoardChange(data.board)
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to end turn')
+    } finally {
+      setEndingTurn(false)
+    }
+  }
+
+  return (
+    <div className={compactHeader ? 'space-y-4' : 'space-y-5'}>
+      {!compactHeader && (
+        <div className="text-center space-y-1">
+          <h2 className="text-xl font-black gradient-title">{game.title}</h2>
+          <p className="text-muted text-sm">
+            {myPlayerName} · <CodewordsTeamBadge team={myRole.team} /> {roleLabel(myRole.role)}
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-start">
+        <div className="space-y-4 min-w-0">
+          {secondsLeft > 0 && active && (
+            <CodewordsTimerBar label={timerLabel} secondsLeft={secondsLeft} urgent={urgent} />
+          )}
+
+          <div
+            className={[
+              'glass-card p-4 text-center text-sm font-medium',
+              isMyTurn && active ? 'border-blue-400/30' : 'text-muted',
+            ].join(' ')}
+          >
+            {isMyTurn && active && <CodewordsTeamBadge team={board.current_turn} />}{' '}
+            {active ? turnStatusMessage() : `${teamLabel(board.winner ?? board.current_turn)} team wins`}
+          </div>
+
+          {board.current_clue_word && (
+            <div className="glass-card p-4 text-center">
+              <p className="text-faint text-xs uppercase tracking-wider">Current clue</p>
+              <p className="text-2xl font-black">
+                {board.current_clue_word}{' '}
+                <span className="text-muted text-lg">{board.current_clue_number}</span>
+              </p>
+              {canGuess && board.guesses_remaining != null && (
+                <p className="text-faint text-xs mt-1">{board.guesses_remaining} guess(es) left</p>
+              )}
+            </div>
+          )}
+
+          {canGiveClue && (
+            <div className="glass-card p-4 space-y-3">
+              <p className="label-caps">Give a clue</p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={clueWord}
+                  onChange={(e) => setClueWord(e.target.value)}
+                  placeholder="One word"
+                  className="input-field flex-1 min-w-[8rem]"
+                  maxLength={40}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={9}
+                  value={clueNumber}
+                  onChange={(e) => setClueNumber(Number(e.target.value) || 0)}
+                  className="input-field w-20"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={submitClue}
+                disabled={!clueWord.trim() || submittingClue}
+                className="btn-primary w-full"
+              >
+                {submittingClue ? 'Sending…' : 'Send clue'}
+              </button>
+            </div>
+          )}
+
+          <div className="glass-card p-4">
+            <CodewordsBoardGrid
+              board={board}
+              showKey={showKey}
+              guessable={!!canGuess}
+              onGuess={guessCell}
+              disabled={guessing}
+              cellAttribution={cellAttribution}
+            />
+          </div>
+
+          {canGuess && (
+            <button type="button" onClick={endTurn} disabled={endingTurn} className="btn-secondary w-full">
+              {endingTurn ? 'Ending…' : 'End turn early'}
+            </button>
+          )}
+        </div>
+
+        <aside className="lg:sticky lg:top-4 space-y-4">
+          <CodewordsScoreboard board={board} players={players} roles={roles} highlightPlayerId={myPlayerId} />
+          <CodewordsGuessSummary guesses={guesses} players={players} />
+          <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
+        </aside>
+      </div>
+    </div>
+  )
+}

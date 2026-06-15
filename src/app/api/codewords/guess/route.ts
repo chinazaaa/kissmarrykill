@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { codewordsGuessSchema } from '@/lib/validation'
 import { parseGameType, isCodewordsGame } from '@/lib/game-types'
-import { otherTeam, teamWon } from '@/lib/codewords'
+import { cluePhaseUpdate, effectiveTurnPhase, otherTeam, teamWon } from '@/lib/codewords'
 import type { CodewordsBoard, CodewordsCellType, CodewordsTeam } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-function switchTurn(team: CodewordsTeam): CodewordsTeam {
-  return otherTeam(team)
+function endTeamTurn(board: CodewordsBoard) {
+  return cluePhaseUpdate(otherTeam(board.current_turn), board.spymaster_timer_seconds)
 }
 
 export async function POST(req: NextRequest) {
@@ -45,6 +45,9 @@ export async function POST(req: NextRequest) {
   if (typedBoard.winner) return NextResponse.json({ error: 'Game is over' }, { status: 400 })
   if (typedBoard.current_turn !== role.team) {
     return NextResponse.json({ error: 'Not your team\'s turn' }, { status: 400 })
+  }
+  if (effectiveTurnPhase(typedBoard) !== 'guess') {
+    return NextResponse.json({ error: 'Wait for your spymaster to give a clue' }, { status: 400 })
   }
   if (!typedBoard.current_clue_word || typedBoard.guesses_remaining == null) {
     return NextResponse.json({ error: 'Wait for your spymaster to give a clue' }, { status: 400 })
@@ -85,25 +88,13 @@ export async function POST(req: NextRequest) {
     } else {
       const remaining = typedBoard.guesses_remaining - 1
       if (remaining <= 0) {
-        update = {
-          ...update,
-          current_turn: switchTurn(team),
-          guesses_remaining: null,
-          current_clue_word: null,
-          current_clue_number: null,
-        }
+        update = { ...update, ...endTeamTurn(typedBoard) }
       } else {
         update = { ...update, guesses_remaining: remaining }
       }
     }
   } else {
-    update = {
-      ...update,
-      current_turn: switchTurn(team),
-      guesses_remaining: null,
-      current_clue_word: null,
-      current_clue_number: null,
-    }
+    update = { ...update, ...endTeamTurn(typedBoard) }
   }
 
   const { data: updated, error } = await supabase
@@ -114,6 +105,18 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await supabase.from('codewords_guesses').insert({
+    game_id: code,
+    board_id: typedBoard.id,
+    player_id: playerId,
+    cell_index: cellIndex,
+    word: typedBoard.words[cellIndex],
+    cell_type: cellType,
+    clue_word: typedBoard.current_clue_word,
+    clue_number: typedBoard.current_clue_number,
+    team,
+  })
 
   if (gameStatus === 'finished') {
     await supabase.from('games').update({ status: 'finished' }).eq('id', code)

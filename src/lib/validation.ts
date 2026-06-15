@@ -83,6 +83,7 @@ export const createGameSchema = z.object({
   title: sanitizedString(1, 100),
   rounds_count: z.coerce.number().int().min(1).max(100).optional(),
   timer_seconds: z.coerce.number().optional(),
+  operative_timer_seconds: z.coerce.number().optional(),
   anonymous: z.boolean().optional(),
   auto_reveal: z.boolean().optional(),
   auto_submit_behavior: autoSubmitBehaviorEnum.optional(),
@@ -98,6 +99,7 @@ export const createGameSchema = z.object({
   participant_filter: participantFilterEnum.optional(),
   gender_based: z.boolean().optional(),
   max_players: z.coerce.number().int().min(2).max(20).optional(),
+  codewords_player_picks: z.boolean().optional(),
   custom_slots: z
     .object({
       slots: z

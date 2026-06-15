@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { codewordsEndTurnSchema } from '@/lib/validation'
 import { parseGameType, isCodewordsGame } from '@/lib/game-types'
-import { otherTeam } from '@/lib/codewords'
+import { cluePhaseUpdate, otherTeam } from '@/lib/codewords'
 import type { CodewordsBoard } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -48,12 +48,7 @@ export async function POST(req: NextRequest) {
 
   const { data: updated, error } = await supabase
     .from('codewords_boards')
-    .update({
-      current_turn: otherTeam(role.team),
-      guesses_remaining: null,
-      current_clue_word: null,
-      current_clue_number: null,
-    })
+    .update(cluePhaseUpdate(otherTeam(role.team), typedBoard.spymaster_timer_seconds ?? 60))
     .eq('id', typedBoard.id)
     .select()
     .single()

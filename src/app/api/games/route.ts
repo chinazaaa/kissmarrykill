@@ -41,7 +41,13 @@ import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/pl
 import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 import { clampAnonymousRoomMaxPlayers, ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS } from '@/lib/anonymous-messages'
 import { clampBingoMaxPlayers, BINGO_DEFAULT_MAX_PLAYERS } from '@/lib/bingo'
-import { clampCodewordsMaxPlayers, CODEWORDS_DEFAULT_MAX_PLAYERS } from '@/lib/codewords'
+import {
+  clampCodewordsMaxPlayers,
+  clampCodewordsTimer,
+  CODEWORDS_DEFAULT_MAX_PLAYERS,
+  CODEWORDS_DEFAULT_OPERATIVE_TIMER,
+  CODEWORDS_DEFAULT_SPYMASTER_TIMER,
+} from '@/lib/codewords'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -112,6 +118,7 @@ export async function POST(req: NextRequest) {
     title,
     rounds_count,
     timer_seconds,
+    operative_timer_seconds: rawOperativeTimerSeconds,
     anonymous,
     auto_reveal,
     auto_submit_behavior,
@@ -128,6 +135,7 @@ export async function POST(req: NextRequest) {
     player_questions_enabled: rawPlayerQuestionsEnabled,
     player_questions_order: rawPlayerQuestionsOrder,
     max_players: rawMaxPlayers,
+    codewords_player_picks: rawCodewordsPlayerPicks,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -226,7 +234,19 @@ export async function POST(req: NextRequest) {
     title,
     host_token: hostToken,
     rounds_count: roundsCount,
-    timer_seconds: [15, 30, 60].includes(Number(timer_seconds)) ? Number(timer_seconds) : 30,
+    timer_seconds: isCodewordsGame(game_type)
+      ? clampCodewordsTimer(Number(timer_seconds) || CODEWORDS_DEFAULT_SPYMASTER_TIMER)
+      : [15, 30, 60].includes(Number(timer_seconds))
+        ? Number(timer_seconds)
+        : 30,
+    ...(isCodewordsGame(game_type)
+      ? {
+          operative_timer_seconds: clampCodewordsTimer(
+            Number(rawOperativeTimerSeconds) || CODEWORDS_DEFAULT_OPERATIVE_TIMER
+          ),
+          codewords_player_picks: rawCodewordsPlayerPicks !== false,
+        }
+      : {}),
     anonymous: isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isAnonymousGame(game_type) ? true : anonymous !== false,
     auto_reveal: auto_reveal !== false,
     auto_submit_behavior: auto_submit_behavior === 'random' ? 'random' : 'no_answer',

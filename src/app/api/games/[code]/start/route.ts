@@ -43,9 +43,13 @@ import { ANONYMOUS_ROOM_MIN_PLAYERS } from '@/lib/anonymous-messages'
 import { BINGO_MIN_PLAYERS, createBingoCardsForPlayers } from '@/lib/bingo'
 import {
   CODEWORDS_MIN_PLAYERS,
+  CODEWORDS_DEFAULT_SPYMASTER_TIMER,
+  CODEWORDS_DEFAULT_OPERATIVE_TIMER,
+  clampCodewordsTimer,
   generateKey,
   lobbyReady,
   pickBoardWords,
+  turnDeadline,
 } from '@/lib/codewords'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
 
@@ -202,6 +206,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const startingTeam = Math.random() < 0.5 ? 'red' : 'blue'
     const words = pickBoardWords()
     const key = generateKey(startingTeam)
+    const spymasterTimer = clampCodewordsTimer(game.timer_seconds ?? CODEWORDS_DEFAULT_SPYMASTER_TIMER)
+    const operativeTimer = clampCodewordsTimer(
+      game.operative_timer_seconds ?? CODEWORDS_DEFAULT_OPERATIVE_TIMER
+    )
 
     const { error: boardError } = await supabase.from('codewords_boards').insert({
       game_id: code.toUpperCase(),
@@ -209,6 +217,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       key,
       starting_team: startingTeam,
       current_turn: startingTeam,
+      spymaster_timer_seconds: spymasterTimer,
+      operative_timer_seconds: operativeTimer,
+      turn_phase: 'clue',
+      turn_deadline_at: turnDeadline(spymasterTimer),
     })
 
     if (boardError) return NextResponse.json({ error: boardError.message }, { status: 500 })

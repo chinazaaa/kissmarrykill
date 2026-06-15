@@ -42,11 +42,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { data: game } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  if (game.status !== 'finished') {
+
+  const gameType = parseGameType(game.game_type)
+  const canReturnToLobby =
+    game.status === 'finished' || (isCodewordsGame(gameType) && game.status === 'active')
+  if (!canReturnToLobby) {
     return NextResponse.json({ error: 'Game must be finished before playing again' }, { status: 400 })
   }
 
-  const gameType = parseGameType(game.game_type)
   const genderBased = isGameGenderBased(game)
 
   const [{ data: rounds }, { data: participantsData }] = await Promise.all([

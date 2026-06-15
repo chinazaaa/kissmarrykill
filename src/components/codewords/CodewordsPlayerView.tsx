@@ -2,13 +2,28 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
-import { countRevealedTeamCells, countTeamCells, roleLabel, teamLabel } from '@/lib/codewords'
+import {
+  codewordsPlayerPicks,
+  mergeCodewordsGuesses,
+  roleLabel,
+  teamLabel,
+} from '@/lib/codewords'
+import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
-import type { CodewordsBoard, CodewordsPlayerRole, CodewordsRole, CodewordsTeam, Game } from '@/types'
+import type {
+  CodewordsBoard,
+  CodewordsGuess,
+  CodewordsPlayerRole,
+  CodewordsRole,
+  CodewordsTeam,
+  Game,
+  Player,
+} from '@/types'
 import { useToast } from '@/components/ui/Toast'
 
 type Screen = 'loading' | 'join' | 'lobby' | 'active' | 'finished' | 'not_found'
@@ -24,14 +39,34 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const [joining, setJoining] = useState(false)
   const [myRole, setMyRole] = useState<CodewordsPlayerRole | null>(null)
   const [board, setBoard] = useState<CodewordsBoard | null>(null)
+  const [allPlayers, setAllPlayers] = useState<Player[]>([])
+  const [allRoles, setAllRoles] = useState<CodewordsPlayerRole[]>([])
+  const [guesses, setGuesses] = useState<CodewordsGuess[]>([])
   const [pickingTeam, setPickingTeam] = useState<CodewordsTeam | null>(null)
   const [pickingRole, setPickingRole] = useState<CodewordsRole | null>(null)
   const [savingRole, setSavingRole] = useState(false)
-  const [clueWord, setClueWord] = useState('')
-  const [clueNumber, setClueNumber] = useState(1)
-  const [submittingClue, setSubmittingClue] = useState(false)
-  const [guessing, setGuessing] = useState(false)
-  const [endingTurn, setEndingTurn] = useState(false)
+
+  const refreshMyRole = useCallback(
+    async (playerId: string | null) => {
+      if (!playerId) {
+        setMyRole(null)
+        return
+      }
+      const { data: role } = await supabase
+        .from('codewords_player_roles')
+        .select('*')
+        .eq('game_id', gameCode)
+        .eq('player_id', playerId)
+        .maybeSingle()
+      const typed = role as CodewordsPlayerRole | null
+      setMyRole(typed)
+      if (typed) {
+        setPickingTeam(typed.team)
+        setPickingRole(typed.role)
+      }
+    },
+    [gameCode]
+  )
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (gameData.status === 'waiting') {
@@ -45,11 +80,36 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     setScreen(playerId ? 'finished' : 'join')
   }, [])
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: boardData }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('codewords_boards').select('*').eq('game_id', gameCode).maybeSingle(),
+  const loadBoard = useCallback(async () => {
+    const { data: boardData } = await supabase
+      .from('codewords_boards')
+      .select('*')
+      .eq('game_id', gameCode)
+      .maybeSingle()
+    if (boardData) setBoard(boardData as CodewordsBoard)
+    return boardData as CodewordsBoard | null
+  }, [gameCode])
+
+  const loadGuesses = useCallback(async () => {
+    const { data } = await supabase
+      .from('codewords_guesses')
+      .select('*')
+      .eq('game_id', gameCode)
+      .order('created_at', { ascending: true })
+    setGuesses(mergeCodewordsGuesses([], (data as CodewordsGuess[]) ?? []))
+  }, [gameCode])
+
+  const loadScoreboard = useCallback(async () => {
+    const [{ data: plrs }, { data: roleRows }] = await Promise.all([
+      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
     ])
+    setAllPlayers(plrs ?? [])
+    setAllRoles(roleRows ?? [])
+  }, [gameCode])
+
+  const load = useCallback(async () => {
+    const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
 
     if (!gameData) {
       setScreen('not_found')
@@ -57,7 +117,6 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     }
 
     setGame(gameData)
-    setBoard(boardData as CodewordsBoard | null)
 
     const session = getPlayerSession(gameCode)
     let playerId = session?.playerId ?? null
@@ -72,44 +131,58 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
       } else {
         setMyPlayerId(session.playerId)
         setMyPlayerName(session.playerName)
-        const { data: role } = await supabase
-          .from('codewords_player_roles')
-          .select('*')
-          .eq('game_id', gameCode)
-          .eq('player_id', session.playerId)
-          .maybeSingle()
-        setMyRole(role as CodewordsPlayerRole | null)
-        if (role) {
-          setPickingTeam(role.team)
-          setPickingRole(role.role)
-        }
+        await refreshMyRole(session.playerId)
       }
     }
+
+    if (gameData.status === 'active' || gameData.status === 'finished') {
+      await Promise.all([loadBoard(), loadScoreboard(), loadGuesses()])
+    } else {
+      setBoard(null)
+      setGuesses([])
+    }
+
     syncScreen(gameData, playerId)
-  }, [gameCode, syncScreen])
+  }, [gameCode, loadBoard, loadGuesses, loadScoreboard, refreshMyRole, syncScreen])
 
   useEffect(() => {
     load()
   }, [load])
 
-  useEffect(() => {
-    const channel = supabase
-      .channel(`codewords-player-${gameCode}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (p) => {
-        const next = p.new as Game
-        setGame(next)
-        syncScreen(next, myPlayerId)
+  useCodewordsRealtime(gameCode, 'player', {
+    onGame: (next) => {
+      setGame(next)
+      syncScreen(next, myPlayerId)
+      if (next.status === 'waiting') {
+        setBoard(null)
+        setGuesses([])
+        setMyRole(null)
+        setPickingTeam(null)
+        setPickingRole(null)
+      }
+      if (next.status === 'active') {
+        void loadBoard()
+        void loadScoreboard()
+        void loadGuesses()
+      }
+    },
+    onPlayers: (updater) => setAllPlayers(updater),
+    onRoles: (updater) => {
+      setAllRoles((prev) => {
+        const next = updater(prev)
+        return next
       })
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'codewords_boards', filter: `game_id=eq.${gameCode}` },
-        (p) => setBoard(p.new as CodewordsBoard)
-      )
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [gameCode, myPlayerId, syncScreen])
+      void refreshMyRole(myPlayerId)
+    },
+    onBoard: setBoard,
+    onGuesses: (updater) => setGuesses(updater),
+    onReload: load,
+  })
+
+  useEffect(() => {
+    if (screen !== 'active' || board) return
+    void loadBoard()
+  }, [board, loadBoard, screen])
 
   const joinGame = async () => {
     const name = joinName.trim()
@@ -155,78 +228,10 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     }
   }
 
-  const submitClue = async () => {
-    if (!myPlayerId || !clueWord.trim()) return
-    setSubmittingClue(true)
-    try {
-      const res = await fetch('/api/codewords/clue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameId: gameCode,
-          playerId: myPlayerId,
-          clueWord: clueWord.trim(),
-          clueNumber,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to give clue')
-      setBoard(data.board)
-      setClueWord('')
-      success('Clue sent!')
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to give clue')
-    } finally {
-      setSubmittingClue(false)
-    }
-  }
-
-  const guessCell = async (index: number) => {
-    if (!myPlayerId || guessing) return
-    setGuessing(true)
-    try {
-      const res = await fetch('/api/codewords/guess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, cellIndex: index }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to guess')
-      setBoard(data.board)
-      if (data.board.winner) await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to guess')
-    } finally {
-      setGuessing(false)
-    }
-  }
-
-  const endTurn = async () => {
-    if (!myPlayerId || endingTurn) return
-    setEndingTurn(true)
-    try {
-      const res = await fetch('/api/codewords/end-turn', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to end turn')
-      setBoard(data.board)
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to end turn')
-    } finally {
-      setEndingTurn(false)
-    }
-  }
-
   const cfg = gameTypeConfig('codewords')
-  const isSpymaster = myRole?.role === 'spymaster'
-  const isOperative = myRole?.role === 'operative'
+  const playersPickTeams = game ? codewordsPlayerPicks(game) : true
   const myTeam = myRole?.team
-  const isMyTurn = board && myTeam && board.current_turn === myTeam && !board.winner
-  const canGiveClue = isMyTurn && isSpymaster && !board?.current_clue_word
-  const canGuess = isMyTurn && isOperative && !!board?.current_clue_word
+  const isSpymaster = myRole?.role === 'spymaster'
 
   if (screen === 'loading') {
     return (
@@ -268,7 +273,11 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
               maxLength={40}
             />
           </div>
-          <p className="text-faint text-xs">You&apos;ll pick a team and role in the lobby before the host starts.</p>
+          <p className="text-faint text-xs">
+            {playersPickTeams
+              ? "You'll pick a team and role in the lobby before the host starts."
+              : 'The host will assign your team and role in the lobby.'}
+          </p>
           <button type="button" onClick={joinGame} disabled={!joinName.trim() || joining} className="btn-primary w-full">
             {joining ? 'Joining…' : 'Join game'}
           </button>
@@ -282,72 +291,83 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
         <div className="glass-card p-6 w-full max-w-md space-y-5">
           <div className="text-center space-y-1">
-            <h2 className="text-xl font-black">Pick your team & role</h2>
+            <h2 className="text-xl font-black">
+              {playersPickTeams ? 'Pick your team & role' : 'Waiting in lobby'}
+            </h2>
             <p className="text-muted text-sm">Playing as {myPlayerName}</p>
           </div>
 
-          <div className="space-y-2">
-            <p className="label-caps">Team</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['red', 'blue'] as const).map((team) => (
-                <button
-                  key={team}
-                  type="button"
-                  onClick={() => setPickingTeam(team)}
-                  className={[
-                    'rounded-xl border-2 px-3 py-3 font-bold text-sm transition-all',
-                    pickingTeam === team
-                      ? team === 'red'
-                        ? 'border-red-500 bg-red-100 text-red-900 dark:bg-red-500/20 dark:text-red-100'
-                        : 'border-blue-500 bg-blue-100 text-blue-900 dark:bg-blue-500/20 dark:text-blue-100'
-                      : 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)] text-muted',
-                  ].join(' ')}
-                >
-                  {team === 'red' ? '🔴 Red' : '🔵 Blue'}
-                </button>
-              ))}
-            </div>
-          </div>
+          {playersPickTeams ? (
+            <>
+              <div className="space-y-2">
+                <p className="label-caps">Team</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['red', 'blue'] as const).map((team) => (
+                    <button
+                      key={team}
+                      type="button"
+                      onClick={() => setPickingTeam(team)}
+                      className={[
+                        'rounded-xl border-2 px-3 py-3 font-bold text-sm transition-all',
+                        pickingTeam === team
+                          ? team === 'red'
+                            ? 'border-red-500 bg-red-100 text-red-900 dark:bg-red-500/20 dark:text-red-100'
+                            : 'border-blue-500 bg-blue-100 text-blue-900 dark:bg-blue-500/20 dark:text-blue-100'
+                          : 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)] text-muted',
+                      ].join(' ')}
+                    >
+                      {team === 'red' ? '🔴 Red' : '🔵 Blue'}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <p className="label-caps">Role</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['spymaster', 'operative'] as const).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setPickingRole(role)}
-                  className={[
-                    'rounded-xl border-2 px-3 py-3 font-bold text-sm transition-all',
-                    pickingRole === role
-                      ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)] text-[var(--foreground)]'
-                      : 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)] text-muted',
-                  ].join(' ')}
-                >
-                  {role === 'spymaster' ? '🕵️ Spymaster' : '🎯 Operative'}
-                </button>
-              ))}
-            </div>
-            <p className="text-faint text-xs leading-relaxed">
-              <strong>Spymaster</strong> sees the secret key and gives one-word clues. <strong>Operative</strong> guesses
-              words on the grid. Each team needs 1 spymaster and at least 1 operative.
-            </p>
-          </div>
+              <div className="space-y-2">
+                <p className="label-caps">Role</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['spymaster', 'operative'] as const).map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setPickingRole(role)}
+                      className={[
+                        'rounded-xl border-2 px-3 py-3 font-bold text-sm transition-all',
+                        pickingRole === role
+                          ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)] text-[var(--foreground)]'
+                          : 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)] text-muted',
+                      ].join(' ')}
+                    >
+                      {role === 'spymaster' ? '🕵️ Spymaster' : '🎯 Operative'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-faint text-xs leading-relaxed">
+                  <strong>Spymaster</strong> sees the secret key and gives one-word clues. <strong>Operative</strong>{' '}
+                  guesses words on the grid.
+                </p>
+              </div>
 
-          {myRole && (
-            <p className="text-center text-sm text-muted">
-              Saved: <CodewordsTeamBadge team={myRole.team} /> {roleLabel(myRole.role)}
+              <button
+                type="button"
+                onClick={saveRole}
+                disabled={!pickingTeam || !pickingRole || savingRole}
+                className="btn-primary w-full"
+              >
+                {savingRole ? 'Saving…' : 'Confirm team & role'}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-muted text-center leading-relaxed">
+              The host assigns teams for this game. You&apos;ll see your role here once you&apos;re placed on a team.
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={saveRole}
-            disabled={!pickingTeam || !pickingRole || savingRole}
-            className="btn-primary w-full"
-          >
-            {savingRole ? 'Saving…' : 'Confirm team & role'}
-          </button>
+          {myRole && (
+            <p className="text-center text-sm text-muted">
+              {playersPickTeams ? 'Saved: ' : 'Assigned: '}
+              <CodewordsTeamBadge team={myRole.team} /> {roleLabel(myRole.role)}
+            </p>
+          )}
 
           <p className="text-center text-faint text-xs">Waiting for the host to start…</p>
         </div>
@@ -355,22 +375,46 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
-  if (screen === 'finished' && board) {
+  if (!board || !myRole || !game || !myPlayerId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <p className="text-muted">
+          {game?.status === 'waiting' && !myRole
+            ? playersPickTeams
+              ? 'Pick your team and role while you wait…'
+              : 'Waiting for the host to assign your team…'
+            : 'Setting up the board…'}
+        </p>
+      </div>
+    )
+  }
+
+  if (screen === 'finished') {
     const iWon = board.winner && myTeam === board.winner
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl space-y-4">
           <div className="glass-card p-8 text-center space-y-2">
-            <p className="text-4xl">🏆</p>
-            {iWon ? (
+            {board.winner ? (
               <>
-                <p className="text-2xl font-black text-amber-600 dark:text-amber-200">Your team wins!</p>
-                <p className="text-muted text-sm">Great spycraft, {myPlayerName}.</p>
+                <p className="text-4xl">🏆</p>
+                {iWon ? (
+                  <>
+                    <p className="text-2xl font-black text-amber-600 dark:text-amber-200">Your team wins!</p>
+                    <p className="text-muted text-sm">Great spycraft, {myPlayerName}.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xl font-black">{teamLabel(board.winner)} team wins</p>
+                    <p className="text-muted text-sm">The host can start a new round.</p>
+                  </>
+                )}
               </>
             ) : (
               <>
-                <p className="text-xl font-black">{board.winner ? teamLabel(board.winner) : ''} team wins</p>
-                <p className="text-muted text-sm">The host can start a new round.</p>
+                <p className="text-4xl">🛑</p>
+                <p className="text-xl font-black">Session ended</p>
+                <p className="text-muted text-sm">The host closed this game. Wait for them to reopen the lobby.</p>
               </>
             )}
           </div>
@@ -382,106 +426,26 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
-  if (!board || !myRole) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-muted">Setting up the board…</p>
-      </div>
-    )
-  }
-
-  const redLeft =
-    countTeamCells(board.key, 'red') - countRevealedTeamCells(board.key, board.revealed_indices, 'red')
-  const blueLeft =
-    countTeamCells(board.key, 'blue') - countRevealedTeamCells(board.key, board.revealed_indices, 'blue')
-
   return (
     <div className="min-h-screen pb-24">
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
-        <div className="text-center space-y-1">
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="text-center space-y-1 mb-5">
           <div className="text-3xl">{cfg.headerEmoji}</div>
-          <h1 className="text-xl font-black gradient-title">{game?.title}</h1>
-          <p className="text-muted text-sm">
-            {myPlayerName} · <CodewordsTeamBadge team={myRole.team} /> {roleLabel(myRole.role)}
-          </p>
+          <h1 className="text-xl font-black gradient-title">{game.title}</h1>
         </div>
-
-        <div className="flex justify-center gap-4 text-sm font-bold">
-          <span className="text-red-700 dark:text-red-200">🔴 {redLeft} left</span>
-          <span className="text-blue-700 dark:text-blue-200">🔵 {blueLeft} left</span>
-        </div>
-
-        {isMyTurn ? (
-          <div className="glass-card p-4 text-center text-sm font-medium border-blue-400/30">
-            <CodewordsTeamBadge team={board.current_turn} /> team&apos;s turn —{' '}
-            {isSpymaster ? 'give a clue' : 'guess words'}
-          </div>
-        ) : (
-          <div className="glass-card p-4 text-center text-sm text-muted">
-            Waiting for <CodewordsTeamBadge team={board.current_turn} /> team…
-          </div>
-        )}
-
-        {board.current_clue_word && (
-          <div className="glass-card p-4 text-center">
-            <p className="text-faint text-xs uppercase tracking-wider">Current clue</p>
-            <p className="text-2xl font-black">
-              {board.current_clue_word}{' '}
-              <span className="text-muted text-lg">{board.current_clue_number}</span>
-            </p>
-            {canGuess && board.guesses_remaining != null && (
-              <p className="text-faint text-xs mt-1">{board.guesses_remaining} guess(es) left</p>
-            )}
-          </div>
-        )}
-
-        {canGiveClue && (
-          <div className="glass-card p-4 space-y-3">
-            <p className="label-caps">Give a clue</p>
-            <div className="flex flex-wrap gap-2">
-              <input
-                type="text"
-                value={clueWord}
-                onChange={(e) => setClueWord(e.target.value)}
-                placeholder="One word"
-                className="input-field flex-1 min-w-[8rem]"
-                maxLength={40}
-              />
-              <input
-                type="number"
-                min={0}
-                max={9}
-                value={clueNumber}
-                onChange={(e) => setClueNumber(Number(e.target.value) || 0)}
-                className="input-field w-20"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={submitClue}
-              disabled={!clueWord.trim() || submittingClue}
-              className="btn-primary w-full"
-            >
-              {submittingClue ? 'Sending…' : 'Send clue'}
-            </button>
-          </div>
-        )}
-
-        <div className="glass-card p-4">
-          <CodewordsBoardGrid
-            board={board}
-            showKey={isSpymaster}
-            guessable={!!canGuess}
-            onGuess={guessCell}
-            disabled={guessing}
-          />
-        </div>
-
-        {canGuess && (
-          <button type="button" onClick={endTurn} disabled={endingTurn} className="btn-secondary w-full">
-            {endingTurn ? 'Ending…' : 'End turn early'}
-          </button>
-        )}
+        <CodewordsActiveRound
+          gameCode={gameCode}
+          game={game}
+          board={board}
+          myPlayerId={myPlayerId}
+          myPlayerName={myPlayerName}
+          myRole={myRole}
+          players={allPlayers}
+          roles={allRoles}
+          guesses={guesses}
+          onBoardChange={setBoard}
+          onReload={load}
+        />
       </div>
     </div>
   )

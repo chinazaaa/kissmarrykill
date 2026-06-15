@@ -39,6 +39,10 @@ export interface CodewordsBoard {
   current_clue_number: number | null
   winner: CodewordsTeam | null
   assassin_team: CodewordsTeam | null
+  spymaster_timer_seconds: number
+  operative_timer_seconds: number
+  turn_phase: 'clue' | 'guess'
+  turn_deadline_at: string | null
   created_at: string
 }
 
@@ -48,6 +52,20 @@ export interface CodewordsPlayerRole {
   player_id: string
   team: CodewordsTeam
   role: CodewordsRole
+  created_at: string
+}
+
+export interface CodewordsGuess {
+  id: string
+  game_id: string
+  board_id: string
+  player_id: string
+  cell_index: number
+  word: string
+  cell_type: CodewordsCellType
+  clue_word: string | null
+  clue_number: number | null
+  team: CodewordsTeam
   created_at: string
 }
 export type ThemeId = 'default' | 'neon' | 'retro' | 'elegant' | 'tropical'
@@ -77,6 +95,8 @@ export interface Game {
   host_token: string
   rounds_count: number
   timer_seconds: number
+  /** Codewords — operative guess phase timer. */
+  operative_timer_seconds?: number | null
   anonymous: boolean
   auto_reveal: boolean
   auto_submit_behavior: AutoSubmitBehavior
@@ -104,6 +124,8 @@ export interface Game {
   custom_slots?: CustomSlotsConfig | null
   /** When true, rounds use same-gender groups and opposite-gender voting. Default true for SMK/pair, false for custom. */
   gender_based?: boolean
+  /** Codewords — when false, only the host assigns teams and roles in the lobby. */
+  codewords_player_picks?: boolean
   /** Cumulative usage across play-again sessions — unused pool items are prioritized next game. */
   pool_usage?: Record<string, unknown> | null
 }
