@@ -16,8 +16,10 @@ import { clearTriviaSessionData } from '@/lib/trivia'
 import {
   applyCustomQuestionsUpdate,
   applyParticipantListUpdate,
+  applyTriviaSettingsUpdate,
   canReplaceHostParticipantList,
   parseHostPoolCustomQuestions,
+  parseHostPoolTriviaQuestions,
   parseHostPoolParticipants,
   replaceHostParticipantList,
 } from '@/lib/host-pool-update'
@@ -38,7 +40,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { hostToken, custom_questions: rawCustomQuestions, participants: rawParticipants } = parsed.data
+  const {
+    hostToken,
+    custom_questions: rawCustomQuestions,
+    participants: rawParticipants,
+    question_source,
+    trivia_category,
+    timer_seconds,
+    rounds_count,
+  } = parsed.data
   const gameId = code.toUpperCase()
 
   const { data: game } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
@@ -57,7 +67,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const [{ data: rounds }, { data: participantsData }] = await Promise.all([
     supabase
       .from('rounds')
-      .select('participant_ids, wyr_option_a, wyr_option_b, mlt_question, submitter_player_id')
+      .select(
+        'participant_ids, wyr_option_a, wyr_option_b, mlt_question, submitter_player_id, trivia_metadata'
+      )
       .eq('game_id', gameId),
     supabase.from('participants').select('id, name, gender').eq('game_id', gameId),
   ])
@@ -74,7 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     anonymous_messages_trimmed_at: null,
   }
 
-  if (rawCustomQuestions !== undefined) {
+  if (rawCustomQuestions !== undefined && !isTriviaGame(gameType)) {
     const nextQuestions = parseHostPoolCustomQuestions(rawCustomQuestions, gameType)
     if (!nextQuestions) {
       return NextResponse.json({ error: 'Upload at least one valid question' }, { status: 400 })
@@ -85,6 +97,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       poolUsage
     )
     Object.assign(gameUpdate, questionUpdate)
+    poolUsage = nextPoolUsage
+  }
+
+  if (isTriviaGame(gameType)) {
+    let customQuestions = undefined
+    if (rawCustomQuestions !== undefined) {
+      const nextQuestions = parseHostPoolTriviaQuestions(rawCustomQuestions)
+      if (!nextQuestions) {
+        return NextResponse.json({ error: 'Upload at least one valid question' }, { status: 400 })
+      }
+      const effectiveRounds = rounds_count ?? game.rounds_count
+      if (nextQuestions.length < effectiveRounds) {
+        return NextResponse.json(
+          { error: `Need at least ${effectiveRounds} questions for ${effectiveRounds} rounds` },
+          { status: 400 }
+        )
+      }
+      customQuestions = nextQuestions
+    }
+
+    const { gameUpdate: triviaUpdate, poolUsage: nextPoolUsage } = applyTriviaSettingsUpdate(
+      game,
+      {
+        question_source,
+        trivia_category,
+        timer_seconds,
+        rounds_count,
+        custom_questions: customQuestions,
+      },
+      poolUsage
+    )
+    Object.assign(gameUpdate, triviaUpdate)
     poolUsage = nextPoolUsage
   }
 

@@ -13,6 +13,7 @@ import {
   TRIVIA_REVEAL_SECONDS,
 } from '@/lib/trivia'
 import { triviaCategoryLabel } from '@/lib/trivia-questions'
+import { parseQuestionSource, parseStoredTriviaQuestions } from '@/lib/custom-questions'
 import { useRoundTimer } from '@/hooks/useRoundTimer'
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 
@@ -34,6 +35,7 @@ interface TriviaHostManagePanelProps {
   onNextRound: () => void
   onFinishGame: () => void
   onPlayAgain: () => void
+  onEditSettings: () => void
 }
 
 export function TriviaHostManagePanel({
@@ -50,6 +52,7 @@ export function TriviaHostManagePanel({
   onNextRound,
   onFinishGame,
   onPlayAgain,
+  onEditSettings,
 }: TriviaHostManagePanelProps) {
   const [revealCountdown, setRevealCountdown] = useState(TRIVIA_REVEAL_SECONDS)
   const autoAdvancedRoundId = useRef<string | null>(null)
@@ -73,6 +76,12 @@ export function TriviaHostManagePanel({
   const leaderboard = useMemo(() => tallyTriviaPlayerScores(answers, players), [answers, players])
   const isLastRound = (game.current_round_number ?? 0) >= (game.rounds_count ?? 0)
   const category = triviaCategoryLabel(triviaCategoryFromGame(game))
+  const questionSource = parseQuestionSource(game.question_source, 'trivia')
+  const customQuestionCount = parseStoredTriviaQuestions(game.custom_questions).length
+  const settingsSummary =
+    questionSource === 'platform'
+      ? `Platform · ${category} · ${game.rounds_count} rounds · ${game.timer_seconds}s per question`
+      : `Custom · ${customQuestionCount} question${customQuestionCount === 1 ? '' : 's'} · ${game.rounds_count} rounds · ${game.timer_seconds}s per question`
   const allAnswered = !!activeRound && players.length > 0 && roundAnswers.length >= players.length
 
   useRoundTimer({
@@ -141,10 +150,15 @@ export function TriviaHostManagePanel({
             <p className="text-xl sm:text-2xl font-bold text-body">
               Lobby — {players.length} player{players.length !== 1 ? 's' : ''}
             </p>
-            <p className="text-muted text-sm sm:text-base mt-1">
-              {category} · {game.rounds_count} rounds · {game.timer_seconds}s per question
-            </p>
+            <p className="text-muted text-sm sm:text-base mt-1">{settingsSummary}</p>
           </div>
+          <button
+            type="button"
+            onClick={onEditSettings}
+            className="btn-secondary w-full py-3 text-base"
+          >
+            Edit settings
+          </button>
           <ul className="grid sm:grid-cols-2 gap-2 text-base text-body max-h-56 overflow-y-auto">
             {players.map((p) => (
               <li key={p.id} className="rounded-xl border border-[var(--border-strong)] px-4 py-3">

@@ -1,4 +1,6 @@
 import { migratePoolKey, participantPoolKey, wyrQuestionKey } from '@/lib/pool-key'
+import { parseTriviaMetadata } from '@/lib/trivia'
+import { triviaQuestionKey } from '@/lib/trivia-questions'
 
 export interface PoolUsageState {
   /** WYR / This or That question keys → times used in past sessions */
@@ -19,6 +21,7 @@ type RoundForUsage = {
   wyr_option_b?: string | null
   mlt_question?: string | null
   submitter_player_id?: string | null
+  trivia_metadata?: unknown | null
 }
 
 type ParticipantRow = { id: string; name: string; gender: string }
@@ -78,6 +81,7 @@ export function extractRoundUsage(
   const mlt = new Map<string, number>()
   const participantUsage = new Map<string, number>()
   const hotSeat = new Map<string, number>()
+  const trivia = new Map<string, number>()
 
   for (const round of rounds) {
     if (round.wyr_option_a && round.wyr_option_b) {
@@ -96,6 +100,16 @@ export function extractRoundUsage(
     if (round.submitter_player_id) {
       hotSeat.set(round.submitter_player_id, (hotSeat.get(round.submitter_player_id) ?? 0) + 1)
     }
+    const triviaMeta = parseTriviaMetadata(round.trivia_metadata)
+    if (triviaMeta) {
+      const key = triviaQuestionKey({
+        question: triviaMeta.question,
+        choices: triviaMeta.choices,
+        correctIndex: triviaMeta.correct_index,
+        category: 'general',
+      })
+      trivia.set(key, (trivia.get(key) ?? 0) + 1)
+    }
   }
 
   return {
@@ -103,6 +117,7 @@ export function extractRoundUsage(
     mlt: mapToPoolUsageSection(mlt),
     participants: mapToPoolUsageSection(participantUsage),
     hotSeat: mapToPoolUsageSection(hotSeat),
+    trivia: mapToPoolUsageSection(trivia),
   }
 }
 
@@ -112,6 +127,7 @@ export function mergePoolUsageState(existing: PoolUsageState, fromRounds: PoolUs
     mlt: mergeUsageRecords(existing.mlt, poolUsageToMap(fromRounds.mlt)),
     participants: mergeUsageRecords(existing.participants, poolUsageToMap(fromRounds.participants)),
     hotSeat: mergeUsageRecords(existing.hotSeat, poolUsageToMap(fromRounds.hotSeat)),
+    trivia: mergeUsageRecords(existing.trivia, poolUsageToMap(fromRounds.trivia)),
   }
 }
 

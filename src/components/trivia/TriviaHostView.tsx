@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { TriviaActiveRound } from '@/components/trivia/TriviaActiveRound'
 import { TriviaHostManagePanel } from '@/components/trivia/TriviaHostManagePanel'
+import { TriviaPlayAgainSetup, type TriviaSettingsPayload } from '@/components/trivia/TriviaPlayAgainSetup'
 import { gameTypeConfig } from '@/lib/game-types'
 import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
 import { supabase } from '@/lib/supabase'
@@ -22,12 +23,16 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   const [starting, setStarting] = useState(false)
   const [advancing, setAdvancing] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
+  const [savingLobbySettings, setSavingLobbySettings] = useState(false)
+  const [settingsModal, setSettingsModal] = useState<'lobby' | 'play-again' | null>(null)
   const [hostMode, setHostMode] = useState<TriviaHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+  const settingsModalRef = useRef(settingsModal)
+  settingsModalRef.current = settingsModal
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }, { data: rds }, { data: ans }] = await Promise.all([
@@ -72,7 +77,10 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       })
       .subscribe()
 
-    const poll = setInterval(load, 1000)
+    const poll = setInterval(() => {
+      if (settingsModalRef.current) return
+      void load()
+    }, 1000)
     return () => {
       clearInterval(poll)
       supabase.removeChannel(channel)
@@ -186,27 +194,55 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     }
   }, [gameCode, hostToken, load, toastError])
 
-  const playAgain = useCallback(async () => {
-    setPlayingAgain(true)
-    try {
-      const res = await fetch(`/api/games/${gameCode}/play-again`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
-      setAnswers([])
-      setRounds([])
-      await load()
-      success('Lobby reopened!')
-      setTab('manage')
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to reset')
-    } finally {
-      setPlayingAgain(false)
-    }
-  }, [gameCode, hostToken, load, success, toastError])
+  const playAgain = useCallback(
+    async (payload: TriviaSettingsPayload) => {
+      setPlayingAgain(true)
+      try {
+        const res = await fetch(`/api/games/${gameCode}/play-again`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hostToken, ...payload }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
+        setAnswers([])
+        setRounds([])
+        await load()
+        success('Lobby reopened!')
+        setSettingsModal(null)
+        setTab('manage')
+      } catch (err) {
+        toastError(err instanceof Error ? err.message : 'Failed to reset')
+      } finally {
+        setPlayingAgain(false)
+      }
+    },
+    [gameCode, hostToken, load, success, toastError]
+  )
+
+  const saveLobbySettings = useCallback(
+    async (payload: TriviaSettingsPayload) => {
+      setSavingLobbySettings(true)
+      try {
+        const res = await fetch(`/api/games/${gameCode}/lobby-pool`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hostToken, ...payload }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Failed to save')
+        if (data.game) setGame(data.game)
+        await load()
+        success('Settings saved')
+        setSettingsModal(null)
+      } catch (err) {
+        toastError(err instanceof Error ? err.message : 'Failed to save')
+      } finally {
+        setSavingLobbySettings(false)
+      }
+    },
+    [gameCode, hostToken, load, success, toastError]
+  )
 
   const cfg = gameTypeConfig('trivia')
   const playerLink = `${appOrigin()}/game/${gameCode}`
@@ -351,9 +387,19 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
             onEndRound={endRound}
             onNextRound={nextRound}
             onFinishGame={finishGame}
-            onPlayAgain={playAgain}
+            onPlayAgain={() => setSettingsModal('play-again')}
+            onEditSettings={() => setSettingsModal('lobby')}
           />
         )}
+
+        <TriviaPlayAgainSetup
+          open={settingsModal !== null}
+          onClose={() => setSettingsModal(null)}
+          game={game}
+          variant={settingsModal === 'lobby' ? 'lobby' : 'play-again'}
+          loading={settingsModal === 'lobby' ? savingLobbySettings : playingAgain}
+          onConfirm={settingsModal === 'lobby' ? saveLobbySettings : playAgain}
+        />
       </div>
     </div>
   )

@@ -5,13 +5,15 @@ import { assertHostGame } from '@/lib/game-admin'
 import {
   applyCustomQuestionsUpdate,
   applyParticipantListUpdate,
+  applyTriviaSettingsUpdate,
   canReplaceHostParticipantList,
   clampRoundsForPool,
   parseHostPoolCustomQuestions,
+  parseHostPoolTriviaQuestions,
   parseHostPoolParticipants,
   replaceHostParticipantList,
 } from '@/lib/host-pool-update'
-import { parseGameType, isBinaryChoiceGame, isMostLikelyTo } from '@/lib/game-types'
+import { parseGameType, isBinaryChoiceGame, isMostLikelyTo, isTriviaGame } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { parsePoolUsage } from '@/lib/pool-usage'
 
@@ -25,8 +27,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { hostToken, custom_questions: rawCustomQuestions, participants: rawParticipants } = parsed.data
-  if (rawCustomQuestions === undefined && rawParticipants === undefined) {
+  const {
+    hostToken,
+    custom_questions: rawCustomQuestions,
+    participants: rawParticipants,
+    question_source,
+    trivia_category,
+    timer_seconds,
+    rounds_count,
+  } = parsed.data
+
+  const hasTriviaSettings =
+    question_source !== undefined ||
+    trivia_category !== undefined ||
+    timer_seconds !== undefined ||
+    rounds_count !== undefined ||
+    rawCustomQuestions !== undefined
+
+  if (rawCustomQuestions === undefined && rawParticipants === undefined && !hasTriviaSettings) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
@@ -40,7 +58,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   let nextGame = { ...game }
   let poolUsage = parsePoolUsage(game.pool_usage)
 
-  if (rawCustomQuestions !== undefined) {
+  if (isTriviaGame(gameType) && hasTriviaSettings) {
+    let customQuestions = undefined
+    if (rawCustomQuestions !== undefined) {
+      const nextQuestions = parseHostPoolTriviaQuestions(rawCustomQuestions)
+      if (!nextQuestions) {
+        return NextResponse.json({ error: 'Upload at least one valid question' }, { status: 400 })
+      }
+      const effectiveRounds = rounds_count ?? game.rounds_count
+      if (nextQuestions.length < effectiveRounds) {
+        return NextResponse.json(
+          { error: `Need at least ${effectiveRounds} questions for ${effectiveRounds} rounds` },
+          { status: 400 }
+        )
+      }
+      customQuestions = nextQuestions
+    }
+
+    const { gameUpdate: triviaUpdate, poolUsage: nextPoolUsage } = applyTriviaSettingsUpdate(
+      game,
+      {
+        question_source,
+        trivia_category,
+        timer_seconds,
+        rounds_count,
+        custom_questions: customQuestions,
+      },
+      poolUsage
+    )
+    Object.assign(gameUpdate, triviaUpdate)
+    poolUsage = nextPoolUsage
+    nextGame = { ...nextGame, ...triviaUpdate } as typeof game
+  } else if (rawCustomQuestions !== undefined) {
     const nextQuestions = parseHostPoolCustomQuestions(rawCustomQuestions, gameType)
     if (!nextQuestions) {
       return NextResponse.json({ error: 'Upload at least one valid question' }, { status: 400 })

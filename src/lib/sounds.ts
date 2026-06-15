@@ -17,7 +17,7 @@ export function unlockAudio() {
 
 /** Short ascending chime when a new round starts. */
 export function playRoundStartSound() {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
     unlockAudio()
@@ -49,7 +49,7 @@ export function playRoundStartSound() {
 
 /** Short satisfying "ding" when a vote is submitted (rising chime). */
 export function playVoteSubmittedSound() {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
     unlockAudio()
@@ -76,7 +76,7 @@ export function playVoteSubmittedSound() {
 
 /** Descending tone when a round ends (pleasant buzzer). */
 export function playRoundEndSound() {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
     unlockAudio()
@@ -108,7 +108,7 @@ export function playRoundEndSound() {
 
 /** Celebratory fanfare for game completion (ascending notes with final chord). */
 export function playGameFinishedSound() {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
     unlockAudio()
@@ -186,7 +186,7 @@ export function playConfessionSound() {
 
 /** Short clock tick/tock for countdown urgency (last few seconds). */
 export function playTickTockSound(secondsRemaining: number) {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || isSoundMuted()) return
   if (secondsRemaining <= 0 || secondsRemaining > TIMER_TICK_THRESHOLD) return
 
   try {
@@ -209,6 +209,64 @@ export function playTickTockSound(secondsRemaining: number) {
     osc.stop(now + 0.09)
   } catch {
     // Ignore if audio is blocked
+  }
+}
+
+/** Quick bright chime when a trivia answer is correct. */
+export function playCorrectAnswerSound() {
+  if (typeof window === 'undefined' || isSoundMuted()) return
+
+  try {
+    unlockAudio()
+    if (!audioCtx) audioCtx = new AudioContext()
+    const ctx = audioCtx
+    const now = ctx.currentTime
+
+    const playTone = (freq: number, start: number, duration: number, volume = 0.11) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, start)
+      gain.gain.linearRampToValueAtTime(volume, start + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(start)
+      osc.stop(start + duration + 0.05)
+    }
+
+    playTone(880, now, 0.12)
+    playTone(1174.66, now + 0.08, 0.2, 0.13)
+  } catch {
+    // Browser may block audio until user gesture — ignore silently
+  }
+}
+
+/** Soft low tone when a trivia answer is wrong. */
+export function playWrongAnswerSound() {
+  if (typeof window === 'undefined' || isSoundMuted()) return
+
+  try {
+    unlockAudio()
+    if (!audioCtx) audioCtx = new AudioContext()
+    const ctx = audioCtx
+    const now = ctx.currentTime
+
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(440, now)
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.2)
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(0.09, now + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(now)
+    osc.stop(now + 0.28)
+  } catch {
+    // Browser may block audio until user gesture — ignore silently
   }
 }
 

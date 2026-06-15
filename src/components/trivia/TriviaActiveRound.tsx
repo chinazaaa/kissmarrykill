@@ -10,6 +10,8 @@ import {
   TRIVIA_REVEAL_SECONDS,
 } from '@/lib/trivia'
 import { useRoundTimer } from '@/hooks/useRoundTimer'
+import { useTriviaNotifications } from '@/hooks/useTriviaNotifications'
+import { playVoteSubmittedSound } from '@/lib/sounds'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 
@@ -93,6 +95,17 @@ export function TriviaActiveRound({
     onExpire: () => setTimeExpired(true),
   })
 
+  const correct = myAnswer?.is_correct ?? lastResult?.isCorrect
+
+  useTriviaNotifications({
+    game,
+    currentRound,
+    screen,
+    correct,
+    timeLeft,
+    timeExpired,
+  })
+
   const submitAnswer = useCallback(
     async (choiceIndex: number) => {
       if (!currentRound || submitting || myAnswer) return
@@ -112,6 +125,7 @@ export function TriviaActiveRound({
         if (!res.ok) throw new Error(data.error ?? 'Failed to submit')
         setLastResult({ isCorrect: data.isCorrect, points: data.points })
         setPendingChoice(null)
+        playVoteSubmittedSound()
       } catch (err) {
         toastError(err instanceof Error ? err.message : 'Failed to submit')
       } finally {
@@ -121,7 +135,6 @@ export function TriviaActiveRound({
     [currentRound, submitting, myAnswer, gameCode, myPlayerId, toastError]
   )
 
-  const correct = myAnswer?.is_correct ?? lastResult?.isCorrect
   const points = myAnswer?.points ?? lastResult?.points ?? 0
   const waitingForOthers = Math.max(0, players.length - roundAnswerCount)
   const allAnswered = players.length > 0 && roundAnswerCount >= players.length

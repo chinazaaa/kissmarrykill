@@ -15,13 +15,18 @@ import {
 import {
   parseStoredMltQuestions,
   parseStoredWyrQuestions,
+  parseStoredTriviaQuestions,
   questionPoolCap,
 } from '@/lib/custom-questions'
 import { wyrQuestionKey } from '@/lib/would-you-rather-questions'
+import { triviaQuestionKey } from '@/lib/trivia-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
+import type { TriviaQuestion } from '@/types'
 import type { Game } from '@/types'
 import { parsePoolUsage, pruneParticipantUsage, pruneQuestionUsage } from '@/lib/pool-usage'
 import { isGameGenderBased } from '@/lib/gender-based'
+import { triviaCategoryFromGame } from '@/lib/trivia'
+import { platformTriviaPool } from '@/lib/trivia-questions'
 
 export function parseHostPoolParticipants(
   raw: unknown,
@@ -64,6 +69,12 @@ export function parseHostPoolCustomQuestions(
     return parsed.length > 0 ? parsed : null
   }
   return null
+}
+
+export function parseHostPoolTriviaQuestions(raw: unknown): TriviaQuestion[] | null {
+  if (!Array.isArray(raw)) return null
+  const parsed = parseStoredTriviaQuestions(raw)
+  return parsed.length > 0 ? parsed : null
 }
 
 export async function replaceHostParticipantList(
@@ -126,6 +137,74 @@ export function applyCustomQuestionsUpdate(
   }
 
   if (isThisOrThat(gameType)) {
+    gameUpdate.question_source = 'custom'
+  }
+
+  gameUpdate.pool_usage = poolUsage
+  return { gameUpdate, poolUsage }
+}
+
+export function applyTriviaCustomQuestionsUpdate(
+  game: Game,
+  nextQuestions: TriviaQuestion[],
+  existingPoolUsage = parsePoolUsage(game.pool_usage)
+): { gameUpdate: Record<string, unknown>; poolUsage: ReturnType<typeof parsePoolUsage> } {
+  const poolUsage = {
+    ...existingPoolUsage,
+    trivia: pruneQuestionUsage(existingPoolUsage.trivia, nextQuestions, triviaQuestionKey),
+  }
+  return {
+    gameUpdate: {
+      custom_questions: nextQuestions,
+      question_source: 'custom',
+      pool_usage: poolUsage,
+    },
+    poolUsage,
+  }
+}
+
+export type TriviaSettingsInput = {
+  question_source?: 'platform' | 'custom'
+  trivia_category?: 'tech' | 'general'
+  timer_seconds?: number
+  rounds_count?: number
+  custom_questions?: TriviaQuestion[]
+}
+
+export function applyTriviaSettingsUpdate(
+  game: Game,
+  input: TriviaSettingsInput,
+  existingPoolUsage = parsePoolUsage(game.pool_usage)
+): { gameUpdate: Record<string, unknown>; poolUsage: ReturnType<typeof parsePoolUsage> } {
+  const gameUpdate: Record<string, unknown> = {}
+  let poolUsage = existingPoolUsage
+
+  if (input.custom_questions !== undefined) {
+    const { gameUpdate: questionUpdate, poolUsage: nextPoolUsage } = applyTriviaCustomQuestionsUpdate(
+      game,
+      input.custom_questions,
+      poolUsage
+    )
+    Object.assign(gameUpdate, questionUpdate)
+    poolUsage = nextPoolUsage
+  }
+
+  if (input.trivia_category !== undefined) gameUpdate.trivia_category = input.trivia_category
+  if (input.timer_seconds !== undefined) gameUpdate.timer_seconds = input.timer_seconds
+  if (input.rounds_count !== undefined) gameUpdate.rounds_count = input.rounds_count
+
+  if (input.question_source === 'platform') {
+    gameUpdate.question_source = 'platform'
+    if (input.custom_questions === undefined) {
+      gameUpdate.custom_questions = null
+    }
+    const category =
+      input.trivia_category ?? triviaCategoryFromGame({ trivia_category: game.trivia_category })
+    poolUsage = {
+      ...poolUsage,
+      trivia: pruneQuestionUsage(poolUsage.trivia, platformTriviaPool(category), triviaQuestionKey),
+    }
+  } else if (input.question_source === 'custom') {
     gameUpdate.question_source = 'custom'
   }
 
