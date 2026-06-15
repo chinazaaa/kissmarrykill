@@ -17,7 +17,7 @@ import {
   parseGameType,
   slotMeta,
   voteSlots,
-  isPairGame,
+  isBinaryPeoplePollGame,
   isBinaryChoiceGame,
   isThisOrThat,
   isMostLikelyTo,
@@ -476,7 +476,7 @@ export default function GameHistoryPage() {
                       />
                     )
                   })()
-                ) : isPairGame(gameType) ? (
+                ) : isBinaryPeoplePollGame(gameType) ? (
                   <>
                     <ParticipantRoundResults
                       gameType={gameType}
@@ -599,7 +599,7 @@ export default function GameHistoryPage() {
                   </div>
                 )}
 
-                {!game.anonymous && !isPairGame(gameType) && (
+                {!game.anonymous && !isBinaryPeoplePollGame(gameType) && (
                   <details className="text-faint text-xs">
                     <summary className="cursor-pointer hover:text-muted transition-colors">Round totals</summary>
                     <div className="mt-2 glass-card overflow-hidden">

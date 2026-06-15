@@ -19,6 +19,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   smash_marry_kill: 'smash-marry-kill',
   red_flag_green_flag: 'red-flag-green-flag',
   smash_or_pass: 'smash-or-pass',
+  parent_approval: 'date-my-kid',
   would_you_rather: 'would-you-rather',
   this_or_that: 'this-or-that',
   most_likely_to: 'most-likely-to',
@@ -158,6 +159,36 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Smash or pass', description: 'Vote, reveal, repeat. Leaderboards show who got the most smashes.' },
     ],
     perfectFor: ['Quick warm-ups', 'College hangs', 'After-parties', 'Bold friend groups'],
+  }),
+
+  parent_approval: landing('parent_approval', {
+    seoTitle: 'Date My Kid Game Online — Free Party Game',
+    seoDescription:
+      'Play Date My Kid online for free. One name each round — would you let your son or daughter date or marry them? Yes or no votes, live results, no sign-up.',
+    keywords: ['date my kid game', 'parent approval game', 'would you let your kid date them', 'party game online'],
+    heroSubtitle:
+      'One name steps into the spotlight. Everyone votes yes or no — would you let your son or daughter date or marry this person?',
+    highlights: ['One name per round', 'Yes or no votes', 'Import a list or join & play'],
+    features: [
+      {
+        title: 'Parental judgment',
+        description: 'Celebrities, friends, exes — the room decides if they are good enough for your kid.',
+        emoji: '👨‍👩‍👧',
+      },
+      {
+        title: 'Flexible roster',
+        description: 'Upload names, let players join the poll, or use vote-only import mode.',
+        emoji: '📋',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Set up the poll', description: 'Add names on the next step or let players join the list.' },
+      { title: 'Everyone joins', description: 'Share the code — players pick a name and hop in the lobby.' },
+      { title: 'Yes or no', description: 'Each round reveals one person. Vote, reveal, repeat.' },
+    ],
+    perfectFor: ['Friend groups', 'Family game night', 'Podcast bits', 'Group chats'],
   }),
 
   would_you_rather: landing('would_you_rather', {

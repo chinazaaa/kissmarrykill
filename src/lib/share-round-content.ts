@@ -2,7 +2,7 @@ import type { Game, Participant, Player, Round, Vote } from '@/types'
 import {
   parseGameType,
   gameTypeConfig,
-  isPairGame,
+  isBinaryPeoplePollGame,
   isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
@@ -142,7 +142,7 @@ export function buildRoundShareCardContent({
       value: `${submissionCount} ${submissionCount === 1 ? 'submission' : 'submissions'}`,
     })
   } else {
-    const pairGame = isPairGame(gameType)
+    const pairGame = isBinaryPeoplePollGame(gameType)
     const categories = getVoteCategories(gameType)
     const roundParts = participants.filter((p) => round.participant_ids.includes(p.id))
 

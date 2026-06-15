@@ -165,7 +165,7 @@ export function useGameChannel(
         { event: 'DELETE', schema: 'public', table: 'wst_quote_pool', filter: `game_id=eq.${gameCode}` },
         (payload) => {
           const entry = payload.old as WstQuotePoolEntry
-          state.setWstPool((prev) => prev.filter((x) => x.id !== entry.id && x.player_id !== entry.player_id))
+          state.setWstPool((prev) => prev.filter((x) => x.id !== entry.id))
         }
       )
 

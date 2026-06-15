@@ -30,7 +30,7 @@ import {
   parseGameType,
   slotMeta,
   voteSlots,
-  isPairGame,
+  isBinaryPeoplePollGame,
   isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
@@ -371,7 +371,7 @@ export function RoundResultsView({
         <div className="glass-card border border-[var(--primary)]/30 p-4">
           <p className="text-[var(--primary)] text-xs uppercase tracking-wider mb-2">Your vote</p>
           <div className="flex gap-4 flex-wrap">
-            {isPairGame(gameType)
+            {isBinaryPeoplePollGame(gameType)
               ? roundParts.map((p) => {
                   const flag = flagForParticipant(myVote, p.id)
                   if (!flag) return null
@@ -439,7 +439,7 @@ export function RoundResultsView({
                       : undefined
                   }
                   renderCard={
-                    isPairGame(gameType)
+                    isBinaryPeoplePollGame(gameType)
                       ? undefined
                       : ({ tally, name, maxes, isWinner }) => {
                           const myAction =

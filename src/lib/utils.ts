@@ -195,7 +195,7 @@ export function generateNRounds(
   poolSize: number,
   initialAppearanceCounts?: Map<string, number>
 ): string[][] {
-  if (participantIds.length < poolSize || poolSize < 2) return []
+  if (participantIds.length < poolSize || poolSize < 1) return []
 
   const rounds: string[][] = []
   const appearances = new Map<string, number>()
@@ -240,12 +240,17 @@ export type ParticipantForRounds = { id: string; gender: 'male' | 'female' }
 export function generateRoundsByGender(
   participants: ParticipantForRounds[],
   roundCount: number,
-  poolSize: 2 | 3 = 3,
+  poolSize: 1 | 2 | 3 = 3,
   initialAppearanceCounts?: Map<string, number>
 ): string[][] {
   if (roundCount <= 0) return []
 
-  const generate = poolSize === 2 ? generatePairRounds : generateRounds
+  const generate =
+    poolSize === 1
+      ? (ids: string[], rc: number, ic?: Map<string, number>) => generateNRounds(ids, rc, 1, ic)
+      : poolSize === 2
+        ? generatePairRounds
+        : generateRounds
   const minPool = poolSize
 
   const byGender: Record<'male' | 'female', string[]> = { male: [], female: [] }

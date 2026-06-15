@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { isPairGame, parseGameType } from '@/lib/game-types'
+import { isBinaryPeoplePollGame, parseGameType } from '@/lib/game-types'
 import type { Participant, Vote } from '@/types'
 
 interface SnapshotData {
@@ -21,7 +21,7 @@ function tallyFromVotes(
   votes: Vote[],
   gameType: string
 ): Record<string, { name: string; smash: number; marry: number; kill: number }> {
-  const pairGame = isPairGame(gameType)
+  const pairGame = isBinaryPeoplePollGame(gameType)
   const result: Record<string, { name: string; smash: number; marry: number; kill: number }> = {}
   for (const p of participants) {
     result[p.id] = { name: p.name, smash: 0, marry: 0, kill: 0 }
@@ -113,7 +113,7 @@ export function RematchHistory({
 
   if (comparisons.length === 0) return null
 
-  const pair = isPairGame(parseGameType(gameType))
+  const pair = isBinaryPeoplePollGame(parseGameType(gameType))
 
   return (
     <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">

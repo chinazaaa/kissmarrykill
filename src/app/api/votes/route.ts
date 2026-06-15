@@ -6,6 +6,7 @@ import { canPlayerVoteInRound, getRoundParticipantGender, playerVoteGenderForRou
 import {
   isAssignmentComplete,
   isPairGame,
+  isBinaryPeoplePollGame,
   isThreeChoiceGame,
   isBinaryChoiceGame,
   isMostLikelyTo,
@@ -251,7 +252,7 @@ export async function POST(req: NextRequest) {
       target_player_id: null,
       target_participant_id: null,
     }
-  } else if (isPairGame(gameType)) {
+  } else if (isBinaryPeoplePollGame(gameType)) {
     const pairAssignments = parsePairAssignments(rawPairAssignments)
     const pairMode = parsePairVoteMode(game.pair_vote_mode)
     if (!pairAssignments || !isPairAssignmentValid(pairAssignments, roundIds, pairMode)) {

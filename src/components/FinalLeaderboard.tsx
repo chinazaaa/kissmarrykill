@@ -1,6 +1,6 @@
 import type { GameType, Participant, Round, Vote } from '@/types'
 import { participantsInGenderRounds, genderLabel } from '@/lib/participants'
-import { isPairGame } from '@/lib/game-types'
+import { isBinaryPeoplePollGame } from '@/lib/game-types'
 import { flagForParticipant, getCategoryMeta, getVoteCategories } from '@/lib/vote-stats'
 import { VoteCountStat } from '@/components/VoteResults'
 import { Avatar } from '@/components/Avatar'
@@ -16,7 +16,7 @@ type TallyRow = {
 }
 
 function buildTally(participants: Participant[], votes: Vote[], gameType?: GameType | string): TallyRow[] {
-  const pairGame = isPairGame(gameType)
+  const pairGame = isBinaryPeoplePollGame(gameType)
   return participants.map((p) => ({
     id: p.id,
     name: p.name,
@@ -125,7 +125,7 @@ export function FinalGenderBreakdown({
 
   if (sections.length === 0) return null
 
-  const pairGame = isPairGame(gameType)
+  const pairGame = isBinaryPeoplePollGame(gameType)
 
   return (
     <div className="space-y-6">
@@ -252,7 +252,7 @@ export function FinalOverallBreakdown({
   if (group.length === 0) return null
 
   const tally = buildTally(group, votes, gameType)
-  const pairGame = isPairGame(gameType)
+  const pairGame = isBinaryPeoplePollGame(gameType)
   const categories = getVoteCategories(gameType)
   const maxByCategory = categories.map((category) => {
     const key = category === 'kiss' ? 'kissCount' : category === 'marry' ? 'marryCount' : 'killCount'

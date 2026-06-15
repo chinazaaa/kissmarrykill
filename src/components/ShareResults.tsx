@@ -5,7 +5,7 @@ import type { Game, Participant, Player, Round, TriviaAnswer, Vote } from '@/typ
 import {
   parseGameType,
   gameTypeConfig,
-  isPairGame,
+  isBinaryPeoplePollGame,
   isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
@@ -132,7 +132,7 @@ function buildShareText({
   } else {
     const playedParticipants = filterParticipantsInRounds(participants, rounds)
     const categories = getVoteCategories(gameType)
-    const pairGame = isPairGame(gameType)
+    const pairGame = isBinaryPeoplePollGame(gameType)
 
     type TallyRow = {
       id: string

@@ -1,10 +1,10 @@
-import { isCustomGame, isPairGame, isThreeChoiceGame } from '@/lib/game-types'
+import { isCustomGame, isPairGame, isThreeChoiceGame, isUnaryPollGame } from '@/lib/game-types'
 import { isVoterOnlyMode } from '@/lib/participant-mode'
 import type { Game, GameType } from '@/types'
 
 /** Games where the host can choose gender-based vs names-only rounds. */
 export function supportsGenderToggle(gameType: GameType | string | undefined): boolean {
-  return isThreeChoiceGame(gameType) || isPairGame(gameType) || isCustomGame(gameType)
+  return isThreeChoiceGame(gameType) || isPairGame(gameType) || isUnaryPollGame(gameType) || isCustomGame(gameType)
 }
 
 export function defaultGenderBasedForType(gameType: GameType | string | undefined): boolean {

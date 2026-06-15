@@ -1,5 +1,5 @@
 import type { Game, Participant, Player, Round, Vote } from '@/types'
-import { parseGameType, isPairGame, isBinaryChoiceGame, isMostLikelyTo, isWhoSaidThis, isCustomGame } from '@/lib/game-types'
+import { parseGameType, isBinaryPeoplePollGame, isBinaryChoiceGame, isMostLikelyTo, isWhoSaidThis, isCustomGame } from '@/lib/game-types'
 import { flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstPlayerScores, wstCorrectParticipantIdFromRound } from '@/lib/who-said-this'
@@ -64,7 +64,7 @@ function trioAndPairAchievements(
       let posCount = 0
       let negCount = 0
 
-      if (isPairGame(gameType)) {
+      if (isBinaryPeoplePollGame(gameType)) {
         for (const vote of roundVotes) {
           const flag = flagForParticipant(vote, pid)
           if (flag === 'kiss') posCount++
@@ -96,7 +96,7 @@ function trioAndPairAchievements(
 
       // Unanimous check: everyone voted the same way for this person
       if (roundVotes.length >= 3) {
-        const allSame = isPairGame(gameType)
+        const allSame = isBinaryPeoplePollGame(gameType)
           ? roundVotes.every((v) => flagForParticipant(v, pid) === flagForParticipant(roundVotes[0], pid))
           : roundVotes.every(
               (v) =>
@@ -123,7 +123,12 @@ function trioAndPairAchievements(
   if (maxPos > 0) {
     for (const [pid, count] of positiveCount) {
       if (count === maxPos) {
-        const label = gameType === 'red_flag_green_flag' ? 'green flags' : 'smashes'
+        const label =
+          gameType === 'red_flag_green_flag'
+            ? 'green flags'
+            : gameType === 'parent_approval'
+              ? 'yes votes'
+              : 'smashes'
         achievements.push({
           id: `heartthrob-${pid}`,
           emoji: '💖',
@@ -142,7 +147,12 @@ function trioAndPairAchievements(
   if (maxNeg > 0) {
     for (const [pid, count] of negativeCount) {
       if (count === maxNeg) {
-        const label = gameType === 'red_flag_green_flag' ? 'red flags' : 'kills'
+        const label =
+          gameType === 'red_flag_green_flag'
+            ? 'red flags'
+            : gameType === 'parent_approval'
+              ? 'no votes'
+              : 'kills'
         achievements.push({
           id: `lightning-rod-${pid}`,
           emoji: '⚡',
@@ -162,7 +172,12 @@ function trioAndPairAchievements(
     const bestSurvivor = survivorCandidates.reduce((best, pid) =>
       (roundsAppeared.get(pid)?.length ?? 0) > (roundsAppeared.get(best)?.length ?? 0) ? pid : best
     )
-    const label = gameType === 'red_flag_green_flag' ? 'red-flagged' : 'killed'
+    const label =
+      gameType === 'red_flag_green_flag'
+        ? 'red-flagged'
+        : gameType === 'parent_approval'
+          ? 'rejected'
+          : 'killed'
     achievements.push({
       id: `survivor-${bestSurvivor}`,
       emoji: '🛡️',
@@ -181,7 +196,12 @@ function trioAndPairAchievements(
   if (untouchedCandidates.length > 0 && untouchedCandidates.length <= 2) {
     for (const pid of untouchedCandidates) {
       if (achievements.some((a) => a.id === `survivor-${pid}`)) continue
-      const label = gameType === 'red_flag_green_flag' ? 'red-flagged' : 'killed'
+      const label =
+      gameType === 'red_flag_green_flag'
+        ? 'red-flagged'
+        : gameType === 'parent_approval'
+          ? 'rejected'
+          : 'killed'
       achievements.push({
         id: `untouched-${pid}`,
         emoji: '✨',

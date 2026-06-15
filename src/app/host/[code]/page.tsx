@@ -27,7 +27,9 @@ import type { ParticipantGender, PairVoteMode, PlayerQuestionsOrder } from '@/ty
 import { tallyRoundVotes, getCategoryMeta, getVoteCategories, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import {
   parseGameType,
+  isBinaryPeoplePollGame,
   isPairGame,
+  isUnaryPollGame,
   isWouldYouRather,
   isThisOrThat,
   isBinaryChoiceGame,
@@ -94,6 +96,8 @@ import {
   mergeActiveRound,
   wstQuotePoolStatus,
   dedupeWstPool,
+  mergeWstPoolEntry,
+  wstHostPoolEntries,
   isAnimeRound,
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
@@ -149,6 +153,7 @@ import type {
 } from '@/types'
 import { parseThemeId, THEME_MAP } from '@/lib/themes'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
+import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { ROUND_TIMER_OPTIONS } from '@/lib/validation'
 
 export default function HostPage() {
@@ -202,6 +207,10 @@ export default function HostPage() {
   const [playerQuestionCount, setPlayerQuestionCount] = useState(0)
   const [playerNameSubmissionCount, setPlayerNameSubmissionCount] = useState(0)
   const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
+  const [hostQuoteInput, setHostQuoteInput] = useState('')
+  const [hostQuoteAuthorId, setHostQuoteAuthorId] = useState<string | null>(null)
+  const [hostEditingQuoteId, setHostEditingQuoteId] = useState<string | null>(null)
+  const [hostQuoteSubmitting, setHostQuoteSubmitting] = useState(false)
   const [animePool, setAnimePool] = useState<AnimeQuotePoolEntry[]>([])
   const [animeFetching, setAnimeFetching] = useState(false)
   const [animeError, setAnimeError] = useState<string | null>(null)
@@ -881,6 +890,68 @@ export default function HostPage() {
     if (pool) setWstPool(dedupeWstPool(pool))
   }
 
+  const handleSubmitHostQuote = async () => {
+    if (hostQuoteSubmitting || !hostToken) return
+    const text = hostQuoteInput.trim()
+    if (!text || !hostQuoteAuthorId) return
+    setHostQuoteSubmitting(true)
+    try {
+      const res = await fetch('/api/wst-quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hostToken,
+          gameId: gameCode,
+          quoteText: text,
+          authorParticipantId: hostQuoteAuthorId,
+          ...(hostEditingQuoteId ? { quoteId: hostEditingQuoteId } : {}),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to add quote')
+        return
+      }
+      if (data.entry) {
+        setWstPool((prev) => mergeWstPoolEntry(prev, data.entry as WstQuotePoolEntry))
+      }
+      setHostQuoteInput('')
+      setHostQuoteAuthorId(null)
+      setHostEditingQuoteId(null)
+    } catch {
+      toast.error('Could not add quote — try again')
+    } finally {
+      setHostQuoteSubmitting(false)
+    }
+  }
+
+  const handleDeleteHostQuote = async (quoteId: string) => {
+    if (hostQuoteSubmitting || !hostToken) return
+    setHostQuoteSubmitting(true)
+    try {
+      const res = await fetch('/api/wst-quotes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken, gameId: gameCode, quoteId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to remove quote')
+        return
+      }
+      setWstPool((prev) => prev.filter((e) => e.id !== quoteId))
+      if (hostEditingQuoteId === quoteId) {
+        setHostQuoteInput('')
+        setHostQuoteAuthorId(null)
+        setHostEditingQuoteId(null)
+      }
+    } catch {
+      toast.error('Could not remove quote — try again')
+    } finally {
+      setHostQuoteSubmitting(false)
+    }
+  }
+
   const fetchAnimeQuotes = async (count: number) => {
     if (!game || animeFetching) return
     setAnimeFetching(true)
@@ -1233,6 +1304,8 @@ export default function HostPage() {
     const hotSeatLegacyJoiners = isHotSeatGame && isJoinersMode
     const wstSubmitters = wstEligibleSubmitters(players)
     const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
+    const hostPoolQuotes = isWst ? wstHostPoolEntries(wstPool) : []
+    const wstTargets = isWst ? wstVoteTargets(participants) : []
     const roundParticipants = isPeoplePoll
       ? buildPeoplePollParticipantPool(game, participants, players)
       : isHotSeatGame && !hotSeatLegacyJoiners
@@ -1574,20 +1647,27 @@ export default function HostPage() {
             <div className="flex items-center justify-between gap-2">
               <p className="text-muted text-xs uppercase tracking-wider">Quote pool</p>
               <span className="text-sm font-bold text-body">
-                {wstPoolStatus.submitted.length} / {wstPoolStatus.eligible.length} ready
+                {wstPool.length} quote{wstPool.length === 1 ? '' : 's'} · {wstPoolStatus.submitted.length} /{' '}
+                {wstPoolStatus.eligible.length} players ready
               </span>
             </div>
-            <p className="text-faint text-xs">Remind anyone still waiting — only submitted quotes become rounds.</p>
+            <p className="text-faint text-xs">
+              Remind anyone still waiting — each submitted quote becomes a round.
+            </p>
 
             {wstPoolStatus.submitted.length > 0 && (
               <div className="space-y-2">
                 <p className="text-muted text-[10px] uppercase tracking-wider">Submitted</p>
                 <div className="flex flex-wrap gap-2">
-                  {wstPoolStatus.submitted.map((p) => (
-                    <span key={p.id} className="chip text-xs py-1 px-2 border-emerald-500/40 text-emerald-300">
-                      ✓ {p.name}
-                    </span>
-                  ))}
+                  {wstPoolStatus.submitted.map((p) => {
+                    const count = wstPoolStatus.quoteCounts.get(p.id) ?? 0
+                    return (
+                      <span key={p.id} className="chip text-xs py-1 px-2 border-emerald-500/40 text-emerald-300">
+                        ✓ {p.name}
+                        {count > 1 ? ` (${count})` : ''}
+                      </span>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -1638,6 +1718,112 @@ export default function HostPage() {
                   Everyone who claimed a name has submitted — ready to start
                 </p>
               )}
+
+            {participants.length > 0 && (
+              <div className="space-y-3 pt-3 border-t border-theme">
+                <div className="space-y-1">
+                  <p className="text-muted text-[10px] uppercase tracking-wider">Host quotes ({hostPoolQuotes.length})</p>
+                  <p className="text-faint text-xs">Add quotes yourself — each one becomes a round, same as player submissions.</p>
+                </div>
+
+                {hostPoolQuotes.length > 0 && (
+                  <div className="space-y-2">
+                    {hostPoolQuotes.map((entry) => {
+                      const authorName =
+                        participants.find((p) => p.id === entry.author_participant_id)?.name ?? 'Unknown'
+                      return (
+                        <div key={entry.id} className="flex items-start gap-2 rounded-xl border border-theme px-3 py-2">
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <p className="text-sm text-body-muted line-clamp-2">&ldquo;{entry.quote_text}&rdquo;</p>
+                            <p className="text-faint text-[10px]">— {authorName}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              type="button"
+                              className="text-faint hover:text-body text-xs px-1"
+                              disabled={hostQuoteSubmitting}
+                              onClick={() => {
+                                setHostEditingQuoteId(entry.id)
+                                setHostQuoteInput(entry.quote_text)
+                                setHostQuoteAuthorId(entry.author_participant_id)
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="text-faint hover:text-red-400 text-xs px-1"
+                              disabled={hostQuoteSubmitting}
+                              onClick={() => void handleDeleteHostQuote(entry.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-body">
+                    {hostEditingQuoteId
+                      ? 'Edit host quote'
+                      : hostPoolQuotes.length > 0
+                        ? 'Add another host quote'
+                        : 'Add a host quote'}
+                  </p>
+                  <textarea
+                    value={hostQuoteInput}
+                    onChange={(e) => setHostQuoteInput(e.target.value)}
+                    placeholder="e.g. Roses are red"
+                    maxLength={500}
+                    rows={3}
+                    className="input-field resize-none w-full"
+                    disabled={hostQuoteSubmitting}
+                  />
+                  <div className="space-y-2">
+                    <p className="text-faint text-xs uppercase tracking-wider">Who said this?</p>
+                    <NameSearchPicker
+                      options={wstTargets.map((p) => ({ id: p.id, name: p.name }))}
+                      valueId={hostQuoteAuthorId}
+                      onChange={setHostQuoteAuthorId}
+                      searchPlaceholder="Search names…"
+                      emptyMessage="No names match"
+                      disabled={hostQuoteSubmitting}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSubmitHostQuote()}
+                      disabled={!hostQuoteInput.trim() || !hostQuoteAuthorId || hostQuoteSubmitting}
+                      className={
+                        hostQuoteInput.trim() && hostQuoteAuthorId
+                          ? 'btn-primary w-full'
+                          : 'btn-secondary w-full opacity-60 cursor-not-allowed'
+                      }
+                    >
+                      {hostQuoteSubmitting ? 'Saving…' : hostEditingQuoteId ? 'Save changes' : 'Add to Pool →'}
+                    </button>
+                    {hostEditingQuoteId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHostEditingQuoteId(null)
+                          setHostQuoteInput('')
+                          setHostQuoteAuthorId(null)
+                        }}
+                        className="btn-secondary text-sm w-full"
+                        disabled={hostQuoteSubmitting}
+                      >
+                        Cancel edit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2859,7 +3045,7 @@ export default function HostPage() {
                 voterCount={roundVotes.length}
                 participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
                 renderCard={
-                  isPairGame(gameType)
+                  isBinaryPeoplePollGame(gameType)
                     ? undefined
                     : ({ tally, name, maxes, isWinner }) => (
                         <div key={tally.id} className="glass-card p-4">

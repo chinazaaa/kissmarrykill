@@ -4,6 +4,7 @@ import {
   isBinaryChoiceGame,
   isMostLikelyTo,
   isPairGame,
+  isUnaryPollGame,
   isThreeChoiceGame,
   isCustomGame,
 } from '@/lib/game-types'
@@ -34,7 +35,7 @@ export function effectivePlayerQuestionCount(
 /** Label for the host-uploaded / platform side of the question mix. */
 export function lobbyPoolSourceLabel(game: Pick<Game, 'game_type' | 'question_source'>): string {
   const type = parseGameType(game.game_type)
-  if (isPairGame(type) || isThreeChoiceGame(type) || isCustomGame(type)) return 'Host list'
+  if (isPairGame(type) || isUnaryPollGame(type) || isThreeChoiceGame(type) || isCustomGame(type)) return 'Host list'
   if (parseQuestionSource(game.question_source, type) === 'custom' || type === 'this_or_that') {
     return 'Uploaded'
   }

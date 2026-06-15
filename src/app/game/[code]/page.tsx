@@ -53,6 +53,8 @@ import {
   assignmentTargetCount,
   isThreeChoiceGame,
   isPairGame,
+  isBinaryPeoplePollGame,
+  isUnaryPollGame,
   isWouldYouRather,
   isThisOrThat,
   isBinaryChoiceGame,
@@ -200,7 +202,7 @@ export default function GamePage() {
   const [quoteAuthorParticipantId, setQuoteAuthorParticipantId] = useState<string | null>(null)
   const [quoteSubmitting, setQuoteSubmitting] = useState(false)
   const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
-  const [poolQuoteSaved, setPoolQuoteSaved] = useState(false)
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [customAssignments, setCustomAssignments] = useState<Record<string, string>>({})
   const [confessionText, setConfessionText] = useState('')
@@ -386,7 +388,6 @@ export default function GamePage() {
   const suppressRoundSoundRef = useRef(true)
   const joinGenderTouchedRef = useRef(false)
   const roundFormIdRef = useRef<string | null>(null)
-  const poolFormSyncedRef = useRef<string | null>(null)
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -446,7 +447,7 @@ export default function GamePage() {
                   setMltTargetPlayerId(targetId)
                 } else if (isWhoSaidThis(gameType)) {
                   setMltTargetPlayerId(existingVote.target_participant_id)
-                } else if (isPairGame(gameType)) {
+                } else if (isBinaryPeoplePollGame(gameType)) {
                   setPairAssignment(pairAssignmentFromVote(existingVote, activeRound.participant_ids))
                 } else {
                   setAssignment({
@@ -596,12 +597,11 @@ export default function GamePage() {
     setAllConfessions([])
     setLastRoundVotes([])
     roundFormIdRef.current = null
-    poolFormSyncedRef.current = null
     resetRoundPlayerState()
     setWstPool([])
     setQuoteInput('')
     setQuoteAuthorParticipantId(null)
-    setPoolQuoteSaved(false)
+    setEditingQuoteId(null)
     announcedRoundIdRef.current = null
     setView(hasSession ? 'waiting' : 'join')
   }
@@ -859,24 +859,6 @@ export default function GamePage() {
     if (parsed) setMyPlayerGender(parsed)
   }, [myPlayerId, players, participants])
 
-  useEffect(() => {
-    if (view !== 'waiting' || !myPlayerId) return
-    const entry = wstPool.find((e) => e.player_id === myPlayerId)
-    const syncKey = entry ? `${entry.id}:${entry.updated_at}` : 'none'
-    if (poolFormSyncedRef.current === syncKey) return
-    poolFormSyncedRef.current = syncKey
-
-    if (entry) {
-      setQuoteInput(entry.quote_text)
-      setQuoteAuthorParticipantId(entry.author_participant_id)
-      setPoolQuoteSaved(true)
-    } else {
-      setQuoteInput('')
-      setQuoteAuthorParticipantId(null)
-      setPoolQuoteSaved(false)
-    }
-  }, [view, myPlayerId, wstPool])
-
   const timeLeft = useRoundTimer({
     game,
     currentRound,
@@ -933,7 +915,7 @@ export default function GamePage() {
   // ── Actions ───────────────────────────────────────────────────────────────
   const assign = (action: keyof VoteAssignment, participantId: string) => {
     const gameType = parseGameType(game?.game_type)
-    if (isPairGame(gameType) && (action === 'kiss' || action === 'kill')) {
+    if (isBinaryPeoplePollGame(gameType) && (action === 'kiss' || action === 'kill')) {
       setPairAssignment((prev) => {
         if (!game || !currentRound) return { ...prev, [participantId]: action }
         return assignPairSlot(
@@ -979,6 +961,7 @@ export default function GamePage() {
           gameId: gameCode,
           quoteText: text,
           authorParticipantId: authorId,
+          ...(editingQuoteId ? { quoteId: editingQuoteId } : {}),
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -988,12 +971,40 @@ export default function GamePage() {
       }
       if (data.entry) {
         setWstPool((prev) => mergeWstPoolEntry(prev, data.entry as WstQuotePoolEntry))
-        poolFormSyncedRef.current = `${data.entry.id}:${data.entry.updated_at}`
       }
-      setPoolQuoteSaved(true)
+      setQuoteInput('')
+      setQuoteAuthorParticipantId(null)
+      setEditingQuoteId(null)
       await fetchWstPool()
     } catch {
       toast.error('Could not submit quote — try again')
+    } finally {
+      setQuoteSubmitting(false)
+    }
+  }
+
+  const handleDeletePoolQuote = async (quoteId: string) => {
+    if (!myPlayerId || quoteSubmitting) return
+    setQuoteSubmitting(true)
+    try {
+      const res = await fetch('/api/wst-quotes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: myPlayerId, gameId: gameCode, quoteId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to remove quote')
+        return
+      }
+      setWstPool((prev) => prev.filter((e) => e.id !== quoteId))
+      if (editingQuoteId === quoteId) {
+        setQuoteInput('')
+        setQuoteAuthorParticipantId(null)
+        setEditingQuoteId(null)
+      }
+    } catch {
+      toast.error('Could not remove quote — try again')
     } finally {
       setQuoteSubmitting(false)
     }
@@ -1004,7 +1015,7 @@ export default function GamePage() {
     const submitGameType = parseGameType(game.game_type)
     const roundIds = currentRound.participant_ids
     if (
-      isPairGame(submitGameType) &&
+      isBinaryPeoplePollGame(submitGameType) &&
       !isPairAssignmentValid(pairAssignment, roundIds, parsePairVoteMode(game.pair_vote_mode))
     ) {
       return
@@ -1026,7 +1037,7 @@ export default function GamePage() {
             : { targetParticipantId: mltTargetPlayerId }
           : isCustomGame(submitGameType)
             ? { customAssignments }
-            : isPairGame(submitGameType)
+            : isBinaryPeoplePollGame(submitGameType)
               ? {
                   pairAssignments: Object.fromEntries(
                     roundIds
@@ -1314,7 +1325,7 @@ export default function GamePage() {
                       ? 'Vote for who fits each prompt — your choice stays anonymous'
                       : 'Pick between two options each round — your choice stays anonymous'
                   : isWstGame
-                    ? 'Claim your name, then submit a quote and who said it while you wait'
+                    ? 'Claim your name, then add quotes to the pool while you wait'
                     : isVoterOnly
                       ? "Enter any name to join — you'll vote on names from the host's list"
                       : joinGenderHint(joinIdentityGender, voteBothGenders, !!isJoinersMode)}
@@ -1343,7 +1354,8 @@ export default function GamePage() {
     const isWst = isWhoSaidThis(game?.game_type)
     const wstTargets = isWst ? wstVoteTargets(participants) : []
     const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
-    const myPoolEntry = isWst && myPlayerId ? wstPool.find((e) => e.player_id === myPlayerId) : null
+    const myQuotes =
+      isWst && myPlayerId ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at)) : []
     const canSubmitPoolQuote = !!me?.participant_id
     const isPeopleMode =
       !isBinaryChoiceGame(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly
@@ -1437,27 +1449,60 @@ export default function GamePage() {
                   <span className="text-sm font-bold text-body">{wstPool.length} submitted</span>
                 </div>
                 <p className="text-faint text-xs">
-                  Submit your quote and the correct answer now. Only people in the pool get a round — if 5 of 10 submit,
-                  that&apos;s 5 rounds.
+                  Add as many quotes as you like — each one becomes a round. Pick who said each quote before the host
+                  starts.
                 </p>
               </div>
 
               {canSubmitPoolQuote ? (
                 <div className="glass-card p-5 space-y-4">
-                  {myPoolEntry && poolQuoteSaved ? (
-                    <div className="text-center space-y-1">
-                      <p className="text-green-400 text-sm font-semibold">✓ Your quote is in the pool</p>
-                      <p className="text-faint text-xs">You can edit it below until the host starts.</p>
+                  {myQuotes.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-faint text-[10px] uppercase tracking-wider">
+                        Your quotes ({myQuotes.length})
+                      </p>
+                      {myQuotes.map((entry) => {
+                        const authorName =
+                          participants.find((p) => p.id === entry.author_participant_id)?.name ?? 'Unknown'
+                        return (
+                          <div key={entry.id} className="flex items-start gap-2 rounded-xl border border-theme px-3 py-2">
+                            <div className="flex-1 min-w-0 space-y-0.5">
+                              <p className="text-sm text-body-muted line-clamp-2">&ldquo;{entry.quote_text}&rdquo;</p>
+                              <p className="text-faint text-[10px]">— {authorName}</p>
+                            </div>
+                            <div className="flex shrink-0 gap-1">
+                              <button
+                                type="button"
+                                className="text-faint hover:text-body text-xs px-1"
+                                disabled={quoteSubmitting}
+                                onClick={() => {
+                                  setEditingQuoteId(entry.id)
+                                  setQuoteInput(entry.quote_text)
+                                  setQuoteAuthorParticipantId(entry.author_participant_id)
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-faint hover:text-red-400 text-xs px-1"
+                                disabled={quoteSubmitting}
+                                onClick={() => void handleDeletePoolQuote(entry.id)}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                  ) : (
-                    <p className="font-semibold text-body text-center">Add your quote to the pool</p>
                   )}
+                  <p className="font-semibold text-body text-center">
+                    {editingQuoteId ? 'Edit quote' : myQuotes.length > 0 ? 'Add another quote' : 'Add your quote to the pool'}
+                  </p>
                   <textarea
                     value={quoteInput}
-                    onChange={(e) => {
-                      setQuoteInput(e.target.value)
-                      setPoolQuoteSaved(false)
-                    }}
+                    onChange={(e) => setQuoteInput(e.target.value)}
                     placeholder="e.g. Roses are red"
                     maxLength={500}
                     rows={3}
@@ -1469,26 +1514,39 @@ export default function GamePage() {
                     <NameSearchPicker
                       options={wstTargets.map((p) => ({ id: p.id, name: p.name }))}
                       valueId={quoteAuthorParticipantId}
-                      onChange={(id) => {
-                        setQuoteAuthorParticipantId(id)
-                        setPoolQuoteSaved(false)
-                      }}
+                      onChange={setQuoteAuthorParticipantId}
                       searchPlaceholder="Search names…"
                       emptyMessage="No names match"
                       disabled={quoteSubmitting}
                     />
                   </div>
-                  <button
-                    onClick={handleSubmitPoolQuote}
-                    disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
-                    className={
-                      quoteInput.trim() && quoteAuthorParticipantId
-                        ? 'btn-primary w-full'
-                        : 'btn-secondary w-full opacity-60 cursor-not-allowed'
-                    }
-                  >
-                    {quoteSubmitting ? 'Saving…' : myPoolEntry ? 'Update Quote' : 'Add to Pool →'}
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={handleSubmitPoolQuote}
+                      disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
+                      className={
+                        quoteInput.trim() && quoteAuthorParticipantId
+                          ? 'btn-primary w-full'
+                          : 'btn-secondary w-full opacity-60 cursor-not-allowed'
+                      }
+                    >
+                      {quoteSubmitting ? 'Saving…' : editingQuoteId ? 'Save changes' : 'Add to Pool →'}
+                    </button>
+                    {editingQuoteId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingQuoteId(null)
+                          setQuoteInput('')
+                          setQuoteAuthorParticipantId(null)
+                        }}
+                        className="btn-secondary text-sm w-full"
+                        disabled={quoteSubmitting}
+                      >
+                        Cancel edit
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <p className="text-faint text-xs text-center">Claim your name when joining to submit a quote.</p>
@@ -2297,7 +2355,8 @@ export default function GamePage() {
       ? !!myPlayerId
       : !!(effectiveGender && roundParticipantGender && canPlayerVoteInRound(effectiveGender, roundParticipantGender))
     const voteBanner = canVote && !genderFreeVoting ? activeVoteBanner(effectiveGender) : null
-    const isPair = isPairGame(gameType)
+    const isBinaryPoll = isBinaryPeoplePollGame(gameType)
+    const isUnary = isUnaryPollGame(gameType)
     const roundPartIds = roundParts.map((p) => p.id)
     const pairMode = parsePairVoteMode(game?.pair_vote_mode)
     const isCustom = isCustomGame(gameType)
@@ -2321,13 +2380,13 @@ export default function GamePage() {
         : false
     const allAssigned = isCustom
       ? customComplete
-      : isPair
+      : isBinaryPoll
         ? isPairAssignmentValid(pairAssignment, roundPartIds, pairMode)
         : isAssignmentComplete(assignment, gameType)
     const assignTarget = isCustom && game ? roundParts.length : assignmentTargetCount(gameType, roundParts.length)
     const assignProgress = isCustom
       ? Object.keys(customAssignments).filter((id) => roundParts.some((p) => p.id === id)).length
-      : isPair
+      : isBinaryPoll
         ? pairAssignedCount(pairAssignment, roundPartIds)
         : assignedCount(assignment, gameType)
 
@@ -2346,14 +2405,19 @@ export default function GamePage() {
             {roundGender && <p className="text-[var(--primary)] text-sm font-medium mt-0.5">{roundGender}</p>}
             {voterHint && <p className="text-muted text-xs mt-0.5">{voterHint}</p>}
             {voteBanner && <p className="text-green-400/90 text-xs font-medium mt-1">{voteBanner}</p>}
-            {isPair && isPairOneEachMode(game!) && (
+            {isUnary && (
+              <p className="text-faint text-xs mt-1">
+                Would you let your son or daughter date or marry this person?
+              </p>
+            )}
+            {isPairGame(gameType) && isPairOneEachMode(game!) && (
               <p className="text-faint text-xs mt-1">
                 {gameType === 'smash_or_pass'
                   ? 'One Smash and one Pass — tap the other person&apos;s choice to swap'
                   : 'One Green and one Red — tap the other person&apos;s choice to swap'}
               </p>
             )}
-            {isPair && !isPairOneEachMode(game!) && roundParts.length === 2 && (
+            {isPairGame(gameType) && !isPairOneEachMode(game!) && roundParts.length === 2 && (
               <p className="text-faint text-xs mt-1">
                 {gameType === 'smash_or_pass'
                   ? 'Any combo — both Smash, both Pass, or one of each'
@@ -2428,10 +2492,16 @@ export default function GamePage() {
         {/* Participant photo cards — side-by-side grid */}
         {!isCustomGame(gameType) && (
           <div
-            className={`flex-1 grid gap-3 mb-6 ${roundParts.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}
+            className={`flex-1 grid gap-3 mb-6 ${
+              roundParts.length === 1
+                ? 'grid-cols-1 max-w-xs mx-auto w-full'
+                : roundParts.length === 2
+                  ? 'grid-cols-2'
+                  : 'grid-cols-2 sm:grid-cols-3'
+            }`}
           >
             {roundParts.map((p) => {
-              const action = isPair
+              const action = isBinaryPoll
                 ? (pairAssignment[p.id] ?? null)
                 : assignment.kiss === p.id
                   ? 'kiss'
@@ -2448,7 +2518,11 @@ export default function GamePage() {
                   action={action}
                   onAssign={(a) => canVote && !submitted && assign(a, p.id)}
                   disabled={submitted || !canVote}
-                  disabledSlots={isPair && game ? pairDisabledSlots(pairAssignment, p.id, roundPartIds, pairMode) : []}
+                  disabledSlots={
+                    isBinaryPoll && game && !isUnary
+                      ? pairDisabledSlots(pairAssignment, p.id, roundPartIds, pairMode)
+                      : []
+                  }
                 />
               )
             })}
@@ -2466,11 +2540,13 @@ export default function GamePage() {
           >
             {allAssigned
               ? 'Submit Vote ✓'
-              : isPair
-                ? gameType === 'smash_or_pass'
-                  ? `Pick for both (${assignProgress}/${assignTarget})`
-                  : `Rate both (${assignProgress}/${assignTarget})`
-                : `Assign all ${assignTarget} (${assignProgress}/${assignTarget})`}
+              : isUnary
+                ? 'Pick Yes or No'
+                : isBinaryPoll
+                  ? gameType === 'smash_or_pass'
+                    ? `Pick for both (${assignProgress}/${assignTarget})`
+                    : `Rate both (${assignProgress}/${assignTarget})`
+                  : `Assign all ${assignTarget} (${assignProgress}/${assignTarget})`}
           </button>
         ) : (
           <div className="space-y-3">
@@ -2798,7 +2874,7 @@ export default function GamePage() {
               </div>
             ) : (
               <div className="inline-flex flex-wrap gap-x-3 gap-y-1">
-                {isPairGame(gameType)
+                {isBinaryPeoplePollGame(gameType)
                   ? roundParts.map((p) => {
                       const flag = flagForParticipant(myVote, p.id)
                       if (!flag) return null
@@ -2867,7 +2943,7 @@ export default function GamePage() {
                         : undefined
                     }
                     renderCard={
-                      isPairGame(gameType)
+                      isBinaryPeoplePollGame(gameType)
                         ? undefined
                         : ({ tally, name, maxes, isWinner }) => {
                             const myAction =
@@ -3266,7 +3342,7 @@ function FinalResultsView({
                   {myVote && (
                     <div className="glass-card border border-[var(--primary)]/25 px-4 py-2.5 mb-3 flex gap-4 flex-wrap">
                       <span className="text-muted text-xs uppercase tracking-wider self-center">Your vote:</span>
-                      {isPairGame(gameType)
+                      {isBinaryPeoplePollGame(gameType)
                         ? roundParts.map((p) => {
                             const flag = flagForParticipant(myVote, p.id)
                             if (!flag) return null
@@ -3309,7 +3385,7 @@ function FinalResultsView({
                           voterCount={roundVotes.length}
                           participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
                           renderCard={
-                            isPairGame(gameType)
+                            isBinaryPeoplePollGame(gameType)
                               ? undefined
                               : ({ tally, name, maxes, isWinner }) => (
                                   <div key={tally.id} className="glass-card p-4">

@@ -169,6 +169,48 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  parent_approval: {
+    id: 'parent_approval',
+    label: 'Date My Kid',
+    tagline: 'Would you let your son or daughter date or marry this person?',
+    headerEmoji: '👨‍👩‍👧💍',
+    card: {
+      accent: '#ec4899',
+      accentSoft: 'rgba(236, 72, 153, 0.15)',
+      emoji: '👨‍👩‍👧',
+      players: '3+ players',
+      vibe: 'Parental judgment',
+    },
+    slots: {
+      kiss: {
+        emoji: '✅',
+        label: 'Yes',
+        color: '#22c55e',
+        leaderboardLabel: 'Most Approved',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '⚪',
+        label: 'Pass',
+        color: '#94a3b8',
+        leaderboardLabel: 'Most Passed',
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+      kill: {
+        emoji: '❌',
+        label: 'No',
+        color: '#ef4444',
+        leaderboardLabel: 'Most Rejected',
+        activeClass: 'bg-red-500/20 text-red-200 border-red-400',
+        borderClass: 'border-red-500/50 bg-red-500/10',
+        textColor: '#fca5a5',
+      },
+    },
+  },
   would_you_rather: {
     id: 'would_you_rather',
     label: 'Would You Rather',
@@ -299,7 +341,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
   who_said_this: {
     id: 'who_said_this',
     label: 'Who Said This',
-    tagline: 'Submit quotes in the lobby — everyone guesses who said it',
+    tagline: 'Submit multiple quotes in the lobby — everyone guesses who said each one',
     headerEmoji: '💬🕵️',
     card: {
       accent: '#14b8a6',
@@ -696,6 +738,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'smash_marry_kill',
   'red_flag_green_flag',
   'smash_or_pass',
+  'parent_approval',
   'would_you_rather',
   'this_or_that',
   'most_likely_to',
@@ -713,6 +756,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
 export function parseGameType(raw: unknown): GameType {
   if (raw === 'red_flag_green_flag') return 'red_flag_green_flag'
   if (raw === 'smash_or_pass') return 'smash_or_pass'
+  if (raw === 'parent_approval') return 'parent_approval'
   if (raw === 'would_you_rather') return 'would_you_rather'
   if (raw === 'this_or_that') return 'this_or_that'
   if (raw === 'most_likely_to') return 'most_likely_to'
@@ -742,7 +786,7 @@ export function gameHowItWorks(
 
   switch (type) {
     case 'who_said_this':
-      return "Upload everyone's names on the next step. Players claim their name when joining, then submit a quote and who said it in the lobby. Only quotes in the pool become rounds — if 5 of 10 submit, that's 5 rounds."
+      return "Upload everyone's names on the next step. Players claim their name when joining, then submit quotes and who said each one in the lobby. You can add host quotes too — each quote in the pool becomes a round."
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
     case 'this_or_that':
@@ -779,6 +823,12 @@ export function gameHowItWorks(
         : participantMode === 'voters'
           ? 'Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, two names appear — everyone picks smash or pass for each.'
           : "Add everyone's names on the next step. Players claim their name when joining. Each round, two names appear — everyone picks smash or pass for each."
+    case 'parent_approval':
+      return joiners
+        ? 'Players add their name to the poll when joining. Each round, one name appears — everyone votes yes or no on whether they would let their kid date or marry them.'
+        : participantMode === 'voters'
+          ? 'Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, one name appears — would you let your son or daughter date or marry them?'
+          : "Add everyone's names on the next step. Players claim their name when joining. Each round, one name appears — would you let your son or daughter date or marry them?"
     case 'smash_marry_kill':
     default:
       if (isCustomGame(gameType)) {
@@ -800,6 +850,16 @@ export function gameHowItWorks(
 export function isPairGame(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
   return type === 'red_flag_green_flag' || type === 'smash_or_pass'
+}
+
+/** One name per round — yes or no vote. */
+export function isUnaryPollGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'parent_approval'
+}
+
+/** Pair or unary people polls — binary vote per person via pair_assignments. */
+export function isBinaryPeoplePollGame(gameType: GameType | string | undefined): boolean {
+  return isPairGame(gameType) || isUnaryPollGame(gameType)
 }
 
 export function parsePairVoteMode(raw: unknown): PairVoteMode {
@@ -1038,21 +1098,22 @@ export function isAutoNameJoinGame(gameType: GameType | string | undefined): boo
   return isAnonymousMessagesGame(gameType) || isSecretMessageGame(gameType)
 }
 
-export function roundPoolSize(gameType: GameType | string | undefined): 2 | 3 {
+export function roundPoolSize(gameType: GameType | string | undefined): 1 | 2 | 3 {
+  if (isUnaryPollGame(gameType)) return 1
   if (isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType) || isWhoSaidThis(gameType)) return 2
   return isPairGame(gameType) ? 2 : 3
 }
 
 export function voteSlots(gameType?: GameType | string): VoteSlot[] {
-  return isPairGame(gameType) ? ['kiss', 'kill'] : ['kiss', 'marry', 'kill']
+  return isBinaryPeoplePollGame(gameType) ? ['kiss', 'kill'] : ['kiss', 'marry', 'kill']
 }
 
 export function voteCategories(gameType?: GameType | string): VoteCategory[] {
-  return isPairGame(gameType) ? ['kiss', 'smash'] : ['kiss', 'marry', 'smash']
+  return isBinaryPeoplePollGame(gameType) ? ['kiss', 'smash'] : ['kiss', 'marry', 'smash']
 }
 
 export function assignmentTargetCount(gameType?: GameType | string, participantCount?: number): number {
-  if (isPairGame(gameType) && participantCount !== undefined) return participantCount
+  if (isBinaryPeoplePollGame(gameType) && participantCount !== undefined) return participantCount
   return voteSlots(gameType).length
 }
 

@@ -24,6 +24,7 @@ export type GameType =
   | 'codewords'
   | 'trivia'
   | 'two_truths'
+  | 'parent_approval'
 export type TriviaCategory = 'tech' | 'general'
 export type BingoCallMode = 'manual' | 'auto'
 export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
@@ -299,11 +300,11 @@ export interface AnonymousRoomBan {
   created_at: string
 }
 
-/** Lobby quote submission for Who Said This — one per player before the game starts. */
+/** Lobby quote submission for Who Said This — players can add multiple quotes before the game starts. */
 export interface WstQuotePoolEntry {
   id: string
   game_id: string
-  player_id: string
+  player_id: string | null
   quote_text: string
   author_participant_id: string
   created_at: string
