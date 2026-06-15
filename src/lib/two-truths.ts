@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Player, Round, TtlGuess, TtlMetadata, TtlStatement } from '@/types'
 
 export const TTL_MIN_PLAYERS = 3
-export const TTL_MAX_PLAYERS = 20
+export const TTL_MAX_PLAYERS = 40
 export const TTL_DEFAULT_MAX_PLAYERS = 20
 export const TTL_DEFAULT_TIMER = 45
 export const TTL_TIMER_OPTIONS = [30, 45, 60, 90] as const

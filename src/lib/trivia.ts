@@ -3,7 +3,7 @@ import type { Player, Round, TriviaAnswer, TriviaCategory, TriviaMetadata, Trivi
 import { triviaQuestionKey } from '@/lib/trivia-questions'
 
 export const TRIVIA_MIN_PLAYERS = 2
-export const TRIVIA_MAX_PLAYERS = 30
+export const TRIVIA_MAX_PLAYERS = 40
 export const TRIVIA_DEFAULT_MAX_PLAYERS = 30
 export const TRIVIA_DEFAULT_ROUNDS = 10
 export const TRIVIA_DEFAULT_TIMER = 10
