@@ -2991,6 +2991,8 @@ function FinalResultsView({
     isCustomGame(gameType) ||
     genderBasedLeaderboards ||
     namesOnlyLeaderboards
+  const showFinalShareResults =
+    !isThisOrThat(gameType) && !isWouldYouRather(gameType) && !isMlt && !isHotSeatGame
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -3081,9 +3083,9 @@ function FinalResultsView({
             />
           )}
         </FinalResultsShareBlock>
-      ) : (
+      ) : showFinalShareResults ? (
         <ShareResults game={game} participants={participants} votes={votes} rounds={rounds} players={players} />
-      )}
+      ) : null}
 
       <AchievementsShareBlock achievements={achievements} gameTitle={game.title} />
 

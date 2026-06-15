@@ -2919,6 +2919,7 @@ export default function HostPage() {
   if (game?.status === 'finished') {
     const gameType = parseGameType(game.game_type)
     const isTot = isThisOrThat(gameType)
+    const isWyr = isWouldYouRather(gameType)
     const isBinaryGame = isBinaryChoiceGame(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
@@ -2936,6 +2937,7 @@ export default function HostPage() {
       isCustomGame(gameType) ||
       genderBasedLeaderboards ||
       namesOnlyLeaderboards
+    const showFinalShareResults = !isTot && !isWyr && !isMlt && !isHotSeatGame
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -3040,9 +3042,9 @@ export default function HostPage() {
               />
             )}
           </FinalResultsShareBlock>
-        ) : (
+        ) : showFinalShareResults ? (
           <ShareResults game={game} participants={participants} votes={votes} rounds={allRounds} players={players} />
-        )}
+        ) : null}
 
         <AchievementsShareBlock achievements={achievements} gameTitle={game.title} />
 
