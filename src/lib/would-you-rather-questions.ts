@@ -1,6 +1,7 @@
 /** Built-in Would You Rather prompts — 100 questions */
 
 import { pickLeastUsed } from '@/lib/question-picker'
+import { wyrQuestionKey } from '@/lib/pool-key'
 
 export interface WyrQuestion {
   optionA: string
@@ -412,11 +413,7 @@ export const WYR_QUESTIONS: WyrQuestion[] = [
 
 export const WYR_QUESTION_COUNT = WYR_QUESTIONS.length
 
-export function wyrQuestionKey(optionA: string, optionB: string): string {
-  return `${optionA}\0${optionB}`
-}
-
-/** Pick `count` unique questions, preferring those played least often globally. */
+export { wyrQuestionKey } from '@/lib/pool-key'
 export function pickWyrQuestions(count: number, usageCounts: Map<string, number> = new Map()): WyrQuestion[] {
   return pickLeastUsed(WYR_QUESTIONS, (q) => wyrQuestionKey(q.optionA, q.optionB), usageCounts, count)
 }

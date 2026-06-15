@@ -1,4 +1,4 @@
-import { wyrQuestionKey } from '@/lib/would-you-rather-questions'
+import { migratePoolKey, participantPoolKey, wyrQuestionKey } from '@/lib/pool-key'
 
 export interface PoolUsageState {
   /** WYR / This or That question keys → times used in past sessions */
@@ -21,21 +21,23 @@ type RoundForUsage = {
 
 type ParticipantRow = { id: string; name: string; gender: string }
 
-export function participantPoolKey(name: string, gender: string): string {
-  return `${name.trim().toLowerCase()}\0${gender.toLowerCase()}`
+export { participantPoolKey, wyrQuestionKey } from '@/lib/pool-key'
+
+function parseUsageSection(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const out: Record<string, number> = {}
+  for (const [key, count] of Object.entries(value)) {
+    if (typeof count !== 'number' || !Number.isFinite(count) || count <= 0) continue
+    const migrated = migratePoolKey(key)
+    out[migrated] = (out[migrated] ?? 0) + count
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 export function parsePoolUsage(raw: unknown): PoolUsageState {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   const o = raw as PoolUsageState
-  const section = (value: unknown): Record<string, number> | undefined => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-    const out: Record<string, number> = {}
-    for (const [key, count] of Object.entries(value)) {
-      if (typeof count === 'number' && Number.isFinite(count) && count > 0) out[key] = count
-    }
-    return Object.keys(out).length > 0 ? out : undefined
-  }
+  const section = parseUsageSection
   return {
     wyr: section(o.wyr),
     mlt: section(o.mlt),
