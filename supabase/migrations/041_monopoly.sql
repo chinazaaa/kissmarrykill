@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS monopoly_boards (
   game_id text NOT NULL UNIQUE REFERENCES games(id) ON DELETE CASCADE,
   turn_order uuid[] NOT NULL DEFAULT '{}',
   current_turn_index integer NOT NULL DEFAULT 0,
-  phase text NOT NULL DEFAULT 'roll' CHECK (phase IN ('roll', 'buy', 'jail', 'finished')),
+  phase text NOT NULL DEFAULT 'roll' CHECK (phase IN ('roll', 'buy', 'jail', 'pay_rent', 'finished')),
   last_dice jsonb,
   consecutive_doubles integer NOT NULL DEFAULT 0,
   property_owners jsonb NOT NULL DEFAULT '{}',

@@ -146,7 +146,7 @@ export interface Game {
   bingo_call_interval_seconds?: number | null
 }
 
-export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'finished'
+export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'finished'
 
 export interface MonopolyBoard {
   id: string
