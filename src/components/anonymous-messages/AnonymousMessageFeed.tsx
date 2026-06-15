@@ -13,9 +13,12 @@ interface AnonymousMessageFeedProps {
   hideSenderNames?: boolean
   canRemove?: boolean
   canReply?: boolean
+  canShareAsImage?: boolean
+  sharingId?: string | null
   removingId?: string | null
   onRemove?: (messageId: string) => void
   onReply?: (message: AnonymousMessage) => void
+  onShareAsImage?: (message: AnonymousMessage) => void
   highlightMessageId?: string | null
   reactionsMap?: Map<string, Map<string, Set<string>>>
   myPlayerName?: string
@@ -32,9 +35,12 @@ export function AnonymousMessageFeed({
   hideSenderNames = false,
   canRemove = false,
   canReply = false,
+  canShareAsImage = false,
+  sharingId = null,
   removingId = null,
   onRemove,
   onReply,
+  onShareAsImage,
   highlightMessageId = null,
   reactionsMap,
   myPlayerName,
@@ -129,6 +135,21 @@ export function AnonymousMessageFeed({
                         <div className="flex-1" />
                       )}
                       <div className="flex shrink-0 items-center gap-2">
+                        {canShareAsImage && onShareAsImage && message.text && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              onShareAsImage(message)
+                            }}
+                            disabled={sharingId === message.id}
+                            className="text-faint hover:text-violet-300 text-xs disabled:opacity-50"
+                            aria-label="Share message as image"
+                          >
+                            {sharingId === message.id ? '…' : 'Share'}
+                          </button>
+                        )}
                         {canReply && onReply && (
                           <button
                             type="button"

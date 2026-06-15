@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -8,8 +8,9 @@ import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
-import { appOrigin } from '@/lib/site'
-import type { Game } from '@/types'
+import { appDomain, appOrigin } from '@/lib/site'
+import { shareImageBlob } from '@/lib/share-image'
+import type { AnonymousMessage, Game } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 
 export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
@@ -19,6 +20,8 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
   const [ending, setEnding] = useState(false)
   const [reopening, setReopening] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [sharingId, setSharingId] = useState<string | null>(null)
+  const sharingLock = useRef(false)
 
   const inboxEnabled = game?.status === 'active' || game?.status === 'finished'
   const { messages, removeMessage } = useAnonymousMessages(gameCode, !!inboxEnabled)
@@ -91,6 +94,40 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
     }
   }
 
+  const shareMessageAsImage = useCallback(
+    async (message: AnonymousMessage) => {
+      const text = message.text?.trim()
+      if (!text || sharingLock.current) return
+
+      sharingLock.current = true
+      setSharingId(message.id)
+      try {
+        const { renderSecretMessageShareImage } = await import('@/lib/share-message-image')
+        const blob = await renderSecretMessageShareImage({
+          messageText: text,
+          gameTitle: game?.title ?? 'Secret Message',
+          headerEmoji: cfg.headerEmoji,
+          brand: appDomain(),
+        })
+        const result = await shareImageBlob(blob)
+        if (result === 'copied') {
+          success('Image copied — paste into Stories or chat')
+        } else if (result === 'shared') {
+          success('Shared!')
+        } else {
+          success('Image downloaded')
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        toastError(err instanceof Error ? err.message : 'Could not share image')
+      } finally {
+        sharingLock.current = false
+        setSharingId(null)
+      }
+    },
+    [game?.title, success, toastError]
+  )
+
   const deleteMessage = async (messageId: string) => {
     setRemovingId(messageId)
     try {
@@ -161,6 +198,9 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
         title="Your inbox"
         emptyLabel="No messages yet — share your link to start receiving"
         hideSenderNames
+        canShareAsImage
+        sharingId={sharingId}
+        onShareAsImage={shareMessageAsImage}
         canRemove
         removingId={removingId}
         onRemove={deleteMessage}
