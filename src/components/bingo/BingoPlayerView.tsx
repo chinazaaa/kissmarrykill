@@ -8,11 +8,19 @@ import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import { formatBingoNumber, hasBingoWin } from '@/lib/bingo'
 import { supabase } from '@/lib/supabase'
+import {
+  BINGO_CALLED_NUMBER_SELECT,
+  BINGO_CARD_SELECT,
+  BINGO_CLAIM_SELECT,
+  GAME_SELECT,
+  PLAYER_SELECT,
+} from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { BingoCalledNumber, BingoCard, BingoClaim, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification, useBingoStartNotification } from '@/hooks/useBingoNotifications'
 import { useBingoAutoCall } from '@/hooks/useBingoAutoCall'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 type Screen = 'loading' | 'join' | 'waiting' | 'active' | 'finished' | 'not_found'
 
@@ -45,40 +53,46 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
   }, [])
 
   const loadCard = useCallback(
-    async (playerId: string) => {
-      const { data } = await supabase
+    async (playerId: string): Promise<boolean> => {
+      const res = await supabase
         .from('bingo_cards')
-        .select('*')
+        .select(BINGO_CARD_SELECT)
         .eq('game_id', gameCode)
         .eq('player_id', playerId)
         .maybeSingle()
-      setCard(data ? (data as BingoCard) : null)
+      if (!supabasePollOk(res)) return false
+      setCard(res.data ? (res.data as BingoCard) : null)
+      return true
     },
     [gameCode]
   )
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }, { data: called }, { data: claim }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      supabase.from('bingo_called_numbers').select('*').eq('game_id', gameCode).order('called_at'),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, calledRes, claimRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('bingo_called_numbers').select(BINGO_CALLED_NUMBER_SELECT).eq('game_id', gameCode).order('called_at'),
       supabase
         .from('bingo_claims')
-        .select('*')
+        .select(BINGO_CLAIM_SELECT)
         .eq('game_id', gameCode)
         .eq('status', 'approved')
         .maybeSingle(),
     ])
+    if (!supabasePollOk(gameRes, plrsRes, calledRes, claimRes)) return false
+
+    const gameData = gameRes.data
+    const plrs = plrsRes.data
 
     if (!gameData) {
       setScreen('not_found')
-      return
+      return true
     }
 
     setGame(gameData)
     setPlayers(plrs ?? [])
-    setCalledNumbers(called ?? [])
-    setWinner(claim ?? null)
+    setCalledNumbers(calledRes.data ?? [])
+    setWinner(claimRes.data ?? null)
 
     const session = getPlayerSession(gameCode)
     let playerId = session?.playerId ?? null
@@ -100,19 +114,18 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
       setCard(null)
     }
     syncScreen(gameData, playerId)
+    return true
   }, [gameCode, loadCard, syncScreen])
 
   useEffect(() => {
     load()
   }, [load])
 
-  useEffect(() => {
-    if (screen !== 'active' || !myPlayerId || card) return
-    const poll = window.setInterval(() => {
-      void loadCard(myPlayerId)
-    }, 2000)
-    return () => window.clearInterval(poll)
-  }, [screen, myPlayerId, card, loadCard])
+  usePolling(
+    () => (myPlayerId ? loadCard(myPlayerId) : Promise.resolve(true)),
+    [myPlayerId, loadCard],
+    { intervalMs: POLL_INTERVALS.lobby, enabled: screen === 'active' && !!myPlayerId && !card }
+  )
 
   useEffect(() => {
     const channel = supabase
@@ -155,19 +168,12 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
       )
       .subscribe()
 
-    const poll = setInterval(() => void load(), 2000)
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void load()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-
     return () => {
-      clearInterval(poll)
-      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   useBingoAutoCall({
     gameCode,

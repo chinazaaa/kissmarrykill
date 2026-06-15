@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import type { Game } from '@/types'
+import { POLL_INTERVALS, usePolling } from '@/hooks/usePolling'
 
 export function useTwoTruthsAdvance({
   gameCode,
@@ -17,40 +18,28 @@ export function useTwoTruthsAdvance({
   const inFlight = useRef(false)
   const onAdvancedRef = useRef(onAdvanced)
 
-  useEffect(() => {
-    onAdvancedRef.current = onAdvanced
-  })
+  onAdvancedRef.current = onAdvanced
 
-  useEffect(() => {
-    if (!enabled || game.status !== 'active') return
-
-    const sync = async () => {
-      if (inFlight.current) return
+  usePolling(
+    async () => {
+      if (inFlight.current) return true
       inFlight.current = true
       try {
-        await fetch('/api/two-truths/advance', {
+        const res = await fetch('/api/two-truths/advance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ gameId: gameCode }),
         })
+        if (!res.ok) return false
         onAdvancedRef.current?.()
+        return true
       } catch {
-        // keep polling
+        return false
       } finally {
         inFlight.current = false
       }
-    }
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void sync()
-    }
-
-    void sync()
-    document.addEventListener('visibilitychange', onVisible)
-    const id = window.setInterval(() => void sync(), 800)
-    return () => {
-      window.clearInterval(id)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [enabled, game.status, gameCode])
+    },
+    [gameCode, game.status],
+    { intervalMs: POLL_INTERVALS.advanceSync, enabled: !!enabled && game.status === 'active' }
+  )
 }

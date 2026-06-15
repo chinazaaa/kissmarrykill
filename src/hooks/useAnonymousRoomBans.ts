@@ -4,18 +4,18 @@ import { useCallback, useEffect, useState } from 'react'
 import { isPlayerBanned } from '@/lib/anonymous-messages'
 import { supabase } from '@/lib/supabase'
 import type { AnonymousRoomBan } from '@/types'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 export function useAnonymousRoomBans(gameCode: string, enabled: boolean) {
   const [bans, setBans] = useState<AnonymousRoomBan[]>([])
 
   const activeBans = bans.filter((ban) => isPlayerBanned(ban.banned_until))
 
-  const loadBans = useCallback(async () => {
-    const { data, error } = await supabase.from('anonymous_room_bans').select('*').eq('game_id', gameCode)
-
-    if (!error) {
-      setBans((data ?? []).filter((ban) => isPlayerBanned(ban.banned_until)))
-    }
+  const loadBans = useCallback(async (): Promise<boolean> => {
+    const res = await supabase.from('anonymous_room_bans').select('*').eq('game_id', gameCode)
+    if (!supabasePollOk(res)) return false
+    setBans((res.data ?? []).filter((ban) => isPlayerBanned(ban.banned_until)))
+    return true
   }, [gameCode])
 
   const banForPlayer = useCallback(
@@ -45,13 +45,15 @@ export function useAnonymousRoomBans(gameCode: string, enabled: boolean) {
       )
       .subscribe()
 
-    const poll = setInterval(loadBans, 3000)
-
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
   }, [enabled, gameCode, loadBans])
+
+  usePolling(() => loadBans(), [gameCode, loadBans], {
+    intervalMs: POLL_INTERVALS.realtimeFallback,
+    enabled,
+  })
 
   return { bans: activeBans, banForPlayer, reload: loadBans }
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { mergeCodewordsGuesses, mergeCodewordsRoles } from '@/lib/codewords'
 import { supabase } from '@/lib/supabase'
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Player } from '@/types'
+import { POLL_INTERVALS, usePolling } from '@/hooks/usePolling'
 
 type CodewordsSyncHandlers = {
   onGame?: (game: Game) => void
@@ -18,11 +19,16 @@ export function useCodewordsRealtime(gameCode: string, channelId: string, handle
   const handlersRef = useRef(handlers)
   handlersRef.current = handlers
 
-  useEffect(() => {
-    const reload = () => {
-      void handlersRef.current.onReload?.()
-    }
+  usePolling(
+    async () => {
+      await handlersRef.current.onReload?.()
+      return true
+    },
+    [channelId, gameCode],
+    { intervalMs: POLL_INTERVALS.realtimeFallback }
+  )
 
+  useEffect(() => {
     const channel = supabase
       .channel(`codewords-sync-${channelId}-${gameCode}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (p) => {
@@ -90,10 +96,7 @@ export function useCodewordsRealtime(gameCode: string, channelId: string, handle
       )
       .subscribe()
 
-    const poll = window.setInterval(reload, 3000)
-
     return () => {
-      window.clearInterval(poll)
       supabase.removeChannel(channel)
     }
   }, [channelId, gameCode])

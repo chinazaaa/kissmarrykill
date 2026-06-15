@@ -157,6 +157,16 @@ import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { useGameChannel } from '@/hooks/useGameChannel'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import {
+  CONFESSION_SELECT,
+  GAME_SELECT,
+  PARTICIPANT_SELECT,
+  PLAYER_QUESTION_SELECT,
+  PLAYER_SELECT,
+  ROUND_SELECT,
+  VOTE_SELECT,
+} from '@/lib/supabase-selects'
 import { useRoundTimer } from '@/hooks/useRoundTimer'
 import { useAutoSubmit } from '@/hooks/useAutoSubmit'
 import { HOT_SEAT_SUBMISSION_TYPES, hotSeatPlayerDisplayName } from '@/lib/hot-seat'
@@ -705,154 +715,159 @@ export default function GamePage() {
   )
 
   // Poll during final results — return to lobby when host resets
-  useEffect(() => {
-    if (view !== 'results') return
-
-    async function pollForLobby() {
-      const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
-      if (gameData?.status === 'waiting') {
-        setGame(gameData)
+  usePolling(
+    async () => {
+      const res = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
+      if (!supabasePollOk(res)) return false
+      if (res.data?.status === 'waiting') {
+        setGame(res.data)
         resetPlayerForLobby(!!myPlayerIdRef.current)
       }
-    }
+      return true
+    },
+    [gameCode, view],
+    { intervalMs: POLL_INTERVALS.results, enabled: view === 'results' }
+  )
 
-    pollForLobby()
-    const id = setInterval(pollForLobby, 2000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, gameCode])
-
-  // Poll lobby / join — keep claimed names in sync if realtime is slow
-  useEffect(() => {
-    if (view !== 'waiting' && view !== 'join') return
-
-    async function refreshLobby() {
-      const [{ data: plrs }, { data: parts }, { data: gameData }] = await Promise.all([
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
+  // Poll lobby / join — slow fallback if realtime is slow
+  usePolling(
+    async () => {
+      const [plrsRes, partsRes, gameRes] = await Promise.all([
+        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+        supabase.from('participants').select(PARTICIPANT_SELECT).eq('game_id', gameCode).order('display_order'),
+        supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       ])
-      if (plrs) setPlayers(plrs)
-      if (parts) setParticipants(parts)
-      if (gameData) setGame(gameData)
-      if (gameData && isWhoSaidThis(parseGameType(gameData.game_type))) {
+      if (!supabasePollOk(plrsRes, partsRes, gameRes)) return false
+      if (plrsRes.data) setPlayers(plrsRes.data)
+      if (partsRes.data) setParticipants(partsRes.data)
+      if (gameRes.data) setGame(gameRes.data)
+      if (gameRes.data && isWhoSaidThis(parseGameType(gameRes.data.game_type))) {
         await fetchWstPool()
       }
 
-      if (view === 'waiting' && gameData?.status === 'active' && myPlayerIdRef.current) {
-        const { data: activeRound } = await supabase
+      if (view === 'waiting' && gameRes.data?.status === 'active' && myPlayerIdRef.current) {
+        const roundRes = await supabase
           .from('rounds')
-          .select('*')
+          .select(ROUND_SELECT)
           .eq('game_id', gameCode)
           .eq('status', 'active')
           .maybeSingle()
-        if (activeRound) {
-          applyActiveRound(activeRound)
+        if (!supabasePollOk(roundRes)) return false
+        if (roundRes.data) {
+          applyActiveRound(roundRes.data)
         }
       }
-    }
-
-    refreshLobby()
-    const id = setInterval(refreshLobby, 3000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- polling interval, deps intentionally limited
-  }, [view, gameCode])
+      return true
+    },
+    [gameCode, view],
+    { intervalMs: POLL_INTERVALS.lobby, enabled: view === 'waiting' || view === 'join' }
+  )
 
   // Poll player-submitted questions in lobby (WYR/MLT only)
-  useEffect(() => {
-    if (
-      view !== 'waiting' ||
-      !game ||
-      (!isBinaryGame && !isMostLikelyTo(game.game_type)) ||
-      !lobbyAllowsPlayerQuestions(game)
-    )
-      return
-    async function fetchPQ() {
-      const { data } = await supabase.from('player_questions').select('*').eq('game_id', gameCode).order('created_at')
-      if (data) setPqList(data)
+  usePolling(
+    async () => {
+      const res = await supabase
+        .from('player_questions')
+        .select(PLAYER_QUESTION_SELECT)
+        .eq('game_id', gameCode)
+        .order('created_at')
+      if (!supabasePollOk(res)) return false
+      if (res.data) setPqList(res.data)
+      return true
+    },
+    [gameCode, game?.game_type, game?.player_questions_enabled, isBinaryGame],
+    {
+      intervalMs: POLL_INTERVALS.lobby,
+      enabled:
+        view === 'waiting' &&
+        !!game &&
+        (isBinaryGame || isMostLikelyTo(game.game_type)) &&
+        lobbyAllowsPlayerQuestions(game),
     }
-    fetchPQ()
-    const id = setInterval(fetchPQ, 4000)
-    return () => clearInterval(id)
-  }, [view, gameCode, isBinaryGame, game?.game_type, game?.player_questions_enabled])
+  )
 
   // Poll player-submitted names in lobby (people poll games)
-  useEffect(() => {
-    if (view !== 'waiting' || !game || !isPeoplePollGame(game.game_type) || !lobbyAllowsPlayerNameSubmissions(game)) {
-      return
-    }
-    async function fetchPN() {
+  usePolling(
+    async () => {
       const res = await fetch(`/api/player-participants?gameId=${gameCode}`)
-      if (res.ok) {
-        const { participants: subs } = await res.json()
-        setPnList(subs ?? [])
-      }
+      if (!res.ok) return false
+      const { participants: subs } = await res.json()
+      setPnList(subs ?? [])
+      return true
+    },
+    [gameCode, game?.game_type, game?.player_questions_enabled],
+    {
+      intervalMs: POLL_INTERVALS.lobby,
+      enabled:
+        view === 'waiting' &&
+        !!game &&
+        isPeoplePollGame(game.game_type) &&
+        lobbyAllowsPlayerNameSubmissions(game),
     }
-    fetchPN()
-    const id = setInterval(fetchPN, 4000)
-    return () => clearInterval(id)
-  }, [view, gameCode, game?.game_type, game?.player_questions_enabled])
+  )
 
-  // Poll during round / results — fallback when realtime misses round transitions
-  useEffect(() => {
-    if (view !== 'round' && view !== 'round_results') return
-
-    async function refreshRoundState() {
-      const [{ data: gameData }, { data: activeRound }, { data: finishedRound }] = await Promise.all([
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-        supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+  // Poll during round / results — slow fallback when realtime misses transitions
+  usePolling(
+    async () => {
+      const [gameRes, activeRoundRes, finishedRoundRes] = await Promise.all([
+        supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+        supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
         supabase
           .from('rounds')
-          .select('*')
+          .select(ROUND_SELECT)
           .eq('game_id', gameCode)
           .eq('status', 'finished')
           .order('round_number', { ascending: false })
           .limit(1)
           .maybeSingle(),
       ])
+      if (!supabasePollOk(gameRes, activeRoundRes, finishedRoundRes)) return false
+
+      const gameData = gameRes.data
+      const activeRound = activeRoundRes.data
+      const finishedRound = finishedRoundRes.data
 
       if (gameData) setGame(gameData)
 
       if (gameData?.status === 'waiting') {
         resetPlayerForLobby(!!myPlayerIdRef.current)
-        return
+        return true
       }
 
       if (gameData?.status === 'finished') {
         await loadAllResults()
         setView('results')
-        return
+        return true
       }
 
       if (activeRound && myPlayerIdRef.current) {
         applyActiveRound(activeRound, {
           switchView: view === 'round_results' || activeRound.id !== roundFormIdRef.current,
         })
-        return
+        return true
       }
 
       if (finishedRound && myPlayerIdRef.current) {
-        const [{ data: rv }, { data: rc }] = await Promise.all([
-          supabase.from('votes').select('*').eq('round_id', finishedRound.id),
-          supabase.from('confessions').select('*').eq('round_id', finishedRound.id).order('created_at'),
+        const [votesRes, confsRes] = await Promise.all([
+          supabase.from('votes').select(VOTE_SELECT).eq('round_id', finishedRound.id),
+          supabase.from('confessions').select(CONFESSION_SELECT).eq('round_id', finishedRound.id).order('created_at'),
         ])
+        if (!supabasePollOk(votesRes, confsRes)) return false
         setLastFinishedRound(finishedRound)
-        setLastRoundVotes(rv || [])
-        if (rc?.length) {
+        setLastRoundVotes(votesRes.data || [])
+        if (confsRes.data?.length) {
           setAllConfessions((prev) => {
             const ids = new Set(prev.map((c) => c.id))
-            return [...prev, ...rc.filter((c) => !ids.has(c.id))]
+            return [...prev, ...confsRes.data!.filter((c) => !ids.has(c.id))]
           })
         }
         setView('round_results')
       }
-    }
-
-    refreshRoundState()
-    const id = setInterval(refreshRoundState, 2000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, gameCode, currentRound?.id])
+      return true
+    },
+    [gameCode, view, currentRound?.id],
+    { intervalMs: POLL_INTERVALS.activeGame, enabled: view === 'round' || view === 'round_results' }
+  )
 
   useEffect(() => {
     if (!myPlayerId) return

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import type { Game } from '@/types'
 import { bingoCallModeFromGame } from '@/lib/bingo'
+import { POLL_INTERVALS, usePolling } from '@/hooks/usePolling'
 
 /** Keeps automatic bingo calling in sync — any connected client can drive calls. */
 export function useBingoAutoCall({
@@ -19,40 +20,31 @@ export function useBingoAutoCall({
   const inFlight = useRef(false)
   const onSyncedRef = useRef(onSynced)
 
-  useEffect(() => {
-    onSyncedRef.current = onSynced
-  })
+  onSyncedRef.current = onSynced
 
-  useEffect(() => {
-    if (!enabled || !game || game.status !== 'active' || bingoCallModeFromGame(game) !== 'auto') return
-
-    const sync = async () => {
-      if (inFlight.current) return
+  usePolling(
+    async () => {
+      if (inFlight.current) return true
       inFlight.current = true
       try {
-        await fetch('/api/bingo/sync', {
+        const res = await fetch('/api/bingo/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ gameId: gameCode }),
         })
+        if (!res.ok) return false
         onSyncedRef.current?.()
+        return true
       } catch {
-        // keep polling
+        return false
       } finally {
         inFlight.current = false
       }
+    },
+    [gameCode, game?.status, game?.bingo_call_mode],
+    {
+      intervalMs: POLL_INTERVALS.bingoAutoCall,
+      enabled: !!enabled && !!game && game.status === 'active' && bingoCallModeFromGame(game) === 'auto',
     }
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void sync()
-    }
-
-    void sync()
-    document.addEventListener('visibilitychange', onVisible)
-    const id = window.setInterval(() => void sync(), 1000)
-    return () => {
-      window.clearInterval(id)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [enabled, game?.status, game?.bingo_call_mode, gameCode])
+  )
 }

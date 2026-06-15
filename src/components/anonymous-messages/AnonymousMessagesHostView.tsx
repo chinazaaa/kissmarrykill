@@ -22,10 +22,12 @@ import {
 import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import type { Game, Player } from '@/types'
 import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 const LOBBY_PAGE_SIZE = 10
 
@@ -59,13 +61,15 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   const lobbyPagination = usePagination(players.length, LOBBY_PAGE_SIZE)
   const visibleLobbyPlayers = players.slice(lobbyPagination.start, lobbyPagination.end)
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
     ])
-    if (gameData) setGame(gameData)
-    setPlayers(plrs ?? [])
+    if (!supabasePollOk(gameRes, plrsRes)) return false
+    if (gameRes.data) setGame(gameRes.data)
+    setPlayers(plrsRes.data ?? [])
+    return true
   }, [gameCode])
 
   useEffect(() => {
@@ -98,12 +102,12 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
       )
       .subscribe()
 
-    const poll = setInterval(load, 3000)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, load])
+  }, [gameCode])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   const startSession = async () => {
     setStarting(true)

@@ -6,9 +6,17 @@ import { TwoTruthsActiveRound } from '@/components/two-truths/TwoTruthsActiveRou
 import { TwoTruthsLobbySubmit } from '@/components/two-truths/TwoTruthsLobbySubmit'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
+import {
+  GAME_SELECT,
+  PLAYER_SELECT,
+  ROUND_SELECT,
+  TTL_GUESS_SELECT,
+  TTL_STATEMENT_SELECT,
+} from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 type Screen = 'loading' | 'join' | 'lobby' | 'playing' | 'not_found'
 
@@ -25,25 +33,30 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }, { data: stmts }, { data: rds }, { data: gss }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      supabase.from('ttl_statements').select('*').eq('game_id', gameCode),
-      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-      supabase.from('ttl_guesses').select('*').eq('game_id', gameCode),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, stmtsRes, rdsRes, gssRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('ttl_statements').select(TTL_STATEMENT_SELECT).eq('game_id', gameCode),
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).order('round_number'),
+      supabase.from('ttl_guesses').select(TTL_GUESS_SELECT).eq('game_id', gameCode),
     ])
+    if (!supabasePollOk(gameRes, plrsRes, stmtsRes, rdsRes, gssRes)) return false
+
+    const gameData = gameRes.data
+    const plrs = plrsRes.data
+    const stmts = stmtsRes.data
 
     if (!gameData) {
       setScreen('not_found')
-      return
+      return true
     }
 
     setGame(gameData)
     setPlayers(plrs ?? [])
     setStatements(stmts ?? [])
-    setRounds(rds ?? [])
-    setGuesses(gss ?? [])
+    setRounds(rdsRes.data ?? [])
+    setGuesses(gssRes.data ?? [])
 
     const session = getPlayerSession(gameCode)
     let playerId = session?.playerId ?? null
@@ -59,15 +72,15 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
 
     if (!playerId) {
       setScreen('join')
-      return
+      return true
     }
 
-    const hasStatement = (stmts ?? []).some((s) => s.player_id === playerId)
     if (gameData.status === 'waiting') {
-      setScreen(hasStatement ? 'lobby' : 'lobby')
+      setScreen('lobby')
     } else {
       setScreen('playing')
     }
+    return true
   }, [gameCode])
 
   useEffect(() => {
@@ -91,12 +104,12 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
       )
       .subscribe()
 
-    const poll = setInterval(load, 800)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   const joinGame = async () => {
     const name = joinName.trim()

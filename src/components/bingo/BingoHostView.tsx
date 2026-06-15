@@ -16,11 +16,18 @@ import {
   formatBingoNumber,
 } from '@/lib/bingo'
 import { supabase } from '@/lib/supabase'
+import {
+  BINGO_CALLED_NUMBER_SELECT,
+  BINGO_CLAIM_SELECT,
+  GAME_SELECT,
+  PLAYER_SELECT,
+} from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import type { BingoCallMode, BingoCalledNumber, BingoClaim, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification, useBingoStartNotification } from '@/hooks/useBingoNotifications'
 import { useBingoAutoCall } from '@/hooks/useBingoAutoCall'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const router = useRouter()
@@ -37,27 +44,29 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const [lobbyCallInterval, setLobbyCallInterval] = useState(BINGO_DEFAULT_CALL_INTERVAL)
   const [lobbyMaxPlayers, setLobbyMaxPlayers] = useState(BINGO_MIN_PLAYERS)
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }, { data: called }, { data: claim }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      supabase.from('bingo_called_numbers').select('*').eq('game_id', gameCode).order('called_at'),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, calledRes, claimRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('bingo_called_numbers').select(BINGO_CALLED_NUMBER_SELECT).eq('game_id', gameCode).order('called_at'),
       supabase
         .from('bingo_claims')
-        .select('*')
+        .select(BINGO_CLAIM_SELECT)
         .eq('game_id', gameCode)
         .eq('status', 'approved')
         .maybeSingle(),
     ])
-    if (gameData) {
-      setGame(gameData)
-      setLobbyCallMode(bingoCallModeFromGame(gameData))
-      setLobbyCallInterval(bingoCallIntervalFromGame(gameData))
-      setLobbyMaxPlayers(gameData.max_players ?? BINGO_MIN_PLAYERS)
+    if (!supabasePollOk(gameRes, plrsRes, calledRes, claimRes)) return false
+    if (gameRes.data) {
+      setGame(gameRes.data)
+      setLobbyCallMode(bingoCallModeFromGame(gameRes.data))
+      setLobbyCallInterval(bingoCallIntervalFromGame(gameRes.data))
+      setLobbyMaxPlayers(gameRes.data.max_players ?? BINGO_MIN_PLAYERS)
     }
-    setPlayers(plrs ?? [])
-    setCalledNumbers(called ?? [])
-    setWinner(claim ?? null)
+    setPlayers(plrsRes.data ?? [])
+    setCalledNumbers(calledRes.data ?? [])
+    setWinner(claimRes.data ?? null)
+    return true
   }, [gameCode])
 
   useEffect(() => {
@@ -100,19 +109,12 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
       )
       .subscribe()
 
-    const poll = setInterval(load, 4000)
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void load()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-
     return () => {
-      clearInterval(poll)
-      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   useBingoAutoCall({
     gameCode,

@@ -8,9 +8,11 @@ import { gameTypeConfig } from '@/lib/game-types'
 import { triviaCategoryFromGame } from '@/lib/trivia'
 import { triviaCategoryLabel } from '@/lib/trivia-questions'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, TRIVIA_ANSWER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 type Screen = 'loading' | 'join' | 'playing' | 'not_found'
 
@@ -27,23 +29,27 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }, { data: rds }, { data: ans }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-      supabase.from('trivia_answers').select('*').eq('game_id', gameCode),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, rdsRes, ansRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).order('round_number'),
+      supabase.from('trivia_answers').select(TRIVIA_ANSWER_SELECT).eq('game_id', gameCode),
     ])
+    if (!supabasePollOk(gameRes, plrsRes, rdsRes, ansRes)) return false
+
+    const gameData = gameRes.data
+    const plrs = plrsRes.data
 
     if (!gameData) {
       setScreen('not_found')
-      return
+      return true
     }
 
     setGame(gameData)
     setPlayers(plrs ?? [])
-    setRounds(rds ?? [])
-    setAnswers(ans ?? [])
+    setRounds(rdsRes.data ?? [])
+    setAnswers(ansRes.data ?? [])
 
     const session = getPlayerSession(gameCode)
     let playerId = session?.playerId ?? null
@@ -58,6 +64,7 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
     }
 
     setScreen(playerId ? 'playing' : 'join')
+    return true
   }, [gameCode])
 
   useEffect(() => {
@@ -78,19 +85,12 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
       )
       .subscribe()
 
-    const poll = setInterval(load, 400)
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void load()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-
     return () => {
-      clearInterval(poll)
-      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   const joinGame = async () => {
     const name = joinName.trim()

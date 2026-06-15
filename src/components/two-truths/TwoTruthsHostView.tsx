@@ -7,10 +7,18 @@ import { TwoTruthsLobbySubmit } from '@/components/two-truths/TwoTruthsLobbySubm
 import { gameTypeConfig } from '@/lib/game-types'
 import { useTwoTruthsAdvance } from '@/hooks/useTwoTruthsAdvance'
 import { supabase } from '@/lib/supabase'
+import {
+  GAME_SELECT,
+  PLAYER_SELECT,
+  ROUND_SELECT,
+  TTL_GUESS_SELECT,
+  TTL_STATEMENT_SELECT,
+} from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const { error: toastError, success } = useToast()
@@ -28,22 +36,24 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }, { data: stmts }, { data: rds }, { data: gss }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      supabase.from('ttl_statements').select('*').eq('game_id', gameCode),
-      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-      supabase.from('ttl_guesses').select('*').eq('game_id', gameCode),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, stmtsRes, rdsRes, gssRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('ttl_statements').select(TTL_STATEMENT_SELECT).eq('game_id', gameCode),
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).order('round_number'),
+      supabase.from('ttl_guesses').select(TTL_GUESS_SELECT).eq('game_id', gameCode),
     ])
-    if (gameData) {
-      setGame(gameData)
-      setTimerSeconds(gameData.timer_seconds ?? 45)
+    if (!supabasePollOk(gameRes, plrsRes, stmtsRes, rdsRes, gssRes)) return false
+    if (gameRes.data) {
+      setGame(gameRes.data)
+      setTimerSeconds(gameRes.data.timer_seconds ?? 45)
     }
-    setPlayers(plrs ?? [])
-    setStatements(stmts ?? [])
-    setRounds(rds ?? [])
-    setGuesses(gss ?? [])
+    setPlayers(plrsRes.data ?? [])
+    setStatements(stmtsRes.data ?? [])
+    setRounds(rdsRes.data ?? [])
+    setGuesses(gssRes.data ?? [])
+    return true
   }, [gameCode])
 
   useEffect(() => {
@@ -76,12 +86,12 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
       )
       .subscribe()
 
-    const poll = setInterval(load, 800)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   useTwoTruthsAdvance({
     gameCode,

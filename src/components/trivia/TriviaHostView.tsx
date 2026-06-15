@@ -8,10 +8,12 @@ import { gameTypeConfig } from '@/lib/game-types'
 import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
 import { useTriviaHostRoundAutomation } from '@/hooks/useTriviaHostRoundAutomation'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, TRIVIA_ANSWER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 type HostTab = 'play' | 'manage'
 
@@ -35,17 +37,19 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   const settingsModalRef = useRef(settingsModal)
   settingsModalRef.current = settingsModal
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }, { data: rds }, { data: ans }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-      supabase.from('trivia_answers').select('*').eq('game_id', gameCode),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, rdsRes, ansRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).order('round_number'),
+      supabase.from('trivia_answers').select(TRIVIA_ANSWER_SELECT).eq('game_id', gameCode),
     ])
-    if (gameData) setGame(gameData)
-    setPlayers(plrs ?? [])
-    setRounds(rds ?? [])
-    setAnswers(ans ?? [])
+    if (!supabasePollOk(gameRes, plrsRes, rdsRes, ansRes)) return false
+    if (gameRes.data) setGame(gameRes.data)
+    setPlayers(plrsRes.data ?? [])
+    setRounds(rdsRes.data ?? [])
+    setAnswers(ansRes.data ?? [])
+    return true
   }, [gameCode])
 
   useEffect(() => {
@@ -79,22 +83,19 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       })
       .subscribe()
 
-    const poll = setInterval(() => {
-      if (settingsModalRef.current) return
-      void load()
-    }, 400)
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && !settingsModalRef.current) void load()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-
     return () => {
-      clearInterval(poll)
-      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  usePolling(
+    async () => {
+      if (settingsModalRef.current) return true
+      return load()
+    },
+    [gameCode, load],
+    { intervalMs: POLL_INTERVALS.realtimeFallback }
+  )
 
   const changeHostMode = (mode: TriviaHostMode) => {
     if (game?.status !== 'waiting') return

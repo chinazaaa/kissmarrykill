@@ -5,6 +5,16 @@ import { supabase } from '@/lib/supabase'
 import { filterParticipantsInRounds } from '@/lib/utils'
 import { hexToRgba } from '@/lib/color'
 import { useGameRealtime } from '@/hooks/useGameRealtime'
+import { LOAD_TIMEOUT_MS, POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import {
+  CONFESSION_SELECT,
+  GAME_SELECT,
+  PARTICIPANT_SELECT,
+  PLAYER_SELECT,
+  ROUND_SELECT,
+  VOTE_SELECT,
+  WST_QUOTE_POOL_SELECT,
+} from '@/lib/supabase-selects'
 import { Avatar } from '@/components/Avatar'
 import {
   roundGenderLabel,
@@ -171,6 +181,7 @@ export default function HostPage() {
   useGameRealtime(gameCode)
 
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [authError, setAuthError] = useState(false)
   const [game, setGame] = useState<Game | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
@@ -318,89 +329,132 @@ export default function HostPage() {
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false
+
     async function load() {
-      const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
-      if (!gameData) {
-        setAuthError(true)
-        setLoading(false)
-        return
-      }
-      if (gameData.host_token !== hostToken) {
-        setAuthError(true)
-        setLoading(false)
-        return
-      }
+      setLoadError(false)
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), LOAD_TIMEOUT_MS)
+      )
 
-      setGame(gameData)
+      try {
+        await Promise.race([
+          (async () => {
+            const gameRes = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
+            if (!supabasePollOk(gameRes)) throw new Error('unavailable')
+            const gameData = gameRes.data
+            if (!gameData) {
+              if (!cancelled) setAuthError(true)
+              return
+            }
+            if (gameData.host_token !== hostToken) {
+              if (!cancelled) setAuthError(true)
+              return
+            }
 
-      const [{ data: parts }, { data: plrs }] = await Promise.all([
-        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      ])
-      setParticipants(parts || [])
-      setPlayers(plrs || [])
+            if (!cancelled) setGame(gameData)
 
-      if (isWhoSaidThis(parseGameType(gameData.game_type))) {
-        const { data: pool } = await supabase
-          .from('wst_quote_pool')
-          .select('*')
-          .eq('game_id', gameCode)
-          .order('created_at')
-        setWstPool(dedupeWstPool(pool || []))
+            const [partsRes, plrsRes] = await Promise.all([
+              supabase.from('participants').select(PARTICIPANT_SELECT).eq('game_id', gameCode).order('display_order'),
+              supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+            ])
+            if (!supabasePollOk(partsRes, plrsRes)) throw new Error('unavailable')
+            if (!cancelled) {
+              setParticipants(partsRes.data || [])
+              setPlayers(plrsRes.data || [])
+            }
 
-        // Also fetch anime quote pool
-        const { data: aPool } = await supabase
-          .from('anime_quote_pool')
-          .select('*')
-          .eq('game_id', gameCode)
-          .eq('removed', false)
-          .order('created_at')
-        setAnimePool(aPool ?? [])
-      }
+            if (isWhoSaidThis(parseGameType(gameData.game_type))) {
+              const [poolRes, aPoolRes] = await Promise.all([
+                supabase
+                  .from('wst_quote_pool')
+                  .select(WST_QUOTE_POOL_SELECT)
+                  .eq('game_id', gameCode)
+                  .order('created_at'),
+                supabase
+                  .from('anime_quote_pool')
+                  .select('*')
+                  .eq('game_id', gameCode)
+                  .eq('removed', false)
+                  .order('created_at'),
+              ])
+              if (!supabasePollOk(poolRes, aPoolRes)) throw new Error('unavailable')
+              if (!cancelled) {
+                setWstPool(dedupeWstPool(poolRes.data || []))
+                setAnimePool(aPoolRes.data ?? [])
+              }
+            }
 
-      if (gameData.status === 'active') {
-        const [{ data: roundData }, { data: finishedRound }, { data: votesData }, { data: confs }] = await Promise.all([
-          supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-          supabase
-            .from('rounds')
-            .select('*')
-            .eq('game_id', gameCode)
-            .eq('status', 'finished')
-            .order('round_number', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase.from('votes').select('*').eq('game_id', gameCode),
-          supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+            if (gameData.status === 'active') {
+              const [roundRes, finishedRes] = await Promise.all([
+                supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+                supabase
+                  .from('rounds')
+                  .select(ROUND_SELECT)
+                  .eq('game_id', gameCode)
+                  .eq('status', 'finished')
+                  .order('round_number', { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+              ])
+              if (!supabasePollOk(roundRes, finishedRes)) throw new Error('unavailable')
+
+              const roundData = roundRes.data
+              const finishedRound = finishedRes.data
+              const roundId = roundData?.id ?? finishedRound?.id
+
+              if (!cancelled) {
+                if (roundData) {
+                  setCurrentRound(roundData)
+                } else if (finishedRound) {
+                  setLastFinishedRound(finishedRound)
+                }
+              }
+
+              if (roundId) {
+                const [votesRes, confsRes] = await Promise.all([
+                  supabase.from('votes').select(VOTE_SELECT).eq('round_id', roundId),
+                  supabase.from('confessions').select(CONFESSION_SELECT).eq('round_id', roundId).order('created_at'),
+                ])
+                if (!supabasePollOk(votesRes, confsRes)) throw new Error('unavailable')
+                if (!cancelled) {
+                  setVotes(votesRes.data || [])
+                  setConfessions(confsRes.data || [])
+                }
+              }
+            }
+
+            if (gameData.status === 'finished') {
+              await loadResults()
+            }
+          })(),
+          timeout,
         ])
-        if (roundData) {
-          setCurrentRound(roundData)
-        } else if (finishedRound) {
-          setLastFinishedRound(finishedRound)
-        }
-        setVotes(votesData || [])
-        setConfessions(confs || [])
+      } catch {
+        if (!cancelled) setLoadError(true)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-
-      if (gameData.status === 'finished') {
-        await loadResults()
-      }
-
-      setLoading(false)
     }
+
     load()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameCode, hostToken])
 
   async function loadResults() {
-    const [{ data: rounds }, { data: vs }, { data: confs }, { data: subs }] = await Promise.all([
-      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-      supabase.from('votes').select('*').eq('game_id', gameCode),
-      supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+    const [roundsRes, vsRes, confsRes, subsRes] = await Promise.all([
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).order('round_number'),
+      supabase.from('votes').select(VOTE_SELECT).eq('game_id', gameCode),
+      supabase.from('confessions').select(CONFESSION_SELECT).eq('game_id', gameCode).order('created_at'),
       supabase.from('hot_seat_submissions').select('id, round_id, text, submission_type').eq('game_id', gameCode),
     ])
-    setAllRounds(rounds || [])
-    setVotes(vs || [])
-    setConfessions(confs || [])
-    setAllHotSeatSubmissions(subs ?? [])
+    setAllRounds(roundsRes.data || [])
+    setVotes(vsRes.data || [])
+    setConfessions(confsRes.data || [])
+    setAllHotSeatSubmissions(subsRes.data ?? [])
   }
 
   function resetHostLobbyState() {
@@ -445,46 +499,70 @@ export default function HostPage() {
     return [...prev, sub]
   }
 
-  async function syncGameState() {
-    const [{ data: gameData }, { data: activeRound }, { data: finishedRound }, { data: vs }, { data: confs }] =
-      await Promise.all([
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-        supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-        supabase
-          .from('rounds')
-          .select('*')
-          .eq('game_id', gameCode)
-          .eq('status', 'finished')
-          .order('round_number', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase.from('votes').select('*').eq('game_id', gameCode),
-        supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+  async function syncGameState(): Promise<boolean> {
+    const [gameRes, activeRoundRes, finishedRoundRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+      supabase
+        .from('rounds')
+        .select(ROUND_SELECT)
+        .eq('game_id', gameCode)
+        .eq('status', 'finished')
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+    if (!supabasePollOk(gameRes, activeRoundRes, finishedRoundRes)) return false
+
+    const gameData = gameRes.data
+    const activeRound = activeRoundRes.data
+    const finishedRound = finishedRoundRes.data
+    const roundId = activeRound?.id ?? finishedRound?.id
+
+    let votesRes = { data: null as Vote[] | null, error: null as unknown }
+    let confsRes = { data: null as Confession[] | null, error: null as unknown }
+    if (roundId) {
+      ;[votesRes, confsRes] = await Promise.all([
+        supabase.from('votes').select(VOTE_SELECT).eq('round_id', roundId),
+        supabase.from('confessions').select(CONFESSION_SELECT).eq('round_id', roundId).order('created_at'),
       ])
+      if (!supabasePollOk(votesRes, confsRes)) return false
+    }
 
     if (gameData) setGame(gameData)
-    if (vs) setVotes(vs)
-    if (confs) setConfessions(confs)
+    if (votesRes.data && roundId) {
+      setVotes((prev) => {
+        const other = prev.filter((v) => v.round_id !== roundId)
+        return [...other, ...votesRes.data!]
+      })
+    }
+    if (confsRes.data && roundId) {
+      setConfessions((prev) => {
+        const other = prev.filter((c) => c.round_id !== roundId)
+        return [...other, ...confsRes.data!]
+      })
+    }
 
     if (gameData?.status === 'finished') {
       await loadResults()
       advancingRef.current = false
       setEnding(false)
       setAdvancing(false)
-      return
+      return true
     }
 
     if (activeRound) {
       setCurrentRound((prev) => mergeActiveRound(prev, activeRound))
       setLastFinishedRound(null)
       if (isHotSeat(parseGameType(gameData?.game_type))) {
-        const { data: subs } = await supabase
+        const subsRes = await supabase
           .from('hot_seat_submissions')
           .select('id, player_id, round_id')
           .eq('round_id', activeRound.id)
-        if (subs) setActiveHotSeatSubs(subs)
+        if (!supabasePollOk(subsRes)) return false
+        if (subsRes.data) setActiveHotSeatSubs(subsRes.data)
       }
-      return
+      return true
     }
 
     if (finishedRound) {
@@ -495,6 +573,7 @@ export default function HostPage() {
       setEnding(false)
       setAdvancing(false)
     }
+    return true
   }
 
   // ── Realtime ──────────────────────────────────────────────────────────────
@@ -511,14 +590,14 @@ export default function HostPage() {
     {
       onGameUpdate: async (g) => {
         if (g.status === 'active') {
-          const { data: roundData } = await supabase
+          const roundRes = await supabase
             .from('rounds')
-            .select('*')
+            .select(ROUND_SELECT)
             .eq('game_id', gameCode)
             .eq('status', 'active')
             .maybeSingle()
-          if (roundData) {
-            setCurrentRound((prev) => mergeActiveRound(prev, roundData))
+          if (roundRes.data) {
+            setCurrentRound((prev) => mergeActiveRound(prev, roundRes.data!))
             advancingRef.current = false
           }
         }
@@ -550,53 +629,47 @@ export default function HostPage() {
     }
   )
 
-  // Poll lobby while waiting for players — fallback if realtime is slow or unavailable
-  useEffect(() => {
-    if (game?.status !== 'waiting') return
-
-    async function refreshLobby() {
+  // Poll lobby while waiting — slow fallback; Realtime is primary
+  usePolling(
+    async () => {
       const gameType = parseGameType(game?.game_type)
       const fetchPlayerQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
       const fetchPlayerNames = isPeoplePollGame(gameType) && game?.participant_mode === 'voters'
-      const [{ data: plrs }, { data: parts }, { data: pool }, { count: pqCount }, { count: pnCount }] =
-        await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-          isWhoSaidThis(gameType)
-            ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
-            : Promise.resolve({ data: null }),
-          fetchPlayerQuestions
-            ? supabase.from('player_questions').select('id', { count: 'exact', head: true }).eq('game_id', gameCode)
-            : Promise.resolve({ count: 0 }),
-          fetchPlayerNames
-            ? supabase
-                .from('participants')
-                .select('id', { count: 'exact', head: true })
-                .eq('game_id', gameCode)
-                .not('submitted_by_player_id', 'is', null)
-            : Promise.resolve({ count: 0 }),
-        ])
-      if (plrs) setPlayers(plrs)
-      if (parts) setParticipants(parts)
-      if (pool) setWstPool(dedupeWstPool(pool))
-      if (fetchPlayerQuestions) setPlayerQuestionCount(pqCount ?? 0)
-      if (fetchPlayerNames) setPlayerNameSubmissionCount(pnCount ?? 0)
-    }
+      const [plrsRes, partsRes, poolRes, pqRes, pnRes] = await Promise.all([
+        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+        supabase.from('participants').select(PARTICIPANT_SELECT).eq('game_id', gameCode).order('display_order'),
+        isWhoSaidThis(gameType)
+          ? supabase.from('wst_quote_pool').select(WST_QUOTE_POOL_SELECT).eq('game_id', gameCode).order('created_at')
+          : Promise.resolve({ data: null, error: null }),
+        fetchPlayerQuestions
+          ? supabase.from('player_questions').select('id', { count: 'exact', head: true }).eq('game_id', gameCode)
+          : Promise.resolve({ count: 0, error: null }),
+        fetchPlayerNames
+          ? supabase
+              .from('participants')
+              .select('id', { count: 'exact', head: true })
+              .eq('game_id', gameCode)
+              .not('submitted_by_player_id', 'is', null)
+          : Promise.resolve({ count: 0, error: null }),
+      ])
+      if (!supabasePollOk(plrsRes, partsRes, poolRes, pqRes, pnRes)) return false
+      if (plrsRes.data) setPlayers(plrsRes.data)
+      if (partsRes.data) setParticipants(partsRes.data)
+      if (poolRes.data) setWstPool(dedupeWstPool(poolRes.data))
+      if (fetchPlayerQuestions) setPlayerQuestionCount(pqRes.count ?? 0)
+      if (fetchPlayerNames) setPlayerNameSubmissionCount(pnRes.count ?? 0)
+      return true
+    },
+    [gameCode, game?.game_type, game?.participant_mode],
+    { intervalMs: POLL_INTERVALS.lobby, enabled: game?.status === 'waiting' }
+  )
 
-    refreshLobby()
-    const id = setInterval(refreshLobby, 3000)
-    return () => clearInterval(id)
-  }, [game?.status, gameCode, game?.game_type])
-
-  // Poll during active game — fallback when realtime misses votes or round transitions
-  useEffect(() => {
-    if (game?.status !== 'active') return
-
-    syncGameState()
-    const id = setInterval(syncGameState, 2000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.status, gameCode, currentRound?.id, lastFinishedRound?.id])
+  // Poll during active game — slow fallback when realtime misses updates
+  usePolling(
+    () => syncGameState(),
+    [gameCode, currentRound?.id, lastFinishedRound?.id],
+    { intervalMs: POLL_INTERVALS.activeGame, enabled: game?.status === 'active' }
+  )
 
   // Auto-reveal: after the final round results, show the leaderboard automatically
   useEffect(() => {
@@ -1235,6 +1308,23 @@ export default function HostPage() {
     return (
       <div className="page-wrap flex items-center justify-center">
         <div className="w-11 h-11 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="page-wrap flex items-center justify-center px-4">
+        <div className="text-center space-y-4">
+          <p className="text-6xl">⚠️</p>
+          <h1 className="text-2xl font-black text-body">Can&apos;t reach the server</h1>
+          <p className="text-muted">
+            The database is slow or temporarily unavailable. Wait a moment, then try again.
+          </p>
+          <button type="button" onClick={() => window.location.reload()} className="btn-primary px-6 py-3">
+            Retry
+          </button>
+        </div>
       </div>
     )
   }

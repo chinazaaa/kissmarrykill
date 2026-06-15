@@ -8,10 +8,12 @@ import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT } from '@/lib/supabase-selects'
 import { appDomain, appOrigin } from '@/lib/site'
 import { shareImageBlob } from '@/lib/share-image'
 import type { AnonymousMessage, Game } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const router = useRouter()
@@ -27,9 +29,11 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
   const { messages, removeMessage } = useAnonymousMessages(gameCode, !!inboxEnabled)
   useAnonymousMessageTrim(gameCode, game?.status === 'active')
 
-  const load = useCallback(async () => {
-    const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
-    if (gameData) setGame(gameData)
+  const load = useCallback(async (): Promise<boolean> => {
+    const res = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
+    if (!supabasePollOk(res)) return false
+    if (res.data) setGame(res.data)
+    return true
   }, [gameCode])
 
   useEffect(() => {
@@ -46,12 +50,12 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
       )
       .subscribe()
 
-    const poll = setInterval(load, 5000)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, load])
+  }, [gameCode])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.slow })
 
   const shareUrl = `${appOrigin()}/game/${gameCode}`
   const cfg = gameTypeConfig('secret_message')

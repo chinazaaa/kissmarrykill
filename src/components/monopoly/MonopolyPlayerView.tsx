@@ -32,9 +32,17 @@ import {
   spaceAt,
 } from '@/lib/monopoly'
 import { supabase } from '@/lib/supabase'
+import {
+  GAME_SELECT,
+  MONOPOLY_BOARD_SELECT,
+  MONOPOLY_PLAYER_STATE_SELECT,
+  PLAYER_SELECT,
+} from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 type Screen = 'loading' | 'join' | 'waiting' | 'active' | 'finished' | 'not_found'
 
@@ -57,6 +65,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
 
+  useApplyGameTheme(game?.theme)
+
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (gameData.status === 'waiting') {
       setScreen(playerId ? 'waiting' : 'join')
@@ -69,23 +79,27 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     setScreen(playerId ? 'finished' : 'join')
   }, [])
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }, { data: boardData }, { data: stateRows }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      supabase.from('monopoly_boards').select('*').eq('game_id', gameCode).maybeSingle(),
-      supabase.from('monopoly_player_state').select('*').eq('game_id', gameCode).order('player_order'),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, boardRes, stateRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('monopoly_boards').select(MONOPOLY_BOARD_SELECT).eq('game_id', gameCode).maybeSingle(),
+      supabase.from('monopoly_player_state').select(MONOPOLY_PLAYER_STATE_SELECT).eq('game_id', gameCode).order('player_order'),
     ])
+    if (!supabasePollOk(gameRes, plrsRes, boardRes, stateRes)) return false
+
+    const gameData = gameRes.data
+    const plrs = plrsRes.data
 
     if (!gameData) {
       setScreen('not_found')
-      return
+      return true
     }
 
     setGame(gameData)
     setPlayers(plrs ?? [])
-    setBoard(boardData as MonopolyBoard | null)
-    setStates((stateRows as MonopolyPlayerState[]) ?? [])
+    setBoard(boardRes.data as MonopolyBoard | null)
+    setStates((stateRes.data as MonopolyPlayerState[]) ?? [])
 
     const session = getPlayerSession(gameCode)
     let playerId = session?.playerId ?? null
@@ -99,6 +113,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       setMyPlayerName(session.playerName)
     }
     syncScreen(gameData, playerId)
+    return true
   }, [gameCode, syncScreen])
 
   useEffect(() => {
@@ -123,12 +138,12 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       )
       .subscribe()
 
-    const poll = setInterval(load, 4000)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   const join = async () => {
     if (!joinName.trim()) return
@@ -208,16 +223,16 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   if (screen === 'join') {
     return (
       <MonopolyShell title={game?.title ?? cfg.label} subtitle="Enter your name to take a seat at the table">
-        <MonopolyGlassCard glow="emerald" className="p-6 sm:p-8 space-y-5 max-w-md mx-auto">
+        <MonopolyGlassCard glow="primary" className="p-6 sm:p-8 space-y-5 max-w-md mx-auto">
           <div className="text-center">
             <div className="text-5xl mb-3">🎲</div>
-            <p className="text-sm text-emerald-100/70">2–6 players · $1,500 starting cash</p>
+            <p className="text-sm text-muted">2–6 players · $1,500 starting cash</p>
           </div>
           <input
             value={joinName}
             onChange={(e) => setJoinName(e.target.value)}
             placeholder="Your name"
-            className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3.5 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+            className="input-field w-full"
             maxLength={40}
             onKeyDown={(e) => e.key === 'Enter' && join()}
           />
@@ -233,20 +248,20 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     return (
       <MonopolyShell title={game?.title} subtitle="The host will start the game when everyone is ready">
         <MonopolyGlassCard className="p-4 text-center">
-          <p className="text-3xl font-black text-emerald-300">{players.length}</p>
-          <p className="text-sm text-emerald-100/60">
+          <p className="text-3xl font-black text-[var(--primary)]">{players.length}</p>
+          <p className="text-sm text-muted">
             player{players.length === 1 ? '' : 's'} joined · need {MONOPOLY_MIN_PLAYERS}+
           </p>
         </MonopolyGlassCard>
         <div className="space-y-2">
           {players.map((p) => (
             <MonopolyGlassCard key={p.id} className="px-4 py-3 flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/30 text-sm font-bold text-white">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--primary)_25%,transparent)] text-sm font-bold text-[var(--foreground)]">
                 {p.name.charAt(0).toUpperCase()}
               </span>
-              <span className="font-semibold text-white">{p.name}</span>
+              <span className="font-semibold text-[var(--foreground)]">{p.name}</span>
               {p.id === myPlayerId && (
-                <span className="ml-auto text-[10px] font-bold uppercase text-sky-300">You</span>
+                <span className="ml-auto text-[10px] font-bold uppercase text-[var(--primary)]">You</span>
               )}
             </MonopolyGlassCard>
           ))}
@@ -259,10 +274,10 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     const winner = players.find((p) => p.id === board?.winner_player_id)
     return (
       <MonopolyShell title="Game over!" subtitle={winner ? `${winner.name} takes the crown` : undefined}>
-        <MonopolyGlassCard glow="amber" className="py-10 text-center">
+        <MonopolyGlassCard glow="accent" className="py-10 text-center">
           <div className="text-6xl mb-3 drop-shadow-lg">🏆</div>
-          {winner && <p className="text-2xl font-black text-amber-300">{winner.name}</p>}
-          <p className="text-sm text-emerald-100/60 mt-1">Monopoly champion</p>
+          {winner && <p className="text-2xl font-black text-[var(--marry)]">{winner.name}</p>}
+          <p className="text-sm text-muted mt-1">Monopoly champion</p>
         </MonopolyGlassCard>
         <MonopolyPlayerList
           states={states}
@@ -304,7 +319,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
                 type="button"
                 disabled={acting}
                 onClick={() => postAction('/api/monopoly/roll')}
-                className="rounded-xl bg-gradient-to-b from-amber-400 to-amber-600 px-4 py-2 text-xs font-black text-amber-950 shadow-md disabled:opacity-50"
+                className="rounded-xl bg-gradient-to-b from-[var(--marry)] to-[color-mix(in_srgb,var(--marry)_75%,#000)] px-4 py-2 text-xs font-black text-[var(--background)] shadow-md disabled:opacity-50"
               >
                 {acting ? '…' : '🎲 Roll'}
               </button>
@@ -326,7 +341,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       )}
 
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-200/50 mb-2 px-1">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-faint mb-2 px-1">
           All players
         </p>
         <MonopolyPlayerList
@@ -345,9 +360,9 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
         title={pendingSpace?.name ?? ''}
         colorBar={pendingSpace?.color ? colorBarClass(pendingSpace.color) : undefined}
       >
-        <p className="text-center text-3xl font-black text-amber-400">${pendingSpace?.price}</p>
+        <p className="text-center text-3xl font-black text-[var(--marry)]">${pendingSpace?.price}</p>
         {pendingSpace?.rent != null && (
-          <p className="text-center text-sm text-emerald-100/70">Rent ${pendingSpace.rent}</p>
+          <p className="text-center text-sm text-muted">Rent ${pendingSpace.rent}</p>
         )}
         <div className="grid grid-cols-2 gap-2 pt-2">
           <MonopolyPrimaryButton
@@ -373,10 +388,10 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
         title={pendingSpace?.name ?? ''}
         colorBar={pendingSpace?.color ? colorBarClass(pendingSpace.color) : undefined}
       >
-        <p className="text-center text-sm text-emerald-100/80">
-          Owned by <span className="font-bold text-white">{rentOwner?.name ?? 'another player'}</span>
+        <p className="text-center text-sm text-muted">
+          Owned by <span className="font-bold text-[var(--foreground)]">{rentOwner?.name ?? 'another player'}</span>
         </p>
-        <p className="text-center text-3xl font-black text-red-400">${rentAmount}</p>
+        <p className="text-center text-3xl font-black text-red-500">${rentAmount}</p>
         <MonopolyPrimaryButton
           onClick={() => postAction('/api/monopoly/rent')}
           loading={acting}

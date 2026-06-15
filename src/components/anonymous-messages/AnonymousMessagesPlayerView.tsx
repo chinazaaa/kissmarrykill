@@ -21,10 +21,12 @@ import {
 } from '@/lib/anonymous-messages'
 import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { AnonymousMessage, Game, Player } from '@/types'
 import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 type Screen = 'loading' | 'join' | 'waiting' | 'active' | 'finished' | 'not_found'
 
@@ -60,14 +62,21 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     setScreen(playerId ? 'finished' : 'join')
   }, [])
 
-  const load = useCallback(async () => {
-    const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+    ])
+    if (!supabasePollOk(gameRes, plrsRes)) return false
+
+    const gameData = gameRes.data
+    const plrs = plrsRes.data
+
     if (!gameData) {
       setScreen('not_found')
-      return
+      return true
     }
 
-    const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
     setGame(gameData)
     setPlayers(plrs ?? [])
 
@@ -83,6 +92,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       setMyPlayerName(session.playerName)
     }
     syncScreen(gameData, playerId)
+    return true
   }, [gameCode, syncScreen])
 
   useEffect(() => {
@@ -126,12 +136,12 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       )
       .subscribe()
 
-    const poll = setInterval(load, 3000)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, load, myPlayerId, syncScreen])
+  }, [gameCode, myPlayerId, syncScreen, toastError])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   const join = async () => {
     setJoining(true)
