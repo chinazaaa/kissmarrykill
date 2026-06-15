@@ -42,22 +42,20 @@ import { parseParticipantMode, usesHostParticipantList } from '@/lib/participant
 import { parseThemeId } from '@/lib/themes'
 import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/player-question-pool'
 import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
-import { clampAnonymousRoomMaxPlayers, ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS } from '@/lib/anonymous-messages'
-import { clampBingoMaxPlayers, BINGO_DEFAULT_MAX_PLAYERS, parseBingoCallMode, clampBingoCallInterval } from '@/lib/bingo'
-import { clampTriviaMaxPlayers, TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_DEFAULT_ROUNDS, clampTriviaTimer } from '@/lib/trivia'
+import { parseBingoCallMode, clampBingoCallInterval } from '@/lib/bingo'
+import { TRIVIA_DEFAULT_ROUNDS, clampTriviaTimer } from '@/lib/trivia'
+import { clampTtlTimer, TTL_DEFAULT_TIMER } from '@/lib/two-truths'
 import {
-  clampTtlMaxPlayers,
-  TTL_DEFAULT_MAX_PLAYERS,
-  clampTtlTimer,
-  TTL_DEFAULT_TIMER,
-} from '@/lib/two-truths'
-import {
-  clampCodewordsMaxPlayers,
   clampCodewordsTimer,
-  CODEWORDS_DEFAULT_MAX_PLAYERS,
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
   CODEWORDS_DEFAULT_SPYMASTER_TIMER,
 } from '@/lib/codewords'
+import {
+  clampLobbyMaxPlayers,
+  fetchGamePlayerLimits,
+  lobbyDefaultMaxPlayers,
+  type LobbyLimitGameType,
+} from '@/lib/game-limits'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -243,16 +241,22 @@ export async function POST(req: NextRequest) {
   }
 
   const hostToken = generateToken()
+  const lobbyLimits = await fetchGamePlayerLimits(supabase)
+
+  function resolveMaxPlayers(type: LobbyLimitGameType, raw: unknown, fallback: number): number {
+    return clampLobbyMaxPlayers(type, Number(raw) || fallback, lobbyLimits)
+  }
+
   const maxPlayers = isAnonymousMessagesGame(game_type)
-    ? clampAnonymousRoomMaxPlayers(Number(rawMaxPlayers) || ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS)
+    ? resolveMaxPlayers('anonymous_messages', rawMaxPlayers, lobbyDefaultMaxPlayers('anonymous_messages', lobbyLimits))
     : isBingoGame(game_type)
-      ? clampBingoMaxPlayers(Number(rawMaxPlayers) || BINGO_DEFAULT_MAX_PLAYERS)
+      ? resolveMaxPlayers('bingo', rawMaxPlayers, lobbyDefaultMaxPlayers('bingo', lobbyLimits))
       : isCodewordsGame(game_type)
-        ? clampCodewordsMaxPlayers(Number(rawMaxPlayers) || CODEWORDS_DEFAULT_MAX_PLAYERS)
+        ? resolveMaxPlayers('codewords', rawMaxPlayers, lobbyDefaultMaxPlayers('codewords', lobbyLimits))
         : isTriviaGame(game_type)
-          ? clampTriviaMaxPlayers(Number(rawMaxPlayers) || TRIVIA_DEFAULT_MAX_PLAYERS)
+          ? resolveMaxPlayers('trivia', rawMaxPlayers, lobbyDefaultMaxPlayers('trivia', lobbyLimits))
           : isTwoTruthsGame(game_type)
-            ? clampTtlMaxPlayers(Number(rawMaxPlayers) || TTL_DEFAULT_MAX_PLAYERS)
+            ? resolveMaxPlayers('two_truths', rawMaxPlayers, lobbyDefaultMaxPlayers('two_truths', lobbyLimits))
             : null
   const isSecret = isSecretMessageGame(game_type)
 

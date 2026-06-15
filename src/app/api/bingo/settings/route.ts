@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { bingoSettingsSchema } from '@/lib/validation'
 import { parseGameType, isBingoGame } from '@/lib/game-types'
-import {
-  clampBingoCallInterval,
-  clampBingoMaxPlayers,
-  parseBingoCallMode,
-} from '@/lib/bingo'
+import { parseBingoCallMode, clampBingoCallInterval } from '@/lib/bingo'
+import { clampLobbyMaxPlayers, fetchGamePlayerLimits } from '@/lib/game-limits'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -43,7 +40,10 @@ export async function POST(req: NextRequest) {
   if (bingo_call_interval_seconds !== undefined) {
     gameUpdate.bingo_call_interval_seconds = clampBingoCallInterval(bingo_call_interval_seconds)
   }
-  if (max_players !== undefined) gameUpdate.max_players = clampBingoMaxPlayers(max_players)
+  if (max_players !== undefined) {
+    const lobbyLimits = await fetchGamePlayerLimits(supabase)
+    gameUpdate.max_players = clampLobbyMaxPlayers('bingo', max_players, lobbyLimits)
+  }
 
   const { data: updated, error } = await supabase
     .from('games')

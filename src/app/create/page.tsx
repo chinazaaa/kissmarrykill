@@ -89,40 +89,35 @@ import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGr
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
 import {
   ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS,
-  ANONYMOUS_ROOM_MAX_PLAYERS,
-  ANONYMOUS_ROOM_MIN_PLAYERS,
 } from '@/lib/anonymous-messages'
 import {
   BINGO_CALL_INTERVAL_OPTIONS,
   BINGO_DEFAULT_CALL_INTERVAL,
   BINGO_DEFAULT_CALL_MODE,
   BINGO_DEFAULT_MAX_PLAYERS,
-  BINGO_MAX_PLAYERS,
-  BINGO_MIN_PLAYERS,
   type BingoCallMode,
 } from '@/lib/bingo'
 import {
   CODEWORDS_DEFAULT_MAX_PLAYERS,
-  CODEWORDS_MAX_PLAYERS,
-  CODEWORDS_MIN_PLAYERS,
   CODEWORDS_DEFAULT_SPYMASTER_TIMER,
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
   CODEWORDS_TIMER_OPTIONS,
 } from '@/lib/codewords'
 import {
   TRIVIA_DEFAULT_MAX_PLAYERS,
-  TRIVIA_MAX_PLAYERS,
-  TRIVIA_MIN_PLAYERS,
   TRIVIA_DEFAULT_ROUNDS,
   TRIVIA_DEFAULT_TIMER,
 } from '@/lib/trivia'
 import {
   TTL_DEFAULT_MAX_PLAYERS,
-  TTL_MAX_PLAYERS,
-  TTL_MIN_PLAYERS,
   TTL_DEFAULT_TIMER,
   TTL_TIMER_OPTIONS,
 } from '@/lib/two-truths'
+import {
+  getCodeDefaultLimits,
+  playerCountOptions,
+  type GamePlayerLimitsMap,
+} from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -205,6 +200,28 @@ function CreateGameInner() {
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
   const [ttlMaxPlayers, setTtlMaxPlayers] = useState(TTL_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
+  const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
+  const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
+
+  useEffect(() => {
+    fetch('/api/game-limits')
+      .then((res) => res.json())
+      .then((data: { limits?: GamePlayerLimitsMap }) => {
+        if (data.limits) setLobbyLimits(data.limits)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!lobbyLimits) return
+    const clamp = (type: keyof GamePlayerLimitsMap, value: number) =>
+      Math.min(lobbyLimits[type].max, Math.max(lobbyLimits[type].min, value))
+    setAnonymousMaxPlayers((v) => clamp('anonymous_messages', v))
+    setBingoMaxPlayers((v) => clamp('bingo', v))
+    setCodewordsMaxPlayers((v) => clamp('codewords', v))
+    setTriviaMaxPlayers((v) => clamp('trivia', v))
+    setTtlMaxPlayers((v) => clamp('two_truths', v))
+  }, [lobbyLimits])
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -795,15 +812,15 @@ function CreateGameInner() {
               </SettingsGroup>
             ) : isAnonymousRoom ? (
               <SettingsGroup title="Session">
-                <Field label={`Max players (${ANONYMOUS_ROOM_MIN_PLAYERS}–${ANONYMOUS_ROOM_MAX_PLAYERS})`}>
+                <Field label={`Max players (${effectiveLimits.anonymous_messages.min}–${effectiveLimits.anonymous_messages.max})`}>
                   <select
                     value={anonymousMaxPlayers}
                     onChange={(e) => setAnonymousMaxPlayers(Number(e.target.value))}
                     className="input-field w-full"
                   >
-                    {Array.from(
-                      { length: ANONYMOUS_ROOM_MAX_PLAYERS - ANONYMOUS_ROOM_MIN_PLAYERS + 1 },
-                      (_, i) => i + ANONYMOUS_ROOM_MIN_PLAYERS
+                    {playerCountOptions(
+                      effectiveLimits.anonymous_messages.min,
+                      effectiveLimits.anonymous_messages.max
                     ).map((n) => (
                       <option key={n} value={n}>
                         {n} players
@@ -821,19 +838,17 @@ function CreateGameInner() {
               </SettingsGroup>
             ) : isBingo ? (
               <SettingsGroup title="Bingo room">
-                <Field label={`Max players (${BINGO_MIN_PLAYERS}–${BINGO_MAX_PLAYERS})`}>
+                <Field label={`Max players (${effectiveLimits.bingo.min}–${effectiveLimits.bingo.max})`}>
                   <select
                     value={bingoMaxPlayers}
                     onChange={(e) => setBingoMaxPlayers(Number(e.target.value))}
                     className="input-field w-full"
                   >
-                    {Array.from({ length: BINGO_MAX_PLAYERS - BINGO_MIN_PLAYERS + 1 }, (_, i) => i + BINGO_MIN_PLAYERS).map(
-                      (n) => (
-                        <option key={n} value={n}>
-                          {n} players
-                        </option>
-                      )
-                    )}
+                    {playerCountOptions(effectiveLimits.bingo.min, effectiveLimits.bingo.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Number calling">
@@ -891,19 +906,17 @@ function CreateGameInner() {
               </SettingsGroup>
             ) : isTwoTruths ? (
               <SettingsGroup title="Two Truths & a Lie">
-                <Field label={`Max players (${TTL_MIN_PLAYERS}–${TTL_MAX_PLAYERS})`}>
+                <Field label={`Max players (${effectiveLimits.two_truths.min}–${effectiveLimits.two_truths.max})`}>
                   <select
                     value={ttlMaxPlayers}
                     onChange={(e) => setTtlMaxPlayers(Number(e.target.value))}
                     className="input-field w-full"
                   >
-                    {Array.from({ length: TTL_MAX_PLAYERS - TTL_MIN_PLAYERS + 1 }, (_, i) => i + TTL_MIN_PLAYERS).map(
-                      (n) => (
-                        <option key={n} value={n}>
-                          {n} players
-                        </option>
-                      )
-                    )}
+                    {playerCountOptions(effectiveLimits.two_truths.min, effectiveLimits.two_truths.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Guess timer (per round)">
@@ -926,16 +939,13 @@ function CreateGameInner() {
               </SettingsGroup>
             ) : isCodewords ? (
               <SettingsGroup title="Codewords room">
-                <Field label={`Max players (${CODEWORDS_MIN_PLAYERS}–${CODEWORDS_MAX_PLAYERS})`}>
+                <Field label={`Max players (${effectiveLimits.codewords.min}–${effectiveLimits.codewords.max})`}>
                   <select
                     value={codewordsMaxPlayers}
                     onChange={(e) => setCodewordsMaxPlayers(Number(e.target.value))}
                     className="input-field w-full"
                   >
-                    {Array.from(
-                      { length: CODEWORDS_MAX_PLAYERS - CODEWORDS_MIN_PLAYERS + 1 },
-                      (_, i) => i + CODEWORDS_MIN_PLAYERS
-                    ).map((n) => (
+                    {playerCountOptions(effectiveLimits.codewords.min, effectiveLimits.codewords.max).map((n) => (
                       <option key={n} value={n}>
                         {n} players
                       </option>
@@ -1028,16 +1038,13 @@ function CreateGameInner() {
               <>
                 <SettingsGroup title="Round settings">
                   {isTrivia && (
-                    <Field label={`Max players (${TRIVIA_MIN_PLAYERS}–${TRIVIA_MAX_PLAYERS})`}>
+                    <Field label={`Max players (${effectiveLimits.trivia.min}–${effectiveLimits.trivia.max})`}>
                       <select
                         value={triviaMaxPlayers}
                         onChange={(e) => setTriviaMaxPlayers(Number(e.target.value))}
                         className="input-field w-full"
                       >
-                        {Array.from(
-                          { length: TRIVIA_MAX_PLAYERS - TRIVIA_MIN_PLAYERS + 1 },
-                          (_, i) => i + TRIVIA_MIN_PLAYERS
-                        ).map((n) => (
+                        {playerCountOptions(effectiveLimits.trivia.min, effectiveLimits.trivia.max).map((n) => (
                           <option key={n} value={n}>
                             {n} players
                           </option>

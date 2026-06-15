@@ -101,7 +101,7 @@ export const createGameSchema = z.object({
   wst_quote_source: wstQuoteSourceEnum.optional(),
   participant_filter: participantFilterEnum.optional(),
   gender_based: z.boolean().optional(),
-  max_players: z.coerce.number().int().min(2).max(40).optional(),
+  max_players: z.coerce.number().int().min(2).max(100).optional(),
   codewords_player_picks: z.boolean().optional(),
   codewords_late_join: z.boolean().optional(),
   codewords_randomize_teams: z.boolean().optional(),
@@ -387,10 +387,27 @@ export const bingoSettingsSchema = z.object({
   hostToken: hostTokenString(),
   bingo_call_mode: z.enum(['manual', 'auto']).optional(),
   bingo_call_interval_seconds: z.coerce.number().optional(),
-  max_players: z.coerce.number().int().min(2).max(30).optional(),
+  max_players: z.coerce.number().int().min(2).max(100).optional(),
 })
 
 export type BingoSettingsInput = z.infer<typeof bingoSettingsSchema>
+
+// ---------------------------------------------------------------------------
+// Admin game player limits
+// ---------------------------------------------------------------------------
+
+export const patchGamePlayerLimitsSchema = z.object({
+  limits: z
+    .array(
+      z.object({
+        game_type: z.enum(['anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths']),
+        max_players: z.coerce.number().int().min(2).max(100),
+      })
+    )
+    .min(1),
+})
+
+export type PatchGamePlayerLimitsInput = z.infer<typeof patchGamePlayerLimitsSchema>
 
 export const triviaAnswerSchema = z.object({
   gameId: gameCodeString(),

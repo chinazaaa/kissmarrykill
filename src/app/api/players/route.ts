@@ -4,9 +4,10 @@ import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/li
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
 import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame } from '@/lib/game-types'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
-import { anonymousPlayerCanChat, anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
-import { bingoMaxPlayers, createBingoCardForPlayer } from '@/lib/bingo'
-import { codewordsMaxPlayers, codewordsAllowsPlayerChanges, removeCodewordsPlayer } from '@/lib/codewords'
+import { anonymousPlayerCanChat } from '@/lib/anonymous-messages'
+import { createBingoCardForPlayer } from '@/lib/bingo'
+import { codewordsAllowsPlayerChanges, removeCodewordsPlayer } from '@/lib/codewords'
+import { fetchGamePlayerLimits, isLobbyLimitGameType, lobbyMaxPlayersFromGame } from '@/lib/game-limits'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import {
@@ -23,7 +24,7 @@ async function assertWaitingGame(gameCode: string) {
   const id = gameCode.toUpperCase()
   const { data: game } = await supabase
     .from('games')
-    .select('status, participant_mode, game_type, custom_slots, gender_based')
+    .select('status, participant_mode, game_type, custom_slots, gender_based, max_players')
     .eq('id', id)
     .maybeSingle()
 
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
   if (!gameRow) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
   const rowGameType = parseGameType(gameRow.game_type)
+  const lobbyLimits = await fetchGamePlayerLimits(supabase)
 
   if (isAnonymousMessagesGame(rowGameType)) {
     if (gameRow.status === 'finished') {
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cannot join this session' }, { status: 400 })
     }
 
-    const maxPlayers = anonymousRoomMaxPlayers(gameRow)
+    const maxPlayers = lobbyMaxPlayersFromGame('anonymous_messages', gameRow, lobbyLimits)
     const { count: playerCount } = await supabase
       .from('players')
       .select('id', { count: 'exact', head: true })
@@ -171,7 +173,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
     }
 
-    const maxPlayers = bingoMaxPlayers(gameRow)
+    const maxPlayers = lobbyMaxPlayersFromGame('bingo', gameRow, lobbyLimits)
     const { count: playerCount } = await supabase
       .from('players')
       .select('id', { count: 'exact', head: true })
@@ -227,7 +229,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
     }
 
-    const maxPlayers = codewordsMaxPlayers(gameRow)
+    const maxPlayers = lobbyMaxPlayersFromGame('codewords', gameRow, lobbyLimits)
     const { count: playerCount } = await supabase
       .from('players')
       .select('id', { count: 'exact', head: true })
@@ -276,6 +278,19 @@ export async function POST(req: NextRequest) {
     if (!name) {
       return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
     }
+
+    if (isLobbyLimitGameType(gameType)) {
+      const maxPlayers = lobbyMaxPlayersFromGame(gameType, game!, lobbyLimits)
+      const { count: playerCount } = await supabase
+        .from('players')
+        .select('id', { count: 'exact', head: true })
+        .eq('game_id', id)
+
+      if ((playerCount ?? 0) >= maxPlayers) {
+        return NextResponse.json({ error: 'This room is full' }, { status: 400 })
+      }
+    }
+
     if (await nameTaken(id, name)) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
