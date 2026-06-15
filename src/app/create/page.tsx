@@ -38,6 +38,7 @@ import {
   isBingoGame,
   isCodewordsGame,
   isTriviaGame,
+  isTwoTruthsGame,
   isWouldYouRather,
   isThisOrThat,
   isMostLikelyTo,
@@ -115,6 +116,13 @@ import {
   TRIVIA_DEFAULT_ROUNDS,
   TRIVIA_DEFAULT_TIMER,
 } from '@/lib/trivia'
+import {
+  TTL_DEFAULT_MAX_PLAYERS,
+  TTL_MAX_PLAYERS,
+  TTL_MIN_PLAYERS,
+  TTL_DEFAULT_TIMER,
+  TTL_TIMER_OPTIONS,
+} from '@/lib/two-truths'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -195,6 +203,7 @@ function CreateGameInner() {
   const [codewordsRandomizeTeams, setCodewordsRandomizeTeams] = useState(false)
   const [triviaCategory, setTriviaCategory] = useState<TriviaCategory>('general')
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
+  const [ttlMaxPlayers, setTtlMaxPlayers] = useState(TTL_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
 
   useEffect(() => {
@@ -230,6 +239,14 @@ function CreateGameInner() {
               timer_seconds: TRIVIA_DEFAULT_TIMER,
             }
           : {}),
+        ...(isTwoTruthsGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+              timer_seconds: TTL_DEFAULT_TIMER,
+            }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -257,6 +274,7 @@ function CreateGameInner() {
   const isBinaryLobby = isWyr || isTot
   const isMlt = isMostLikelyTo(settings.game_type)
   const isTrivia = isTriviaGame(settings.game_type)
+  const isTwoTruths = isTwoTruthsGame(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
   const hotSeatCreateCapUpper = isHotSeatGame ? hotSeatMaxCapUpperBound(0, participants.length) : 20
@@ -320,7 +338,7 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
@@ -696,7 +714,9 @@ function CreateGameInner() {
                 ? codewordsMaxPlayers
                 : isTrivia
                   ? triviaMaxPlayers
-                  : undefined,
+                  : isTwoTruths
+                    ? ttlMaxPlayers
+                    : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? codewordsLateJoin : undefined,
@@ -867,6 +887,41 @@ function CreateGameInner() {
                   {bingoCallMode === 'auto'
                     ? ' Numbers are called automatically — no tapping required from the host.'
                     : ' You call numbers B1–O75 from the host panel.'}
+                </p>
+              </SettingsGroup>
+            ) : isTwoTruths ? (
+              <SettingsGroup title="Two Truths & a Lie">
+                <Field label={`Max players (${TTL_MIN_PLAYERS}–${TTL_MAX_PLAYERS})`}>
+                  <select
+                    value={ttlMaxPlayers}
+                    onChange={(e) => setTtlMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {Array.from({ length: TTL_MAX_PLAYERS - TTL_MIN_PLAYERS + 1 }, (_, i) => i + TTL_MIN_PLAYERS).map(
+                      (n) => (
+                        <option key={n} value={n}>
+                          {n} players
+                        </option>
+                      )
+                    )}
+                  </select>
+                </Field>
+                <Field label="Guess timer (per round)">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    {TTL_TIMER_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s} seconds
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Everyone writes two truths and one lie in the lobby. Each round spotlights one player — the rest guess
+                  which statement is the lie. Correct guesses earn points; fool the room for bonus points.
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (

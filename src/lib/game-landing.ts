@@ -30,6 +30,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   bingo: 'bingo',
   codewords: 'codewords',
   trivia: 'trivia',
+  two_truths: 'two-truths-and-a-lie',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -491,6 +492,36 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Climb the board', description: 'Points stack across rounds — fastest fingers win the leaderboard.' },
     ],
     perfectFor: ['Pub quizzes', 'Team meetings', 'Classroom reviews', 'Game nights'],
+  }),
+
+  two_truths: landing('two_truths', {
+    seoTitle: 'Two Truths and a Lie — Free Online Party Game',
+    seoDescription:
+      'Play Two Truths and a Lie online with friends. Everyone submits statements — guess the lie each round and climb the leaderboard.',
+    keywords: ['two truths and a lie online', 'party game', 'icebreaker game', 'social deduction'],
+    heroSubtitle:
+      'Classic icebreaker, online. Write two truths and a lie, then take turns in the hot seat while everyone guesses the fib.',
+    highlights: ['Lobby statement prep', 'One round per player', 'Lie spotting scores'],
+    features: [
+      {
+        title: 'Everyone plays',
+        description: 'Each player submits three statements in the lobby before the host starts.',
+        emoji: '🎭',
+      },
+      {
+        title: 'Spot the lie',
+        description: 'Statements are shuffled each round — tap the one you think is false.',
+        emoji: '🤥',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join & write', description: 'Enter your name and submit two truths plus one lie about yourself.' },
+      { title: 'Take turns', description: 'Each round features one player — everyone else guesses the lie.' },
+      { title: 'Score points', description: 'Correct guesses earn points; fool the most people for bonus points.' },
+    ],
+    perfectFor: ['Icebreakers', 'Team offsites', 'Classrooms', 'Friend groups'],
   }),
 }
 

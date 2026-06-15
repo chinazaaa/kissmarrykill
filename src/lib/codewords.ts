@@ -11,7 +11,7 @@ import type {
 } from '@/types'
 
 export const CODEWORDS_MIN_PLAYERS = 4
-export const CODEWORDS_MAX_PLAYERS = 12
+export const CODEWORDS_MAX_PLAYERS = 20
 export const CODEWORDS_DEFAULT_MAX_PLAYERS = 8
 export const CODEWORDS_GRID_SIZE = 25
 

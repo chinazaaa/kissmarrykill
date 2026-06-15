@@ -8,11 +8,13 @@ import {
   isBingoGame,
   isCodewordsGame,
   isTriviaGame,
+  isTwoTruthsGame,
 } from '@/lib/game-types'
 import { clearAnonymousRoomSessionData, reopenSecretMessageBoard } from '@/lib/anonymous-messages'
 import { clearBingoSessionData } from '@/lib/bingo'
 import { clearCodewordsRoundData } from '@/lib/codewords'
 import { clearTriviaSessionData } from '@/lib/trivia'
+import { clearTwoTruthsSessionData } from '@/lib/two-truths'
 import {
   applyCustomQuestionsUpdate,
   applyParticipantListUpdate,
@@ -57,7 +59,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const gameType = parseGameType(game.game_type)
   const canReturnToLobby =
-    game.status === 'finished' || (isCodewordsGame(gameType) && game.status === 'active')
+    game.status === 'finished' ||
+    (isCodewordsGame(gameType) && game.status === 'active') ||
+    (isTwoTruthsGame(gameType) && game.status === 'active')
   if (!canReturnToLobby) {
     return NextResponse.json({ error: 'Game must be finished before playing again' }, { status: 400 })
   }
@@ -204,6 +208,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isCodewordsGame(gameType)) {
     const { error: clearError } = await clearCodewordsRoundData(supabase, gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isTwoTruthsGame(gameType)) {
+    const { error: clearError } = await clearTwoTruthsSessionData(supabase, gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 

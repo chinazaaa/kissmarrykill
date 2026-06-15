@@ -43,6 +43,7 @@ import {
   isBingoGame,
   isCodewordsGame,
   isTriviaGame,
+  isTwoTruthsGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
@@ -50,6 +51,7 @@ import { AnonymousMessagesHostView } from '@/components/anonymous-messages/Anony
 import { SecretMessageHostView } from '@/components/secret-message/SecretMessageHostView'
 import { BingoHostView } from '@/components/bingo/BingoHostView'
 import { TriviaHostView } from '@/components/trivia/TriviaHostView'
+import { TwoTruthsHostView } from '@/components/two-truths/TwoTruthsHostView'
 import { CodewordsHostView } from '@/components/codewords/CodewordsHostView'
 import {
   getCustomSlots,
@@ -1193,6 +1195,10 @@ export default function HostPage() {
 
   if (game && isTriviaGame(game.game_type)) {
     return <TriviaHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isTwoTruthsGame(game.game_type)) {
+    return <TwoTruthsHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {

@@ -15,6 +15,7 @@ import {
   isBingoGame,
   isCodewordsGame,
   isTriviaGame,
+  isTwoTruthsGame,
 } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { getCustomSlotCount } from '@/lib/custom-game'
@@ -64,6 +65,12 @@ import {
   teamsNeedRandomization,
   turnDeadline,
 } from '@/lib/codewords'
+import {
+  buildTtlRoundRows,
+  lobbyReadyForTwoTruths,
+  shufflePlayerOrder,
+  TTL_MIN_PLAYERS,
+} from '@/lib/two-truths'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -323,6 +330,58 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
         status: 'active',
         current_round_number: 1,
         rounds_count: 1,
+      })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isTwoTruthsGame(gameType)) {
+    const playerIds = playersData.map((p) => p.id)
+    if (playerIds.length < TTL_MIN_PLAYERS) {
+      return NextResponse.json(
+        { error: `Need at least ${TTL_MIN_PLAYERS} players to start` },
+        { status: 400 }
+      )
+    }
+
+    const { data: statementRows } = await supabase
+      .from('ttl_statements')
+      .select('*')
+      .eq('game_id', code.toUpperCase())
+
+    const statements = statementRows ?? []
+    const ready = lobbyReadyForTwoTruths(playerIds, statements)
+    if (!ready.ok) {
+      return NextResponse.json({ error: ready.error ?? 'Not ready to start' }, { status: 400 })
+    }
+
+    const playerOrder = shufflePlayerOrder(playerIds)
+    let roundRows: ReturnType<typeof buildTtlRoundRows>
+    try {
+      roundRows = buildTtlRoundRows({
+        gameId: code.toUpperCase(),
+        statements,
+        playerOrder,
+        now,
+      })
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : 'Failed to build rounds' },
+        { status: 400 }
+      )
+    }
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({
+        status: 'active',
+        current_round_number: 1,
+        rounds_count: roundRows.length,
       })
       .eq('id', code.toUpperCase())
 

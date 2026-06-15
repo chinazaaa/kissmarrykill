@@ -26,6 +26,7 @@ import {
   isBingoGame,
   isCodewordsGame,
   isTriviaGame,
+  isTwoTruthsGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
@@ -44,6 +45,12 @@ import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-pa
 import { clampAnonymousRoomMaxPlayers, ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS } from '@/lib/anonymous-messages'
 import { clampBingoMaxPlayers, BINGO_DEFAULT_MAX_PLAYERS, parseBingoCallMode, clampBingoCallInterval } from '@/lib/bingo'
 import { clampTriviaMaxPlayers, TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_DEFAULT_ROUNDS, clampTriviaTimer } from '@/lib/trivia'
+import {
+  clampTtlMaxPlayers,
+  TTL_DEFAULT_MAX_PLAYERS,
+  clampTtlTimer,
+  TTL_DEFAULT_TIMER,
+} from '@/lib/two-truths'
 import {
   clampCodewordsMaxPlayers,
   clampCodewordsTimer,
@@ -170,7 +177,7 @@ export async function POST(req: NextRequest) {
     custom_questions = cqParsed
   }
 
-  const participant_mode: ParticipantMode = isLobbyGame(game_type) || isTriviaGame(game_type)
+  const participant_mode: ParticipantMode = isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type)
     ? 'joiners'
     : isWhoSaidThis(game_type)
       ? 'import'
@@ -207,7 +214,7 @@ export async function POST(req: NextRequest) {
   }
 
   const maxRounds = lobbyMaxRounds(game_type, question_source, custom_questions)
-  const roundsCount = isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isBingoGame(game_type) || isCodewordsGame(game_type)
+  const roundsCount = isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isBingoGame(game_type) || isCodewordsGame(game_type) || isTwoTruthsGame(game_type)
     ? 1
     : isWhoSaidThis(game_type)
       ? wstAutoRoundCount(participants.length)
@@ -244,7 +251,9 @@ export async function POST(req: NextRequest) {
         ? clampCodewordsMaxPlayers(Number(rawMaxPlayers) || CODEWORDS_DEFAULT_MAX_PLAYERS)
         : isTriviaGame(game_type)
           ? clampTriviaMaxPlayers(Number(rawMaxPlayers) || TRIVIA_DEFAULT_MAX_PLAYERS)
-          : null
+          : isTwoTruthsGame(game_type)
+            ? clampTtlMaxPlayers(Number(rawMaxPlayers) || TTL_DEFAULT_MAX_PLAYERS)
+            : null
   const isSecret = isSecretMessageGame(game_type)
 
   const { error: gameError } = await supabase.from('games').insert({
@@ -256,9 +265,11 @@ export async function POST(req: NextRequest) {
       ? clampCodewordsTimer(Number(timer_seconds) || CODEWORDS_DEFAULT_SPYMASTER_TIMER)
       : isTriviaGame(game_type)
         ? clampTriviaTimer(timer_seconds)
-        : [15, 30, 60].includes(Number(timer_seconds))
-          ? Number(timer_seconds)
-          : 30,
+        : isTwoTruthsGame(game_type)
+          ? clampTtlTimer(timer_seconds)
+          : [15, 30, 60].includes(Number(timer_seconds))
+            ? Number(timer_seconds)
+            : 30,
     ...(isCodewordsGame(game_type)
       ? {
           operative_timer_seconds: clampCodewordsTimer(

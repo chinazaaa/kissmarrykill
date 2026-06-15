@@ -636,6 +636,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  two_truths: {
+    id: 'two_truths',
+    label: 'Two Truths & a Lie',
+    tagline: 'Submit two truths and a lie — can everyone spot the fib?',
+    headerEmoji: '🎭🤥',
+    card: {
+      accent: '#8b5cf6',
+      accentSoft: 'rgba(139, 92, 246, 0.15)',
+      emoji: '🎭',
+      players: '3+ players',
+      vibe: 'Social deduction',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '✓',
+        label: 'Truth',
+        color: '#22c55e',
+        leaderboardLabel: 'Correct guesses',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '✓',
+        label: 'Truth',
+        color: '#3b82f6',
+        leaderboardLabel: 'Truths',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      kill: {
+        emoji: '🤥',
+        label: 'Lie',
+        color: '#a855f7',
+        leaderboardLabel: 'Lies spotted',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -645,6 +688,7 @@ export const HOMEPAGE_FEATURED_GAMES: GameType[] = [
   'codewords',
   'bingo',
   'trivia',
+  'two_truths',
   'anonymous_messages',
 ]
 
@@ -663,6 +707,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'bingo',
   'codewords',
   'trivia',
+  'two_truths',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -679,6 +724,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'bingo') return 'bingo'
   if (raw === 'codewords') return 'codewords'
   if (raw === 'trivia') return 'trivia'
+  if (raw === 'two_truths') return 'two_truths'
   return 'smash_marry_kill'
 }
 
@@ -715,6 +761,8 @@ export function gameHowItWorks(
       return 'Players join, pick Red or Blue and a role (spymaster or operative). You start when each team has 1 spymaster and at least 1 operative. Spymasters see the secret key and give one-word clues; operatives guess words on the 5×5 grid. Avoid the assassin!'
     case 'trivia':
       return 'Players join with their name. Each round shows a multiple-choice question — fastest correct answers score the most. Pick Tech or General Knowledge, or upload your own CSV. Live leaderboard tracks who is winning.'
+    case 'two_truths':
+      return 'Everyone joins with their name and submits two truths plus one lie in the lobby. Each round features one player — everyone else guesses which statement is the lie. Spot the fib for points; fool the room for bonus points.'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -910,7 +958,7 @@ type LobbyCounts = { participantMode?: string; participantCount: number }
 /** WYR + MLT + This or That player join: free name entry, no list. Hot Seat uses import + name claim (see isImportNameClaimGame). */
 export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to' || type === 'trivia'
+  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to' || type === 'trivia' || type === 'two_truths'
 }
 
 /** Import list + claim your name when joining (no gender) — Who Said This & Hot Seat (import mode). */
@@ -973,6 +1021,10 @@ export function isCodewordsGame(gameType: GameType | string | undefined): boolea
 
 export function isTriviaGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'trivia'
+}
+
+export function isTwoTruthsGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'two_truths'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

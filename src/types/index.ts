@@ -23,6 +23,7 @@ export type GameType =
   | 'bingo'
   | 'codewords'
   | 'trivia'
+  | 'two_truths'
 export type TriviaCategory = 'tech' | 'general'
 export type BingoCallMode = 'manual' | 'auto'
 export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
@@ -119,7 +120,7 @@ export interface Game {
   created_at: string
   /** Anonymous room — when the live session started (15 min cap). */
   session_started_at?: string | null
-  /** Lobby cap for joiner modes (anonymous 2–20, bingo 2–30, codewords 2–12). */
+  /** Lobby cap for joiner modes (anonymous 2–20, bingo 2–30, codewords 4–20). */
   max_players?: number | null
   /** Anonymous room — last time a batch of old messages was trimmed. */
   anonymous_messages_trimmed_at?: string | null
@@ -169,6 +170,34 @@ export interface TriviaAnswer {
   points: number
 }
 
+export interface TtlMetadata {
+  statements: [string, string, string]
+  lie_index: number
+}
+
+export interface TtlStatement {
+  id: string
+  game_id: string
+  player_id: string
+  statement_a: string
+  statement_b: string
+  statement_c: string
+  lie_index: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TtlGuess {
+  id: string
+  game_id: string
+  round_id: string
+  player_id: string
+  guessed_index: number
+  is_correct: boolean
+  points: number
+  guessed_at: string
+}
+
 export interface Participant {
   id: string
   game_id: string
@@ -213,6 +242,7 @@ export interface Round {
   ended_at: string | null
   anime_metadata?: AnimeMetadata | null
   trivia_metadata?: TriviaMetadata | null
+  ttl_metadata?: TtlMetadata | null
 }
 
 export type PairFlag = 'kiss' | 'kill'

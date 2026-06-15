@@ -73,11 +73,13 @@ import {
   isBingoGame,
   isCodewordsGame,
   isTriviaGame,
+  isTwoTruthsGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
 import { BingoPlayerView } from '@/components/bingo/BingoPlayerView'
 import { TriviaPlayerView } from '@/components/trivia/TriviaPlayerView'
+import { TwoTruthsPlayerView } from '@/components/two-truths/TwoTruthsPlayerView'
 import { CodewordsPlayerView } from '@/components/codewords/CodewordsPlayerView'
 import {
   ParticipantRoundResults,
@@ -1207,6 +1209,10 @@ export default function GamePage() {
   }
   if (game && isTriviaGame(game.game_type)) {
     return <TriviaPlayerView gameCode={gameCode} />
+  }
+
+  if (game && isTwoTruthsGame(game.game_type)) {
+    return <TwoTruthsPlayerView gameCode={gameCode} />
   }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />

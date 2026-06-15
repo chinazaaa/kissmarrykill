@@ -52,6 +52,7 @@ const gameTypeEnum = z.enum([
   'bingo',
   'codewords',
   'trivia',
+  'two_truths',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -408,6 +409,36 @@ export const triviaAdvanceSchema = z.object({
 
 export type TriviaAdvanceInput = z.infer<typeof triviaAdvanceSchema>
 
+const ttlStatementText = sanitizedString(1, 200)
+
+export const ttlStatementSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  statementA: ttlStatementText,
+  statementB: ttlStatementText,
+  statementC: ttlStatementText,
+  lieIndex: z.coerce.number().int().min(0).max(2),
+})
+
+export type TtlStatementInput = z.infer<typeof ttlStatementSchema>
+
+export const ttlGuessSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  guessedIndex: z.coerce.number().int().min(0).max(2),
+})
+
+export type TtlGuessInput = z.infer<typeof ttlGuessSchema>
+
+export const ttlAdvanceSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: z.string().min(1).optional(),
+  force: z.boolean().optional(),
+})
+
+export type TtlAdvanceInput = z.infer<typeof ttlAdvanceSchema>
+
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
 
@@ -510,6 +541,7 @@ const feedbackGameTypeEnum = z.enum([
   'bingo',
   'codewords',
   'trivia',
+  'two_truths',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])
