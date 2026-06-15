@@ -39,6 +39,7 @@ import {
   isCodewordsGame,
   isTriviaGame,
   isTwoTruthsGame,
+  isMonopolyGame,
   isWouldYouRather,
   isThisOrThat,
   isMostLikelyTo,
@@ -113,6 +114,7 @@ import {
   TTL_DEFAULT_TIMER,
   TTL_TIMER_OPTIONS,
 } from '@/lib/two-truths'
+import { MONOPOLY_DEFAULT_MAX_PLAYERS } from '@/lib/monopoly'
 import {
   getCodeDefaultLimits,
   playerCountOptions,
@@ -199,6 +201,7 @@ function CreateGameInner() {
   const [triviaCategory, setTriviaCategory] = useState<TriviaCategory>('general')
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
   const [ttlMaxPlayers, setTtlMaxPlayers] = useState(TTL_DEFAULT_MAX_PLAYERS)
+  const [monopolyMaxPlayers, setMonopolyMaxPlayers] = useState(MONOPOLY_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
@@ -221,6 +224,7 @@ function CreateGameInner() {
     setCodewordsMaxPlayers((v) => clamp('codewords', v))
     setTriviaMaxPlayers((v) => clamp('trivia', v))
     setTtlMaxPlayers((v) => clamp('two_truths', v))
+    setMonopolyMaxPlayers((v) => clamp('monopoly', v))
   }, [lobbyLimits])
 
   useEffect(() => {
@@ -264,6 +268,13 @@ function CreateGameInner() {
               timer_seconds: TTL_DEFAULT_TIMER,
             }
           : {}),
+        ...(isMonopolyGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -292,6 +303,7 @@ function CreateGameInner() {
   const isMlt = isMostLikelyTo(settings.game_type)
   const isTrivia = isTriviaGame(settings.game_type)
   const isTwoTruths = isTwoTruthsGame(settings.game_type)
+  const isMonopoly = isMonopolyGame(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
   const hotSeatCreateCapUpper = isHotSeatGame ? hotSeatMaxCapUpperBound(0, participants.length) : 20
@@ -355,7 +367,7 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
@@ -405,6 +417,21 @@ function CreateGameInner() {
             anonymous: true,
             rounds_count: TRIVIA_DEFAULT_ROUNDS,
             timer_seconds: TRIVIA_DEFAULT_TIMER,
+          }
+        : {}),
+      ...(isTwoTruthsGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: TTL_DEFAULT_TIMER,
+          }
+        : {}),
+      ...(isMonopolyGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
           }
         : {}),
       ...(isWhoSaidThis(type)
@@ -733,6 +760,8 @@ function CreateGameInner() {
                   ? triviaMaxPlayers
                   : isTwoTruths
                     ? ttlMaxPlayers
+                    : isMonopoly
+                      ? monopolyMaxPlayers
                     : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
@@ -935,6 +964,26 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Everyone writes two truths and one lie in the lobby. Each round spotlights one player — the rest guess
                   which statement is the lie. Correct guesses earn points; fool the room for bonus points.
+                </p>
+              </SettingsGroup>
+            ) : isMonopoly ? (
+              <SettingsGroup title="Monopoly room">
+                <Field label={`Max players (${effectiveLimits.monopoly.min}–${effectiveLimits.monopoly.max})`}>
+                  <select
+                    value={monopolyMaxPlayers}
+                    onChange={(e) => setMonopolyMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.monopoly.min, effectiveLimits.monopoly.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Players join with their name and start on GO with $1,500. Take turns rolling dice, buying properties,
+                  paying rent, and drawing cards. Last player standing wins!
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (

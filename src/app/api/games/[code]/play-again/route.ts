@@ -9,10 +9,12 @@ import {
   isCodewordsGame,
   isTriviaGame,
   isTwoTruthsGame,
+  isMonopolyGame,
 } from '@/lib/game-types'
 import { clearAnonymousRoomSessionData, reopenSecretMessageBoard } from '@/lib/anonymous-messages'
 import { clearBingoSessionData } from '@/lib/bingo'
 import { clearCodewordsRoundData } from '@/lib/codewords'
+import { clearMonopolySessionData } from '@/lib/monopoly'
 import { clearTriviaSessionData } from '@/lib/trivia'
 import { clearTwoTruthsSessionData } from '@/lib/two-truths'
 import {
@@ -213,6 +215,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isTwoTruthsGame(gameType)) {
     const { error: clearError } = await clearTwoTruthsSessionData(supabase, gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isMonopolyGame(gameType)) {
+    const { error: clearError } = await clearMonopolySessionData(supabase, gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 

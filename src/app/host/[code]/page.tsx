@@ -46,6 +46,7 @@ import {
   isCodewordsGame,
   isTriviaGame,
   isTwoTruthsGame,
+  isMonopolyGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
@@ -55,6 +56,7 @@ import { BingoHostView } from '@/components/bingo/BingoHostView'
 import { TriviaHostView } from '@/components/trivia/TriviaHostView'
 import { TwoTruthsHostView } from '@/components/two-truths/TwoTruthsHostView'
 import { CodewordsHostView } from '@/components/codewords/CodewordsHostView'
+import { MonopolyHostView } from '@/components/monopoly/MonopolyHostView'
 import {
   getCustomSlots,
   tallyCustomVotes,
@@ -1270,6 +1272,10 @@ export default function HostPage() {
 
   if (game && isTwoTruthsGame(game.game_type)) {
     return <TwoTruthsHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isMonopolyGame(game.game_type)) {
+    return <MonopolyHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {

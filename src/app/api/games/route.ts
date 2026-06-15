@@ -27,6 +27,7 @@ import {
   isCodewordsGame,
   isTriviaGame,
   isTwoTruthsGame,
+  isMonopolyGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
     custom_questions = cqParsed
   }
 
-  const participant_mode: ParticipantMode = isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type)
+  const participant_mode: ParticipantMode = isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type) || isMonopolyGame(game_type)
     ? 'joiners'
     : isWhoSaidThis(game_type)
       ? 'import'
@@ -212,7 +213,7 @@ export async function POST(req: NextRequest) {
   }
 
   const maxRounds = lobbyMaxRounds(game_type, question_source, custom_questions)
-  const roundsCount = isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isBingoGame(game_type) || isCodewordsGame(game_type) || isTwoTruthsGame(game_type)
+  const roundsCount = isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isBingoGame(game_type) || isCodewordsGame(game_type) || isTwoTruthsGame(game_type) || isMonopolyGame(game_type)
     ? 1
     : isWhoSaidThis(game_type)
       ? wstAutoRoundCount(participants.length)
@@ -257,6 +258,8 @@ export async function POST(req: NextRequest) {
           ? resolveMaxPlayers('trivia', rawMaxPlayers, lobbyDefaultMaxPlayers('trivia', lobbyLimits))
           : isTwoTruthsGame(game_type)
             ? resolveMaxPlayers('two_truths', rawMaxPlayers, lobbyDefaultMaxPlayers('two_truths', lobbyLimits))
+            : isMonopolyGame(game_type)
+              ? resolveMaxPlayers('monopoly', rawMaxPlayers, lobbyDefaultMaxPlayers('monopoly', lobbyLimits))
             : null
   const isSecret = isSecretMessageGame(game_type)
 

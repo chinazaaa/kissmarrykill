@@ -720,6 +720,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  monopoly: {
+    id: 'monopoly',
+    label: 'Monopoly',
+    tagline: 'Classic board game — roll, buy properties, and bankrupt your friends',
+    headerEmoji: '🎲🏠',
+    card: {
+      accent: '#16a34a',
+      accentSoft: 'rgba(22, 163, 74, 0.15)',
+      emoji: '🎲',
+      players: '2–6 players',
+      vibe: 'Board game night',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '💵',
+        label: 'Cash',
+        color: '#22c55e',
+        leaderboardLabel: 'Most cash',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '🏠',
+        label: 'Property',
+        color: '#3b82f6',
+        leaderboardLabel: 'Most properties',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Winner',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winner',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -749,6 +792,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'codewords',
   'trivia',
   'two_truths',
+  'monopoly',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -767,6 +811,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'codewords') return 'codewords'
   if (raw === 'trivia') return 'trivia'
   if (raw === 'two_truths') return 'two_truths'
+  if (raw === 'monopoly') return 'monopoly'
   return 'smash_marry_kill'
 }
 
@@ -805,6 +850,8 @@ export function gameHowItWorks(
       return 'Players join with their name. Each round shows a multiple-choice question — fastest correct answers score the most. Pick Tech or General Knowledge, or upload your own CSV. Live leaderboard tracks who is winning.'
     case 'two_truths':
       return 'Everyone joins with their name and submits two truths plus one lie in the lobby. Each round features one player — everyone else guesses which statement is the lie. Spot the fib for points; fool the room for bonus points.'
+    case 'monopoly':
+      return 'Players join with their name. Everyone starts on GO with $1,500. Take turns rolling dice, buying properties, paying rent, and drawing cards. Last player standing wins!'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -1016,7 +1063,7 @@ type LobbyCounts = { participantMode?: string; participantCount: number }
 /** WYR + MLT + This or That player join: free name entry, no list. Hot Seat uses import + name claim (see isImportNameClaimGame). */
 export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to' || type === 'trivia' || type === 'two_truths'
+  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to' || type === 'trivia' || type === 'two_truths' || type === 'monopoly'
 }
 
 /** Import list + claim your name when joining (no gender) — Who Said This & Hot Seat (import mode). */
@@ -1083,6 +1130,10 @@ export function isTriviaGame(gameType: GameType | string | undefined): boolean {
 
 export function isTwoTruthsGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'two_truths'
+}
+
+export function isMonopolyGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'monopoly'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

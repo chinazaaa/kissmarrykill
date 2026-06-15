@@ -32,6 +32,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   codewords: 'codewords',
   trivia: 'trivia',
   two_truths: 'two-truths-and-a-lie',
+  monopoly: 'monopoly',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -553,6 +554,36 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Score points', description: 'Correct guesses earn points; fool the most people for bonus points.' },
     ],
     perfectFor: ['Icebreakers', 'Team offsites', 'Classrooms', 'Friend groups'],
+  }),
+
+  monopoly: landing('monopoly', {
+    seoTitle: 'Monopoly — Free Online Board Game for Groups',
+    seoDescription:
+      'Play Monopoly online with friends. Roll dice, buy properties, pay rent, and bankrupt your opponents — all on your phones.',
+    keywords: ['online monopoly game', 'free monopoly multiplayer', 'board game night', 'property game online'],
+    heroSubtitle:
+      'Classic Monopoly on your phones. Join a room, roll the dice, buy properties, and be the last player standing.',
+    highlights: ['Full 40-space board', '2–6 players', 'Real-time turns'],
+    features: [
+      {
+        title: 'Classic board',
+        description: 'All the familiar spaces — properties, railroads, utilities, Chance, and Community Chest.',
+        emoji: '🏠',
+      },
+      {
+        title: 'Turn-based play',
+        description: 'Roll dice, buy or pass on properties, pay rent, and manage jail — just like the board game.',
+        emoji: '🎲',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Create a room', description: 'Set the player cap and share the link — everyone joins with their name.' },
+      { title: 'Start the game', description: 'Everyone begins on GO with $1,500. The host starts when ready.' },
+      { title: 'Last one wins', description: 'Buy properties, collect rent, and bankrupt opponents until one player remains.' },
+    ],
+    perfectFor: ['Game nights', 'Family gatherings', 'Friend groups', 'Remote hangouts'],
   }),
 }
 

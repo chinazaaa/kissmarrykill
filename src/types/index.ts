@@ -25,6 +25,7 @@ export type GameType =
   | 'trivia'
   | 'two_truths'
   | 'parent_approval'
+  | 'monopoly'
 export type TriviaCategory = 'tech' | 'general'
 export type BingoCallMode = 'manual' | 'auto'
 export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
@@ -143,6 +144,38 @@ export interface Game {
   bingo_call_mode?: BingoCallMode | null
   /** Bingo — seconds between automatic number calls. */
   bingo_call_interval_seconds?: number | null
+}
+
+export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'finished'
+
+export interface MonopolyBoard {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: MonopolyPhase
+  last_dice: { d1: number; d2: number; total: number; doubles: boolean } | null
+  consecutive_doubles: number
+  property_owners: Record<string, string>
+  pending_space: number | null
+  status_message: string | null
+  winner_player_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MonopolyPlayerState {
+  id: string
+  game_id: string
+  player_id: string
+  position: number
+  cash: number
+  in_jail: boolean
+  jail_turns: number
+  get_out_of_jail_free: number
+  bankrupt: boolean
+  player_order: number
+  created_at: string
 }
 
 export interface TriviaQuestion {

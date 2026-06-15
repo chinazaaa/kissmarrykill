@@ -54,6 +54,7 @@ const gameTypeEnum = z.enum([
   'codewords',
   'trivia',
   'two_truths',
+  'monopoly',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -401,7 +402,7 @@ export const patchGamePlayerLimitsSchema = z.object({
   limits: z
     .array(
       z.object({
-        game_type: z.enum(['anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths']),
+        game_type: z.enum(['anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths', 'monopoly']),
         max_players: z.coerce.number().int().min(2).max(100),
       })
     )
@@ -456,6 +457,23 @@ export const ttlAdvanceSchema = z.object({
 })
 
 export type TtlAdvanceInput = z.infer<typeof ttlAdvanceSchema>
+
+export const monopolyActionSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const monopolyBuySchema = monopolyActionSchema.extend({
+  buy: z.boolean(),
+})
+
+export const monopolyJailSchema = monopolyActionSchema.extend({
+  method: z.enum(['pay', 'card']),
+})
+
+export type MonopolyActionInput = z.infer<typeof monopolyActionSchema>
+export type MonopolyBuyInput = z.infer<typeof monopolyBuySchema>
+export type MonopolyJailInput = z.infer<typeof monopolyJailSchema>
 
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
@@ -561,6 +579,7 @@ const feedbackGameTypeEnum = z.enum([
   'codewords',
   'trivia',
   'two_truths',
+  'monopoly',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])

@@ -8,6 +8,11 @@ import { BINGO_DEFAULT_MAX_PLAYERS, BINGO_MAX_PLAYERS, BINGO_MIN_PLAYERS } from 
 import { CODEWORDS_DEFAULT_MAX_PLAYERS, CODEWORDS_MAX_PLAYERS, CODEWORDS_MIN_PLAYERS } from '@/lib/codewords'
 import { TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_MAX_PLAYERS, TRIVIA_MIN_PLAYERS } from '@/lib/trivia'
 import { TTL_DEFAULT_MAX_PLAYERS, TTL_MAX_PLAYERS, TTL_MIN_PLAYERS } from '@/lib/two-truths'
+import {
+  MONOPOLY_DEFAULT_MAX_PLAYERS,
+  MONOPOLY_MAX_PLAYERS,
+  MONOPOLY_MIN_PLAYERS,
+} from '@/lib/monopoly'
 
 export const LOBBY_LIMIT_GAME_TYPES = [
   'anonymous_messages',
@@ -15,6 +20,7 @@ export const LOBBY_LIMIT_GAME_TYPES = [
   'codewords',
   'trivia',
   'two_truths',
+  'monopoly',
 ] as const
 
 export type LobbyLimitGameType = (typeof LOBBY_LIMIT_GAME_TYPES)[number]
@@ -56,6 +62,11 @@ export const GAME_LIMIT_CODE_DEFAULTS: GamePlayerLimitsMap = {
     max: TTL_MAX_PLAYERS,
     default: TTL_DEFAULT_MAX_PLAYERS,
   },
+  monopoly: {
+    min: MONOPOLY_MIN_PLAYERS,
+    max: MONOPOLY_MAX_PLAYERS,
+    default: MONOPOLY_DEFAULT_MAX_PLAYERS,
+  },
 }
 
 export function isLobbyLimitGameType(value: string): value is LobbyLimitGameType {
@@ -69,6 +80,7 @@ export function getCodeDefaultLimits(): GamePlayerLimitsMap {
     codewords: { ...GAME_LIMIT_CODE_DEFAULTS.codewords },
     trivia: { ...GAME_LIMIT_CODE_DEFAULTS.trivia },
     two_truths: { ...GAME_LIMIT_CODE_DEFAULTS.two_truths },
+    monopoly: { ...GAME_LIMIT_CODE_DEFAULTS.monopoly },
   }
 }
 
