@@ -42,7 +42,6 @@ export function TwoTruthsActiveRound({
   const { error: toastError } = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [submittingIndex, setSubmittingIndex] = useState<number | null>(null)
-  const [lastResult, setLastResult] = useState<{ isCorrect: boolean; points: number } | null>(null)
   const [timeExpired, setTimeExpired] = useState(false)
 
   const currentRound = useMemo(() => {
@@ -78,12 +77,11 @@ export function TwoTruthsActiveRound({
       return 'waiting'
     }
     if (isFeatured) return 'featured'
-    if (myGuess || lastResult || timeExpired) return 'locked'
+    if (myGuess || timeExpired) return 'locked'
     return 'active'
-  }, [game.status, currentRound, isFeatured, myGuess, lastResult, timeExpired])
+  }, [game.status, currentRound, isFeatured, myGuess, timeExpired])
 
   useEffect(() => {
-    setLastResult(null)
     setTimeExpired(false)
     setSubmittingIndex(null)
   }, [currentRound?.id])
@@ -120,7 +118,6 @@ export function TwoTruthsActiveRound({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to guess')
-      setLastResult({ isCorrect: data.isCorrect, points: data.points })
       playVoteSubmittedSound()
       await onReload?.()
     } catch (err) {
@@ -131,7 +128,8 @@ export function TwoTruthsActiveRound({
     }
   }
 
-  const showLie = screen === 'revealed' || screen === 'finished' || timeExpired || !!myGuess
+  const showLie = screen === 'revealed' || screen === 'finished'
+  const pickedIndex = myGuess?.guessed_index ?? null
 
   if (screen === 'finished') {
     return (
@@ -203,6 +201,7 @@ export function TwoTruthsActiveRound({
       <div className="space-y-3">
         {metadata.statements.map((statement, index) => {
           const isLie = showLie && index === metadata.lie_index
+          const isPicked = pickedIndex === index && (screen === 'locked' || screen === 'revealed')
           const canPick = screen === 'active' && !submitting
           return (
             <button
@@ -214,9 +213,11 @@ export function TwoTruthsActiveRound({
                 'w-full text-left glass-card p-4 transition-all border-2',
                 isLie
                   ? 'border-violet-500/60 bg-violet-500/10'
-                  : showLie
-                    ? 'border-[var(--border-strong)] opacity-80'
-                    : 'border-[var(--border-strong)] hover:border-[var(--primary)]/40',
+                  : isPicked
+                    ? 'border-[var(--primary)]/50 bg-[var(--primary)]/5'
+                    : showLie
+                      ? 'border-[var(--border-strong)] opacity-80'
+                      : 'border-[var(--border-strong)] hover:border-[var(--primary)]/40',
                 canPick ? 'cursor-pointer' : 'cursor-default',
               ].join(' ')}
             >
@@ -227,6 +228,9 @@ export function TwoTruthsActiveRound({
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold leading-snug">{statement}</p>
                   {isLie && <p className="text-violet-600 dark:text-violet-300 text-xs font-bold mt-1">🤥 The lie</p>}
+                  {isPicked && !isLie && screen === 'locked' && (
+                    <p className="text-faint text-xs mt-1">Your guess</p>
+                  )}
                   {submittingIndex === index && <p className="text-faint text-xs mt-1">Submitting…</p>}
                 </div>
               </div>
@@ -235,14 +239,22 @@ export function TwoTruthsActiveRound({
         })}
       </div>
 
-      {screen === 'locked' && lastResult && (
+      {screen === 'locked' && (
+        <div className="glass-card p-4 text-center text-sm text-muted">
+          {myGuess
+            ? 'Guess locked in — results when everyone finishes or time runs out'
+            : "Time's up — waiting for results…"}
+        </div>
+      )}
+
+      {screen === 'revealed' && myGuess && (
         <div
           className={[
             'glass-card p-4 text-center font-semibold',
-            lastResult.isCorrect ? 'text-emerald-700 dark:text-emerald-200' : 'text-muted',
+            myGuess.is_correct ? 'text-emerald-700 dark:text-emerald-200' : 'text-muted',
           ].join(' ')}
         >
-          {lastResult.isCorrect ? `Correct! +${lastResult.points} pts` : 'Not the lie — better luck next round'}
+          {myGuess.is_correct ? `Correct! +${myGuess.points} pts` : 'Not the lie — better luck next round'}
         </div>
       )}
 

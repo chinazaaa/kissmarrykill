@@ -6,7 +6,7 @@ import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { anonymousPlayerCanChat, anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
 import { bingoMaxPlayers, createBingoCardForPlayer } from '@/lib/bingo'
-import { codewordsMaxPlayers } from '@/lib/codewords'
+import { codewordsMaxPlayers, codewordsAllowsPlayerChanges, removeCodewordsPlayer } from '@/lib/codewords'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import {
@@ -933,6 +933,12 @@ export async function DELETE(req: NextRequest) {
       }
       game = hostGame
       id = code
+    } else if (isCodewordsGame(parseGameType(hostGame.game_type))) {
+      if (!codewordsAllowsPlayerChanges(hostGame.status)) {
+        return NextResponse.json({ error: 'Players can only be removed while the lobby or game is open' }, { status: 400 })
+      }
+      game = hostGame
+      id = code
     } else {
       const auth = await assertHostGame(supabase, gameCode, hostToken)
       if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
@@ -940,10 +946,22 @@ export async function DELETE(req: NextRequest) {
       id = auth.id
     }
   } else {
-    const waiting = await assertWaitingGame(gameCode)
-    if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })
-    game = waiting.game
-    id = waiting.id
+    const code = gameCode.toUpperCase()
+    const { data: leaveGame } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
+    if (!leaveGame) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
+
+    if (isCodewordsGame(parseGameType(leaveGame.game_type))) {
+      if (!codewordsAllowsPlayerChanges(leaveGame.status)) {
+        return NextResponse.json({ error: 'This round has ended' }, { status: 400 })
+      }
+      game = leaveGame
+      id = code
+    } else {
+      const waiting = await assertWaitingGame(gameCode)
+      if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })
+      game = waiting.game
+      id = waiting.id
+    }
   }
 
   const { data: player } = await supabase
@@ -954,6 +972,14 @@ export async function DELETE(req: NextRequest) {
     .maybeSingle()
 
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+
+  const gameType = parseGameType((game as { game_type?: string }).game_type)
+
+  if (isCodewordsGame(gameType)) {
+    const { error } = await removeCodewordsPlayer(supabase, id, playerId)
+    if (error) return NextResponse.json({ error }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
 
   if (game!.participant_mode === 'joiners') {
     await deleteJoinerPair(supabase, id, player)

@@ -196,19 +196,26 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
         </div>
 
         {game.status === 'waiting' && !hostPlayerId && (
-          <div className="glass-card p-5 space-y-3">
+          <div className="glass-card p-4 space-y-3">
             <p className="label-caps">Join as player (optional)</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={hostJoinName}
-                onChange={(e) => setHostJoinName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                placeholder="Your name"
-                className="input-field flex-1"
-                maxLength={40}
-              />
-              <button type="button" onClick={hostJoinGame} disabled={!hostJoinName.trim() || hostJoining} className="btn-primary shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-36 sm:w-44 shrink-0">
+                <input
+                  type="text"
+                  value={hostJoinName}
+                  onChange={(e) => setHostJoinName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                  placeholder="Your name"
+                  className="input-field w-full"
+                  maxLength={40}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={hostJoinGame}
+                disabled={!hostJoinName.trim() || hostJoining}
+                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
+              >
                 {hostJoining ? 'Joining…' : 'Join'}
               </button>
             </div>

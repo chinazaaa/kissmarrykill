@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { CodewordsLeaveButton } from '@/components/codewords/CodewordsLeaveButton'
 import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
@@ -50,6 +51,31 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const [pickingTeam, setPickingTeam] = useState<CodewordsTeam | null>(null)
   const [pickingRole, setPickingRole] = useState<CodewordsRole | null>(null)
   const [savingRole, setSavingRole] = useState(false)
+  const myPlayerIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    myPlayerIdRef.current = myPlayerId
+  }, [myPlayerId])
+
+  const handlePlayerRemoved = useCallback(() => {
+    clearPlayerSession(gameCode)
+    setMyPlayerId(null)
+    setMyPlayerName('')
+    setMyRole(null)
+    setJoinName('')
+    setScreen('join')
+    toastError('You were removed from the game')
+  }, [gameCode, toastError])
+
+  const leaveGame = useCallback(() => {
+    myPlayerIdRef.current = null
+    clearPlayerSession(gameCode)
+    setMyPlayerId(null)
+    setMyPlayerName('')
+    setMyRole(null)
+    setJoinName('')
+    setScreen('join')
+  }, [gameCode])
 
   const refreshMyRole = useCallback(
     async (playerId: string | null) => {
@@ -171,7 +197,16 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
         void loadScoreboard()
       }
     },
-    onPlayers: (updater) => setAllPlayers(updater),
+    onPlayers: (updater) => {
+      setAllPlayers((prev) => {
+        const next = updater(prev)
+        const playerId = myPlayerIdRef.current
+        if (playerId && prev.some((p) => p.id === playerId) && !next.some((p) => p.id === playerId)) {
+          handlePlayerRemoved()
+        }
+        return next
+      })
+    },
     onRoles: (updater) => {
       setAllRoles((prev) => {
         const next = updater(prev)
@@ -312,6 +347,11 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
+  const leaveButton =
+    myPlayerId ? (
+      <CodewordsLeaveButton gameCode={gameCode} playerId={myPlayerId} onLeft={leaveGame} />
+    ) : null
+
   if (needsTeamPick || waitingInLobby) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
@@ -411,6 +451,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
               wins — but avoid the assassin!
             </p>
           </div>
+          {leaveButton}
         </div>
       </div>
     )
@@ -419,11 +460,14 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   if (screen === 'lobby' && myPlayerId && myRole) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
-        <CodewordsWaitingPanel
-          playerName={myPlayerName}
-          myRole={myRole}
-          playerCount={allPlayers.length}
-        />
+        <div className="w-full max-w-lg space-y-3">
+          <CodewordsWaitingPanel
+            playerName={myPlayerName}
+            myRole={myRole}
+            playerCount={allPlayers.length}
+          />
+          {leaveButton}
+        </div>
       </div>
     )
   }
@@ -438,6 +482,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             Hi {myPlayerName} — the host needs to place you on a team before you can play. Hang tight!
           </p>
           <p className="text-faint text-xs">You&apos;ll jump in automatically once you&apos;re assigned.</p>
+          {leaveButton}
         </div>
       </div>
     )
@@ -502,12 +547,15 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   if (!board || !myRole || !game || !myPlayerId) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
-        <CodewordsWaitingPanel
-          playerName={myPlayerName}
-          myRole={myRole}
-          playerCount={allPlayers.length}
-          variant="starting"
-        />
+        <div className="w-full max-w-lg space-y-3">
+          <CodewordsWaitingPanel
+            playerName={myPlayerName}
+            myRole={myRole}
+            playerCount={allPlayers.length}
+            variant="starting"
+          />
+          {leaveButton}
+        </div>
       </div>
     )
   }
@@ -532,6 +580,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
           onBoardChange={setBoard}
           onReload={load}
         />
+        {leaveButton && <div className="mt-4 max-w-md mx-auto">{leaveButton}</div>}
       </div>
     </div>
   )

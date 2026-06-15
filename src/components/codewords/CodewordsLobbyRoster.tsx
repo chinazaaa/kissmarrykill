@@ -14,29 +14,79 @@ function TeamSummaryLine({ team, roles }: { team: CodewordsTeam; roles: Codeword
   )
 }
 
+function PlayerManageButtons({
+  playerId,
+  hasRole,
+  benching,
+  removing,
+  onBenchPlayer,
+  onRemovePlayer,
+}: {
+  playerId: string
+  hasRole: boolean
+  benching: boolean
+  removing: boolean
+  onBenchPlayer?: (playerId: string) => void
+  onRemovePlayer?: (playerId: string) => void
+}) {
+  if (!onBenchPlayer && !onRemovePlayer) return null
+
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {hasRole && onBenchPlayer && (
+        <button
+          type="button"
+          onClick={() => onBenchPlayer(playerId)}
+          disabled={benching || removing}
+          className="text-[10px] font-semibold text-faint hover:text-amber-300 disabled:opacity-50"
+        >
+          {benching ? '…' : 'Waiting'}
+        </button>
+      )}
+      {onRemovePlayer && (
+        <button
+          type="button"
+          onClick={() => onRemovePlayer(playerId)}
+          disabled={benching || removing}
+          className="text-[10px] font-semibold text-faint hover:text-red-400 disabled:opacity-50"
+        >
+          {removing ? '…' : 'Remove'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function PlayerRow({
   player,
   role,
   team,
   saving,
   readOnly,
-  randomizeTeams,
+  benching,
+  removing,
   onSetSpymaster,
   onMoveTeam,
+  onBenchPlayer,
+  onRemovePlayer,
 }: {
   player: Player
   role: CodewordsPlayerRole
   team: CodewordsTeam
   saving: boolean
   readOnly?: boolean
-  randomizeTeams?: boolean
+  benching?: boolean
+  removing?: boolean
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
+  onBenchPlayer?: (playerId: string) => void
+  onRemovePlayer?: (playerId: string) => void
 }) {
   const other = otherTeam(team)
   const isSpymaster = role.role === 'spymaster'
+  const managePlayer = onBenchPlayer || onRemovePlayer
 
-  if (readOnly) {
+  if (readOnly && !managePlayer) {
     return (
       <div className="flex items-center gap-2 px-2 py-2 min-h-[2.75rem]">
         <span className="w-8 text-center shrink-0">{isSpymaster ? '🕵️' : ''}</span>
@@ -47,8 +97,27 @@ function PlayerRow({
     )
   }
 
+  if (readOnly && managePlayer) {
+    return (
+      <div className="flex items-center gap-2 px-2 py-2 min-h-[2.75rem]">
+        <span className="w-8 text-center shrink-0">{isSpymaster ? '🕵️' : ''}</span>
+        <span className="min-w-0 flex-1 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
+          {player.name}
+        </span>
+        <PlayerManageButtons
+          playerId={player.id}
+          hasRole
+          benching={!!benching}
+          removing={!!removing}
+          onBenchPlayer={onBenchPlayer}
+          onRemovePlayer={onRemovePlayer}
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className="grid grid-cols-[2rem_1fr_2.25rem] items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80 min-h-[2.75rem]">
+    <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80 min-h-[2.75rem]">
       <button
         type="button"
         onClick={() => onSetSpymaster(player.id, team)}
@@ -67,7 +136,7 @@ function PlayerRow({
       <span className="min-w-0 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
         {player.name}
       </span>
-      {!randomizeTeams && (
+      <div className="flex items-center gap-1 shrink-0">
         <button
           type="button"
           onClick={() => onMoveTeam(player.id, other)}
@@ -78,7 +147,15 @@ function PlayerRow({
         >
           {team === 'red' ? '→' : '←'}
         </button>
-      )}
+        <PlayerManageButtons
+          playerId={player.id}
+          hasRole
+          benching={!!benching}
+          removing={!!removing}
+          onBenchPlayer={onBenchPlayer}
+          onRemovePlayer={onRemovePlayer}
+        />
+      </div>
     </div>
   )
 }
@@ -87,43 +164,76 @@ function UnassignedRow({
   player,
   saving,
   randomizeTeams,
+  benching,
+  removing,
   onMoveTeam,
   onSetSpymaster,
+  onRemovePlayer,
 }: {
   player: Player
   saving: boolean
   randomizeTeams?: boolean
+  benching?: boolean
+  removing?: boolean
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
   onSetSpymaster?: (playerId: string, team: CodewordsTeam) => void
+  onRemovePlayer?: (playerId: string) => void
 }) {
   if (randomizeTeams && onSetSpymaster) {
     return (
-      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80 min-h-[2.75rem]">
-        <span className="min-w-0 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
-          {player.name}
-        </span>
-        <button
-          type="button"
-          onClick={() => onSetSpymaster(player.id, 'red')}
-          disabled={saving}
-          className="text-[11px] font-bold rounded-lg border border-red-500/40 bg-red-500/10 text-red-800 dark:text-red-100 px-2.5 py-1.5 disabled:opacity-50"
-        >
-          Red 🕵️
-        </button>
-        <button
-          type="button"
-          onClick={() => onSetSpymaster(player.id, 'blue')}
-          disabled={saving}
-          className="text-[11px] font-bold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-100 px-2.5 py-1.5 disabled:opacity-50"
-        >
-          Blue 🕵️
-        </button>
+      <div className="space-y-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80">
+        <div className="flex items-center justify-between gap-2 min-h-[2.75rem]">
+          <span className="min-w-0 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
+            {player.name}
+          </span>
+          <PlayerManageButtons
+            playerId={player.id}
+            hasRole={false}
+            benching={!!benching}
+            removing={!!removing}
+            onRemovePlayer={onRemovePlayer}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onSetSpymaster(player.id, 'red')}
+            disabled={saving}
+            className="text-[11px] font-bold rounded-lg border border-red-500/40 bg-red-500/10 text-red-800 dark:text-red-100 px-2.5 py-1.5 disabled:opacity-50"
+          >
+            Red 🕵️
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetSpymaster(player.id, 'blue')}
+            disabled={saving}
+            className="text-[11px] font-bold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-100 px-2.5 py-1.5 disabled:opacity-50"
+          >
+            Blue 🕵️
+          </button>
+          <button
+            type="button"
+            onClick={() => onMoveTeam(player.id, 'red')}
+            disabled={saving}
+            className="text-[11px] font-bold rounded-lg border border-red-500/40 bg-red-500/10 text-red-800 dark:text-red-100 px-2.5 py-1.5 disabled:opacity-50"
+          >
+            ← Red
+          </button>
+          <button
+            type="button"
+            onClick={() => onMoveTeam(player.id, 'blue')}
+            disabled={saving}
+            className="text-[11px] font-bold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-100 px-2.5 py-1.5 disabled:opacity-50"
+          >
+            Blue →
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80 min-h-[2.75rem]">
+    <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80 min-h-[2.75rem]">
       <span className="min-w-0 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
         {player.name}
       </span>
@@ -143,6 +253,13 @@ function UnassignedRow({
       >
         Blue →
       </button>
+      <PlayerManageButtons
+        playerId={player.id}
+        hasRole={false}
+        benching={!!benching}
+        removing={!!removing}
+        onRemovePlayer={onRemovePlayer}
+      />
     </div>
   )
 }
@@ -152,19 +269,25 @@ function TeamColumn({
   players,
   roles,
   savingRoleFor,
+  benchingPlayerId,
+  removingPlayerId,
   readOnly,
-  randomizeTeams,
   onSetSpymaster,
   onMoveTeam,
+  onBenchPlayer,
+  onRemovePlayer,
 }: {
   team: CodewordsTeam
   players: Player[]
   roles: CodewordsPlayerRole[]
   savingRoleFor: string | null
+  benchingPlayerId?: string | null
+  removingPlayerId?: string | null
   readOnly?: boolean
-  randomizeTeams?: boolean
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
+  onBenchPlayer?: (playerId: string) => void
+  onRemovePlayer?: (playerId: string) => void
 }) {
   const roleByPlayer = new Map(roles.map((r) => [r.player_id, r]))
   const roster = players
@@ -200,9 +323,12 @@ function TeamColumn({
               team={team}
               saving={savingRoleFor === player.id}
               readOnly={readOnly}
-              randomizeTeams={randomizeTeams}
+              benching={benchingPlayerId === player.id}
+              removing={removingPlayerId === player.id}
               onSetSpymaster={onSetSpymaster}
               onMoveTeam={onMoveTeam}
+              onBenchPlayer={onBenchPlayer}
+              onRemovePlayer={onRemovePlayer}
             />
           ))
         )}
@@ -215,18 +341,26 @@ export function CodewordsLobbyRoster({
   players,
   roles,
   savingRoleFor,
+  benchingPlayerId,
+  removingPlayerId,
   readOnly = false,
   randomizeTeams = false,
   onSetSpymaster,
   onMoveTeam,
+  onBenchPlayer,
+  onRemovePlayer,
 }: {
   players: Player[]
   roles: CodewordsPlayerRole[]
   savingRoleFor: string | null
+  benchingPlayerId?: string | null
+  removingPlayerId?: string | null
   readOnly?: boolean
   randomizeTeams?: boolean
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
+  onBenchPlayer?: (playerId: string) => void
+  onRemovePlayer?: (playerId: string) => void
 }) {
   const roleByPlayer = new Map(roles.map((r) => [r.player_id, r]))
   const unassigned = players.filter((p) => !roleByPlayer.has(p.id))
@@ -239,20 +373,26 @@ export function CodewordsLobbyRoster({
           players={players}
           roles={roles}
           savingRoleFor={savingRoleFor}
+          benchingPlayerId={benchingPlayerId}
+          removingPlayerId={removingPlayerId}
           readOnly={readOnly}
-          randomizeTeams={randomizeTeams}
           onSetSpymaster={onSetSpymaster}
           onMoveTeam={onMoveTeam}
+          onBenchPlayer={onBenchPlayer}
+          onRemovePlayer={onRemovePlayer}
         />
         <TeamColumn
           team="blue"
           players={players}
           roles={roles}
           savingRoleFor={savingRoleFor}
+          benchingPlayerId={benchingPlayerId}
+          removingPlayerId={removingPlayerId}
           readOnly={readOnly}
-          randomizeTeams={randomizeTeams}
           onSetSpymaster={onSetSpymaster}
           onMoveTeam={onMoveTeam}
+          onBenchPlayer={onBenchPlayer}
+          onRemovePlayer={onRemovePlayer}
         />
       </div>
 
@@ -264,9 +404,25 @@ export function CodewordsLobbyRoster({
           </div>
           <div className="max-h-48 overflow-y-auto p-1">
             {unassigned.map((player) =>
-              readOnly ? (
+              readOnly && !onRemovePlayer ? (
                 <div key={player.id} className="px-2 py-2 text-sm font-semibold truncate" title={player.name}>
                   {player.name}
+                </div>
+              ) : readOnly ? (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-between gap-2 px-2 py-2 min-h-[2.75rem]"
+                >
+                  <span className="min-w-0 text-sm font-semibold truncate" title={player.name}>
+                    {player.name}
+                  </span>
+                  <PlayerManageButtons
+                    playerId={player.id}
+                    hasRole={false}
+                    benching={benchingPlayerId === player.id}
+                    removing={removingPlayerId === player.id}
+                    onRemovePlayer={onRemovePlayer}
+                  />
                 </div>
               ) : (
                 <UnassignedRow
@@ -274,8 +430,11 @@ export function CodewordsLobbyRoster({
                   player={player}
                   saving={savingRoleFor === player.id}
                   randomizeTeams={randomizeTeams}
+                  benching={benchingPlayerId === player.id}
+                  removing={removingPlayerId === player.id}
                   onMoveTeam={onMoveTeam}
                   onSetSpymaster={onSetSpymaster}
+                  onRemovePlayer={onRemovePlayer}
                 />
               )
             )}
@@ -283,11 +442,16 @@ export function CodewordsLobbyRoster({
           {!readOnly && (
             <p className="text-faint text-[11px] px-3 pb-2 leading-relaxed">
               {randomizeTeams
-                ? 'Tap Red 🕵️ or Blue 🕵️ to pick each team’s spymaster. Shuffle teams before starting.'
+                ? 'Pick spymasters with 🕵️ or add operatives with ← Red / Blue →. Shuffle to auto-fill, then tweak with arrows.'
                 : 'Use ← Red or Blue → to add players to a team.'}
             </p>
           )}
-          {readOnly && (
+          {readOnly && onBenchPlayer && (
+            <p className="text-faint text-[11px] px-3 pb-2 leading-relaxed">
+              Waiting moves a player off their team. Remove kicks them from the game.
+            </p>
+          )}
+          {readOnly && !onBenchPlayer && (
             <p className="text-faint text-[11px] px-3 pb-2 leading-relaxed">
               Return to lobby to assign these players.
             </p>

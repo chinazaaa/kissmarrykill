@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const isCorrect = guessedIndex === metadata.lie_index
   const points = isCorrect ? TTL_GUESS_POINTS : 0
 
-  const { data: inserted, error } = await supabase
+  const { error } = await supabase
     .from('ttl_guesses')
     .insert({
       game_id: code,
@@ -61,16 +61,8 @@ export async function POST(req: NextRequest) {
       is_correct: isCorrect,
       points,
     })
-    .select()
-    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({
-    success: true,
-    isCorrect,
-    points,
-    lieIndex: metadata.lie_index,
-    guess: inserted,
-  })
+  return NextResponse.json({ success: true })
 }

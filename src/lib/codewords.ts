@@ -493,6 +493,34 @@ export async function clearCodewordsRoundData(
   return { error: null }
 }
 
+export function codewordsAllowsPlayerChanges(status: string): boolean {
+  return status === 'waiting' || status === 'active'
+}
+
+export async function removeCodewordsPlayerRole(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerId: string
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('codewords_player_roles')
+    .delete()
+    .eq('game_id', gameId)
+    .eq('player_id', playerId)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+export async function removeCodewordsPlayer(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerId: string
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
 /** Clears board, guesses, and team assignments — use only for a full session reset. */
 export async function clearCodewordsSessionData(
   supabase: SupabaseClient,

@@ -45,6 +45,10 @@ export function CodewordsHostManagePanel({
   onRandomizeTeams,
   onPlayAgain,
   onEndSession,
+  onBenchPlayer,
+  onRemovePlayer,
+  benchingPlayerId,
+  removingPlayerId,
   randomizingTeams = false,
   showSpectatorBoard = true,
 }: {
@@ -71,6 +75,10 @@ export function CodewordsHostManagePanel({
   onRandomizeTeams?: () => void
   onPlayAgain: () => void
   onEndSession: () => void
+  onBenchPlayer?: (playerId: string) => void
+  onRemovePlayer?: (playerId: string) => void
+  benchingPlayerId?: string | null
+  removingPlayerId?: string | null
   randomizingTeams?: boolean
   showSpectatorBoard?: boolean
 }) {
@@ -164,8 +172,8 @@ export function CodewordsHostManagePanel({
                   <>
                     {randomizeTeams ? (
                       <>
-                        Pick one red and one blue spymaster. Shuffle teams to preview assignments, or start to
-                        shuffle automatically.
+                        Pick one red and one blue spymaster, then shuffle to fill operatives. Use arrows to move
+                        anyone afterward.
                         {lateJoin ? ' New players can join mid-game.' : ' Lobby locked once the game starts.'}
                       </>
                     ) : (
@@ -177,7 +185,9 @@ export function CodewordsHostManagePanel({
                     )}
                   </>
                 ) : (
-                  'Team lineup is locked for this round. Return to lobby to change teams or timers.'
+                  <>
+                    Team lineup for this round. Use Waiting to unassign a player, or Remove to kick them from the game.
+                  </>
                 )}
               </p>
             </div>
@@ -199,10 +209,14 @@ export function CodewordsHostManagePanel({
             players={players}
             roles={roles}
             savingRoleFor={savingRoleFor}
+            benchingPlayerId={benchingPlayerId}
+            removingPlayerId={removingPlayerId}
             readOnly={!inLobby}
             randomizeTeams={randomizeTeams && inLobby}
             onSetSpymaster={handleSetSpymaster}
             onMoveTeam={onMoveTeam}
+            onBenchPlayer={onBenchPlayer}
+            onRemovePlayer={onRemovePlayer}
           />
 
           {inLobby && (
