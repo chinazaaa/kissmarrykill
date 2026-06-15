@@ -384,7 +384,7 @@ export const codewordsRoleSchema = z.object({
 export const codewordsClueSchema = z.object({
   gameId: gameCodeString(),
   playerId: uuidString('playerId'),
-  clueWord: sanitizedString(1, 40),
+  clueWord: sanitizedString(1, 40).refine((s) => !/\s/.test(s), 'Clue must be one word (no spaces)'),
   clueNumber: z.coerce.number().int().min(0).max(9),
 })
 

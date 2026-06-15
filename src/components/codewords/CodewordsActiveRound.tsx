@@ -12,6 +12,7 @@ import {
   waitingTurnMessage,
 } from '@/lib/codewords'
 import { useCodewordsTurnTimer } from '@/hooks/useCodewordsTurnTimer'
+import { useCodewordsNotifications, useCodewordsTimerAlerts } from '@/hooks/useCodewordsNotifications'
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 
@@ -46,7 +47,7 @@ export function CodewordsActiveRound({
 }) {
   const { success, error: toastError } = useToast()
   const [clueWord, setClueWord] = useState('')
-  const [clueNumberInput, setClueNumberInput] = useState('1')
+  const [clueNumberInput, setClueNumberInput] = useState('')
   const [submittingClue, setSubmittingClue] = useState(false)
   const [guessing, setGuessing] = useState(false)
   const [endingTurn, setEndingTurn] = useState(false)
@@ -62,6 +63,8 @@ export function CodewordsActiveRound({
   const active = game.status === 'active' && !board.winner
 
   const { secondsLeft, urgent } = useCodewordsTurnTimer(gameCode, board, active)
+  useCodewordsNotifications({ game, board, myRole, enabled: active || game.status === 'finished' })
+  useCodewordsTimerAlerts(secondsLeft, active && (canGiveClue || canGuess))
   const playerNameById = new Map(players.map((p) => [p.id, p.name]))
   const cellAttribution = guessAttributionMap(guesses, playerNameById)
 
@@ -119,7 +122,7 @@ export function CodewordsActiveRound({
       if (!res.ok) throw new Error(data.error ?? 'Failed to give clue')
       onBoardChange(data.board)
       setClueWord('')
-      setClueNumberInput('1')
+      setClueNumberInput('')
       success('Clue sent!')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to give clue')
@@ -214,8 +217,11 @@ export function CodewordsActiveRound({
                 <input
                   type="text"
                   value={clueWord}
-                  onChange={(e) => setClueWord(e.target.value)}
-                  placeholder="One word"
+                  onChange={(e) => setClueWord(e.target.value.replace(/\s/g, ''))}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ') e.preventDefault()
+                  }}
+                  placeholder="One word (no spaces)"
                   className="input-field flex-1 min-w-[8rem]"
                   maxLength={40}
                 />
@@ -229,7 +235,7 @@ export function CodewordsActiveRound({
                     setClueNumberInput(next)
                   }}
                   placeholder="#"
-                  className="input-field w-20 text-center"
+                  className="input-field w-20"
                   aria-label="Clue number"
                 />
               </div>

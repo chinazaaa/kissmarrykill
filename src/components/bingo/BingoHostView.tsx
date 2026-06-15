@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
 import type { BingoCalledNumber, BingoClaim, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { useBingoWinNotification } from '@/hooks/useBingoNotifications'
 
 export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const router = useRouter()
@@ -143,6 +144,12 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const lastCalled = called.length > 0 ? called[called.length - 1] : null
   const winnerPlayer = winner ? players.find((p) => p.id === winner.player_id) : null
   const playerLink = `${appOrigin()}/game/${gameCode}`
+
+  useBingoWinNotification({
+    winner,
+    winnerName: winnerPlayer?.name ?? null,
+    enabled: game?.status === 'active' || game?.status === 'finished',
+  })
 
   if (!game) {
     return (

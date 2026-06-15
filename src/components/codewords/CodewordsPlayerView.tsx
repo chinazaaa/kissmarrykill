@@ -14,6 +14,7 @@ import {
   teamLabel,
 } from '@/lib/codewords'
 import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
+import { useCodewordsNotifications } from '@/hooks/useCodewordsNotifications'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type {
@@ -242,6 +243,13 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const waitingInLobby = !!myPlayerId && !myRole && game?.status === 'waiting' && !playersPickTeams
   const waitingForAssignment =
     !!myPlayerId && !myRole && game?.status === 'active' && (!lateJoinAllowed || !playersPickTeams)
+
+  useCodewordsNotifications({
+    game,
+    board,
+    myRole,
+    enabled: !!myPlayerId && !!game && screen !== 'active',
+  })
 
   if (screen === 'loading') {
     return (

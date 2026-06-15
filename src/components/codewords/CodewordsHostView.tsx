@@ -15,6 +15,7 @@ import {
   type CodewordsHostMode,
 } from '@/lib/codewords'
 import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
+import { useCodewordsNotifications } from '@/hooks/useCodewordsNotifications'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
@@ -237,6 +238,13 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const hostMyRole = hostPlayerId ? roles.find((r) => r.player_id === hostPlayerId) : undefined
   const hostPlays = hostMode === 'player' && !!hostPlayerId
   const canPlayTab = hostPlays && !!hostMyRole && !!board && (game?.status === 'active' || game?.status === 'finished')
+
+  useCodewordsNotifications({
+    game,
+    board,
+    myRole: hostMyRole,
+    enabled: !!game && game.status === 'active' && hostMode === 'spectator' && tab === 'manage',
+  })
 
   useEffect(() => {
     if (canPlayTab && game?.status === 'active') setTab('play')
