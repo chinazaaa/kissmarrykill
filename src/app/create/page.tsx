@@ -107,6 +107,8 @@ import {
   TRIVIA_MAX_PLAYERS,
   TRIVIA_MIN_PLAYERS,
   TRIVIA_DEFAULT_ROUNDS,
+  TRIVIA_DEFAULT_TIMER,
+  TRIVIA_TIMER_OPTIONS,
 } from '@/lib/trivia'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -216,7 +218,7 @@ function CreateGameInner() {
               participant_mode: 'joiners' as const,
               anonymous: true,
               rounds_count: TRIVIA_DEFAULT_ROUNDS,
-              timer_seconds: 30,
+              timer_seconds: TRIVIA_DEFAULT_TIMER,
             }
           : {}),
         ...(isWhoSaidThis(type)
@@ -358,7 +360,7 @@ function CreateGameInner() {
             participant_mode: 'joiners' as const,
             anonymous: true,
             rounds_count: TRIVIA_DEFAULT_ROUNDS,
-            timer_seconds: 30,
+            timer_seconds: TRIVIA_DEFAULT_TIMER,
           }
         : {}),
       ...(isWhoSaidThis(type)
@@ -1016,15 +1018,19 @@ function CreateGameInner() {
                     </Field>
                   )}
 
-                  <Field label="Time per round">
+                  <Field label={isTrivia ? 'Time per question' : 'Time per round'}>
                     <SegmentedControl
-                      value={String(settings.timer_seconds) as '15' | '30' | '60'}
+                      value={String(settings.timer_seconds) as `${(typeof TRIVIA_TIMER_OPTIONS)[number]}` | '15' | '30' | '60'}
                       onChange={(v) => setSettings({ ...settings, timer_seconds: Number(v) })}
-                      options={[
-                        { value: '15', label: '15s' },
-                        { value: '30', label: '30s' },
-                        { value: '60', label: '60s' },
-                      ]}
+                      options={
+                        isTrivia
+                          ? TRIVIA_TIMER_OPTIONS.map((n) => ({ value: String(n), label: `${n}s` }))
+                          : [
+                              { value: '15', label: '15s' },
+                              { value: '30', label: '30s' },
+                              { value: '60', label: '60s' },
+                            ]
+                      }
                     />
                   </Field>
 

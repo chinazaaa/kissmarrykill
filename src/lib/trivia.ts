@@ -6,6 +6,8 @@ export const TRIVIA_MIN_PLAYERS = 2
 export const TRIVIA_MAX_PLAYERS = 30
 export const TRIVIA_DEFAULT_MAX_PLAYERS = 30
 export const TRIVIA_DEFAULT_ROUNDS = 10
+export const TRIVIA_DEFAULT_TIMER = 10
+export const TRIVIA_TIMER_OPTIONS = [10, 15, 30, 60] as const
 export const TRIVIA_MIN_ROUNDS = 3
 export const TRIVIA_MAX_ROUNDS = 25
 export const TRIVIA_REVEAL_SECONDS = 5
@@ -38,6 +40,11 @@ const FIRST_CORRECT_BONUS = 200
 
 export function clampTriviaMaxPlayers(n: number): number {
   return Math.min(Math.max(Math.floor(n), TRIVIA_MIN_PLAYERS), TRIVIA_MAX_PLAYERS)
+}
+
+export function clampTriviaTimer(seconds: number | undefined | null): number {
+  const n = Number(seconds)
+  return (TRIVIA_TIMER_OPTIONS as readonly number[]).includes(n) ? n : TRIVIA_DEFAULT_TIMER
 }
 
 export function isTriviaRound(round: { trivia_metadata?: unknown | null }): boolean {

@@ -20,6 +20,8 @@ import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
 import {
   TRIVIA_MAX_ROUNDS,
   TRIVIA_MIN_ROUNDS,
+  TRIVIA_DEFAULT_TIMER,
+  TRIVIA_TIMER_OPTIONS,
   triviaCategoryFromGame,
 } from '@/lib/trivia'
 
@@ -61,7 +63,7 @@ export function TriviaPlayAgainSetup({
   const [questionMode, setQuestionMode] = useState<PoolMode>('same')
   const [questionTab, setQuestionTab] = useState<PoolTab>('upload')
   const [triviaCategory, setTriviaCategory] = useState<TriviaCategory>('general')
-  const [timerSeconds, setTimerSeconds] = useState(30)
+  const [timerSeconds, setTimerSeconds] = useState(TRIVIA_DEFAULT_TIMER)
   const [roundsCount, setRoundsCount] = useState(10)
   const [customQuestions, setCustomQuestions] = useState<TriviaQuestion[]>([])
   const [questionsUploadError, setQuestionsUploadError] = useState<string | null>(null)
@@ -82,7 +84,7 @@ export function TriviaPlayAgainSetup({
     setQuestionMode('same')
     setQuestionTab('upload')
     setTriviaCategory(triviaCategoryFromGame(game))
-    setTimerSeconds(game.timer_seconds ?? 30)
+    setTimerSeconds(game.timer_seconds ?? TRIVIA_DEFAULT_TIMER)
     setRoundsCount(game.rounds_count ?? 10)
     setCustomQuestions(parseStoredTriviaQuestions(game.custom_questions))
     setQuestionsUploadError(null)
@@ -351,13 +353,9 @@ export function TriviaPlayAgainSetup({
 
         <Field label="Time per question">
           <SegmentedControl
-            value={String(timerSeconds) as '15' | '30' | '60'}
+            value={String(timerSeconds)}
             onChange={(v) => setTimerSeconds(Number(v))}
-            options={[
-              { value: '15', label: '15s' },
-              { value: '30', label: '30s' },
-              { value: '60', label: '60s' },
-            ]}
+            options={TRIVIA_TIMER_OPTIONS.map((n) => ({ value: String(n), label: `${n}s` }))}
           />
         </Field>
 

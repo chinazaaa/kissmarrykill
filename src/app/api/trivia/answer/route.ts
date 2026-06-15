@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { triviaAnswerSchema } from '@/lib/validation'
 import { parseGameType, isTriviaGame } from '@/lib/game-types'
-import { computeTriviaPoints, parseTriviaMetadata } from '@/lib/trivia'
+import { computeTriviaPoints, parseTriviaMetadata, TRIVIA_DEFAULT_TIMER } from '@/lib/trivia'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   const startedAt = round.started_at ? new Date(round.started_at).getTime() : Date.now()
   const now = Date.now()
-  const timerMs = (game.timer_seconds ?? 30) * 1000
+  const timerMs = (game.timer_seconds ?? TRIVIA_DEFAULT_TIMER) * 1000
   const responseMs = Math.max(0, Math.min(now - startedAt, timerMs))
 
   const isCorrect = choiceIndex === metadata.correct_index

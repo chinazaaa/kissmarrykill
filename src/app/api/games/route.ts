@@ -43,7 +43,7 @@ import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/pl
 import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 import { clampAnonymousRoomMaxPlayers, ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS } from '@/lib/anonymous-messages'
 import { clampBingoMaxPlayers, BINGO_DEFAULT_MAX_PLAYERS } from '@/lib/bingo'
-import { clampTriviaMaxPlayers, TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_DEFAULT_ROUNDS } from '@/lib/trivia'
+import { clampTriviaMaxPlayers, TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_DEFAULT_ROUNDS, clampTriviaTimer } from '@/lib/trivia'
 import {
   clampCodewordsMaxPlayers,
   clampCodewordsTimer,
@@ -251,9 +251,11 @@ export async function POST(req: NextRequest) {
     rounds_count: roundsCount,
     timer_seconds: isCodewordsGame(game_type)
       ? clampCodewordsTimer(Number(timer_seconds) || CODEWORDS_DEFAULT_SPYMASTER_TIMER)
-      : [15, 30, 60].includes(Number(timer_seconds))
-        ? Number(timer_seconds)
-        : 30,
+      : isTriviaGame(game_type)
+        ? clampTriviaTimer(timer_seconds)
+        : [15, 30, 60].includes(Number(timer_seconds))
+          ? Number(timer_seconds)
+          : 30,
     ...(isCodewordsGame(game_type)
       ? {
           operative_timer_seconds: clampCodewordsTimer(

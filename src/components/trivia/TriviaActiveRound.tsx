@@ -44,8 +44,8 @@ export function TriviaActiveRound({
   playerName,
 }: TriviaActiveRoundProps) {
   const { error: toastError } = useToast()
-  const [pendingChoice, setPendingChoice] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [submittingChoice, setSubmittingChoice] = useState<number | null>(null)
   const [lastResult, setLastResult] = useState<{ isCorrect: boolean; points: number } | null>(null)
   const [timeExpired, setTimeExpired] = useState(false)
   const [expiredAtMs, setExpiredAtMs] = useState<number | null>(null)
@@ -79,10 +79,10 @@ export function TriviaActiveRound({
   }, [game.status, currentRound, myAnswer, lastResult, timeExpired])
 
   useEffect(() => {
-    setPendingChoice(null)
     setLastResult(null)
     setTimeExpired(false)
     setExpiredAtMs(null)
+    setSubmittingChoice(null)
   }, [currentRound?.id])
 
   const showCorrectAnswer =
@@ -135,6 +135,7 @@ export function TriviaActiveRound({
     async (choiceIndex: number) => {
       if (!currentRound || submitting || myAnswer) return
       setSubmitting(true)
+      setSubmittingChoice(choiceIndex)
       try {
         const res = await fetch('/api/trivia/answer', {
           method: 'POST',
@@ -149,12 +150,12 @@ export function TriviaActiveRound({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? 'Failed to submit')
         setLastResult({ isCorrect: data.isCorrect, points: data.points })
-        setPendingChoice(null)
         playVoteSubmittedSound()
       } catch (err) {
         toastError(err instanceof Error ? err.message : 'Failed to submit')
       } finally {
         setSubmitting(false)
+        setSubmittingChoice(null)
       }
     },
     [currentRound, submitting, myAnswer, gameCode, myPlayerId, toastError]
@@ -198,7 +199,7 @@ export function TriviaActiveRound({
         </div>
       )}
 
-      {screen === 'active' && metadata && pendingChoice == null && (
+      {screen === 'active' && metadata && (
         <div className="glass-card-strong p-6 sm:p-8 space-y-6">
           <p className="text-xl sm:text-2xl font-bold text-body leading-snug text-center sm:text-left">
             {metadata.question}
@@ -208,42 +209,15 @@ export function TriviaActiveRound({
               <button
                 key={i}
                 type="button"
-                onClick={() => setPendingChoice(i)}
-                className="rounded-2xl border-2 border-[var(--border-strong)] px-5 py-4 sm:py-5 text-left text-base sm:text-lg font-medium hover:border-[var(--primary)] hover:bg-rose-500/5 transition-colors flex items-center gap-3"
+                onClick={() => submitAnswer(i)}
+                disabled={submitting}
+                className="rounded-2xl border-2 border-[var(--border-strong)] px-5 py-4 sm:py-5 text-left text-base sm:text-lg font-medium hover:border-[var(--primary)] hover:bg-rose-500/5 transition-colors flex items-center gap-3 disabled:opacity-50"
               >
                 <span className={CHOICE_BADGE}>{formatTriviaChoiceLabel(i)}</span>
                 <span className="flex-1">{choice}</span>
+                {submittingChoice === i && <span className="text-muted text-sm shrink-0">Submitting…</span>}
               </button>
             ))}
-          </div>
-        </div>
-      )}
-
-      {screen === 'active' && metadata && pendingChoice != null && (
-        <div className="glass-card-strong p-6 sm:p-8 space-y-6">
-          <p className="label-caps text-center">Confirm your answer</p>
-          <p className="text-lg sm:text-xl text-muted text-center leading-snug">{metadata.question}</p>
-          <div className="rounded-2xl border-2 border-[var(--primary)] bg-rose-500/8 px-5 py-4 sm:py-5 text-base sm:text-lg font-semibold flex items-center justify-center gap-3 text-center">
-            <span className={CHOICE_BADGE}>{formatTriviaChoiceLabel(pendingChoice)}</span>
-            <span>{metadata.choices[pendingChoice]}</span>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setPendingChoice(null)}
-              disabled={submitting}
-              className="btn-secondary w-full py-3.5 text-base"
-            >
-              Change answer
-            </button>
-            <button
-              type="button"
-              onClick={() => submitAnswer(pendingChoice)}
-              disabled={submitting}
-              className="btn-primary w-full py-3.5 text-base"
-            >
-              {submitting ? 'Submitting…' : 'Confirm & lock in'}
-            </button>
           </div>
         </div>
       )}
