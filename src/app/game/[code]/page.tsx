@@ -131,7 +131,7 @@ import { CustomVoteCard } from '@/components/CustomVoteCard'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { ShareResults } from '@/components/ShareResults'
 import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
-import { AchievementBadges } from '@/components/AchievementBadges'
+import { AchievementsShareBlock } from '@/components/AchievementsShareBlock'
 import { computeAchievements } from '@/lib/achievements'
 import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
@@ -3084,6 +3084,8 @@ function FinalResultsView({
         <ShareResults game={game} participants={participants} votes={votes} rounds={rounds} players={players} />
       )}
 
+      <AchievementsShareBlock achievements={achievements} gameTitle={game.title} />
+
       {genderBasedLeaderboards && (
         <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
       )}
@@ -3091,8 +3093,6 @@ function FinalResultsView({
       {namesOnlyLeaderboards && (
         <FinalOverallBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
       )}
-
-      {achievements.length > 0 && <AchievementBadges achievements={achievements} />}
 
       {isHotSeatGame ? (
         <div>

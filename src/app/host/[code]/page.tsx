@@ -116,7 +116,10 @@ import {
   hotSeatPlayerDisplayName,
 } from '@/lib/hot-seat'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
-import { AchievementBadges } from '@/components/AchievementBadges'
+import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
+import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
+import { AchievementsShareBlock } from '@/components/AchievementsShareBlock'
+import { ShareResults } from '@/components/ShareResults'
 import { computeAchievements } from '@/lib/achievements'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -2649,9 +2652,16 @@ export default function HostPage() {
           </p>
         </div>
 
-        {isHotSeatGame ? (
-          <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
-        ) : isWst ? (
+        <RoundResultsShareBlock
+          game={game}
+          round={lastFinishedRound}
+          votes={roundVotes}
+          participants={participants}
+          players={players}
+        >
+          {isHotSeatGame ? (
+            <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
+          ) : isWst ? (
           (() => {
             if (isAnimeRound(lastFinishedRound)) {
               const meta = lastFinishedRound.anime_metadata as {
@@ -2760,7 +2770,8 @@ export default function HostPage() {
               />
             )
           })()
-        )}
+          )}
+        </RoundResultsShareBlock>
 
         {roundConfessions.length > 0 && (
           <div>
@@ -2818,13 +2829,18 @@ export default function HostPage() {
     const isWst = isWhoSaidThis(gameType)
     const isHotSeatGame = isHotSeat(gameType)
     const isMltImport = isMltImportGame(game)
-    const showPollLeaderboards = !isBinaryGame && !isMlt && !isWst && !isHotSeatGame
+    const showPollLeaderboards = !isBinaryGame && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
     const genderBasedLeaderboards = showPollLeaderboards && isGameGenderBased(game)
     const namesOnlyLeaderboards = showPollLeaderboards && isGenderFreeVoting(game)
     const playedParticipants = filterParticipantsInRounds(participants, allRounds)
     const pollCount = mltVoteTargets(game, participants, players).length
     const wstScores = isWst ? tallyWstPlayerScores(allRounds, votes, players) : []
     const achievements = computeAchievements(game, participants, allRounds, votes, players)
+    const hasFinalLeaderboardSnapshot =
+      (isWst && wstScores.length > 0) ||
+      isCustomGame(gameType) ||
+      genderBasedLeaderboards ||
+      namesOnlyLeaderboards
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -2865,17 +2881,75 @@ export default function HostPage() {
           </div>
         </div>
 
-        {isWst && wstScores.length > 0 && (
-          <PaginatedLeaderboard
-            title="Best guessers"
-            rows={wstScores.map((row, i) => ({
-              id: row.playerId,
-              name: row.name,
-              score: row.correctGuesses,
-              rank: i + 1,
-            }))}
-          />
+        {hasFinalLeaderboardSnapshot ? (
+          <FinalResultsShareBlock
+            game={game}
+            participants={participants}
+            votes={votes}
+            rounds={allRounds}
+            players={players}
+          >
+            {isWst && wstScores.length > 0 && (
+              <PaginatedLeaderboard
+                title="Best guessers"
+                rows={wstScores.map((row, i) => ({
+                  id: row.playerId,
+                  name: row.name,
+                  score: row.correctGuesses,
+                  rank: i + 1,
+                }))}
+              />
+            )}
+
+            {isCustomGame(gameType) && game
+              ? (() => {
+                  const slots = getCustomSlots(game)
+                  const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+                  return (
+                    <div className="glass-card border border-theme-strong p-4 space-y-4">
+                      <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
+                      {leaderboard.map((entry) => (
+                        <div key={entry.slot.key} className="space-y-1">
+                          <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
+                            {entry.slot.emoji} Most {entry.slot.label}
+                          </p>
+                          {entry.entries.slice(0, 3).map((e, i) => (
+                            <p key={e.name} className="text-body text-sm pl-6">
+                              {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()
+              : null}
+
+            {genderBasedLeaderboards && (
+              <FinalGenderLeaderboards
+                gameType={gameType}
+                participants={participants}
+                rounds={allRounds}
+                votes={votes}
+                TopCard={StatCard}
+              />
+            )}
+
+            {namesOnlyLeaderboards && (
+              <FinalOverallLeaderboards
+                gameType={gameType}
+                participants={participants}
+                rounds={allRounds}
+                votes={votes}
+                TopCard={StatCard}
+              />
+            )}
+          </FinalResultsShareBlock>
+        ) : (
+          <ShareResults game={game} participants={participants} votes={votes} rounds={allRounds} players={players} />
         )}
+
+        <AchievementsShareBlock achievements={achievements} gameTitle={game.title} />
 
         {isBinaryGame ? (
           <div className="space-y-8">
@@ -2989,27 +3063,7 @@ export default function HostPage() {
           </div>
         ) : isCustomGame(gameType) && game ? (
           <div className="space-y-8">
-            {(() => {
-              const slots = getCustomSlots(game)
-              const leaderboard = buildCustomLeaderboard(votes, participants, slots)
-              return (
-                <div className="glass-card border border-theme-strong p-4 space-y-4">
-                  <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
-                  {leaderboard.map((entry) => (
-                    <div key={entry.slot.key} className="space-y-1">
-                      <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
-                        {entry.slot.emoji} Most {entry.slot.label}
-                      </p>
-                      {entry.entries.slice(0, 3).map((e, i) => (
-                        <p key={e.name} className="text-body text-sm pl-6">
-                          {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
-                        </p>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )
-            })()}
+            <h2 className="text-muted text-xs uppercase tracking-wider">All round results</h2>
             {allRounds.map((round) => {
               const roundVotesForRound = votes.filter((v) => v.round_id === round.id)
               const slots = getCustomSlots(game)
@@ -3025,30 +3079,10 @@ export default function HostPage() {
             })}
           </div>
         ) : genderBasedLeaderboards ? (
-          <>
-            <FinalGenderLeaderboards
-              gameType={gameType}
-              participants={participants}
-              rounds={allRounds}
-              votes={votes}
-              TopCard={StatCard}
-            />
-            <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
-          </>
+          <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
         ) : namesOnlyLeaderboards ? (
-          <>
-            <FinalOverallLeaderboards
-              gameType={gameType}
-              participants={participants}
-              rounds={allRounds}
-              votes={votes}
-              TopCard={StatCard}
-            />
-            <FinalOverallBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
-          </>
+          <FinalOverallBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
         ) : null}
-
-        {achievements.length > 0 && <AchievementBadges achievements={achievements} />}
 
         {/* Confessions / hot takes */}
         {confessions.length > 0 && (

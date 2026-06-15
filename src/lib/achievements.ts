@@ -1,5 +1,5 @@
 import type { Game, Participant, Player, Round, Vote } from '@/types'
-import { parseGameType, isPairGame, isBinaryChoiceGame, isMostLikelyTo, isWhoSaidThis } from '@/lib/game-types'
+import { parseGameType, isPairGame, isBinaryChoiceGame, isMostLikelyTo, isWhoSaidThis, isCustomGame } from '@/lib/game-types'
 import { flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstPlayerScores, wstCorrectParticipantIdFromRound } from '@/lib/who-said-this'
@@ -455,6 +455,10 @@ export function computeAchievements(
   players: Player[]
 ): Achievement[] {
   const gameType = parseGameType(game.game_type)
+
+  if (isCustomGame(gameType)) {
+    return []
+  }
 
   if (isBinaryChoiceGame(gameType)) {
     return wyrAchievements(rounds, votes, players)
