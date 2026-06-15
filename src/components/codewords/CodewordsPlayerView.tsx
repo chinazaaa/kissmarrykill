@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
@@ -10,6 +11,7 @@ import { gameTypeConfig } from '@/lib/game-types'
 import {
   codewordsLateJoin,
   codewordsPlayerPicks,
+  codewordsRandomizeTeams,
   guessAttributionMap,
   mergeCodewordsGuesses,
   roleLabel,
@@ -233,14 +235,17 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   const cfg = gameTypeConfig('codewords')
   const playersPickTeams = game ? codewordsPlayerPicks(game) : true
+  const randomizeTeams = game ? codewordsRandomizeTeams(game) : false
   const lateJoinAllowed = game ? codewordsLateJoin(game) : false
   const myTeam = myRole?.team
   const needsTeamPick =
     !!myPlayerId &&
     !myRole &&
     playersPickTeams &&
+    !randomizeTeams &&
     (game?.status === 'waiting' || (game?.status === 'active' && lateJoinAllowed))
-  const waitingInLobby = !!myPlayerId && !myRole && game?.status === 'waiting' && !playersPickTeams
+  const waitingInLobby =
+    !!myPlayerId && !myRole && game?.status === 'waiting' && (!playersPickTeams || randomizeTeams)
   const waitingForAssignment =
     !!myPlayerId && !myRole && game?.status === 'active' && (!lateJoinAllowed || !playersPickTeams)
 
@@ -295,7 +300,9 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
                 : 'This game has already started.'
               : playersPickTeams
                 ? "You'll pick a team and role in the lobby before the host starts."
-                : 'The host will assign your team and role in the lobby.'}
+                : randomizeTeams
+                  ? 'The host picks spymasters — your team is shuffled when the game starts.'
+                  : 'The host will assign your team and role in the lobby.'}
           </p>
           <button type="button" onClick={joinGame} disabled={!joinName.trim() || joining} className="btn-primary w-full">
             {joining ? 'Joining…' : 'Join game'}
@@ -311,7 +318,13 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
         <div className="glass-card p-6 w-full max-w-md space-y-5">
           <div className="text-center space-y-1">
             <h2 className="text-xl font-black">
-              {game?.status === 'active' ? 'Join the game' : playersPickTeams ? 'Pick your team & role' : 'Waiting in lobby'}
+              {game?.status === 'active'
+                ? 'Join the game'
+                : randomizeTeams
+                  ? 'Waiting for teams'
+                  : playersPickTeams
+                    ? 'Pick your team & role'
+                    : 'Waiting in lobby'}
             </h2>
             <p className="text-muted text-sm">Playing as {myPlayerName}</p>
           </div>
@@ -375,6 +388,10 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
                 {savingRole ? 'Saving…' : 'Confirm team & role'}
               </button>
             </>
+          ) : randomizeTeams ? (
+            <p className="text-sm text-muted text-center leading-relaxed">
+              The host is picking spymasters. Everyone else will be randomly split into red and blue when the game starts.
+            </p>
           ) : (
             <p className="text-sm text-muted text-center leading-relaxed">
               The host assigns teams for this game. You&apos;ll see your role here once you&apos;re placed on a team.
@@ -469,6 +486,13 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             <p className="label-caps text-center">Full board</p>
             <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
             <CodewordsScoreboard board={board} players={allPlayers} roles={allRoles} highlightPlayerId={myPlayerId} />
+            <CodewordsEndGameStats
+              guesses={guesses}
+              roles={allRoles}
+              players={allPlayers}
+              highlightPlayerId={myPlayerId}
+              winner={board.winner}
+            />
           </div>
         </div>
       </div>

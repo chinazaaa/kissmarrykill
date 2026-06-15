@@ -58,7 +58,10 @@ import {
   clampCodewordsTimer,
   generateKey,
   lobbyReady,
+  lobbyReadyForGame,
+  persistRandomizedRoles,
   pickBoardWords,
+  teamsNeedRandomization,
   turnDeadline,
 } from '@/lib/codewords'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
@@ -267,9 +270,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       .select('player_id, team, role')
       .eq('game_id', code.toUpperCase())
 
-    const ready = lobbyReady(roleRows ?? [])
+    let roles = roleRows ?? []
+    const playerIds = playersData.map((p) => p.id)
+    const randomizeTeams = game.codewords_randomize_teams === true
+
+    if (randomizeTeams && teamsNeedRandomization(playerIds, roles)) {
+      const { roles: shuffled, error: shuffleError } = await persistRandomizedRoles(
+        supabase,
+        code.toUpperCase(),
+        playerIds,
+        roles
+      )
+      if (shuffleError) return NextResponse.json({ error: shuffleError }, { status: 500 })
+      roles = shuffled
+    }
+
+    const ready = lobbyReadyForGame(roles, playerIds, randomizeTeams)
     if (!ready.ok) {
       return NextResponse.json({ error: ready.error ?? 'Teams are not ready' }, { status: 400 })
+    }
+
+    const finalReady = lobbyReady(roles)
+    if (!finalReady.ok) {
+      return NextResponse.json({ error: finalReady.error ?? 'Teams are not ready' }, { status: 400 })
     }
 
     const startingTeam = Math.random() < 0.5 ? 'red' : 'blue'

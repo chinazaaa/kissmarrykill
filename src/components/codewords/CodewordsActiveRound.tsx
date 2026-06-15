@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords/CodewordsGuessLog'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsScoreboard, CodewordsTimerBar } from '@/components/codewords/CodewordsScoreboard'
@@ -271,8 +272,21 @@ export function CodewordsActiveRound({
 
         <aside className="lg:sticky lg:top-4 space-y-4">
           <CodewordsScoreboard board={board} players={players} roles={roles} highlightPlayerId={myPlayerId} />
-          <CodewordsGuessSummary guesses={guesses} players={players} />
-          <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
+          {gameOver && (
+            <CodewordsEndGameStats
+              guesses={guesses}
+              roles={roles}
+              players={players}
+              highlightPlayerId={myPlayerId}
+              winner={board.winner}
+            />
+          )}
+          {!gameOver && (
+            <>
+              <CodewordsGuessSummary guesses={guesses} players={players} />
+              <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
+            </>
+          )}
         </aside>
       </div>
     </div>

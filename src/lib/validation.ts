@@ -103,6 +103,7 @@ export const createGameSchema = z.object({
   max_players: z.coerce.number().int().min(2).max(30).optional(),
   codewords_player_picks: z.boolean().optional(),
   codewords_late_join: z.boolean().optional(),
+  codewords_randomize_teams: z.boolean().optional(),
   trivia_category: triviaCategoryEnum.optional(),
   bingo_call_mode: z.enum(['manual', 'auto']).optional(),
   bingo_call_interval_seconds: z.coerce.number().optional(),

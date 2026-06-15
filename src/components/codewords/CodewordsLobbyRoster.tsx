@@ -20,6 +20,7 @@ function PlayerRow({
   team,
   saving,
   readOnly,
+  randomizeTeams,
   onSetSpymaster,
   onMoveTeam,
 }: {
@@ -28,6 +29,7 @@ function PlayerRow({
   team: CodewordsTeam
   saving: boolean
   readOnly?: boolean
+  randomizeTeams?: boolean
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
 }) {
@@ -65,16 +67,18 @@ function PlayerRow({
       <span className="min-w-0 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
         {player.name}
       </span>
-      <button
-        type="button"
-        onClick={() => onMoveTeam(player.id, other)}
-        disabled={saving}
-        title={`Move ${player.name} to ${other} team`}
-        className="h-8 w-9 rounded-lg border border-[var(--border-strong)] text-base font-bold text-muted hover:text-[var(--foreground)] hover:border-[var(--foreground)]/20 disabled:opacity-50"
-        aria-label={`Move ${player.name} to ${other} team`}
-      >
-        {team === 'red' ? '→' : '←'}
-      </button>
+      {!randomizeTeams && (
+        <button
+          type="button"
+          onClick={() => onMoveTeam(player.id, other)}
+          disabled={saving}
+          title={`Move ${player.name} to ${other} team`}
+          className="h-8 w-9 rounded-lg border border-[var(--border-strong)] text-base font-bold text-muted hover:text-[var(--foreground)] hover:border-[var(--foreground)]/20 disabled:opacity-50"
+          aria-label={`Move ${player.name} to ${other} team`}
+        >
+          {team === 'red' ? '→' : '←'}
+        </button>
+      )}
     </div>
   )
 }
@@ -82,12 +86,42 @@ function PlayerRow({
 function UnassignedRow({
   player,
   saving,
+  randomizeTeams,
   onMoveTeam,
+  onSetSpymaster,
 }: {
   player: Player
   saving: boolean
+  randomizeTeams?: boolean
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
+  onSetSpymaster?: (playerId: string, team: CodewordsTeam) => void
 }) {
+  if (randomizeTeams && onSetSpymaster) {
+    return (
+      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80 min-h-[2.75rem]">
+        <span className="min-w-0 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
+          {player.name}
+        </span>
+        <button
+          type="button"
+          onClick={() => onSetSpymaster(player.id, 'red')}
+          disabled={saving}
+          className="text-[11px] font-bold rounded-lg border border-red-500/40 bg-red-500/10 text-red-800 dark:text-red-100 px-2.5 py-1.5 disabled:opacity-50"
+        >
+          Red 🕵️
+        </button>
+        <button
+          type="button"
+          onClick={() => onSetSpymaster(player.id, 'blue')}
+          disabled={saving}
+          className="text-[11px] font-bold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-100 px-2.5 py-1.5 disabled:opacity-50"
+        >
+          Blue 🕵️
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--surface-inset-bg)]/80 min-h-[2.75rem]">
       <span className="min-w-0 text-sm font-semibold text-[var(--foreground)] truncate" title={player.name}>
@@ -119,6 +153,7 @@ function TeamColumn({
   roles,
   savingRoleFor,
   readOnly,
+  randomizeTeams,
   onSetSpymaster,
   onMoveTeam,
 }: {
@@ -127,6 +162,7 @@ function TeamColumn({
   roles: CodewordsPlayerRole[]
   savingRoleFor: string | null
   readOnly?: boolean
+  randomizeTeams?: boolean
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
 }) {
@@ -164,6 +200,7 @@ function TeamColumn({
               team={team}
               saving={savingRoleFor === player.id}
               readOnly={readOnly}
+              randomizeTeams={randomizeTeams}
               onSetSpymaster={onSetSpymaster}
               onMoveTeam={onMoveTeam}
             />
@@ -179,6 +216,7 @@ export function CodewordsLobbyRoster({
   roles,
   savingRoleFor,
   readOnly = false,
+  randomizeTeams = false,
   onSetSpymaster,
   onMoveTeam,
 }: {
@@ -186,6 +224,7 @@ export function CodewordsLobbyRoster({
   roles: CodewordsPlayerRole[]
   savingRoleFor: string | null
   readOnly?: boolean
+  randomizeTeams?: boolean
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
 }) {
@@ -201,6 +240,7 @@ export function CodewordsLobbyRoster({
           roles={roles}
           savingRoleFor={savingRoleFor}
           readOnly={readOnly}
+          randomizeTeams={randomizeTeams}
           onSetSpymaster={onSetSpymaster}
           onMoveTeam={onMoveTeam}
         />
@@ -210,6 +250,7 @@ export function CodewordsLobbyRoster({
           roles={roles}
           savingRoleFor={savingRoleFor}
           readOnly={readOnly}
+          randomizeTeams={randomizeTeams}
           onSetSpymaster={onSetSpymaster}
           onMoveTeam={onMoveTeam}
         />
@@ -232,14 +273,18 @@ export function CodewordsLobbyRoster({
                   key={player.id}
                   player={player}
                   saving={savingRoleFor === player.id}
+                  randomizeTeams={randomizeTeams}
                   onMoveTeam={onMoveTeam}
+                  onSetSpymaster={onSetSpymaster}
                 />
               )
             )}
           </div>
           {!readOnly && (
             <p className="text-faint text-[11px] px-3 pb-2 leading-relaxed">
-              Use ← Red or Blue → to add players to a team.
+              {randomizeTeams
+                ? 'Tap Red 🕵️ or Blue 🕵️ to pick each team’s spymaster. Shuffle teams before starting.'
+                : 'Use ← Red or Blue → to add players to a team.'}
             </p>
           )}
           {readOnly && (

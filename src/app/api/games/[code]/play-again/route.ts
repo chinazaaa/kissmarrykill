@@ -11,7 +11,7 @@ import {
 } from '@/lib/game-types'
 import { clearAnonymousRoomSessionData, reopenSecretMessageBoard } from '@/lib/anonymous-messages'
 import { clearBingoSessionData } from '@/lib/bingo'
-import { clearCodewordsSessionData } from '@/lib/codewords'
+import { clearCodewordsRoundData } from '@/lib/codewords'
 import { clearTriviaSessionData } from '@/lib/trivia'
 import {
   applyCustomQuestionsUpdate,
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isCodewordsGame(gameType)) {
-    const { error: clearError } = await clearCodewordsSessionData(supabase, gameId)
+    const { error: clearError } = await clearCodewordsRoundData(supabase, gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 

@@ -17,12 +17,15 @@ export async function POST(req: NextRequest) {
 
   const { data: game } = await supabase
     .from('games')
-    .select('game_type, status, codewords_player_picks, codewords_late_join')
+    .select('game_type, status, codewords_player_picks, codewords_late_join, codewords_randomize_teams')
     .eq('id', code)
     .maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (!isCodewordsGame(parseGameType(game.game_type))) {
     return NextResponse.json({ error: 'Not a codewords game' }, { status: 400 })
+  }
+  if (game.codewords_randomize_teams === true) {
+    return NextResponse.json({ error: 'The host picks spymasters for this game — teams are shuffled at start' }, { status: 403 })
   }
   if (game.codewords_player_picks === false) {
     return NextResponse.json({ error: 'The host assigns teams and roles for this game' }, { status: 403 })

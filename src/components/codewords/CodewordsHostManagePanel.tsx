@@ -1,5 +1,6 @@
 'use client'
 
+import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords/CodewordsGuessLog'
 import { CodewordsBoardGrid } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsLobbyRoster } from '@/components/codewords/CodewordsLobbyRoster'
@@ -11,8 +12,10 @@ import {
   codewordsLateJoin,
   codewordsMaxPlayers,
   codewordsPlayerPicks,
+  codewordsRandomizeTeams,
   guessAttributionMap,
-  lobbyReady,
+  lobbyReadyForGame,
+  teamsNeedRandomization,
   teamLabel,
   waitingTurnMessage,
 } from '@/lib/codewords'
@@ -39,8 +42,10 @@ export function CodewordsHostManagePanel({
   onSetSpymaster,
   onMoveTeam,
   onStartGame,
+  onRandomizeTeams,
   onPlayAgain,
   onEndSession,
+  randomizingTeams = false,
   showSpectatorBoard = true,
 }: {
   game: Game
@@ -63,11 +68,16 @@ export function CodewordsHostManagePanel({
   onSetSpymaster: (playerId: string, team: CodewordsTeam, makeSpymaster: boolean) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
   onStartGame: () => void
+  onRandomizeTeams?: () => void
   onPlayAgain: () => void
   onEndSession: () => void
+  randomizingTeams?: boolean
   showSpectatorBoard?: boolean
 }) {
-  const ready = lobbyReady(roles)
+  const randomizeTeams = codewordsRandomizeTeams(game)
+  const playerIds = players.map((p) => p.id)
+  const ready = lobbyReadyForGame(roles, playerIds, randomizeTeams)
+  const needsShuffle = randomizeTeams && teamsNeedRandomization(playerIds, roles)
   const inLobby = game.status === 'waiting'
   const playersPickTeams = codewordsPlayerPicks(game)
   const lateJoin = codewordsLateJoin(game)
@@ -152,9 +162,19 @@ export function CodewordsHostManagePanel({
               <p className="text-faint text-xs mt-1">
                 {inLobby ? (
                   <>
-                    Tap ☆ to pick each team&apos;s spymaster. Use arrows to move players between Red and Blue.
-                    {playersPickTeams ? ' Players can also pick their own team.' : ' You assign everyone.'}
-                    {lateJoin ? ' New players can join mid-game.' : ' Lobby locked once the game starts.'}
+                    {randomizeTeams ? (
+                      <>
+                        Pick one red and one blue spymaster. Shuffle teams to preview assignments, or start to
+                        shuffle automatically.
+                        {lateJoin ? ' New players can join mid-game.' : ' Lobby locked once the game starts.'}
+                      </>
+                    ) : (
+                      <>
+                        Tap ☆ to pick each team&apos;s spymaster. Use arrows to move players between Red and Blue.
+                        {playersPickTeams ? ' Players can also pick their own team.' : ' You assign everyone.'}
+                        {lateJoin ? ' New players can join mid-game.' : ' Lobby locked once the game starts.'}
+                      </>
+                    )}
                   </>
                 ) : (
                   'Team lineup is locked for this round. Return to lobby to change teams or timers.'
@@ -180,6 +200,7 @@ export function CodewordsHostManagePanel({
             roles={roles}
             savingRoleFor={savingRoleFor}
             readOnly={!inLobby}
+            randomizeTeams={randomizeTeams && inLobby}
             onSetSpymaster={handleSetSpymaster}
             onMoveTeam={onMoveTeam}
           />
@@ -189,13 +210,27 @@ export function CodewordsHostManagePanel({
               {!ready.ok && players.length >= CODEWORDS_MIN_PLAYERS && (
                 <p className="text-amber-700 dark:text-amber-200 text-sm">{ready.error}</p>
               )}
+              {needsShuffle && onRandomizeTeams && (
+                <button
+                  type="button"
+                  onClick={onRandomizeTeams}
+                  disabled={randomizingTeams || !ready.ok}
+                  className="btn-secondary w-full"
+                >
+                  {randomizingTeams ? 'Shuffling…' : 'Shuffle teams'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onStartGame}
                 disabled={starting || players.length < CODEWORDS_MIN_PLAYERS || !ready.ok}
                 className="btn-primary w-full"
               >
-                {starting ? 'Starting…' : `Start game (${CODEWORDS_MIN_PLAYERS}+ players)`}
+                {starting
+                  ? 'Starting…'
+                  : needsShuffle
+                    ? `Start game (shuffle teams)`
+                    : `Start game (${CODEWORDS_MIN_PLAYERS}+ players)`}
               </button>
             </>
           )}
@@ -219,6 +254,15 @@ export function CodewordsHostManagePanel({
             <CodewordsGuessSummary guesses={guesses} players={players} />
             <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
           </aside>
+        </div>
+      )}
+
+      {board && game.status === 'active' && board.winner && showSpectatorBoard && (
+        <div className="glass-card p-6 text-center space-y-4 border-amber-400/40">
+          <p className="text-4xl">🏆</p>
+          <p className="text-xl font-black">{teamLabel(board.winner)} team wins!</p>
+          <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
+          <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} winner={board.winner} />
         </div>
       )}
 
@@ -247,7 +291,7 @@ export function CodewordsHostManagePanel({
       )}
 
       {board && game.status === 'finished' && !board.winner && showSpectatorBoard && (
-        <div className="glass-card p-6 text-center space-y-3">
+        <div className="glass-card p-6 text-center space-y-4">
           <p className="text-4xl">🏁</p>
           <p className="text-xl font-black">Session ended</p>
           <p className="text-muted text-sm">The game was closed before a team won.</p>
@@ -255,14 +299,16 @@ export function CodewordsHostManagePanel({
             <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
             <CodewordsScoreboard board={board} players={players} roles={roles} />
           </div>
+          <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} />
         </div>
       )}
 
       {board && game.status === 'finished' && board.winner && showSpectatorBoard && (
-        <div className="glass-card p-6 text-center space-y-2 border-amber-400/40">
+        <div className="glass-card p-6 text-center space-y-4 border-amber-400/40">
           <p className="text-4xl">🏆</p>
           <p className="text-xl font-black">{teamLabel(board.winner)} team wins!</p>
           <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
+          <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} winner={board.winner} />
         </div>
       )}
 

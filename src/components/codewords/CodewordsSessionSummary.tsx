@@ -1,5 +1,6 @@
 'use client'
 
+import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsBoardGrid } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsGuessLog } from '@/components/codewords/CodewordsGuessLog'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
@@ -89,6 +90,13 @@ export function CodewordsSessionSummary({
               <CodewordsGuessLog guesses={guesses} players={players} roles={roles} />
             </aside>
           </div>
+
+          <CodewordsEndGameStats
+            guesses={guesses}
+            roles={roles}
+            players={players}
+            winner={board?.winner ?? null}
+          />
         </>
       )}
 

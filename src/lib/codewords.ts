@@ -202,6 +202,87 @@ export type CodewordsLobbyRole = {
   role: CodewordsRole
 }
 
+export function teamsNeedRandomization(playerIds: string[], roles: CodewordsLobbyRole[]): boolean {
+  if (roles.length < playerIds.length) return true
+  const operatives = roles.filter((r) => r.role === 'operative')
+  return operatives.length < playerIds.length - 2
+}
+
+export function lobbyReadySpymasters(roles: CodewordsLobbyRole[], playerCount: number): { ok: boolean; error?: string } {
+  if (playerCount < CODEWORDS_MIN_PLAYERS) {
+    return { ok: false, error: `Need at least ${CODEWORDS_MIN_PLAYERS} players` }
+  }
+  const redSpymasters = roles.filter((r) => r.team === 'red' && r.role === 'spymaster')
+  const blueSpymasters = roles.filter((r) => r.team === 'blue' && r.role === 'spymaster')
+  if (redSpymasters.length !== 1) {
+    return { ok: false, error: 'Pick exactly one red spymaster' }
+  }
+  if (blueSpymasters.length !== 1) {
+    return { ok: false, error: 'Pick exactly one blue spymaster' }
+  }
+  return { ok: true }
+}
+
+export function lobbyReadyForGame(
+  roles: CodewordsLobbyRole[],
+  playerIds: string[],
+  randomizeTeams: boolean
+): { ok: boolean; error?: string } {
+  if (playerIds.length < CODEWORDS_MIN_PLAYERS) {
+    return { ok: false, error: `Need at least ${CODEWORDS_MIN_PLAYERS} players` }
+  }
+  if (randomizeTeams && teamsNeedRandomization(playerIds, roles)) {
+    return lobbyReadySpymasters(roles, playerIds.length)
+  }
+  return lobbyReady(roles)
+}
+
+export function buildRandomizedRoles(
+  playerIds: string[],
+  roles: CodewordsLobbyRole[]
+): CodewordsLobbyRole[] {
+  const redSpy = roles.find((r) => r.team === 'red' && r.role === 'spymaster')
+  const blueSpy = roles.find((r) => r.team === 'blue' && r.role === 'spymaster')
+  if (!redSpy || !blueSpy) {
+    throw new Error('Pick one red and one blue spymaster before shuffling teams')
+  }
+
+  const operativePool = playerIds.filter((id) => id !== redSpy.player_id && id !== blueSpy.player_id)
+  const shuffled = shuffle(operativePool)
+  const redCount = Math.ceil(shuffled.length / 2)
+  const redOps = shuffled.slice(0, redCount)
+  const blueOps = shuffled.slice(redCount)
+
+  return [
+    redSpy,
+    blueSpy,
+    ...redOps.map((player_id) => ({ player_id, team: 'red' as const, role: 'operative' as const })),
+    ...blueOps.map((player_id) => ({ player_id, team: 'blue' as const, role: 'operative' as const })),
+  ]
+}
+
+export async function persistRandomizedRoles(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerIds: string[],
+  roles: CodewordsLobbyRole[]
+): Promise<{ roles: CodewordsLobbyRole[]; error: string | null }> {
+  const nextRoles = buildRandomizedRoles(playerIds, roles)
+  for (const role of nextRoles) {
+    const { error } = await supabase
+      .from('codewords_player_roles')
+      .upsert({ game_id: gameId, player_id: role.player_id, team: role.team, role: role.role }, { onConflict: 'game_id,player_id' })
+    if (error) return { roles: nextRoles, error: error.message }
+  }
+  const assigned = new Set(nextRoles.map((r) => r.player_id))
+  for (const playerId of playerIds) {
+    if (!assigned.has(playerId)) {
+      await supabase.from('codewords_player_roles').delete().eq('game_id', gameId).eq('player_id', playerId)
+    }
+  }
+  return { roles: nextRoles, error: null }
+}
+
 export function lobbyReady(roles: CodewordsLobbyRole[]): { ok: boolean; error?: string } {
   const redSpymasters = roles.filter((r) => r.team === 'red' && r.role === 'spymaster')
   const blueSpymasters = roles.filter((r) => r.team === 'blue' && r.role === 'spymaster')
@@ -264,6 +345,126 @@ export function codewordsLateJoin(game: Pick<Game, 'codewords_late_join'>): bool
   return game.codewords_late_join === true
 }
 
+export function codewordsRandomizeTeams(game: Pick<Game, 'codewords_randomize_teams'>): boolean {
+  return game.codewords_randomize_teams === true
+}
+
+export type CodewordsOperativeStat = {
+  playerId: string
+  name: string
+  team: CodewordsTeam
+  score: number
+  correct: number
+  wrong: number
+  hitAssassin: boolean
+}
+
+export type CodewordsSpymasterStat = {
+  playerId: string
+  name: string
+  team: CodewordsTeam
+  score: number
+  cluesGiven: number
+  wordsFound: number
+}
+
+export function tallyCodewordsOperativeStats(
+  guesses: CodewordsGuess[],
+  roles: CodewordsPlayerRole[],
+  players: Array<{ id: string; name: string }>
+): CodewordsOperativeStat[] {
+  const roleByPlayer = new Map(roles.map((r) => [r.player_id, r]))
+  const nameById = new Map(players.map((p) => [p.id, p.name]))
+  const stats = new Map<string, CodewordsOperativeStat>()
+
+  for (const guess of guesses) {
+    const role = roleByPlayer.get(guess.player_id)
+    if (!role || role.role !== 'operative') continue
+
+    let stat = stats.get(guess.player_id)
+    if (!stat) {
+      stat = {
+        playerId: guess.player_id,
+        name: nameById.get(guess.player_id) ?? 'Unknown',
+        team: role.team,
+        score: 0,
+        correct: 0,
+        wrong: 0,
+        hitAssassin: false,
+      }
+      stats.set(guess.player_id, stat)
+    }
+
+    if (guess.cell_type === role.team) {
+      stat.correct += 1
+      stat.score += 10
+    } else {
+      stat.wrong += 1
+      stat.score -= 2
+      if (guess.cell_type === 'assassin') stat.hitAssassin = true
+    }
+  }
+
+  for (const role of roles) {
+    if (role.role !== 'operative' || stats.has(role.player_id)) continue
+    stats.set(role.player_id, {
+      playerId: role.player_id,
+      name: nameById.get(role.player_id) ?? 'Unknown',
+      team: role.team,
+      score: 0,
+      correct: 0,
+      wrong: 0,
+      hitAssassin: false,
+    })
+  }
+
+  return Array.from(stats.values()).sort((a, b) => b.score - a.score || b.correct - a.correct)
+}
+
+export function tallyCodewordsSpymasterStats(
+  guesses: CodewordsGuess[],
+  roles: CodewordsPlayerRole[],
+  players: Array<{ id: string; name: string }>
+): CodewordsSpymasterStat[] {
+  const spymasters = roles.filter((r) => r.role === 'spymaster')
+  const nameById = new Map(players.map((p) => [p.id, p.name]))
+  const clueGroups = new Map<string, CodewordsGuess[]>()
+
+  for (const guess of guesses) {
+    if (!guess.clue_word) continue
+    const key = `${guess.team}:${guess.clue_word}:${guess.clue_number}`
+    const list = clueGroups.get(key) ?? []
+    list.push(guess)
+    clueGroups.set(key, list)
+  }
+
+  const stats = new Map<string, CodewordsSpymasterStat>()
+  for (const spy of spymasters) {
+    stats.set(spy.player_id, {
+      playerId: spy.player_id,
+      name: nameById.get(spy.player_id) ?? 'Unknown',
+      team: spy.team,
+      score: 0,
+      cluesGiven: 0,
+      wordsFound: 0,
+    })
+  }
+
+  for (const [key, group] of clueGroups) {
+    const team = key.split(':')[0] as CodewordsTeam
+    const spy = spymasters.find((s) => s.team === team)
+    if (!spy) continue
+    const stat = stats.get(spy.player_id)
+    if (!stat) continue
+    stat.cluesGiven += 1
+    const found = group.filter((g) => g.cell_type === team).length
+    stat.wordsFound += found
+    stat.score += found * 5
+  }
+
+  return Array.from(stats.values()).sort((a, b) => b.score - a.score || b.wordsFound - a.wordsFound)
+}
+
 export type CodewordsHostMode = 'spectator' | 'player'
 
 function codewordsHostModeKey(gameCode: string) {
@@ -280,14 +481,26 @@ export function setCodewordsHostMode(gameCode: string, mode: CodewordsHostMode) 
   localStorage.setItem(codewordsHostModeKey(gameCode), mode)
 }
 
-export async function clearCodewordsSessionData(
+export async function clearCodewordsRoundData(
   supabase: SupabaseClient,
   gameId: string
 ): Promise<{ error: string | null }> {
-  const tables = ['codewords_guesses', 'codewords_boards', 'codewords_player_roles'] as const
+  const tables = ['codewords_guesses', 'codewords_boards'] as const
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('game_id', gameId)
     if (error) return { error: error.message }
   }
+  return { error: null }
+}
+
+/** Clears board, guesses, and team assignments — use only for a full session reset. */
+export async function clearCodewordsSessionData(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error: roundError } = await clearCodewordsRoundData(supabase, gameId)
+  if (roundError) return { error: roundError }
+  const { error } = await supabase.from('codewords_player_roles').delete().eq('game_id', gameId)
+  if (error) return { error: error.message }
   return { error: null }
 }

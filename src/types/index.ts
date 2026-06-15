@@ -131,6 +131,8 @@ export interface Game {
   codewords_player_picks?: boolean
   /** Codewords — allow new players to join after the game has started. */
   codewords_late_join?: boolean
+  /** Codewords — host picks spymasters only; operatives are shuffled onto teams at start. */
+  codewords_randomize_teams?: boolean
   /** Cumulative usage across play-again sessions — unused pool items are prioritized next game. */
   pool_usage?: Record<string, unknown> | null
   /** Trivia — platform pool category when question_source is platform. */

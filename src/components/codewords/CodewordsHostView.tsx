@@ -9,6 +9,7 @@ import {
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
   CODEWORDS_DEFAULT_SPYMASTER_TIMER,
   codewordsPlayerPicks,
+  codewordsRandomizeTeams,
   getCodewordsHostMode,
   mergeCodewordsGuesses,
   setCodewordsHostMode,
@@ -34,6 +35,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [starting, setStarting] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [randomizingTeams, setRandomizingTeams] = useState(false)
   const [savingRoleFor, setSavingRoleFor] = useState<string | null>(null)
   const [spymasterTimer, setSpymasterTimer] = useState(CODEWORDS_DEFAULT_SPYMASTER_TIMER)
   const [operativeTimer, setOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
@@ -165,6 +167,25 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
     }
   }
 
+  const shuffleTeams = async () => {
+    setRandomizingTeams(true)
+    try {
+      const res = await fetch('/api/codewords/randomize-teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to shuffle teams')
+      await load()
+      success('Teams shuffled!')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to shuffle teams')
+    } finally {
+      setRandomizingTeams(false)
+    }
+  }
+
   const saveTimers = async () => {
     setSavingTimers(true)
     try {
@@ -235,6 +256,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const cfg = gameTypeConfig('codewords')
   const playerLink = `${appOrigin()}/game/${gameCode}`
   const playersPickTeams = game ? codewordsPlayerPicks(game) : true
+  const randomizeTeams = game ? codewordsRandomizeTeams(game) : false
   const hostMyRole = hostPlayerId ? roles.find((r) => r.player_id === hostPlayerId) : undefined
   const hostPlays = hostMode === 'player' && !!hostPlayerId
   const showPlayTab = hostPlays && !!hostMyRole
@@ -329,9 +351,11 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
             {hostMode === 'player' && hostPlayerId && (
               <p className="text-xs text-muted">
                 Playing as <strong>{hostPlayerName}</strong> —{' '}
-                {playersPickTeams
-                  ? 'pick your team in Manage → Teams, or assign yourself there.'
-                  : 'assign yourself in Manage → Teams.'}
+                {randomizeTeams
+                  ? 'pick spymasters in Manage → Teams, then shuffle or start.'
+                  : playersPickTeams
+                    ? 'pick your team in Manage → Teams, or assign yourself there.'
+                    : 'assign yourself in Manage → Teams.'}
               </p>
             )}
           </div>
@@ -411,6 +435,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
             onSetSpymaster={setSpymaster}
             onMoveTeam={moveTeam}
             onStartGame={startGame}
+            onRandomizeTeams={shuffleTeams}
+            randomizingTeams={randomizingTeams}
             onPlayAgain={playAgain}
             onEndSession={endSession}
             showSpectatorBoard={hostMode === 'spectator'}

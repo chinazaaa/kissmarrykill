@@ -192,6 +192,7 @@ function CreateGameInner() {
   const [codewordsOperativeTimer, setCodewordsOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
   const [codewordsPlayerPicks, setCodewordsPlayerPicks] = useState(true)
   const [codewordsLateJoin, setCodewordsLateJoin] = useState(false)
+  const [codewordsRandomizeTeams, setCodewordsRandomizeTeams] = useState(false)
   const [triviaCategory, setTriviaCategory] = useState<TriviaCategory>('general')
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
@@ -699,6 +700,7 @@ function CreateGameInner() {
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? codewordsLateJoin : undefined,
+          codewords_randomize_teams: isCodewords ? codewordsRandomizeTeams : undefined,
           bingo_call_mode: isBingo ? bingoCallMode : undefined,
           bingo_call_interval_seconds: isBingo ? bingoCallInterval : undefined,
         }),
@@ -913,8 +915,18 @@ function CreateGameInner() {
                 </Field>
                 <Field label="Team & role assignment">
                   <SegmentedControl
-                    value={codewordsPlayerPicks ? 'players' : 'host'}
-                    onChange={(v) => setCodewordsPlayerPicks(v === 'players')}
+                    value={
+                      codewordsRandomizeTeams ? 'randomize' : codewordsPlayerPicks ? 'players' : 'host'
+                    }
+                    onChange={(v) => {
+                      if (v === 'randomize') {
+                        setCodewordsRandomizeTeams(true)
+                        setCodewordsPlayerPicks(false)
+                      } else {
+                        setCodewordsRandomizeTeams(false)
+                        setCodewordsPlayerPicks(v === 'players')
+                      }
+                    }}
                     options={[
                       {
                         value: 'players',
@@ -925,6 +937,11 @@ function CreateGameInner() {
                         value: 'host',
                         label: 'Host assigns',
                         hint: 'You place everyone on teams from the host panel',
+                      },
+                      {
+                        value: 'randomize',
+                        label: 'Randomize teams',
+                        hint: 'You pick both spymasters — operatives are shuffled at start',
                       },
                     ]}
                   />

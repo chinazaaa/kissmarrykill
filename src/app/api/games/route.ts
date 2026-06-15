@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
     max_players: rawMaxPlayers,
     codewords_player_picks: rawCodewordsPlayerPicks,
     codewords_late_join: rawCodewordsLateJoin,
+    codewords_randomize_teams: rawCodewordsRandomizeTeams,
     trivia_category: rawTriviaCategory,
     bingo_call_mode: rawBingoCallMode,
     bingo_call_interval_seconds: rawBingoCallInterval,
@@ -265,6 +266,7 @@ export async function POST(req: NextRequest) {
           ),
           codewords_player_picks: rawCodewordsPlayerPicks !== false,
           codewords_late_join: rawCodewordsLateJoin === true,
+          codewords_randomize_teams: rawCodewordsRandomizeTeams === true,
         }
       : {}),
     anonymous: isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isAnonymousGame(game_type) ? true : anonymous !== false,
