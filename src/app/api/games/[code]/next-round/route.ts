@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { parseGameType, isWhoSaidThis } from '@/lib/game-types'
+import { parseGameType, isWhoSaidThis, isTriviaGame } from '@/lib/game-types'
 import { hostActionSchema } from '@/lib/validation'
+import { syncTriviaGameState } from '@/lib/trivia-advance'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -22,6 +23,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const gameId = code.toUpperCase()
   const gameType = parseGameType(game.game_type)
+
+  if (isTriviaGame(gameType)) {
+    const result = await syncTriviaGameState(supabase, gameId, { force: true })
+    if (result.code === 'game_not_found') {
+      return NextResponse.json({ error: 'Game not found' }, { status: 404 })
+    }
+    if (!result.ok && result.code !== 'already_done') {
+      return NextResponse.json({ error: 'Could not advance round', code: result.code }, { status: 409 })
+    }
+    return NextResponse.json({ success: true, nextRound: result.nextRound ?? game.current_round_number })
+  }
 
   const { data: activeRound } = await supabase
     .from('rounds')
@@ -57,7 +69,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   await supabase.from('rounds').update(activateUpdate).eq('game_id', gameId).eq('round_number', nextRoundNumber)
 
-  await supabase.from('games').update({ current_round_number: nextRoundNumber }).eq('id', gameId)
+  const { error: pointerError } = await supabase
+    .from('games')
+    .update({ current_round_number: nextRoundNumber })
+    .eq('id', gameId)
+
+  if (pointerError) {
+    return NextResponse.json({ error: 'Failed to advance round' }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true, nextRound: nextRoundNumber })
 }

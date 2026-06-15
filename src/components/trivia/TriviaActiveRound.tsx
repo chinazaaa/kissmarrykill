@@ -34,6 +34,8 @@ interface TriviaActiveRoundProps {
   myPlayerId: string
   playerName: string
   onReload?: () => void
+  /** Host play tab runs sync via useTriviaHostRoundAutomation — skip duplicate polling */
+  skipGameSync?: boolean
 }
 
 export function TriviaActiveRound({
@@ -45,6 +47,7 @@ export function TriviaActiveRound({
   myPlayerId,
   playerName,
   onReload,
+  skipGameSync = false,
 }: TriviaActiveRoundProps) {
   const { error: toastError } = useToast()
   const [submitting, setSubmitting] = useState(false)
@@ -54,10 +57,14 @@ export function TriviaActiveRound({
   const [expiredAtMs, setExpiredAtMs] = useState<number | null>(null)
   const [revealCountdown, setRevealCountdown] = useState(TRIVIA_REVEAL_SECONDS)
 
-  const currentRound = useMemo(
-    () => rounds.find((r) => r.round_number === game.current_round_number) ?? null,
-    [rounds, game.current_round_number]
-  )
+  const currentRound = useMemo(() => {
+    const byPointer = rounds.find((r) => r.round_number === game.current_round_number) ?? null
+    const active = rounds.find((r) => r.status === 'active') ?? null
+    if (active && byPointer && active.id !== byPointer.id && byPointer.status === 'finished') {
+      return active
+    }
+    return byPointer
+  }, [rounds, game.current_round_number])
   const metadata = currentRound ? parseTriviaMetadata(currentRound.trivia_metadata) : null
   const myAnswer = useMemo(
     () =>
@@ -128,7 +135,7 @@ export function TriviaActiveRound({
     gameCode,
     game,
     rounds,
-    enabled: game.status === 'active',
+    enabled: !skipGameSync && game.status === 'active',
     onAdvanced: onReload,
   })
 
@@ -162,6 +169,7 @@ export function TriviaActiveRound({
         if (!res.ok) throw new Error(data.error ?? 'Failed to submit')
         setLastResult({ isCorrect: data.isCorrect, points: data.points })
         playVoteSubmittedSound()
+        onReload?.()
       } catch (err) {
         toastError(err instanceof Error ? err.message : 'Failed to submit')
       } finally {
@@ -169,7 +177,7 @@ export function TriviaActiveRound({
         setSubmittingChoice(null)
       }
     },
-    [currentRound, submitting, myAnswer, gameCode, myPlayerId, toastError]
+    [currentRound, submitting, myAnswer, gameCode, myPlayerId, toastError, onReload]
   )
 
   const points = myAnswer?.points ?? lastResult?.points ?? 0

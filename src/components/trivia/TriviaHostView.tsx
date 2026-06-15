@@ -123,15 +123,6 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   }
 
   const endRound = useCallback(async () => {
-    const roundNumber = game?.current_round_number
-    const now = new Date().toISOString()
-    if (roundNumber) {
-      setRounds((prev) =>
-        prev.map((r) =>
-          r.round_number === roundNumber ? { ...r, status: 'finished' as const, ended_at: now } : r
-        )
-      )
-    }
     setAdvancing(true)
     try {
       const res = await fetch(`/api/games/${gameCode}/end-round`, {
@@ -148,7 +139,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     } finally {
       setAdvancing(false)
     }
-  }, [game?.current_round_number, gameCode, hostToken, load, toastError])
+  }, [gameCode, hostToken, load, toastError])
 
   const startGame = async () => {
     setStarting(true)
@@ -171,25 +162,17 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   }
 
   const nextRound = useCallback(async () => {
-    const nextRoundNumber = (game?.current_round_number ?? 0) + 1
-    const now = new Date().toISOString()
-    setGame((prev) => (prev ? { ...prev, current_round_number: nextRoundNumber } : prev))
-    setRounds((prev) =>
-      prev.map((r) =>
-        r.round_number === nextRoundNumber
-          ? { ...r, status: 'active' as const, started_at: now }
-          : r
-      )
-    )
     setAdvancing(true)
     try {
-      const res = await fetch(`/api/games/${gameCode}/next-round`, {
+      const res = await fetch('/api/trivia/advance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
+        body: JSON.stringify({ gameId: gameCode, hostToken, force: true }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to start next round')
+      if (!res.ok && data.code !== 'already_done') {
+        throw new Error(data.error ?? 'Failed to advance')
+      }
       await load()
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to advance')
@@ -197,7 +180,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     } finally {
       setAdvancing(false)
     }
-  }, [game?.current_round_number, gameCode, hostToken, load, toastError])
+  }, [gameCode, hostToken, load, toastError])
 
   const finishGame = useCallback(async () => {
     setAdvancing(true)
@@ -409,6 +392,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
           myPlayerId={hostPlayerId}
           playerName={hostPlayerName}
           onReload={load}
+          skipGameSync
         />
         )}
 

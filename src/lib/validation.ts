@@ -389,6 +389,8 @@ export type TriviaAnswerInput = z.infer<typeof triviaAnswerSchema>
 
 export const triviaAdvanceSchema = z.object({
   gameId: gameCodeString(),
+  hostToken: z.string().min(1).optional(),
+  force: z.boolean().optional(),
 })
 
 export type TriviaAdvanceInput = z.infer<typeof triviaAdvanceSchema>

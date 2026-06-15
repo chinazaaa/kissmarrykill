@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { triviaAdvanceSchema } from '@/lib/validation'
-import { tryAdvanceTriviaAfterReveal } from '@/lib/trivia-advance'
+import { syncTriviaGameState } from '@/lib/trivia-advance'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -12,7 +12,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const result = await tryAdvanceTriviaAfterReveal(supabase, parsed.data.gameId)
+  const code = parsed.data.gameId.toUpperCase()
+  let force = parsed.data.force === true
+
+  if (force) {
+    if (!parsed.data.hostToken) {
+      return NextResponse.json({ error: 'Host token required to force advance' }, { status: 403 })
+    }
+    const { data: game } = await supabase.from('games').select('host_token').eq('id', code).maybeSingle()
+    if (!game || game.host_token !== parsed.data.hostToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+  }
+
+  const result = await syncTriviaGameState(supabase, code, { force })
 
   if (result.code === 'game_not_found') {
     return NextResponse.json({ error: 'Game not found', code: result.code }, { status: 404 })
@@ -21,6 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not a trivia game', code: result.code }, { status: 400 })
   }
 
-  const status = result.ok || result.code === 'already_done' ? 200 : 409
+  const idleCodes = new Set(['already_done', 'reveal_pending', 'round_active'])
+  const status = result.ok || idleCodes.has(result.code) ? 200 : 409
   return NextResponse.json(result, { status })
 }
