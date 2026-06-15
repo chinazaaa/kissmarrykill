@@ -25,9 +25,11 @@ import {
   isHotSeat,
   isAnonymousMessagesGame,
   isCodewordsGame,
+  isTriviaGame,
 } from '@/lib/game-types'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { CodewordsSessionSummary } from '@/components/codewords/CodewordsSessionSummary'
+import { TriviaSessionSummary } from '@/components/trivia/TriviaSessionSummary'
 import { mergeCodewordsGuesses } from '@/lib/codewords'
 import { hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
@@ -44,7 +46,7 @@ import {
   WstRoundResults,
   HotSeatRoundResults,
 } from '@/components/VoteResults'
-import type { Confession, CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Participant, Player, Round, Vote } from '@/types'
+import type { Confession, CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Participant, Player, Round, TriviaAnswer, Vote } from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
 
@@ -85,6 +87,7 @@ export default function GameHistoryPage() {
   const [codewordsBoard, setCodewordsBoard] = useState<CodewordsBoard | null>(null)
   const [codewordsRoles, setCodewordsRoles] = useState<CodewordsPlayerRole[]>([])
   const [codewordsGuesses, setCodewordsGuesses] = useState<CodewordsGuess[]>([])
+  const [triviaAnswers, setTriviaAnswers] = useState<TriviaAnswer[]>([])
 
   useEffect(() => {
     if (!gameCode || gameCode.length < 4) {
@@ -103,6 +106,7 @@ export default function GameHistoryPage() {
 
       const isAnonymousRoom = isAnonymousMessagesGame(parseGameType(gameData.game_type))
       const isCodewords = isCodewordsGame(parseGameType(gameData.game_type))
+      const isTrivia = isTriviaGame(parseGameType(gameData.game_type))
 
       if (isAnonymousRoom) {
         const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
@@ -116,6 +120,28 @@ export default function GameHistoryPage() {
         setCodewordsBoard(null)
         setCodewordsRoles([])
         setCodewordsGuesses([])
+        setTriviaAnswers([])
+        setLoadState('ready')
+        return
+      }
+
+      if (isTrivia) {
+        const [{ data: plrs }, { data: rds }, { data: ans }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
+          supabase.from('trivia_answers').select('*').eq('game_id', gameCode),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds(rds ?? [])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        setCodewordsBoard(null)
+        setCodewordsRoles([])
+        setCodewordsGuesses([])
+        setTriviaAnswers(ans ?? [])
         setLoadState('ready')
         return
       }
@@ -252,6 +278,38 @@ export default function GameHistoryPage() {
           board={codewordsBoard}
           guesses={codewordsGuesses}
         />
+
+        <p className="text-center pb-4">
+          <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
+            ← Back home
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
+  if (isTriviaGame(gameType)) {
+    return (
+      <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="label-caps">Game history</p>
+            <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
+            <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/history" className="btn-secondary text-sm py-2 px-4">
+              Search
+            </Link>
+            {game.status !== 'finished' && (
+              <Link href={`/host/${game.id}`} className="btn-primary text-sm py-2 px-4">
+                Open game
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <TriviaSessionSummary game={game} players={players} rounds={rounds} answers={triviaAnswers} />
 
         <p className="text-center pb-4">
           <Link href="/" className="text-faint text-sm hover:text-body transition-colors">

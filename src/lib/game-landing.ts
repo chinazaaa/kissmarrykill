@@ -29,6 +29,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   secret_message: 'secret-message',
   bingo: 'bingo',
   codewords: 'codewords',
+  trivia: 'trivia',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -460,6 +461,36 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Guess to win', description: 'Operatives tap words — first team to find all their words wins.' },
     ],
     perfectFor: ['Game nights', 'Team building', 'Word nerds', 'Board game fans'],
+  }),
+
+  trivia: landing('trivia', {
+    seoTitle: 'Trivia — Free Online Quiz Game',
+    seoDescription:
+      'Host a fast-finger trivia game online. Tech or general knowledge — fastest correct answers climb the leaderboard.',
+    keywords: ['online trivia game', 'quiz party game', 'tech trivia', 'general knowledge quiz'],
+    heroSubtitle:
+      'Speed-based trivia for groups. Pick Tech or General Knowledge, or upload your own questions. Fastest correct answers score the most.',
+    highlights: ['Tech & general categories', 'Speed scoring', 'Live leaderboard'],
+    features: [
+      {
+        title: 'Fast-finger scoring',
+        description: 'Correct answers earn base points plus a speed bonus — first correct gets an extra boost.',
+        emoji: '⚡',
+      },
+      {
+        title: 'Your questions or ours',
+        description: 'Use the built-in question pool or upload a CSV with your own Q&A.',
+        emoji: '📋',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Create & join', description: 'Pick a category, set rounds and timer — players join with their name.' },
+      { title: 'Answer fast', description: 'Each round shows a multiple-choice question — tap your answer before time runs out.' },
+      { title: 'Climb the board', description: 'Points stack across rounds — fastest fingers win the leaderboard.' },
+    ],
+    perfectFor: ['Pub quizzes', 'Team meetings', 'Classroom reviews', 'Game nights'],
   }),
 }
 

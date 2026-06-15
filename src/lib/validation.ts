@@ -51,12 +51,14 @@ const gameTypeEnum = z.enum([
   'secret_message',
   'bingo',
   'codewords',
+  'trivia',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
 const autoSubmitBehaviorEnum = z.enum(['random', 'no_answer'])
 const pairVoteModeEnum = z.enum(['any', 'one_each'])
 const questionSourceEnum = z.enum(['platform', 'custom'])
+const triviaCategoryEnum = z.enum(['tech', 'general'])
 const playerQuestionsOrderEnum = z.enum(['players_first', 'uploaded_first', 'mixed'])
 const wstQuoteSourceEnum = z.enum(['player', 'anime', 'both'])
 const wyrChoiceEnum = z.enum(['a', 'b'])
@@ -101,6 +103,7 @@ export const createGameSchema = z.object({
   max_players: z.coerce.number().int().min(2).max(30).optional(),
   codewords_player_picks: z.boolean().optional(),
   codewords_late_join: z.boolean().optional(),
+  trivia_category: triviaCategoryEnum.optional(),
   custom_slots: z
     .object({
       slots: z
@@ -371,6 +374,15 @@ export type BingoCallInput = z.infer<typeof bingoCallSchema>
 export type BingoMarkInput = z.infer<typeof bingoMarkSchema>
 export type BingoClaimInput = z.infer<typeof bingoClaimSchema>
 
+export const triviaAnswerSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  choiceIndex: z.coerce.number().int().min(0).max(3),
+})
+
+export type TriviaAnswerInput = z.infer<typeof triviaAnswerSchema>
+
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
 
@@ -472,6 +484,7 @@ const feedbackGameTypeEnum = z.enum([
   'secret_message',
   'bingo',
   'codewords',
+  'trivia',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])

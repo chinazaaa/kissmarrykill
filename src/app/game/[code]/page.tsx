@@ -72,10 +72,12 @@ import {
   isSecretMessageGame,
   isBingoGame,
   isCodewordsGame,
+  isTriviaGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
 import { BingoPlayerView } from '@/components/bingo/BingoPlayerView'
+import { TriviaPlayerView } from '@/components/trivia/TriviaPlayerView'
 import { CodewordsPlayerView } from '@/components/codewords/CodewordsPlayerView'
 import {
   ParticipantRoundResults,
@@ -1202,6 +1204,9 @@ export default function GamePage() {
   }
   if (game && isCodewordsGame(game.game_type)) {
     return <CodewordsPlayerView gameCode={gameCode} />
+  }
+  if (game && isTriviaGame(game.game_type)) {
+    return <TriviaPlayerView gameCode={gameCode} />
   }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />

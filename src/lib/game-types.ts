@@ -180,7 +180,6 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🤔',
       players: '2+ players',
       vibe: 'Anonymous fun',
-      featured: true,
     },
     slots: {
       kiss: {
@@ -223,6 +222,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '↔️',
       players: '2+ players',
       vibe: 'Quick picks',
+      featured: true,
     },
     slots: {
       kiss: {
@@ -265,7 +265,6 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🎯',
       players: '3+ players',
       vibe: 'Call out friends',
-      featured: true,
     },
     slots: {
       kiss: {
@@ -434,6 +433,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🎭',
       players: '2+ players',
       vibe: 'Anonymous chat',
+      featured: true,
     },
     slots: {
       kiss: {
@@ -518,6 +518,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🎱',
       players: '2–30 players',
       vibe: 'Party classic',
+      featured: true,
     },
     slots: {
       kiss: {
@@ -560,6 +561,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🕵️',
       players: '4–12 players',
       vibe: 'Word spy game',
+      featured: true,
     },
     slots: {
       kiss: {
@@ -591,7 +593,60 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  trivia: {
+    id: 'trivia',
+    label: 'Trivia',
+    tagline: 'Fast-finger quiz — tech or general knowledge, speed wins',
+    headerEmoji: '🧠⚡',
+    card: {
+      accent: '#f43f5e',
+      accentSoft: 'rgba(244, 63, 94, 0.15)',
+      emoji: '🧠',
+      players: '2–30 players',
+      vibe: 'Quiz showdown',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '✓',
+        label: 'Correct',
+        color: '#22c55e',
+        leaderboardLabel: 'Correct answers',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '⚡',
+        label: 'Speed',
+        color: '#f59e0b',
+        leaderboardLabel: 'Fastest fingers',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Points',
+        color: '#f43f5e',
+        leaderboardLabel: 'Top scorers',
+        activeClass: 'bg-rose-500/20 text-rose-900 border-rose-400 dark:text-rose-100',
+        borderClass: 'border-rose-500/50 bg-rose-500/10',
+        textColor: '#fb7185',
+      },
+    },
+  },
 }
+
+/** Home page “Popular games” grid — order is display order. */
+export const HOMEPAGE_FEATURED_GAMES: GameType[] = [
+  'smash_marry_kill',
+  'this_or_that',
+  'codewords',
+  'bingo',
+  'trivia',
+  'anonymous_messages',
+]
 
 export const GAME_TYPE_OPTIONS: GameType[] = [
   'smash_marry_kill',
@@ -607,6 +662,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'secret_message',
   'bingo',
   'codewords',
+  'trivia',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -622,6 +678,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'secret_message') return 'secret_message'
   if (raw === 'bingo') return 'bingo'
   if (raw === 'codewords') return 'codewords'
+  if (raw === 'trivia') return 'trivia'
   return 'smash_marry_kill'
 }
 
@@ -656,6 +713,8 @@ export function gameHowItWorks(
       return 'Players join with their name and get a random bingo card when you start — they do not pick their own numbers. Call numbers B1–O75; players tap called squares on their card and hit BINGO when they complete a line.'
     case 'codewords':
       return 'Players join, pick Red or Blue and a role (spymaster or operative). You start when each team has 1 spymaster and at least 1 operative. Spymasters see the secret key and give one-word clues; operatives guess words on the 5×5 grid. Avoid the assassin!'
+    case 'trivia':
+      return 'Players join with their name. Each round shows a multiple-choice question — fastest correct answers score the most. Pick Tech or General Knowledge, or upload your own CSV. Live leaderboard tracks who is winning.'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -851,7 +910,7 @@ type LobbyCounts = { participantMode?: string; participantCount: number }
 /** WYR + MLT + This or That player join: free name entry, no list. Hot Seat uses import + name claim (see isImportNameClaimGame). */
 export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to'
+  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to' || type === 'trivia'
 }
 
 /** Import list + claim your name when joining (no gender) — Who Said This & Hot Seat (import mode). */
@@ -910,6 +969,10 @@ export function isBingoGame(gameType: GameType | string | undefined): boolean {
 
 export function isCodewordsGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'codewords'
+}
+
+export function isTriviaGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'trivia'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

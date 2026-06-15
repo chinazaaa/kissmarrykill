@@ -1,0 +1,278 @@
+'use client'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import {
+  formatTriviaChoiceLabel,
+  parseTriviaMetadata,
+  revealCountdownSeconds,
+  tallyTriviaPlayerScores,
+  triviaCategoryFromGame,
+  TRIVIA_MIN_PLAYERS,
+  TRIVIA_REVEAL_SECONDS,
+} from '@/lib/trivia'
+import { triviaCategoryLabel } from '@/lib/trivia-questions'
+import { useRoundTimer } from '@/hooks/useRoundTimer'
+import type { Game, Player, Round, TriviaAnswer } from '@/types'
+
+const CHOICE_BADGE =
+  'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-white font-black mr-3'
+const COUNTDOWN_TEXT = 'text-[var(--primary-strong)] dark:text-rose-300 font-bold text-lg sm:text-xl'
+
+interface TriviaHostManagePanelProps {
+  game: Game
+  playerLink: string
+  players: Player[]
+  rounds: Round[]
+  answers: TriviaAnswer[]
+  starting: boolean
+  advancing: boolean
+  playingAgain: boolean
+  onStartGame: () => void
+  onEndRound: () => void
+  onNextRound: () => void
+  onFinishGame: () => void
+  onPlayAgain: () => void
+}
+
+export function TriviaHostManagePanel({
+  game,
+  playerLink,
+  players,
+  rounds,
+  answers,
+  starting,
+  advancing,
+  playingAgain,
+  onStartGame,
+  onEndRound,
+  onNextRound,
+  onFinishGame,
+  onPlayAgain,
+}: TriviaHostManagePanelProps) {
+  const [revealCountdown, setRevealCountdown] = useState(TRIVIA_REVEAL_SECONDS)
+  const autoAdvancedRoundId = useRef<string | null>(null)
+  const autoEndedRoundId = useRef<string | null>(null)
+
+  const currentRound = useMemo(
+    () => rounds.find((r) => r.round_number === game.current_round_number) ?? null,
+    [rounds, game.current_round_number]
+  )
+  const activeRound = currentRound?.status === 'active' ? currentRound : null
+  const lastFinishedRound = useMemo(() => {
+    const finished = rounds.filter((r) => r.status === 'finished')
+    return finished.length ? finished[finished.length - 1] : null
+  }, [rounds])
+  const betweenRounds = game.status === 'active' && !activeRound && lastFinishedRound != null
+  const metadata = activeRound ? parseTriviaMetadata(activeRound.trivia_metadata) : null
+  const roundAnswers = useMemo(
+    () => (currentRound ? answers.filter((a) => a.round_id === currentRound.id) : []),
+    [answers, currentRound]
+  )
+  const leaderboard = useMemo(() => tallyTriviaPlayerScores(answers, players), [answers, players])
+  const isLastRound = (game.current_round_number ?? 0) >= (game.rounds_count ?? 0)
+  const category = triviaCategoryLabel(triviaCategoryFromGame(game))
+  const allAnswered = !!activeRound && players.length > 0 && roundAnswers.length >= players.length
+
+  useRoundTimer({
+    game,
+    currentRound: activeRound,
+    active: !!activeRound && !advancing && !allAnswered,
+    onExpire: () => {
+      if (!activeRound || advancing) return
+      if (autoEndedRoundId.current === activeRound.id) return
+      autoEndedRoundId.current = activeRound.id
+      onEndRound()
+    },
+  })
+
+  useEffect(() => {
+    if (!activeRound || advancing || players.length === 0) return
+    if (roundAnswers.length < players.length) return
+    if (autoEndedRoundId.current === activeRound.id) return
+    autoEndedRoundId.current = activeRound.id
+    onEndRound()
+  }, [activeRound?.id, roundAnswers.length, players.length, advancing, onEndRound])
+
+  useEffect(() => {
+    if (!activeRound) {
+      autoEndedRoundId.current = null
+    }
+  }, [activeRound?.id])
+
+  useEffect(() => {
+    if (!betweenRounds || !lastFinishedRound?.ended_at) return
+    const tick = () => setRevealCountdown(revealCountdownSeconds(lastFinishedRound.ended_at))
+    tick()
+    const id = setInterval(tick, 250)
+    return () => clearInterval(id)
+  }, [betweenRounds, lastFinishedRound?.ended_at, lastFinishedRound?.id])
+
+  useEffect(() => {
+    if (!betweenRounds) {
+      autoAdvancedRoundId.current = null
+      return
+    }
+    if (!lastFinishedRound?.ended_at || advancing) return
+    if (autoAdvancedRoundId.current === lastFinishedRound.id) return
+
+    const delayMs = Math.max(
+      0,
+      new Date(lastFinishedRound.ended_at).getTime() + TRIVIA_REVEAL_SECONDS * 1000 - Date.now()
+    )
+
+    const timer = setTimeout(() => {
+      autoAdvancedRoundId.current = lastFinishedRound.id
+      if (isLastRound) onFinishGame()
+      else onNextRound()
+    }, delayMs)
+
+    return () => clearTimeout(timer)
+  }, [betweenRounds, lastFinishedRound?.id, lastFinishedRound?.ended_at, isLastRound, advancing, onFinishGame, onNextRound])
+
+  return (
+    <div className="space-y-5">
+      <CopyLinkButton value={playerLink} label="Copy player link" />
+
+      {game.status === 'waiting' && (
+        <div className="glass-card-strong p-6 sm:p-8 space-y-5">
+          <div>
+            <p className="text-xl sm:text-2xl font-bold text-body">
+              Lobby — {players.length} player{players.length !== 1 ? 's' : ''}
+            </p>
+            <p className="text-muted text-sm sm:text-base mt-1">
+              {category} · {game.rounds_count} rounds · {game.timer_seconds}s per question
+            </p>
+          </div>
+          <ul className="grid sm:grid-cols-2 gap-2 text-base text-body max-h-56 overflow-y-auto">
+            {players.map((p) => (
+              <li key={p.id} className="rounded-xl border border-[var(--border-strong)] px-4 py-3">
+                {p.name}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={onStartGame}
+            disabled={starting || players.length < TRIVIA_MIN_PLAYERS}
+            className="btn-primary w-full py-4 text-base sm:text-lg"
+          >
+            {starting ? 'Starting…' : `Start trivia (${players.length}/${TRIVIA_MIN_PLAYERS}+ players)`}
+          </button>
+        </div>
+      )}
+
+      {activeRound && metadata && (
+        <div className="glass-card-strong p-6 sm:p-8 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm sm:text-base text-muted">
+            <span>
+              Round {activeRound.round_number} of {game.rounds_count}
+            </span>
+            <span className="font-semibold text-body">
+              {roundAnswers.length}/{players.length} answered
+              {allAnswered ? ' — revealing…' : ''}
+            </span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-body leading-snug">{metadata.question}</p>
+          <div className="grid gap-3">
+            {metadata.choices.map((choice, i) => (
+              <div
+                key={i}
+                className="rounded-2xl border border-[var(--border-strong)] px-5 py-4 text-base sm:text-lg text-body flex items-center"
+              >
+                <span className={CHOICE_BADGE}>{formatTriviaChoiceLabel(i)}</span>
+                {choice}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={onEndRound}
+            disabled={advancing}
+            className="btn-secondary w-full py-3.5 text-base"
+          >
+            {advancing ? 'Ending…' : 'End round early'}
+          </button>
+        </div>
+      )}
+
+      {betweenRounds && lastFinishedRound && (
+        <div className="glass-card-strong p-6 sm:p-8 space-y-5">
+          <p className="label-caps">Round {lastFinishedRound.round_number} results</p>
+          {(() => {
+            const meta = parseTriviaMetadata(lastFinishedRound.trivia_metadata)
+            const ra = answers.filter((a) => a.round_id === lastFinishedRound.id)
+            if (!meta) return null
+            return (
+              <>
+                <p className="text-base sm:text-lg text-body">
+                  Correct:{' '}
+                  <span className="font-semibold">
+                    {formatTriviaChoiceLabel(meta.correct_index)}. {meta.choices[meta.correct_index]}
+                  </span>
+                </p>
+                <ul className="space-y-2 text-base">
+                  {ra
+                    .sort((a, b) => b.points - a.points || a.response_ms - b.response_ms)
+                    .map((a) => {
+                      const player = players.find((p) => p.id === a.player_id)
+                      return (
+                        <li
+                          key={a.id}
+                          className="flex justify-between gap-3 rounded-xl border border-[var(--border-strong)] px-4 py-3"
+                        >
+                          <span className={a.is_correct ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-muted'}>
+                            {player?.name ?? 'Player'} — {a.is_correct ? '✓' : '✗'}
+                          </span>
+                          <span className="text-muted shrink-0 font-semibold">+{a.points} pts</span>
+                        </li>
+                      )
+                    })}
+                </ul>
+              </>
+            )
+          })()}
+          <p className={`text-center ${COUNTDOWN_TEXT} py-2`}>
+            {isLastRound
+              ? `Showing final leaderboard — ending in ${revealCountdown}s…`
+              : `Next question in ${revealCountdown}s…`}
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {!isLastRound && (
+              <button type="button" onClick={onNextRound} disabled={advancing} className="btn-primary py-3.5 text-base">
+                {advancing ? 'Starting…' : 'Next question now'}
+              </button>
+            )}
+            {isLastRound && (
+              <button type="button" onClick={onFinishGame} disabled={advancing} className="btn-primary py-3.5 text-base">
+                {advancing ? 'Finishing…' : 'Show final results now'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {(game.status === 'active' || game.status === 'finished') && (
+        <PaginatedLeaderboard
+          title="Live leaderboard"
+          rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
+          scoreLabel={(n) => `${n} pts`}
+        />
+      )}
+
+      {game.status === 'finished' && (
+        <>
+          <div className="glass-card-strong p-8 text-center space-y-2">
+            <p className="text-4xl">🏆</p>
+            <p className="text-2xl font-black">{leaderboard[0]?.name ?? 'Someone'} wins!</p>
+            <p className="text-muted text-base">{leaderboard[0]?.score ?? 0} points total</p>
+          </div>
+          <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-secondary w-full py-3.5 text-base">
+            {playingAgain ? 'Resetting…' : 'Play again'}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}

@@ -22,6 +22,8 @@ export type GameType =
   | 'secret_message'
   | 'bingo'
   | 'codewords'
+  | 'trivia'
+export type TriviaCategory = 'tech' | 'general'
 export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
 export type CodewordsTeam = 'red' | 'blue'
 export type CodewordsRole = 'spymaster' | 'operative'
@@ -130,6 +132,34 @@ export interface Game {
   codewords_late_join?: boolean
   /** Cumulative usage across play-again sessions — unused pool items are prioritized next game. */
   pool_usage?: Record<string, unknown> | null
+  /** Trivia — platform pool category when question_source is platform. */
+  trivia_category?: TriviaCategory | null
+}
+
+export interface TriviaQuestion {
+  question: string
+  choices: string[]
+  correctIndex: number
+  category: TriviaCategory
+}
+
+export interface TriviaMetadata {
+  question: string
+  choices: string[]
+  correct_index: number
+  category: TriviaCategory
+}
+
+export interface TriviaAnswer {
+  id: string
+  game_id: string
+  round_id: string
+  player_id: string
+  choice_index: number
+  is_correct: boolean
+  answered_at: string
+  response_ms: number
+  points: number
 }
 
 export interface Participant {
@@ -175,6 +205,7 @@ export interface Round {
   started_at: string | null
   ended_at: string | null
   anime_metadata?: AnimeMetadata | null
+  trivia_metadata?: TriviaMetadata | null
 }
 
 export type PairFlag = 'kiss' | 'kill'

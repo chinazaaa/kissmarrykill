@@ -42,12 +42,14 @@ import {
   isSecretMessageGame,
   isBingoGame,
   isCodewordsGame,
+  isTriviaGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
 import { AnonymousMessagesHostView } from '@/components/anonymous-messages/AnonymousMessagesHostView'
 import { SecretMessageHostView } from '@/components/secret-message/SecretMessageHostView'
 import { BingoHostView } from '@/components/bingo/BingoHostView'
+import { TriviaHostView } from '@/components/trivia/TriviaHostView'
 import { CodewordsHostView } from '@/components/codewords/CodewordsHostView'
 import {
   getCustomSlots,
@@ -1187,6 +1189,10 @@ export default function HostPage() {
 
   if (game && isCodewordsGame(game.game_type)) {
     return <CodewordsHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isTriviaGame(game.game_type)) {
+    return <TriviaHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {

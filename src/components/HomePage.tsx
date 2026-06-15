@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
+import { HOMEPAGE_FEATURED_GAMES, gameTypeConfig } from '@/lib/game-types'
 import { gameLandingSlug } from '@/lib/game-landing'
 import { GameTypeModal } from '@/components/GameTypeModal'
 import { FateRoundLogo } from '@/components/FateRoundLogo'
@@ -27,7 +27,7 @@ export function HomePage() {
     }
   }
 
-  const featuredTypes = GAME_TYPE_OPTIONS.filter((t) => gameTypeConfig(t).card.featured)
+  const featuredTypes = HOMEPAGE_FEATURED_GAMES
 
   return (
     <>
@@ -72,8 +72,8 @@ export function HomePage() {
                     >
                       {cfg.card.emoji}
                     </span>
-                    <span className="text-xs font-semibold leading-tight">
-                      {cfg.label.split(' ').slice(0, 2).join(' ')}
+                    <span className="text-xs font-semibold leading-tight text-balance">
+                      {cfg.label}
                     </span>
                   </Link>
                 )

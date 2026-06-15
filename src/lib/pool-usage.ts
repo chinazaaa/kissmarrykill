@@ -9,6 +9,8 @@ export interface PoolUsageState {
   participants?: Record<string, number>
   /** Hot seat player id → times in the spotlight */
   hotSeat?: Record<string, number>
+  /** Trivia question keys → times used */
+  trivia?: Record<string, number>
 }
 
 type RoundForUsage = {
@@ -43,6 +45,7 @@ export function parsePoolUsage(raw: unknown): PoolUsageState {
     mlt: section(o.mlt),
     participants: section(o.participants),
     hotSeat: section(o.hotSeat),
+    trivia: section(o.trivia),
   }
 }
 

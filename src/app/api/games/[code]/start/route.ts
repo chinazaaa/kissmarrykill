@@ -14,6 +14,7 @@ import {
   isAnonymousMessagesGame,
   isBingoGame,
   isCodewordsGame,
+  isTriviaGame,
 } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { getCustomSlotCount } from '@/lib/custom-game'
@@ -28,7 +29,9 @@ import {
   parseStoredMltQuestions,
   pickCustomWyrQuestions,
   pickCustomMltQuestions,
+  pickCustomTriviaQuestions,
   questionPoolCap,
+  parseStoredTriviaQuestions,
 } from '@/lib/custom-questions'
 import {
   combineLobbyQuestions,
@@ -41,6 +44,13 @@ import { buildPeoplePollParticipantPool } from '@/lib/player-participant-pool'
 import { hostActionSchema } from '@/lib/validation'
 import { ANONYMOUS_ROOM_MIN_PLAYERS } from '@/lib/anonymous-messages'
 import { BINGO_MIN_PLAYERS, createBingoCardsForPlayers } from '@/lib/bingo'
+import {
+  TRIVIA_MIN_PLAYERS,
+  buildRoundsFromTriviaQuestions,
+  triviaCategoryFromGame,
+  triviaUsageFromQuestions,
+} from '@/lib/trivia'
+import { pickTriviaQuestions } from '@/lib/trivia-questions'
 import {
   CODEWORDS_MIN_PLAYERS,
   CODEWORDS_DEFAULT_SPYMASTER_TIMER,
@@ -150,6 +160,65 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
         rounds_count: 1,
         session_started_at: now,
         anonymous_messages_trimmed_at: null,
+      })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isTriviaGame(gameType)) {
+    if (playersData.length < TRIVIA_MIN_PLAYERS) {
+      return NextResponse.json(
+        { error: `Need at least ${TRIVIA_MIN_PLAYERS} players to start` },
+        { status: 400 }
+      )
+    }
+
+    const questionSource = parseQuestionSource(game.question_source, gameType)
+    const category = triviaCategoryFromGame(game)
+    const customPool = parseStoredTriviaQuestions(game.custom_questions)
+    const useCustom = questionSource === 'custom'
+
+    if (useCustom && customPool.length < game.rounds_count) {
+      return NextResponse.json(
+        { error: `Need at least ${game.rounds_count} custom questions — upload more or lower the round count` },
+        { status: 400 }
+      )
+    }
+
+    const triviaUsage = poolUsageToMap(poolUsage.trivia as Record<string, number> | undefined)
+    const questions = useCustom
+      ? pickCustomTriviaQuestions(customPool, game.rounds_count, triviaUsage)
+      : pickTriviaQuestions(game.rounds_count, category, triviaUsage)
+
+    if (questions.length === 0) {
+      return NextResponse.json({ error: 'No trivia questions available' }, { status: 400 })
+    }
+
+    const roundRows = buildRoundsFromTriviaQuestions({
+      gameId: code.toUpperCase(),
+      questions,
+      now,
+    })
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const updatedPoolUsage = {
+      ...poolUsage,
+      trivia: {
+        ...(poolUsage.trivia ?? {}),
+        ...triviaUsageFromQuestions(questions),
+      },
+    }
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({
+        status: 'active',
+        current_round_number: 1,
+        pool_usage: updatedPoolUsage,
       })
       .eq('id', code.toUpperCase())
 

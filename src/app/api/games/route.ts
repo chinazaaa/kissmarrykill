@@ -25,14 +25,16 @@ import {
   isSecretMessageGame,
   isBingoGame,
   isCodewordsGame,
+  isTriviaGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
-import { parseQuestionSource, parseStoredWyrQuestions, parseStoredMltQuestions } from '@/lib/custom-questions'
+import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
+import { parseQuestionSource, parseStoredWyrQuestions, parseStoredMltQuestions, parseStoredTriviaQuestions } from '@/lib/custom-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
-import type { ParticipantMode, QuestionSource } from '@/types'
+import type { ParticipantMode, QuestionSource, TriviaQuestion } from '@/types'
 import { createGameSchema, stripHtml } from '@/lib/validation'
 import { supportsGenderToggle, defaultGenderBasedForType } from '@/lib/gender-based'
 import { parseParticipantMode, usesHostParticipantList } from '@/lib/participant-mode'
@@ -41,6 +43,7 @@ import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/pl
 import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 import { clampAnonymousRoomMaxPlayers, ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS } from '@/lib/anonymous-messages'
 import { clampBingoMaxPlayers, BINGO_DEFAULT_MAX_PLAYERS } from '@/lib/bingo'
+import { clampTriviaMaxPlayers, TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_DEFAULT_ROUNDS } from '@/lib/trivia'
 import {
   clampCodewordsMaxPlayers,
   clampCodewordsTimer,
@@ -84,17 +87,19 @@ function lobbyMaxRounds(
   if (questionSource === 'custom') {
     if (isBinaryChoiceGame(gameType)) return parseStoredWyrQuestions(customQuestions).length
     if (isMostLikelyTo(gameType)) return parseStoredMltQuestions(customQuestions).length
+    if (isTriviaGame(gameType)) return parseStoredTriviaQuestions(customQuestions).length
     return 20
   }
   if (isBinaryChoiceGame(gameType)) return isThisOrThat(gameType) ? 0 : WYR_QUESTION_COUNT
   if (isMostLikelyTo(gameType)) return MLT_QUESTION_COUNT
+  if (isTriviaGame(gameType)) return TRIVIA_QUESTION_COUNT
   return 20
 }
 
 function parseCustomQuestionsBody(
   raw: unknown,
   gameType: ReturnType<typeof parseGameType>
-): WyrQuestion[] | string[] | null {
+): WyrQuestion[] | string[] | TriviaQuestion[] | null {
   if (!Array.isArray(raw)) return null
   if (isBinaryChoiceGame(gameType)) {
     const parsed = parseStoredWyrQuestions(raw)
@@ -102,6 +107,10 @@ function parseCustomQuestionsBody(
   }
   if (isMostLikelyTo(gameType)) {
     const parsed = parseStoredMltQuestions(raw)
+    return parsed.length > 0 ? parsed : null
+  }
+  if (isTriviaGame(gameType)) {
+    const parsed = parseStoredTriviaQuestions(raw)
     return parsed.length > 0 ? parsed : null
   }
   return null
@@ -137,6 +146,7 @@ export async function POST(req: NextRequest) {
     max_players: rawMaxPlayers,
     codewords_player_picks: rawCodewordsPlayerPicks,
     codewords_late_join: rawCodewordsLateJoin,
+    trivia_category: rawTriviaCategory,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -149,7 +159,7 @@ export async function POST(req: NextRequest) {
   const question_source = parseQuestionSource(rawQuestionSource, game_type)
   let custom_questions: unknown[] | null = null
 
-  if (question_source === 'custom' && (isBinaryChoiceGame(game_type) || isMostLikelyTo(game_type))) {
+  if (question_source === 'custom' && (isBinaryChoiceGame(game_type) || isMostLikelyTo(game_type) || isTriviaGame(game_type))) {
     const cqParsed = parseCustomQuestionsBody(rawCustomQuestions, game_type)
     if (!cqParsed) {
       return NextResponse.json({ error: 'Upload at least one custom question' }, { status: 400 })
@@ -157,7 +167,7 @@ export async function POST(req: NextRequest) {
     custom_questions = cqParsed
   }
 
-  const participant_mode: ParticipantMode = isLobbyGame(game_type)
+  const participant_mode: ParticipantMode = isLobbyGame(game_type) || isTriviaGame(game_type)
     ? 'joiners'
     : isWhoSaidThis(game_type)
       ? 'import'
@@ -200,7 +210,9 @@ export async function POST(req: NextRequest) {
       ? wstAutoRoundCount(participants.length)
       : isHotSeat(game_type)
         ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
-        : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
+        : isTriviaGame(game_type)
+          ? Math.min(Math.max(Number(rounds_count) || TRIVIA_DEFAULT_ROUNDS, 1), maxRounds)
+          : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
 
   if (question_source === 'custom' && custom_questions && roundsCount > custom_questions.length) {
     return NextResponse.json(
@@ -227,7 +239,9 @@ export async function POST(req: NextRequest) {
       ? clampBingoMaxPlayers(Number(rawMaxPlayers) || BINGO_DEFAULT_MAX_PLAYERS)
       : isCodewordsGame(game_type)
         ? clampCodewordsMaxPlayers(Number(rawMaxPlayers) || CODEWORDS_DEFAULT_MAX_PLAYERS)
-        : null
+        : isTriviaGame(game_type)
+          ? clampTriviaMaxPlayers(Number(rawMaxPlayers) || TRIVIA_DEFAULT_MAX_PLAYERS)
+          : null
   const isSecret = isSecretMessageGame(game_type)
 
   const { error: gameError } = await supabase.from('games').insert({
@@ -265,8 +279,14 @@ export async function POST(req: NextRequest) {
       isPairGame(game_type) || (isCustomGame(game_type) && (custom_slots?.slots?.length ?? 0) === 2)
         ? parsePairVoteMode(rawPairVoteMode)
         : 'any',
-    question_source: isWouldYouRather(game_type) || isMostLikelyTo(game_type) ? question_source : 'platform',
+    question_source:
+      isWouldYouRather(game_type) || isMostLikelyTo(game_type) || isTriviaGame(game_type) ? question_source : 'platform',
     custom_questions,
+    trivia_category: isTriviaGame(game_type)
+      ? rawTriviaCategory === 'tech'
+        ? 'tech'
+        : 'general'
+      : null,
     game_type,
     theme,
     status: isSecret ? 'active' : 'waiting',

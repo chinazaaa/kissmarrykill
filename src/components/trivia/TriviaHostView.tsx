@@ -1,0 +1,360 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { TriviaActiveRound } from '@/components/trivia/TriviaActiveRound'
+import { TriviaHostManagePanel } from '@/components/trivia/TriviaHostManagePanel'
+import { gameTypeConfig } from '@/lib/game-types'
+import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
+import { supabase } from '@/lib/supabase'
+import { appOrigin } from '@/lib/site'
+import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import type { Game, Player, Round, TriviaAnswer } from '@/types'
+import { useToast } from '@/components/ui/Toast'
+
+type HostTab = 'play' | 'manage'
+
+export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
+  const { error: toastError, success } = useToast()
+  const [game, setGame] = useState<Game | null>(null)
+  const [players, setPlayers] = useState<Player[]>([])
+  const [rounds, setRounds] = useState<Round[]>([])
+  const [answers, setAnswers] = useState<TriviaAnswer[]>([])
+  const [starting, setStarting] = useState(false)
+  const [advancing, setAdvancing] = useState(false)
+  const [playingAgain, setPlayingAgain] = useState(false)
+  const [hostMode, setHostMode] = useState<TriviaHostMode>('spectator')
+  const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
+  const [hostPlayerName, setHostPlayerName] = useState('')
+  const [hostJoinName, setHostJoinName] = useState('')
+  const [hostJoining, setHostJoining] = useState(false)
+  const [tab, setTab] = useState<HostTab>('manage')
+
+  const load = useCallback(async () => {
+    const [{ data: gameData }, { data: plrs }, { data: rds }, { data: ans }] = await Promise.all([
+      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
+      supabase.from('trivia_answers').select('*').eq('game_id', gameCode),
+    ])
+    if (gameData) setGame(gameData)
+    setPlayers(plrs ?? [])
+    setRounds(rds ?? [])
+    setAnswers(ans ?? [])
+  }, [gameCode])
+
+  useEffect(() => {
+    load()
+    setHostMode(getTriviaHostMode(gameCode))
+    const session = getPlayerSession(gameCode)
+    if (session) {
+      setHostPlayerId(session.playerId)
+      setHostPlayerName(session.playerName)
+    }
+  }, [gameCode, load])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`trivia-host-${gameCode}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (p) =>
+        setGame(p.new as Game)
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, (p) => {
+        const player = p.new as Player
+        setPlayers((prev) => (prev.some((x) => x.id === player.id) ? prev : [...prev, player]))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` }, () => {
+        load()
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trivia_answers', filter: `game_id=eq.${gameCode}` }, (p) => {
+        const row = p.new as TriviaAnswer
+        setAnswers((prev) => (prev.some((a) => a.id === row.id) ? prev : [...prev, row]))
+        load()
+      })
+      .subscribe()
+
+    const poll = setInterval(load, 1000)
+    return () => {
+      clearInterval(poll)
+      supabase.removeChannel(channel)
+    }
+  }, [gameCode, load])
+
+  const changeHostMode = (mode: TriviaHostMode) => {
+    if (game?.status !== 'waiting') return
+    setHostMode(mode)
+    setTriviaHostMode(gameCode, mode)
+    if (mode === 'spectator') setTab('manage')
+  }
+
+  const hostJoinGame = async () => {
+    const name = hostJoinName.trim()
+    if (!name) return
+    setHostJoining(true)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, playerName: name }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to join')
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
+      setHostPlayerId(data.playerId)
+      setHostPlayerName(data.playerName)
+      setHostMode('player')
+      setTriviaHostMode(gameCode, 'player')
+      await load()
+      success(`Joined as ${data.playerName}`)
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to join')
+    } finally {
+      setHostJoining(false)
+    }
+  }
+
+  const endRound = useCallback(async () => {
+    setAdvancing(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/end-round`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to end round')
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to end round')
+    } finally {
+      setAdvancing(false)
+    }
+  }, [gameCode, hostToken, load, toastError])
+
+  const startGame = async () => {
+    setStarting(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to start')
+      await load()
+      success('Trivia started!')
+      if (hostMode === 'player' && hostPlayerId) setTab('play')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to start')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  const nextRound = useCallback(async () => {
+    setAdvancing(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/next-round`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to start next round')
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to advance')
+    } finally {
+      setAdvancing(false)
+    }
+  }, [gameCode, hostToken, load, toastError])
+
+  const finishGame = useCallback(async () => {
+    setAdvancing(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to finish')
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to finish')
+    } finally {
+      setAdvancing(false)
+    }
+  }, [gameCode, hostToken, load, toastError])
+
+  const playAgain = useCallback(async () => {
+    setPlayingAgain(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/play-again`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
+      setAnswers([])
+      setRounds([])
+      await load()
+      success('Lobby reopened!')
+      setTab('manage')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to reset')
+    } finally {
+      setPlayingAgain(false)
+    }
+  }, [gameCode, hostToken, load, success, toastError])
+
+  const cfg = gameTypeConfig('trivia')
+  const playerLink = `${appOrigin()}/game/${gameCode}`
+  const hostPlays = hostMode === 'player' && !!hostPlayerId
+  const showPlayTab = hostPlays && game?.status !== 'waiting'
+
+  useEffect(() => {
+    if (game?.status === 'finished') setTab('manage')
+  }, [game?.status])
+
+  useEffect(() => {
+    if (showPlayTab && game?.status === 'active') setTab('play')
+  }, [showPlayTab, game?.status])
+
+  if (!game) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen pb-24">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+        <div className="text-center space-y-1">
+          <div className="text-4xl sm:text-5xl">{cfg.headerEmoji}</div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title">{game.title}</h1>
+          <p className="text-muted text-sm sm:text-base">{cfg.label} · Host</p>
+        </div>
+
+        {game.status === 'waiting' && (
+          <div className="glass-card-strong p-5 sm:p-6 space-y-3">
+            <p className="label-caps">Host mode</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => changeHostMode('spectator')}
+                className={[
+                  'rounded-2xl border-2 px-4 py-4 text-left',
+                  hostMode === 'spectator'
+                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                    : 'border-[var(--border-strong)] text-muted',
+                ].join(' ')}
+              >
+                <span className="font-bold block text-base">Host only</span>
+                <span className="text-faint text-xs sm:text-sm">Run the game from Manage</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => changeHostMode('player')}
+                className={[
+                  'rounded-2xl border-2 px-4 py-4 text-left',
+                  hostMode === 'player'
+                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                    : 'border-[var(--border-strong)] text-muted',
+                ].join(' ')}
+              >
+                <span className="font-bold block text-base">Host + play</span>
+                <span className="text-faint text-xs sm:text-sm">Play tab + Manage tab</span>
+              </button>
+            </div>
+            {hostMode === 'player' && !hostPlayerId && (
+              <div className="flex items-center gap-2 pt-1">
+                <div className="w-36 sm:w-44 shrink-0">
+                  <input
+                    type="text"
+                    value={hostJoinName}
+                    onChange={(e) => setHostJoinName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                    placeholder="Your name"
+                    className="input-field w-full"
+                    maxLength={40}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={hostJoinGame}
+                  disabled={!hostJoinName.trim() || hostJoining}
+                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
+                >
+                  {hostJoining ? 'Joining…' : 'Join'}
+                </button>
+              </div>
+            )}
+            {hostMode === 'player' && hostPlayerId && (
+              <p className="text-sm text-muted">
+                Playing as <strong className="text-body">{hostPlayerName}</strong> — switch to Play after you start.
+              </p>
+            )}
+          </div>
+        )}
+
+        {showPlayTab && (
+          <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
+            <button
+              type="button"
+              onClick={() => setTab('play')}
+              className={[
+                'flex-1 rounded-lg py-3 text-sm sm:text-base font-bold transition-colors',
+                tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+              ].join(' ')}
+            >
+              Play
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('manage')}
+              className={[
+                'flex-1 rounded-lg py-3 text-sm sm:text-base font-bold transition-colors',
+                tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+              ].join(' ')}
+            >
+              Manage
+            </button>
+          </div>
+        )}
+
+        {tab === 'play' && hostPlays && hostPlayerId && game.status !== 'waiting' && (
+          <TriviaActiveRound
+            gameCode={gameCode}
+            game={game}
+            players={players}
+            rounds={rounds}
+            answers={answers}
+            myPlayerId={hostPlayerId}
+            playerName={hostPlayerName}
+          />
+        )}
+
+        {(tab === 'manage' || !showPlayTab) && (
+          <TriviaHostManagePanel
+            game={game}
+            playerLink={playerLink}
+            players={players}
+            rounds={rounds}
+            answers={answers}
+            starting={starting}
+            advancing={advancing}
+            playingAgain={playingAgain}
+            onStartGame={startGame}
+            onEndRound={endRound}
+            onNextRound={nextRound}
+            onFinishGame={finishGame}
+            onPlayAgain={playAgain}
+          />
+        )}
+      </div>
+    </div>
+  )
+}

@@ -10,6 +10,8 @@ import type {
   ThemeId,
   WstQuoteSource,
   PlayerQuestionsOrder,
+  TriviaCategory,
+  TriviaQuestion,
 } from '@/types'
 import { THEMES } from '@/lib/themes'
 import { ThemePreviewCard, ThemePreviewModal } from '@/components/ThemePreviewModal'
@@ -35,6 +37,7 @@ import {
   isSecretMessageGame,
   isBingoGame,
   isCodewordsGame,
+  isTriviaGame,
   isWouldYouRather,
   isThisOrThat,
   isMostLikelyTo,
@@ -58,8 +61,11 @@ import {
   parseExcelWyrQuestions,
   parseExcelThisOrThatQuestions,
   parseExcelMltQuestions,
+  parseTriviaQuestionRows,
+  parseExcelTriviaQuestions,
   mergeWyrQuestions,
   mergeMltQuestions,
+  mergeTriviaQuestions,
   questionSampleFile,
   questionUploadHint,
   questionSourceOptions,
@@ -96,6 +102,13 @@ import {
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
   CODEWORDS_TIMER_OPTIONS,
 } from '@/lib/codewords'
+import {
+  TRIVIA_DEFAULT_MAX_PLAYERS,
+  TRIVIA_MAX_PLAYERS,
+  TRIVIA_MIN_PLAYERS,
+  TRIVIA_DEFAULT_ROUNDS,
+} from '@/lib/trivia'
+import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useToast } from '@/components/ui/Toast'
 
@@ -169,6 +182,9 @@ function CreateGameInner() {
   const [codewordsOperativeTimer, setCodewordsOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
   const [codewordsPlayerPicks, setCodewordsPlayerPicks] = useState(true)
   const [codewordsLateJoin, setCodewordsLateJoin] = useState(false)
+  const [triviaCategory, setTriviaCategory] = useState<TriviaCategory>('general')
+  const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
+  const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -193,6 +209,14 @@ function CreateGameInner() {
               anonymous: true,
               rounds_count: 1,
               timer_seconds: CODEWORDS_DEFAULT_SPYMASTER_TIMER,
+            }
+          : {}),
+        ...(isTriviaGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: TRIVIA_DEFAULT_ROUNDS,
+              timer_seconds: 30,
             }
           : {}),
         ...(isWhoSaidThis(type)
@@ -221,6 +245,7 @@ function CreateGameInner() {
   const isTot = isThisOrThat(settings.game_type)
   const isBinaryLobby = isWyr || isTot
   const isMlt = isMostLikelyTo(settings.game_type)
+  const isTrivia = isTriviaGame(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
   const hotSeatCreateCapUpper = isHotSeatGame ? hotSeatMaxCapUpperBound(0, participants.length) : 20
@@ -237,21 +262,27 @@ function CreateGameInner() {
   const canCreateImport =
     participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type, participantOpts)
   const canCreateJoiners = !!settings.title.trim()
-  const isLobbyQuestions = isBinaryLobby || isMlt
+  const isLobbyQuestions = isBinaryLobby || isMlt || isTrivia
   const isPeoplePoll = isPeoplePollGame(settings.game_type)
   const isPeoplePollVoters = isPeoplePoll && settings.participant_mode === 'voters'
-  const isPlayerSubmissions = isLobbyQuestions || isPeoplePollVoters
-  const customQuestionCount = isBinaryLobby ? customWyrQuestions.length : customMltQuestions.length
+  const isPlayerSubmissions = (isLobbyQuestions && !isTrivia) || isPeoplePollVoters
+  const customQuestionCount = isTrivia
+    ? customTriviaQuestions.length
+    : isBinaryLobby
+      ? customWyrQuestions.length
+      : customMltQuestions.length
   const questionCap =
     questionSource === 'custom' && customQuestionCount > 0
       ? customQuestionCount
       : isTot
         ? customQuestionCount
-        : isWyr
-          ? WYR_QUESTION_COUNT
-          : isMlt
-            ? MLT_QUESTION_COUNT
-            : 10
+        : isTrivia
+          ? TRIVIA_QUESTION_COUNT
+          : isWyr
+            ? WYR_QUESTION_COUNT
+            : isMlt
+              ? MLT_QUESTION_COUNT
+              : 10
   const mltRoundOptions = questionRoundPickerOptions(questionCap)
   const wyrRoundOptions = questionRoundPickerOptions(questionCap)
   const wstRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= Math.max(participants.length, 2))
@@ -259,9 +290,11 @@ function CreateGameInner() {
     ? wyrRoundOptions
     : isMlt
       ? mltRoundOptions
-      : isWst
-        ? wstRoundOptions
-        : [2, 3, 4, 5, 6, 8, 10]
+      : isTrivia
+        ? questionRoundPickerOptions(questionCap)
+        : isWst
+          ? wstRoundOptions
+          : [2, 3, 4, 5, 6, 8, 10]
   const hasEnoughCustomQuestions =
     (isTot && customQuestionCount >= settings.rounds_count && customQuestionCount > 0) ||
     (questionSource === 'platform' && !isTot) ||
@@ -277,7 +310,8 @@ function CreateGameInner() {
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
   const isQuickLobby = isMessageBoard || isBingo || isCodewords
-  const needsParticipantStep = !isQuickLobby && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
+  const isTriviaQuickCreate = isTrivia
+  const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
 
@@ -295,6 +329,8 @@ function CreateGameInner() {
     setPlayerQuestionsOrder('players_first')
     setCustomWyrQuestions([])
     setCustomMltQuestions([])
+    setCustomTriviaQuestions([])
+    setTriviaCategory('general')
     setQuestionsUploadError(null)
     setSettings({
       ...settings,
@@ -315,6 +351,14 @@ function CreateGameInner() {
             anonymous: true,
             rounds_count: 1,
             timer_seconds: CODEWORDS_DEFAULT_SPYMASTER_TIMER,
+          }
+        : {}),
+      ...(isTriviaGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: TRIVIA_DEFAULT_ROUNDS,
+            timer_seconds: 30,
           }
         : {}),
       ...(isWhoSaidThis(type)
@@ -435,12 +479,15 @@ function CreateGameInner() {
 
   const removeParticipant = (i: number) => setParticipants((prev) => prev.filter((_, idx) => idx !== i))
 
-  const addCustomQuestionsFromRows = (wyrRows: WyrQuestion[], mltRows: string[]) => {
+  const addCustomQuestionsFromRows = (wyrRows: WyrQuestion[], mltRows: string[], triviaRows: TriviaQuestion[] = []) => {
     if ((isWyr || isTot) && wyrRows.length > 0) {
       setCustomWyrQuestions((prev) => mergeWyrQuestions(prev, wyrRows))
     }
     if (isMlt && mltRows.length > 0) {
       setCustomMltQuestions((prev) => mergeMltQuestions(prev, mltRows))
+    }
+    if (isTrivia && triviaRows.length > 0) {
+      setCustomTriviaQuestions((prev) => mergeTriviaQuestions(prev, triviaRows))
     }
   }
 
@@ -497,6 +544,13 @@ function CreateGameInner() {
         return
       }
       addCustomQuestionsFromRows([], rows)
+    } else if (isTrivia) {
+      const rows = parseTriviaQuestionRows(questionsBulkPaste, triviaCategory)
+      if (rows.length === 0) {
+        setQuestionsUploadError('Use: question, option_a, option_b, option_c, option_d, correct')
+        return
+      }
+      addCustomQuestionsFromRows([], [], rows)
     }
     setQuestionsBulkPaste('')
   }
@@ -533,6 +587,13 @@ function CreateGameInner() {
             return
           }
           addCustomQuestionsFromRows([], rows)
+        } else if (isTrivia) {
+          const rows = parseTriviaQuestionRows(text, triviaCategory)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Use question, options, and correct answer columns.')
+            return
+          }
+          addCustomQuestionsFromRows([], [], rows)
         }
         return
       }
@@ -560,6 +621,13 @@ function CreateGameInner() {
             return
           }
           addCustomQuestionsFromRows([], rows)
+        } else if (isTrivia) {
+          const rows = await parseExcelTriviaQuestions(buffer, triviaCategory)
+          if (rows.length === 0) {
+            setQuestionsUploadError('No valid rows. Use question, options, and correct answer columns.')
+            return
+          }
+          addCustomQuestionsFromRows([], [], rows)
         }
         return
       }
@@ -573,12 +641,15 @@ function CreateGameInner() {
   const removeCustomQuestion = (index: number) => {
     if (isWyr || isTot) setCustomWyrQuestions((prev) => prev.filter((_, i) => i !== index))
     if (isMlt) setCustomMltQuestions((prev) => prev.filter((_, i) => i !== index))
+    if (isTrivia) setCustomTriviaQuestions((prev) => prev.filter((_, i) => i !== index))
   }
 
   const createGame = async () => {
     if (loading) return
     if (isQuickLobby) {
       if (!settings.title.trim()) return
+    } else if (isTriviaQuickCreate) {
+      if (!canCreateQuickLobby) return
     } else if (isJoinersMode ? !canCreateJoiners : !canCreateImport) return
     setLoading(true)
     try {
@@ -593,8 +664,11 @@ function CreateGameInner() {
             isLobbyQuestions && (isTot || questionSource === 'custom')
               ? isBinaryLobby
                 ? customWyrQuestions
-                : customMltQuestions
+                : isTrivia
+                  ? customTriviaQuestions
+                  : customMltQuestions
               : null,
+          trivia_category: isTrivia ? triviaCategory : undefined,
           participants: isJoinersMode ? [] : participants,
           wst_quote_source: isWst ? wstQuoteSource : undefined,
           custom_slots: isCustom ? customSlots : null,
@@ -607,7 +681,9 @@ function CreateGameInner() {
               ? bingoMaxPlayers
               : isCodewords
                 ? codewordsMaxPlayers
-                : undefined,
+                : isTrivia
+                  ? triviaMaxPlayers
+                  : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? codewordsLateJoin : undefined,
@@ -817,6 +893,24 @@ function CreateGameInner() {
             ) : (
               <>
                 <SettingsGroup title="Round settings">
+                  {isTrivia && (
+                    <Field label={`Max players (${TRIVIA_MIN_PLAYERS}–${TRIVIA_MAX_PLAYERS})`}>
+                      <select
+                        value={triviaMaxPlayers}
+                        onChange={(e) => setTriviaMaxPlayers(Number(e.target.value))}
+                        className="input-field w-full"
+                      >
+                        {Array.from(
+                          { length: TRIVIA_MAX_PLAYERS - TRIVIA_MIN_PLAYERS + 1 },
+                          (_, i) => i + TRIVIA_MIN_PLAYERS
+                        ).map((n) => (
+                          <option key={n} value={n}>
+                            {n} players
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  )}
                   {isWst ? (
                     <div className="space-y-4">
                       <Field label="Quote source">
@@ -960,41 +1054,58 @@ function CreateGameInner() {
 
                 {isLobbyQuestions && (
                   <SettingsGroup title="Questions">
-                    <Field label="Player submissions">
-                      <SegmentedControl
-                        value={playerQuestionsEnabled ? 'on' : 'off'}
-                        onChange={(v) => setPlayerQuestionsEnabled(v === 'on')}
-                        options={[
-                          { value: 'on', label: 'Allowed' },
-                          { value: 'off', label: 'Disabled' },
-                        ]}
-                      />
-                      <p className="text-faint text-xs mt-2">
-                        {playerQuestionsEnabled
-                          ? 'Players can add their own questions in the lobby before you start.'
-                          : 'Only your uploaded or platform questions will be used.'}
-                      </p>
-                    </Field>
-
-                    {playerQuestionsEnabled && (
-                      <Field label="Question mix">
+                    {isTrivia && questionSource === 'platform' && (
+                      <Field label="Category">
                         <SegmentedControl
-                          value={playerQuestionsOrder}
-                          onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
-                          options={playerQuestionsOrderOptions({
-                            game_type: settings.game_type,
-                            question_source: isTot ? 'custom' : questionSource,
-                          }).map((opt) => ({ value: opt.value, label: opt.label }))}
+                          value={triviaCategory}
+                          onChange={(v) => setTriviaCategory(v as TriviaCategory)}
+                          options={[
+                            { value: 'tech', label: 'Tech', hint: 'Programming, gadgets, internet culture' },
+                            { value: 'general', label: 'General', hint: 'Geography, history, pop culture & more' },
+                          ]}
                         />
-                        <p className="text-faint text-xs mt-2">
-                          {
-                            playerQuestionsOrderOptions({
-                              game_type: settings.game_type,
-                              question_source: isTot ? 'custom' : questionSource,
-                            }).find((opt) => opt.value === playerQuestionsOrder)?.hint
-                          }
-                        </p>
                       </Field>
+                    )}
+
+                    {!isTrivia && (
+                      <>
+                        <Field label="Player submissions">
+                          <SegmentedControl
+                            value={playerQuestionsEnabled ? 'on' : 'off'}
+                            onChange={(v) => setPlayerQuestionsEnabled(v === 'on')}
+                            options={[
+                              { value: 'on', label: 'Allowed' },
+                              { value: 'off', label: 'Disabled' },
+                            ]}
+                          />
+                          <p className="text-faint text-xs mt-2">
+                            {playerQuestionsEnabled
+                              ? 'Players can add their own questions in the lobby before you start.'
+                              : 'Only your uploaded or platform questions will be used.'}
+                          </p>
+                        </Field>
+
+                        {playerQuestionsEnabled && (
+                          <Field label="Question mix">
+                            <SegmentedControl
+                              value={playerQuestionsOrder}
+                              onChange={(v) => setPlayerQuestionsOrder(parsePlayerQuestionsOrder(v))}
+                              options={playerQuestionsOrderOptions({
+                                game_type: settings.game_type,
+                                question_source: isTot ? 'custom' : questionSource,
+                              }).map((opt) => ({ value: opt.value, label: opt.label }))}
+                            />
+                            <p className="text-faint text-xs mt-2">
+                              {
+                                playerQuestionsOrderOptions({
+                                  game_type: settings.game_type,
+                                  question_source: isTot ? 'custom' : questionSource,
+                                }).find((opt) => opt.value === playerQuestionsOrder)?.hint
+                              }
+                            </p>
+                          </Field>
+                        )}
+                      </>
                     )}
 
                     {isLobbyQuestions && !isTot && (
@@ -1005,6 +1116,7 @@ function CreateGameInner() {
                           if (v === 'platform') {
                             setCustomWyrQuestions([])
                             setCustomMltQuestions([])
+                            setCustomTriviaQuestions([])
                             setQuestionsUploadError(null)
                           }
                         }}
@@ -1145,7 +1257,20 @@ function CreateGameInner() {
                                     </button>
                                   </div>
                                 ))
-                              : customMltQuestions.map((q, i) => (
+                              : isTrivia
+                                ? customTriviaQuestions.map((q, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-sm">
+                                      <p className="text-body flex-1 min-w-0">{q.question}</p>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeCustomQuestion(i)}
+                                        className="text-faint hover:text-red-300 text-xs shrink-0"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ))
+                                : customMltQuestions.map((q, i) => (
                                   <div key={i} className="flex items-start gap-2 text-sm">
                                     <p className="text-body flex-1 min-w-0">{q}</p>
                                     <button
@@ -1173,7 +1298,7 @@ function CreateGameInner() {
                 )}
 
                 {!isAnonymousRoom &&
-                  ((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type)) || isHotSeatGame ? (
+                  ((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type) && !isTrivia) || isHotSeatGame ? (
                     <SettingsGroup title={isHotSeatGame ? "Who's in the game" : "Who's in the poll"}>
                       <SegmentedControl
                         value={settings.participant_mode}
@@ -1228,7 +1353,8 @@ function CreateGameInner() {
                   settings.participant_mode === 'import' &&
                   !isBinaryLobby &&
                   !isWst &&
-                  !isHotSeatGame && (
+                  !isHotSeatGame &&
+                  !isTrivia && (
                     <SettingsGroup title="Who appears in rounds">
                       <SegmentedControl
                         value={settings.participant_filter}
@@ -1297,7 +1423,7 @@ function CreateGameInner() {
               <PrimaryBtn onClick={createGame} disabled={!settings.title.trim() || loading}>
                 {loading ? 'Creating...' : 'Create Game'}
               </PrimaryBtn>
-            ) : isBinaryLobby || (isMlt && isJoinersMode) ? (
+            ) : isBinaryLobby || isTriviaQuickCreate || (isMlt && isJoinersMode) ? (
               <PrimaryBtn onClick={createGame} disabled={!canCreateQuickLobby || loading || !customSlotsValid}>
                 {loading ? 'Creating...' : 'Create Game'}
               </PrimaryBtn>
