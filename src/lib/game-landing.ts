@@ -28,6 +28,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   anonymous_messages: 'anonymous-room',
   secret_message: 'secret-message',
   bingo: 'bingo',
+  codewords: 'codewords',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -429,6 +430,36 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Call & win', description: 'Call numbers until someone completes a line and claims BINGO.' },
     ],
     perfectFor: ['Family game night', 'Office parties', 'Classroom fun', 'Pub quizzes'],
+  }),
+
+  codewords: landing('codewords', {
+    seoTitle: 'Codewords — Free Online Word Spy Game',
+    seoDescription:
+      'Play Codewords online with friends. Two teams, spymasters give clues, operatives guess the secret words on a 5×5 grid.',
+    keywords: ['codenames online', 'codewords party game', 'word spy game', 'free codenames alternative'],
+    heroSubtitle:
+      'The classic word-association spy game online. Red vs Blue — spymasters know the secret key, operatives guess the right words. One wrong pick on the assassin ends it all.',
+    highlights: ['Red vs Blue teams', 'Spymaster clues', '5×5 word grid'],
+    features: [
+      {
+        title: 'Two teams, hidden roles',
+        description: 'Pick spymaster or operative — spymasters see the full key card, operatives see only words.',
+        emoji: '🕵️',
+      },
+      {
+        title: 'One-word clues',
+        description: 'Give a clue and a number — your team guesses which words match. Avoid the assassin!',
+        emoji: '💬',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Create & join', description: 'Host sets up a room — players join and pick Red or Blue plus a role.' },
+      { title: 'Spymasters clue', description: 'Starting team spymaster gives a one-word clue and a number.' },
+      { title: 'Guess to win', description: 'Operatives tap words — first team to find all their words wins.' },
+    ],
+    perfectFor: ['Game nights', 'Team building', 'Word nerds', 'Board game fans'],
   }),
 }
 

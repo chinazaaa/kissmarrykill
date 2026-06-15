@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame } from '@/lib/game-types'
+import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame } from '@/lib/game-types'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { anonymousPlayerCanChat, anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
 import { bingoMaxPlayers, createBingoCardForPlayer } from '@/lib/bingo'
+import { codewordsMaxPlayers } from '@/lib/codewords'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import {
@@ -202,6 +203,54 @@ export async function POST(req: NextRequest) {
       const { error: cardError } = await createBingoCardForPlayer(supabase, gameId, player.id)
       if (cardError) return NextResponse.json({ error: cardError }, { status: 500 })
     }
+
+    return NextResponse.json({
+      playerId: player.id,
+      playerName: player.name,
+      playerGender: player.gender,
+      playerIdentityGender: player.identity_gender,
+    })
+  }
+
+  if (isCodewordsGame(rowGameType)) {
+    if (gameRow.status === 'finished') {
+      return NextResponse.json({ error: 'This round has ended' }, { status: 400 })
+    }
+    if (gameRow.status !== 'waiting' && gameRow.status !== 'active') {
+      return NextResponse.json({ error: 'Cannot join this game' }, { status: 400 })
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = codewordsMaxPlayers(gameRow)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     return NextResponse.json({
       playerId: player.id,

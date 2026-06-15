@@ -549,6 +549,48 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  codewords: {
+    id: 'codewords',
+    label: 'Codewords',
+    tagline: 'Two teams — spymasters give clues, operatives guess the words',
+    headerEmoji: '🕵️🔤',
+    card: {
+      accent: '#dc2626',
+      accentSoft: 'rgba(220, 38, 38, 0.12)',
+      emoji: '🕵️',
+      players: '4–12 players',
+      vibe: 'Word spy game',
+    },
+    slots: {
+      kiss: {
+        emoji: '🔴',
+        label: 'Red',
+        color: '#ef4444',
+        leaderboardLabel: 'Red team',
+        activeClass: 'bg-red-500/20 text-red-100 border-red-400',
+        borderClass: 'border-red-500/50 bg-red-500/10',
+        textColor: '#fca5a5',
+      },
+      marry: {
+        emoji: '🔵',
+        label: 'Blue',
+        color: '#3b82f6',
+        leaderboardLabel: 'Blue team',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      kill: {
+        emoji: '💀',
+        label: 'Assassin',
+        color: '#171717',
+        leaderboardLabel: 'Assassin',
+        activeClass: 'bg-neutral-800/30 text-neutral-200 border-neutral-600',
+        borderClass: 'border-neutral-600/50 bg-neutral-800/20',
+        textColor: '#a3a3a3',
+      },
+    },
+  },
 }
 
 export const GAME_TYPE_OPTIONS: GameType[] = [
@@ -564,6 +606,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'anonymous_messages',
   'secret_message',
   'bingo',
+  'codewords',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -578,6 +621,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'anonymous_messages') return 'anonymous_messages'
   if (raw === 'secret_message') return 'secret_message'
   if (raw === 'bingo') return 'bingo'
+  if (raw === 'codewords') return 'codewords'
   return 'smash_marry_kill'
 }
 
@@ -610,6 +654,8 @@ export function gameHowItWorks(
       return 'Create your link and share it anywhere. Anyone who opens it can send you a message — senders never see each other’s messages, and only you can read your inbox.'
     case 'bingo':
       return 'Players join with their name and get a random bingo card when you start — they do not pick their own numbers. Call numbers B1–O75; players tap called squares on their card and hit BINGO when they complete a line.'
+    case 'codewords':
+      return 'Players join, pick Red or Blue and a role (spymaster or operative). You start when each team has 1 spymaster and at least 1 operative. Spymasters see the secret key and give one-word clues; operatives guess words on the 5×5 grid. Avoid the assassin!'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -860,6 +906,10 @@ export function isSecretMessageGame(gameType: GameType | string | undefined): bo
 
 export function isBingoGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'bingo'
+}
+
+export function isCodewordsGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'codewords'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

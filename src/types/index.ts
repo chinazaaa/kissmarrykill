@@ -21,6 +21,35 @@ export type GameType =
   | 'anonymous_messages'
   | 'secret_message'
   | 'bingo'
+  | 'codewords'
+export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
+export type CodewordsTeam = 'red' | 'blue'
+export type CodewordsRole = 'spymaster' | 'operative'
+
+export interface CodewordsBoard {
+  id: string
+  game_id: string
+  words: string[]
+  key: CodewordsCellType[]
+  starting_team: CodewordsTeam
+  revealed_indices: number[]
+  current_turn: CodewordsTeam
+  guesses_remaining: number | null
+  current_clue_word: string | null
+  current_clue_number: number | null
+  winner: CodewordsTeam | null
+  assassin_team: CodewordsTeam | null
+  created_at: string
+}
+
+export interface CodewordsPlayerRole {
+  id: string
+  game_id: string
+  player_id: string
+  team: CodewordsTeam
+  role: CodewordsRole
+  created_at: string
+}
 export type ThemeId = 'default' | 'neon' | 'retro' | 'elegant' | 'tropical'
 export type WyrChoice = 'a' | 'b'
 

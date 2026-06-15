@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
-import { isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, parseGameType } from '@/lib/game-types'
+import { isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, parseGameType } from '@/lib/game-types'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -41,6 +41,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isBingoGame(parseGameType(game.game_type))) {
+    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isCodewordsGame(parseGameType(game.game_type))) {
     const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })

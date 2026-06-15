@@ -71,10 +71,12 @@ import {
   isAnonymousMessagesGame,
   isSecretMessageGame,
   isBingoGame,
+  isCodewordsGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
 import { BingoPlayerView } from '@/components/bingo/BingoPlayerView'
+import { CodewordsPlayerView } from '@/components/codewords/CodewordsPlayerView'
 import {
   ParticipantRoundResults,
   VoteCountStat,
@@ -1197,6 +1199,9 @@ export default function GamePage() {
   }
   if (game && isBingoGame(game.game_type)) {
     return <BingoPlayerView gameCode={gameCode} />
+  }
+  if (game && isCodewordsGame(game.game_type)) {
+    return <CodewordsPlayerView gameCode={gameCode} />
   }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />

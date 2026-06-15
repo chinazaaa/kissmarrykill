@@ -34,6 +34,7 @@ import {
   isAnonymousMessagesGame,
   isSecretMessageGame,
   isBingoGame,
+  isCodewordsGame,
   isWouldYouRather,
   isThisOrThat,
   isMostLikelyTo,
@@ -87,6 +88,11 @@ import {
   BINGO_MAX_PLAYERS,
   BINGO_MIN_PLAYERS,
 } from '@/lib/bingo'
+import {
+  CODEWORDS_DEFAULT_MAX_PLAYERS,
+  CODEWORDS_MAX_PLAYERS,
+  CODEWORDS_MIN_PLAYERS,
+} from '@/lib/codewords'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useToast } from '@/components/ui/Toast'
 
@@ -156,6 +162,7 @@ function CreateGameInner() {
   const [customSlots, setCustomSlots] = useState<CustomSlotsConfig | null>(null)
   const [anonymousMaxPlayers, setAnonymousMaxPlayers] = useState(ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS)
   const [bingoMaxPlayers, setBingoMaxPlayers] = useState(BINGO_DEFAULT_MAX_PLAYERS)
+  const [codewordsMaxPlayers, setCodewordsMaxPlayers] = useState(CODEWORDS_DEFAULT_MAX_PLAYERS)
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -172,6 +179,9 @@ function CreateGameInner() {
           ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
           : {}),
         ...(isBingoGame(type)
+          ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
+          : {}),
+        ...(isCodewordsGame(type)
           ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
           : {}),
         ...(isWhoSaidThis(type)
@@ -253,8 +263,9 @@ function CreateGameInner() {
   const isAnonymousRoom = isAnonymousMessagesGame(settings.game_type)
   const isSecretMessage = isSecretMessageGame(settings.game_type)
   const isBingo = isBingoGame(settings.game_type)
+  const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords
   const needsParticipantStep = !isQuickLobby && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
@@ -285,6 +296,9 @@ function CreateGameInner() {
         ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
         : {}),
       ...(isBingoGame(type)
+        ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
+        : {}),
+      ...(isCodewordsGame(type)
         ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
         : {}),
       ...(isWhoSaidThis(type)
@@ -571,7 +585,13 @@ function CreateGameInner() {
           gender_based: supportsGender ? settings.gender_based : undefined,
           player_questions_enabled: isPlayerSubmissions ? playerQuestionsEnabled : undefined,
           player_questions_order: isPlayerSubmissions ? playerQuestionsOrder : undefined,
-          max_players: isAnonymousRoom ? anonymousMaxPlayers : isBingo ? bingoMaxPlayers : undefined,
+          max_players: isAnonymousRoom
+            ? anonymousMaxPlayers
+            : isBingo
+              ? bingoMaxPlayers
+              : isCodewords
+                ? codewordsMaxPlayers
+                : undefined,
         }),
       })
       const data = await res.json()
@@ -688,6 +708,30 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with their name and get a unique 5×5 card. You call numbers B1–O75 — they mark called
                   numbers and tap BINGO when they complete a line. First valid bingo wins the round.
+                </p>
+              </SettingsGroup>
+            ) : isCodewords ? (
+              <SettingsGroup title="Codewords room">
+                <Field label={`Max players (${CODEWORDS_MIN_PLAYERS}–${CODEWORDS_MAX_PLAYERS})`}>
+                  <select
+                    value={codewordsMaxPlayers}
+                    onChange={(e) => setCodewordsMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {Array.from(
+                      { length: CODEWORDS_MAX_PLAYERS - CODEWORDS_MIN_PLAYERS + 1 },
+                      (_, i) => i + CODEWORDS_MIN_PLAYERS
+                    ).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Two teams of spymasters and operatives. Players pick Red or Blue in the lobby. Spymasters see the secret
+                  key and give one-word clues — operatives guess words on the 5×5 grid. First team to find all their words
+                  wins. Avoid the assassin!
                 </p>
               </SettingsGroup>
             ) : (

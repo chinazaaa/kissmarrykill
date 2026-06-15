@@ -50,6 +50,7 @@ const gameTypeEnum = z.enum([
   'anonymous_messages',
   'secret_message',
   'bingo',
+  'codewords',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -367,6 +368,34 @@ export type BingoCallInput = z.infer<typeof bingoCallSchema>
 export type BingoMarkInput = z.infer<typeof bingoMarkSchema>
 export type BingoClaimInput = z.infer<typeof bingoClaimSchema>
 
+const codewordsTeamEnum = z.enum(['red', 'blue'])
+const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
+
+export const codewordsRoleSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  team: codewordsTeamEnum,
+  role: codewordsRoleEnum,
+})
+
+export const codewordsClueSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  clueWord: sanitizedString(1, 40),
+  clueNumber: z.coerce.number().int().min(0).max(9),
+})
+
+export const codewordsGuessSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  cellIndex: z.coerce.number().int().min(0).max(24),
+})
+
+export const codewordsEndTurnSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
 // ---------------------------------------------------------------------------
 // Quote (POST /api/quote)
 // ---------------------------------------------------------------------------
@@ -439,6 +468,7 @@ const feedbackGameTypeEnum = z.enum([
   'anonymous_messages',
   'secret_message',
   'bingo',
+  'codewords',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])
