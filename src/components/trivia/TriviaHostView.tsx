@@ -83,8 +83,15 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       if (settingsModalRef.current) return
       void load()
     }, 400)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !settingsModalRef.current) void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
@@ -160,45 +167,6 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       setStarting(false)
     }
   }
-
-  const nextRound = useCallback(async () => {
-    setAdvancing(true)
-    try {
-      const res = await fetch('/api/trivia/advance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, hostToken, force: true }),
-      })
-      const data = await res.json()
-      if (!res.ok && data.code !== 'already_done') {
-        throw new Error(data.error ?? 'Failed to advance')
-      }
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to advance')
-      await load()
-    } finally {
-      setAdvancing(false)
-    }
-  }, [gameCode, hostToken, load, toastError])
-
-  const finishGame = useCallback(async () => {
-    setAdvancing(true)
-    try {
-      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to finish')
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to finish')
-    } finally {
-      setAdvancing(false)
-    }
-  }, [gameCode, hostToken, load, toastError])
 
   const roundAutomation = useTriviaHostRoundAutomation({
     game: game ?? ({ status: 'waiting' } as Game),
@@ -408,8 +376,6 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
             playingAgain={playingAgain}
             onStartGame={startGame}
             onEndRound={endRound}
-            onNextRound={nextRound}
-            onFinishGame={finishGame}
             onPlayAgain={() => setSettingsModal('play-again')}
             onEditSettings={() => setSettingsModal('lobby')}
             activeRound={roundAutomation.activeRound}

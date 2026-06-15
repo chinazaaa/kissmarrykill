@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
 import {
@@ -56,6 +56,7 @@ export function TriviaActiveRound({
   const [timeExpired, setTimeExpired] = useState(false)
   const [expiredAtMs, setExpiredAtMs] = useState<number | null>(null)
   const [revealCountdown, setRevealCountdown] = useState(TRIVIA_REVEAL_SECONDS)
+  const answerLockRef = useRef(false)
 
   const currentRound = useMemo(() => {
     const byPointer = rounds.find((r) => r.round_number === game.current_round_number) ?? null
@@ -93,6 +94,7 @@ export function TriviaActiveRound({
     setTimeExpired(false)
     setExpiredAtMs(null)
     setSubmittingChoice(null)
+    answerLockRef.current = false
   }, [currentRound?.id])
 
   const showCorrectAnswer =
@@ -151,7 +153,8 @@ export function TriviaActiveRound({
 
   const submitAnswer = useCallback(
     async (choiceIndex: number) => {
-      if (!currentRound || submitting || myAnswer) return
+      if (!currentRound || submitting || myAnswer || answerLockRef.current) return
+      answerLockRef.current = true
       setSubmitting(true)
       setSubmittingChoice(choiceIndex)
       try {
@@ -166,7 +169,10 @@ export function TriviaActiveRound({
           }),
         })
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Failed to submit')
+        if (!res.ok) {
+          answerLockRef.current = false
+          throw new Error(data.error ?? 'Failed to submit')
+        }
         setLastResult({ isCorrect: data.isCorrect, points: data.points })
         playVoteSubmittedSound()
         onReload?.()
@@ -230,7 +236,7 @@ export function TriviaActiveRound({
                 type="button"
                 onClick={() => submitAnswer(i)}
                 disabled={submitting}
-                className="rounded-2xl border-2 border-[var(--border-strong)] px-5 py-4 sm:py-5 text-left text-base sm:text-lg font-medium hover:border-[var(--primary)] hover:bg-rose-500/5 transition-colors flex items-center gap-3 disabled:opacity-50"
+                className="rounded-2xl border-2 border-[var(--border-strong)] px-5 py-4 sm:py-5 min-h-[3.25rem] text-left text-base sm:text-lg font-medium hover:border-[var(--primary)] hover:bg-rose-500/5 active:scale-[0.98] active:border-[var(--primary)] transition-transform transition-colors flex items-center gap-3 disabled:opacity-50 touch-manipulation select-none"
               >
                 <span className={CHOICE_BADGE}>{formatTriviaChoiceLabel(i)}</span>
                 <span className="flex-1">{choice}</span>

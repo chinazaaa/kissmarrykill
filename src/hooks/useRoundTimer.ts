@@ -52,8 +52,15 @@ export function useRoundTimer(opts: {
 
     tick()
     const id = window.setInterval(tick, 500)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
       setTimeLeft(0)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -43,8 +43,16 @@ export function useTriviaRevealAdvance({
       }
     }
 
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void sync()
+    }
+
     void sync()
+    document.addEventListener('visibilitychange', onVisible)
     const id = window.setInterval(() => void sync(), 800)
-    return () => window.clearInterval(id)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [enabled, game.status, gameCode])
 }

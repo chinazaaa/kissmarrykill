@@ -32,8 +32,6 @@ interface TriviaHostManagePanelProps {
   playingAgain: boolean
   onStartGame: () => void
   onEndRound: () => void
-  onNextRound: () => void
-  onFinishGame: () => void
   onPlayAgain: () => void
   onEditSettings: () => void
   activeRound?: Round | null
@@ -55,8 +53,6 @@ export function TriviaHostManagePanel({
   playingAgain,
   onStartGame,
   onEndRound,
-  onNextRound,
-  onFinishGame,
   onPlayAgain,
   onEditSettings,
   activeRound: activeRoundProp,
@@ -217,25 +213,11 @@ export function TriviaHostManagePanel({
             {revealComplete
               ? isLastRound
                 ? 'Showing final results…'
-                : advancing
-                  ? 'Starting next question…'
-                  : 'Starting next question…'
+                : 'Starting next question…'
               : isLastRound
                 ? `Showing final leaderboard — ending in ${revealCountdown}s…`
                 : `Next question in ${revealCountdown}s…`}
           </p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {!isLastRound && (
-              <button type="button" onClick={onNextRound} disabled={advancing} className="btn-primary py-3.5 text-base">
-                {advancing ? 'Starting…' : 'Next question now'}
-              </button>
-            )}
-            {isLastRound && (
-              <button type="button" onClick={onFinishGame} disabled={advancing} className="btn-primary py-3.5 text-base">
-                {advancing ? 'Finishing…' : 'Show final results now'}
-              </button>
-            )}
-          </div>
         </div>
       )}
 

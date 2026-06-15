@@ -79,8 +79,15 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
       .subscribe()
 
     const poll = setInterval(load, 400)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [gameCode, load])
