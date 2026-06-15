@@ -7,6 +7,7 @@ import {
   isMostLikelyTo,
   isWhoSaidThis,
   isCustomGame,
+  isHotSeat,
 } from '@/lib/game-types'
 import { getCustomSlots, tallyCustomVotes } from '@/lib/custom-game'
 import { getCategoryMeta, getVoteCategories, flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
@@ -132,6 +133,14 @@ export function buildRoundShareCardContent({
         })
       }
     }
+  } else if (isHotSeat(gameType)) {
+    const submissionCount = votes.length
+    content.subtitle = 'Hot Seat reveal'
+    content.rows.push({
+      emoji: '🪑',
+      label: 'Answers received',
+      value: `${submissionCount} ${submissionCount === 1 ? 'submission' : 'submissions'}`,
+    })
   } else {
     const pairGame = isPairGame(gameType)
     const categories = getVoteCategories(gameType)

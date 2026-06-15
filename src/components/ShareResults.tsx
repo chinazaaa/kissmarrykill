@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef, useState, type RefObject } from 'react'
 import type { Game, Participant, Player, Round, Vote } from '@/types'
 import {
   parseGameType,
@@ -17,8 +17,9 @@ import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstPlayerScores } from '@/lib/who-said-this'
 import { useToast } from '@/components/ui/Toast'
 import { filterParticipantsInRounds } from '@/lib/utils'
-
 import { appDomain } from '@/lib/site'
+import { captureElementAsImage } from '@/lib/capture-element-image'
+import { shareImageBlob } from '@/lib/share-image'
 
 function buildShareText({
   game,
@@ -46,7 +47,6 @@ function buildShareText({
   const isWst = isWhoSaidThis(gameType)
 
   if (isWyr) {
-    // Show top WYR results
     lines.push('Top results:')
     const shownRounds = rounds.slice(0, 5)
     for (const round of shownRounds) {
@@ -62,7 +62,6 @@ function buildShareText({
       lines.push(`  ...and ${rounds.length - 5} more rounds`)
     }
   } else if (isMlt) {
-    // Show MLT winners
     lines.push('Most voted:')
     const isMltImport = isMltImportGame(game)
     const mltKind = isMltImport ? 'participant' : 'player'
@@ -79,7 +78,6 @@ function buildShareText({
       lines.push(`  ...and ${rounds.length - 5} more rounds`)
     }
   } else if (isWst) {
-    // Show WST best guessers
     const scores = tallyWstPlayerScores(rounds, votes, players)
     lines.push('Best guessers:')
     const topScores = scores.slice(0, 3)
@@ -97,7 +95,6 @@ function buildShareText({
       }
     }
   } else {
-    // Trio and pair games - show category leaders
     const playedParticipants = filterParticipantsInRounds(participants, rounds)
     const categories = getVoteCategories(gameType)
     const pairGame = isPairGame(gameType)
@@ -141,12 +138,14 @@ function buildShareText({
 }
 
 export function ShareResults({
+  captureRef,
   game,
   participants,
   votes,
   rounds,
   players,
 }: {
+  captureRef?: RefObject<HTMLElement | null>
   game: Game
   participants: Participant[]
   votes: Vote[]
@@ -154,35 +153,69 @@ export function ShareResults({
   players: Player[]
 }) {
   const { success, error } = useToast()
+  const [sharing, setSharing] = useState(false)
+  const sharingLock = useRef(false)
 
   const handleShare = useCallback(async () => {
-    const text = buildShareText({ game, participants, votes, rounds, players })
+    if (sharingLock.current) return
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({ text })
-        return
-      } catch (err: unknown) {
-        // User cancelled or share failed - fall through to clipboard
-        if (err instanceof Error && err.name === 'AbortError') return
-      }
-    }
-
-    // Fallback: copy to clipboard
+    sharingLock.current = true
+    setSharing(true)
     try {
+      const target = captureRef?.current
+      if (target) {
+        const blob = await captureElementAsImage(target)
+        const result = await shareImageBlob(blob, 'final-results.png')
+
+        if (result === 'copied') {
+          success('Image copied — paste into Stories or chat')
+        } else if (result === 'shared') {
+          success('Shared!')
+        } else {
+          success('Image downloaded')
+        }
+        return
+      }
+
+      const text = buildShareText({ game, participants, votes, rounds, players })
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({ text })
+          return
+        } catch (err: unknown) {
+          if (err instanceof Error && err.name === 'AbortError') return
+        }
+      }
+
       await navigator.clipboard.writeText(text)
       success('Results copied to clipboard!')
-    } catch {
-      error('Could not copy results')
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+
+      try {
+        const text = buildShareText({ game, participants, votes, rounds, players })
+        await navigator.clipboard.writeText(text)
+        success('Results copied to clipboard!')
+      } catch {
+        error(err instanceof Error ? err.message : 'Could not share results')
+      }
+    } finally {
+      sharingLock.current = false
+      setSharing(false)
     }
-  }, [game, participants, votes, rounds, players, success, error])
+  }, [captureRef, game, participants, votes, rounds, players, success, error])
 
   return (
-    <button type="button" onClick={handleShare} className="btn-secondary w-full flex items-center justify-center gap-2">
+    <button
+      type="button"
+      onClick={handleShare}
+      disabled={sharing}
+      className="btn-secondary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+    >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
         <path d="M13 4.5a2.5 2.5 0 1 1 .702 1.737L6.97 9.604a2.5 2.5 0 0 1 0 .792l6.733 3.367a2.5 2.5 0 1 1-.671 1.341l-6.733-3.367a2.5 2.5 0 1 1 0-3.474l6.733-3.367A2.5 2.5 0 0 1 13 4.5Z" />
       </svg>
-      Share Results
+      {sharing ? 'Sharing…' : 'Share Results'}
     </button>
   )
 }

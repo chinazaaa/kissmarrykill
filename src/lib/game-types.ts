@@ -71,7 +71,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
         leaderboardLabel: 'Most Married',
         activeClass: 'bg-[var(--marry)]/20 text-amber-800 border-[var(--marry)] dark:text-amber-100',
         borderClass: 'border-[var(--marry)]/50 bg-[var(--marry)]/10',
-        textColor: '#b45309',
+        textColor: 'var(--slot-marry-text)',
       },
       kill: {
         emoji: '💀',

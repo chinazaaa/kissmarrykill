@@ -8,6 +8,7 @@ import {
   MltRoundResults,
   WstRoundResults,
   AnimeWstRoundResults,
+  HotSeatRoundResults,
 } from '@/components/VoteResults'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
@@ -115,44 +116,15 @@ export function RoundResultsView({
           <h2 className="text-2xl font-black tracking-tight mt-2">Hot Seat Reveal! 🪑🔥</h2>
         </div>
 
-        {/* Hot seat player spotlight */}
-        <div className="glass-card border-2 border-amber-500/40 rounded-2xl p-4 text-center">
-          <p className="text-amber-400 text-xs uppercase tracking-wider mb-1">In the hot seat</p>
-          <p className="text-2xl font-black text-body">{hotSeatPlayerName}</p>
-        </div>
-
-        {/* Submissions reveal */}
-        {hotSeatSubmissions.length === 0 ? (
-          <div className="glass-card px-4 py-6 text-center">
-            <p className="text-muted">No submissions this round</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {hotSeatSubmissions.map((sub, i) => {
-              const typeConfig = {
-                compliment: { emoji: '💛', border: 'border-amber-500/30', bg: 'bg-amber-500/10' },
-                roast: { emoji: '🔥', border: 'border-red-500/30', bg: 'bg-red-500/10' },
-                observation: { emoji: '👀', border: 'border-slate-500/30', bg: 'bg-slate-500/10' },
-              }[sub.submission_type] ?? { emoji: '💬', border: 'border-slate-500/30', bg: 'bg-slate-500/10' }
-
-              return (
-                <div
-                  key={sub.id}
-                  className={`glass-card border ${typeConfig.border} ${typeConfig.bg} rounded-xl px-4 py-3`}
-                  style={{
-                    animation: 'fade-in 0.4s ease backwards',
-                    animationDelay: `${i * 150}ms`,
-                  }}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl flex-shrink-0">{typeConfig.emoji}</span>
-                    <p className="text-body text-sm leading-relaxed">{sub.text}</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <RoundResultsShareBlock
+          game={game!}
+          round={lastFinishedRound}
+          votes={lastRoundVotes}
+          participants={participants}
+          players={players}
+        >
+          <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
+        </RoundResultsShareBlock>
 
         <ReactionBar className="pt-1" />
         <p className="text-faint text-sm text-center">

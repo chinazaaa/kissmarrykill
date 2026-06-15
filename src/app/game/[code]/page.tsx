@@ -130,6 +130,7 @@ import {
 import { CustomVoteCard } from '@/components/CustomVoteCard'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
 import { ShareResults } from '@/components/ShareResults'
+import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
 import { AchievementBadges } from '@/components/AchievementBadges'
 import { computeAchievements } from '@/lib/achievements'
 import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
@@ -2504,7 +2505,15 @@ export default function GamePage() {
             <h2 className="text-2xl font-black tracking-tight mt-2">Hot Seat Reveal! 🪑🔥</h2>
           </div>
 
-          <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
+          <RoundResultsShareBlock
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          >
+            <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
+          </RoundResultsShareBlock>
 
           <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
           <p className="text-faint text-sm text-center">
@@ -2976,6 +2985,11 @@ function FinalResultsView({
     () => computeAchievements(game, participants, rounds, votes, players),
     [game, participants, rounds, votes, players]
   )
+  const hasFinalLeaderboardSnapshot =
+    (isWst && wstScores.length > 0) ||
+    isCustomGame(gameType) ||
+    genderBasedLeaderboards ||
+    namesOnlyLeaderboards
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -2996,74 +3010,86 @@ function FinalResultsView({
         </p>
       </div>
 
-      <ShareResults game={game} participants={participants} votes={votes} rounds={rounds} players={players} />
+      {hasFinalLeaderboardSnapshot ? (
+        <FinalResultsShareBlock
+          game={game}
+          participants={participants}
+          votes={votes}
+          rounds={rounds}
+          players={players}
+        >
+          {isWst && wstScores.length > 0 && (
+            <PaginatedLeaderboard
+              title="Best guessers"
+              rows={wstScores.map((row, i) => ({
+                id: row.playerId,
+                name: row.name,
+                score: row.correctGuesses,
+                rank: i + 1,
+              }))}
+              highlightId={myPlayerId}
+            />
+          )}
 
-      {isWst && wstScores.length > 0 && (
-        <PaginatedLeaderboard
-          title="Best guessers"
-          rows={wstScores.map((row, i) => ({
-            id: row.playerId,
-            name: row.name,
-            score: row.correctGuesses,
-            rank: i + 1,
-          }))}
-          highlightId={myPlayerId}
-        />
+          {isCustomGame(gameType) && game
+            ? (() => {
+                const slots = getCustomSlots(game)
+                const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+                return (
+                  <div className="glass-card border border-theme-strong p-4 space-y-4">
+                    <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
+                    {leaderboard.map(
+                      (entry: {
+                        slot: { key: string; emoji: string; label: string; color: string }
+                        entries: { name: string; count: number }[]
+                      }) => (
+                        <div key={entry.slot.key} className="space-y-1">
+                          <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
+                            {entry.slot.emoji} Most {entry.slot.label}
+                          </p>
+                          {entry.entries.slice(0, 3).map((e: { name: string; count: number }, i: number) => (
+                            <p key={e.name} className="text-body text-sm pl-6">
+                              {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
+                            </p>
+                          ))}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )
+              })()
+            : null}
+
+          {genderBasedLeaderboards && (
+            <FinalGenderLeaderboards
+              gameType={gameType}
+              participants={participants}
+              rounds={rounds}
+              votes={votes}
+              TopCard={LeaderCard}
+            />
+          )}
+
+          {namesOnlyLeaderboards && (
+            <FinalOverallLeaderboards
+              gameType={gameType}
+              participants={participants}
+              rounds={rounds}
+              votes={votes}
+              TopCard={LeaderCard}
+            />
+          )}
+        </FinalResultsShareBlock>
+      ) : (
+        <ShareResults game={game} participants={participants} votes={votes} rounds={rounds} players={players} />
       )}
 
-      {isCustomGame(gameType) && game
-        ? (() => {
-            const slots = getCustomSlots(game)
-            const leaderboard = buildCustomLeaderboard(votes, participants, slots)
-            return (
-              <div className="glass-card border border-theme-strong p-4 space-y-4">
-                <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
-                {leaderboard.map(
-                  (entry: {
-                    slot: { key: string; emoji: string; label: string; color: string }
-                    entries: { name: string; count: number }[]
-                  }) => (
-                    <div key={entry.slot.key} className="space-y-1">
-                      <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
-                        {entry.slot.emoji} Most {entry.slot.label}
-                      </p>
-                      {entry.entries.slice(0, 3).map((e: { name: string; count: number }, i: number) => (
-                        <p key={e.name} className="text-body text-sm pl-6">
-                          {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
-                        </p>
-                      ))}
-                    </div>
-                  )
-                )}
-              </div>
-            )
-          })()
-        : null}
-
       {genderBasedLeaderboards && (
-        <>
-          <FinalGenderLeaderboards
-            gameType={gameType}
-            participants={participants}
-            rounds={rounds}
-            votes={votes}
-            TopCard={LeaderCard}
-          />
-          <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
-        </>
+        <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
       )}
 
       {namesOnlyLeaderboards && (
-        <>
-          <FinalOverallLeaderboards
-            gameType={gameType}
-            participants={participants}
-            rounds={rounds}
-            votes={votes}
-            TopCard={LeaderCard}
-          />
-          <FinalOverallBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
-        </>
+        <FinalOverallBreakdown gameType={gameType} participants={participants} rounds={rounds} votes={votes} />
       )}
 
       {achievements.length > 0 && <AchievementBadges achievements={achievements} />}

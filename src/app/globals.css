@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* ── Light theme (default) ─────────────────────────────────────── */
 :root {
   --background: #f4f4f7;
@@ -27,6 +29,7 @@
   --marry: #d97706;
   --kill: #991b1b;
   --slot-kiss-text: #c2410c;
+  --slot-marry-text: #b45309;
   --slot-kill-text: #7f1d1d;
   --slot-pass-text: #475569;
   --primary: #f43f5e;
@@ -78,6 +81,7 @@
   --kiss: #fb923c;
   --kill: #ef4444;
   --slot-kiss-text: #fdba74;
+  --slot-marry-text: #fcd34d;
   --slot-kill-text: #fca5a5;
   --slot-pass-text: #94a3b8;
   --primary-glow: rgba(244, 63, 94, 0.45);
