@@ -168,6 +168,7 @@ function CreateGameInner() {
   const [codewordsMaxPlayers, setCodewordsMaxPlayers] = useState(CODEWORDS_DEFAULT_MAX_PLAYERS)
   const [codewordsOperativeTimer, setCodewordsOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
   const [codewordsPlayerPicks, setCodewordsPlayerPicks] = useState(true)
+  const [codewordsLateJoin, setCodewordsLateJoin] = useState(false)
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -609,6 +610,7 @@ function CreateGameInner() {
                 : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
+          codewords_late_join: isCodewords ? codewordsLateJoin : undefined,
         }),
       })
       const data = await res.json()
@@ -785,6 +787,24 @@ function CreateGameInner() {
                         value: 'host',
                         label: 'Host assigns',
                         hint: 'You place everyone on teams from the host panel',
+                      },
+                    ]}
+                  />
+                </Field>
+                <Field label="Join after game starts">
+                  <SegmentedControl
+                    value={codewordsLateJoin ? 'yes' : 'no'}
+                    onChange={(v) => setCodewordsLateJoin(v === 'yes')}
+                    options={[
+                      {
+                        value: 'no',
+                        label: 'Lobby only',
+                        hint: 'New players can only join before you start',
+                      },
+                      {
+                        value: 'yes',
+                        label: 'Allow late join',
+                        hint: 'Players can join mid-game — you assign them, or they pick if allowed',
                       },
                     ]}
                   />

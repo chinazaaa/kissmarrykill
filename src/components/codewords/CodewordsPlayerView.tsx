@@ -7,6 +7,7 @@ import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/C
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
+  codewordsLateJoin,
   codewordsPlayerPicks,
   mergeCodewordsGuesses,
   roleLabel,
@@ -230,8 +231,17 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   const cfg = gameTypeConfig('codewords')
   const playersPickTeams = game ? codewordsPlayerPicks(game) : true
+  const lateJoinAllowed = game ? codewordsLateJoin(game) : false
   const myTeam = myRole?.team
   const isSpymaster = myRole?.role === 'spymaster'
+  const needsTeamPick =
+    !!myPlayerId &&
+    !myRole &&
+    playersPickTeams &&
+    (game?.status === 'waiting' || (game?.status === 'active' && lateJoinAllowed))
+  const waitingInLobby = !!myPlayerId && !myRole && game?.status === 'waiting' && !playersPickTeams
+  const waitingForAssignment =
+    !!myPlayerId && !myRole && game?.status === 'active' && (!lateJoinAllowed || !playersPickTeams)
 
   if (screen === 'loading') {
     return (
@@ -274,9 +284,13 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             />
           </div>
           <p className="text-faint text-xs">
-            {playersPickTeams
-              ? "You'll pick a team and role in the lobby before the host starts."
-              : 'The host will assign your team and role in the lobby.'}
+            {game?.status === 'active'
+              ? lateJoinAllowed
+                ? 'This game is in progress — pick a team to jump in.'
+                : 'This game has already started.'
+              : playersPickTeams
+                ? "You'll pick a team and role in the lobby before the host starts."
+                : 'The host will assign your team and role in the lobby.'}
           </p>
           <button type="button" onClick={joinGame} disabled={!joinName.trim() || joining} className="btn-primary w-full">
             {joining ? 'Joining…' : 'Join game'}
@@ -286,13 +300,13 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
-  if (screen === 'lobby') {
+  if (needsTeamPick || waitingInLobby) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
         <div className="glass-card p-6 w-full max-w-md space-y-5">
           <div className="text-center space-y-1">
             <h2 className="text-xl font-black">
-              {playersPickTeams ? 'Pick your team & role' : 'Waiting in lobby'}
+              {game?.status === 'active' ? 'Join the game' : playersPickTeams ? 'Pick your team & role' : 'Waiting in lobby'}
             </h2>
             <p className="text-muted text-sm">Playing as {myPlayerName}</p>
           </div>
@@ -362,14 +376,26 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             </p>
           )}
 
-          {myRole && (
-            <p className="text-center text-sm text-muted">
-              {playersPickTeams ? 'Saved: ' : 'Assigned: '}
-              <CodewordsTeamBadge team={myRole.team} /> {roleLabel(myRole.role)}
-            </p>
-          )}
+          <p className="text-center text-faint text-xs">
+            {game?.status === 'active'
+              ? 'You can play as soon as your team is set.'
+              : 'Waiting for the host to start…'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-          <p className="text-center text-faint text-xs">Waiting for the host to start…</p>
+  if (waitingForAssignment) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-8">
+        <div className="glass-card p-6 w-full max-w-md space-y-4 text-center">
+          <p className="text-3xl">⏳</p>
+          <h2 className="text-xl font-black">Game in progress</h2>
+          <p className="text-muted text-sm leading-relaxed">
+            Hi {myPlayerName} — the host needs to place you on a team before you can play. Hang tight!
+          </p>
+          <p className="text-faint text-xs">You&apos;ll jump in automatically once you&apos;re assigned.</p>
         </div>
       </div>
     )
@@ -378,13 +404,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   if (!board || !myRole || !game || !myPlayerId) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-muted">
-          {game?.status === 'waiting' && !myRole
-            ? playersPickTeams
-              ? 'Pick your team and role while you wait…'
-              : 'Waiting for the host to assign your team…'
-            : 'Setting up the board…'}
-        </p>
+        <p className="text-muted">Loading game…</p>
       </div>
     )
   }

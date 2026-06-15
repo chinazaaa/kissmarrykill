@@ -17,18 +17,27 @@ export async function POST(req: NextRequest) {
 
   const { data: game } = await supabase
     .from('games')
-    .select('game_type, status, codewords_player_picks')
+    .select('game_type, status, codewords_player_picks, codewords_late_join')
     .eq('id', code)
     .maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (!isCodewordsGame(parseGameType(game.game_type))) {
     return NextResponse.json({ error: 'Not a codewords game' }, { status: 400 })
   }
-  if (game.status !== 'waiting') {
-    return NextResponse.json({ error: 'Team picks are locked after the game starts' }, { status: 400 })
-  }
   if (game.codewords_player_picks === false) {
     return NextResponse.json({ error: 'The host assigns teams and roles for this game' }, { status: 403 })
+  }
+
+  const { data: existingRole } = await supabase
+    .from('codewords_player_roles')
+    .select('id')
+    .eq('game_id', code)
+    .eq('player_id', playerId)
+    .maybeSingle()
+
+  const lateJoinPick = game.status === 'active' && game.codewords_late_join === true && !existingRole
+  if (game.status !== 'waiting' && !lateJoinPick) {
+    return NextResponse.json({ error: 'Team picks are locked after the game starts' }, { status: 400 })
   }
 
   const { data: player } = await supabase

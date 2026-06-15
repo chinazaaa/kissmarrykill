@@ -46,7 +46,7 @@ export function CodewordsActiveRound({
 }) {
   const { success, error: toastError } = useToast()
   const [clueWord, setClueWord] = useState('')
-  const [clueNumber, setClueNumber] = useState(1)
+  const [clueNumberInput, setClueNumberInput] = useState('1')
   const [submittingClue, setSubmittingClue] = useState(false)
   const [guessing, setGuessing] = useState(false)
   const [endingTurn, setEndingTurn] = useState(false)
@@ -88,8 +88,21 @@ export function CodewordsActiveRound({
         ? 'Operative timer'
         : 'Operatives guessing'
 
+  const parseClueNumber = (raw: string): number | null => {
+    const trimmed = raw.trim()
+    if (trimmed === '') return null
+    const n = Number.parseInt(trimmed, 10)
+    if (Number.isNaN(n) || n < 0 || n > 9) return null
+    return n
+  }
+
   const submitClue = async () => {
     if (!clueWord.trim()) return
+    const clueNumber = parseClueNumber(clueNumberInput)
+    if (clueNumber === null) {
+      toastError('Enter a clue number from 0 to 9')
+      return
+    }
     setSubmittingClue(true)
     try {
       const res = await fetch('/api/codewords/clue', {
@@ -106,6 +119,7 @@ export function CodewordsActiveRound({
       if (!res.ok) throw new Error(data.error ?? 'Failed to give clue')
       onBoardChange(data.board)
       setClueWord('')
+      setClueNumberInput('1')
       success('Clue sent!')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to give clue')
@@ -206,18 +220,23 @@ export function CodewordsActiveRound({
                   maxLength={40}
                 />
                 <input
-                  type="number"
-                  min={0}
-                  max={9}
-                  value={clueNumber}
-                  onChange={(e) => setClueNumber(Number(e.target.value) || 0)}
-                  className="input-field w-20"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={clueNumberInput}
+                  onChange={(e) => {
+                    const next = e.target.value.replace(/\D/g, '').slice(0, 1)
+                    setClueNumberInput(next)
+                  }}
+                  placeholder="#"
+                  className="input-field w-20 text-center"
+                  aria-label="Clue number"
                 />
               </div>
               <button
                 type="button"
                 onClick={submitClue}
-                disabled={!clueWord.trim() || submittingClue}
+                disabled={!clueWord.trim() || submittingClue || parseClueNumber(clueNumberInput) === null}
                 className="btn-primary w-full"
               >
                 {submittingClue ? 'Sending…' : 'Send clue'}

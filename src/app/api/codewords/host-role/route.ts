@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
   if (!isCodewordsGame(parseGameType(game.game_type))) {
     return NextResponse.json({ error: 'Not a codewords game' }, { status: 400 })
   }
+  if (game.status !== 'waiting') {
+    return NextResponse.json({ error: 'Teams can only be changed in the lobby before the game starts' }, { status: 400 })
+  }
 
   const { data: player } = await supabase.from('players').select('id').eq('id', playerId).eq('game_id', code).maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })

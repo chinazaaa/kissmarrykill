@@ -216,6 +216,9 @@ export async function POST(req: NextRequest) {
     if (gameRow.status === 'finished') {
       return NextResponse.json({ error: 'This round has ended' }, { status: 400 })
     }
+    if (gameRow.status === 'active' && gameRow.codewords_late_join !== true) {
+      return NextResponse.json({ error: 'This game has already started — late join is disabled' }, { status: 400 })
+    }
     if (gameRow.status !== 'waiting' && gameRow.status !== 'active') {
       return NextResponse.json({ error: 'Cannot join this game' }, { status: 400 })
     }
@@ -231,6 +234,10 @@ export async function POST(req: NextRequest) {
       .eq('game_id', gameId)
 
     if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (gameRow.status === 'active' && (playerCount ?? 0) >= maxPlayers) {
       return NextResponse.json({ error: 'This game is full' }, { status: 400 })
     }
 

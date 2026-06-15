@@ -116,7 +116,7 @@ export interface Game {
   created_at: string
   /** Anonymous room — when the live session started (15 min cap). */
   session_started_at?: string | null
-  /** Anonymous room — max players allowed in the lobby (2–20). */
+  /** Lobby cap for joiner modes (anonymous 2–20, bingo 2–30, codewords 2–12). */
   max_players?: number | null
   /** Anonymous room — last time a batch of old messages was trimmed. */
   anonymous_messages_trimmed_at?: string | null
@@ -126,6 +126,8 @@ export interface Game {
   gender_based?: boolean
   /** Codewords — when false, only the host assigns teams and roles in the lobby. */
   codewords_player_picks?: boolean
+  /** Codewords — allow new players to join after the game has started. */
+  codewords_late_join?: boolean
   /** Cumulative usage across play-again sessions — unused pool items are prioritized next game. */
   pool_usage?: Record<string, unknown> | null
 }

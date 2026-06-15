@@ -3,37 +3,25 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
-import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords/CodewordsGuessLog'
-import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
-import { CodewordsLobbyRoster } from '@/components/codewords/CodewordsLobbyRoster'
-import { CodewordsScoreboard, CodewordsTimerBar } from '@/components/codewords/CodewordsScoreboard'
-import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { CodewordsHostManagePanel } from '@/components/codewords/CodewordsHostManagePanel'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
   CODEWORDS_DEFAULT_SPYMASTER_TIMER,
-  CODEWORDS_MIN_PLAYERS,
-  CODEWORDS_TIMER_OPTIONS,
-  codewordsMaxPlayers,
   codewordsPlayerPicks,
-  effectiveTurnPhase,
   getCodewordsHostMode,
-  guessAttributionMap,
-  lobbyReady,
   mergeCodewordsGuesses,
-  roleLabel,
   setCodewordsHostMode,
-  teamLabel,
-  waitingTurnMessage,
   type CodewordsHostMode,
 } from '@/lib/codewords'
 import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
-import { useCodewordsTurnTimer } from '@/hooks/useCodewordsTurnTimer'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, CodewordsRole, CodewordsTeam, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+
+type HostTab = 'play' | 'manage'
 
 export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const router = useRouter()
@@ -55,9 +43,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostPlayerName, setHostPlayerName] = useState('')
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
-  const [hostPickingTeam, setHostPickingTeam] = useState<CodewordsTeam | null>(null)
-  const [hostPickingRole, setHostPickingRole] = useState<CodewordsRole | null>(null)
-  const [hostSavingRole, setHostSavingRole] = useState(false)
+  const [tab, setTab] = useState<HostTab>('manage')
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] =
@@ -98,15 +84,6 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
     onReload: load,
   })
 
-  useEffect(() => {
-    if (!hostPlayerId) return
-    const role = roles.find((r) => r.player_id === hostPlayerId) ?? null
-    if (role) {
-      setHostPickingTeam(role.team)
-      setHostPickingRole(role.role)
-    }
-  }, [hostPlayerId, roles])
-
   const assignRole = async (playerId: string, team: CodewordsTeam, role: CodewordsRole) => {
     setSavingRoleFor(playerId)
     try {
@@ -125,10 +102,21 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
     }
   }
 
+  const moveTeam = (playerId: string, team: CodewordsTeam) => {
+    const current = roles.find((r) => r.player_id === playerId)
+    const role: CodewordsRole = current?.role === 'spymaster' ? 'spymaster' : 'operative'
+    void assignRole(playerId, team, role)
+  }
+
+  const setSpymaster = (playerId: string, team: CodewordsTeam, makeSpymaster: boolean) => {
+    void assignRole(playerId, team, makeSpymaster ? 'spymaster' : 'operative')
+  }
+
   const changeHostMode = (mode: CodewordsHostMode) => {
     if (game?.status !== 'waiting') return
     setHostMode(mode)
     setCodewordsHostMode(gameCode, mode)
+    if (mode === 'spectator') setTab('manage')
   }
 
   const hostJoinGame = async () => {
@@ -146,36 +134,14 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
       setHostPlayerId(data.playerId)
       setHostPlayerName(data.playerName)
+      setHostMode('player')
+      setCodewordsHostMode(gameCode, 'player')
       await load()
       success(`Joined as ${data.playerName}`)
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to join')
     } finally {
       setHostJoining(false)
-    }
-  }
-
-  const hostSaveRole = async () => {
-    if (!hostPlayerId || !hostPickingTeam || !hostPickingRole) return
-    setHostSavingRole(true)
-    try {
-      const res = await fetch('/api/codewords/role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameId: gameCode,
-          playerId: hostPlayerId,
-          team: hostPickingTeam,
-          role: hostPickingRole,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to save role')
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to save role')
-    } finally {
-      setHostSavingRole(false)
     }
   }
 
@@ -191,6 +157,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       if (!res.ok) throw new Error(data.error ?? 'Failed to start')
       await load()
       success('Codewords started!')
+      if (hostMode === 'player') setTab('play')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to start')
     } finally {
@@ -236,7 +203,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       setBoard(null)
       setGuesses([])
       await load()
-      success('Lobby reopened — pick teams again!')
+      success('Lobby reopened!')
+      setTab('manage')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to reset')
     } finally {
@@ -264,22 +232,15 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   }
 
   const cfg = gameTypeConfig('codewords')
-  const ready = lobbyReady(roles)
   const playerLink = `${appOrigin()}/game/${gameCode}`
   const playersPickTeams = game ? codewordsPlayerPicks(game) : true
   const hostMyRole = hostPlayerId ? roles.find((r) => r.player_id === hostPlayerId) : undefined
-  const hostPlays = hostMode === 'player'
-  const hostPlayerView = hostPlays && !!hostMyRole && !!board
-  const showAdminBoard = !hostPlayerView
-  const turnPhase = board ? effectiveTurnPhase(board) : 'clue'
-  const { secondsLeft, urgent } = useCodewordsTurnTimer(
-    gameCode,
-    board,
-    game?.status === 'active' && !board?.winner
-  )
-  const playerNameById = new Map(players.map((p) => [p.id, p.name]))
-  const cellAttribution = guessAttributionMap(guesses, playerNameById)
-  const turnStatus = board ? waitingTurnMessage(board, roles, playerNameById) : ''
+  const hostPlays = hostMode === 'player' && !!hostPlayerId
+  const canPlayTab = hostPlays && !!hostMyRole && !!board && (game?.status === 'active' || game?.status === 'finished')
+
+  useEffect(() => {
+    if (canPlayTab && game?.status === 'active') setTab('play')
+  }, [canPlayTab, game?.status])
 
   if (!game) {
     return (
@@ -295,57 +256,48 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
         <div className="text-center space-y-1">
           <div className="text-4xl">{cfg.headerEmoji}</div>
           <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host panel</p>
-        </div>
-
-        <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
-            <p className="font-mono font-bold text-lg">{gameCode}</p>
-          </div>
-          <CopyLinkButton value={playerLink} label="Copy player link" />
+          <p className="text-muted text-sm">{cfg.label} · Host</p>
         </div>
 
         {game.status === 'waiting' && (
           <div className="glass-card p-4 space-y-3">
-            <p className="label-caps">Your role as host</p>
+            <p className="label-caps">Host mode</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => changeHostMode('spectator')}
                 className={[
-                  'rounded-xl border-2 px-3 py-3 text-left text-sm transition-all',
+                  'rounded-xl border-2 px-3 py-3 text-left text-sm',
                   hostMode === 'spectator'
                     ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
                     : 'border-[var(--border-strong)] text-muted',
                 ].join(' ')}
               >
                 <span className="font-bold block">Host only</span>
-                <span className="text-faint text-xs">See the full board key and manage the game</span>
+                <span className="text-faint text-xs">Run the game from Manage tab</span>
               </button>
               <button
                 type="button"
                 onClick={() => changeHostMode('player')}
                 className={[
-                  'rounded-xl border-2 px-3 py-3 text-left text-sm transition-all',
+                  'rounded-xl border-2 px-3 py-3 text-left text-sm',
                   hostMode === 'player'
                     ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
                     : 'border-[var(--border-strong)] text-muted',
                 ].join(' ')}
               >
                 <span className="font-bold block">Host + play</span>
-                <span className="text-faint text-xs">Join as a player — no secret colour key for you</span>
+                <span className="text-faint text-xs">Play tab + Manage tab</span>
               </button>
             </div>
-
-            {hostPlays && !hostPlayerId && (
-              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            {hostMode === 'player' && !hostPlayerId && (
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={hostJoinName}
                   onChange={(e) => setHostJoinName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your player name"
+                  placeholder="Your name to play"
                   className="input-field flex-1"
                   maxLength={40}
                 />
@@ -355,304 +307,89 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
                   disabled={!hostJoinName.trim() || hostJoining}
                   className="btn-primary sm:w-auto"
                 >
-                  {hostJoining ? 'Joining…' : 'Join game'}
+                  {hostJoining ? 'Joining…' : 'Join as player'}
                 </button>
               </div>
             )}
-
-            {hostPlays && hostPlayerId && playersPickTeams && (
-              <div className="rounded-xl border border-[var(--border-strong)] p-3 space-y-3">
-                <p className="text-xs text-muted">
-                  Playing as <strong>{hostPlayerName}</strong> — pick your team & role
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['red', 'blue'] as const).map((team) => (
-                    <button
-                      key={team}
-                      type="button"
-                      onClick={() => setHostPickingTeam(team)}
-                      className={[
-                        'rounded-lg border px-2 py-2 text-xs font-bold',
-                        hostPickingTeam === team
-                          ? team === 'red'
-                            ? 'border-red-500 bg-red-500/10'
-                            : 'border-blue-500 bg-blue-500/10'
-                          : 'border-[var(--border-strong)] text-muted',
-                      ].join(' ')}
-                    >
-                      {team === 'red' ? '🔴 Red' : '🔵 Blue'}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['spymaster', 'operative'] as const).map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setHostPickingRole(role)}
-                      className={[
-                        'rounded-lg border px-2 py-2 text-xs font-bold',
-                        hostPickingRole === role
-                          ? 'border-[var(--foreground)]/30'
-                          : 'border-[var(--border-strong)] text-muted',
-                      ].join(' ')}
-                    >
-                      {role === 'spymaster' ? '🕵️ Spymaster' : '🎯 Operative'}
-                    </button>
-                  ))}
-                </div>
-                {hostMyRole && (
-                  <p className="text-xs text-center text-muted">
-                    Saved: <CodewordsTeamBadge team={hostMyRole.team} /> {roleLabel(hostMyRole.role)}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={hostSaveRole}
-                  disabled={!hostPickingTeam || !hostPickingRole || hostSavingRole}
-                  className="btn-secondary w-full text-sm"
-                >
-                  {hostSavingRole ? 'Saving…' : 'Confirm your team & role'}
-                </button>
-              </div>
-            )}
-
-            {hostPlays && hostPlayerId && !playersPickTeams && (
-              <p className="text-faint text-xs">
-                Playing as <strong>{hostPlayerName}</strong> — assign yourself in the roster below.
+            {hostMode === 'player' && hostPlayerId && (
+              <p className="text-xs text-muted">
+                Playing as <strong>{hostPlayerName}</strong> —{' '}
+                {playersPickTeams
+                  ? 'pick your team in Manage → Teams, or assign yourself there.'
+                  : 'assign yourself in Manage → Teams.'}
               </p>
             )}
           </div>
         )}
 
-        <div className="glass-card p-5 space-y-4">
-          <p className="label-caps">Timer settings</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="space-y-1">
-              <span className="text-faint text-xs">Spymaster timer</span>
-              <select
-                value={spymasterTimer}
-                onChange={(e) => setSpymasterTimer(Number(e.target.value))}
-                className="input-field w-full"
-              >
-                {CODEWORDS_TIMER_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s} seconds
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-faint text-xs">Operative timer</span>
-              <select
-                value={operativeTimer}
-                onChange={(e) => setOperativeTimer(Number(e.target.value))}
-                className="input-field w-full"
-              >
-                {CODEWORDS_TIMER_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s} seconds
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <button
-            type="button"
-            onClick={saveTimers}
-            disabled={savingTimers}
-            className="btn-secondary w-full sm:w-auto"
-          >
-            {savingTimers ? 'Saving…' : 'Save timer settings'}
-          </button>
-        </div>
-
-        {(game.status === 'waiting' || game.status === 'active') && (
-          <div className="glass-card p-5 space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="label-caps">
-                  {game.status === 'waiting' ? 'Lobby' : 'Teams'} ({players.length}/{codewordsMaxPlayers(game)})
-                </p>
-                <p className="text-faint text-xs mt-1">
-                  {playersPickTeams
-                    ? 'Changes save instantly. Players can also pick their own team in the lobby.'
-                    : 'You assign every player — team picks are locked for players.'}
-                </p>
-              </div>
-              {game.status === 'waiting' && players.length >= CODEWORDS_MIN_PLAYERS && (
-                <span
-                  className={[
-                    'text-xs font-semibold rounded-full px-2.5 py-1',
-                    ready.ok
-                      ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
-                      : 'bg-amber-500/15 text-amber-800 dark:text-amber-200',
-                  ].join(' ')}
-                >
-                  {ready.ok ? 'Teams ready' : 'Teams incomplete'}
-                </span>
-              )}
-            </div>
-
-            <CodewordsLobbyRoster
-              players={players}
-              roles={roles}
-              savingRoleFor={savingRoleFor}
-              onAssign={assignRole}
-            />
-
-            {game.status === 'waiting' && (
-              <>
-                {!ready.ok && players.length >= CODEWORDS_MIN_PLAYERS && (
-                  <p className="text-amber-700 dark:text-amber-200 text-sm">{ready.error}</p>
-                )}
-                <button
-                  type="button"
-                  onClick={startGame}
-                  disabled={starting || players.length < CODEWORDS_MIN_PLAYERS || !ready.ok}
-                  className="btn-primary w-full"
-                >
-                  {starting ? 'Starting…' : `Start game (${CODEWORDS_MIN_PLAYERS}+ players, teams ready)`}
-                </button>
-              </>
-            )}
+        {canPlayTab && (
+          <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
+            <button
+              type="button"
+              onClick={() => setTab('play')}
+              className={[
+                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+                tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+              ].join(' ')}
+            >
+              Play
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('manage')}
+              className={[
+                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+                tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+              ].join(' ')}
+            >
+              Manage
+            </button>
           </div>
         )}
 
-        {board && game.status === 'active' && hostPlayerView && hostMyRole && (
-          <div className="glass-card p-5 space-y-3">
-            <p className="label-caps">Your game</p>
-            <CodewordsActiveRound
-              gameCode={gameCode}
-              game={game}
-              board={board}
-              myPlayerId={hostPlayerId!}
-              myPlayerName={hostPlayerName}
-              myRole={hostMyRole}
-              players={players}
-              roles={roles}
-              guesses={guesses}
-              onBoardChange={setBoard}
-              onReload={load}
-              hideKey
-              compactHeader
-            />
-          </div>
+        {tab === 'play' && canPlayTab && hostMyRole && board && (
+          <CodewordsActiveRound
+            gameCode={gameCode}
+            game={game}
+            board={board}
+            myPlayerId={hostPlayerId!}
+            myPlayerName={hostPlayerName}
+            myRole={hostMyRole}
+            players={players}
+            roles={roles}
+            guesses={guesses}
+            onBoardChange={setBoard}
+            onReload={load}
+            hideKey
+          />
         )}
 
-        {board && game.status === 'active' && showAdminBoard && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-start">
-            <div className="space-y-4">
-              {secondsLeft > 0 && (
-                <CodewordsTimerBar
-                  label={turnPhase === 'clue' ? 'Spymaster timer' : 'Operative timer'}
-                  secondsLeft={secondsLeft}
-                  urgent={urgent}
-                />
-              )}
-              <div className="glass-card p-5 space-y-4">
-                <p className="text-center text-sm text-muted">{turnStatus}</p>
-                {board.current_clue_word && (
-                  <p className="text-center text-sm">
-                    Clue: <strong>{board.current_clue_word}</strong> {board.current_clue_number}
-                  </p>
-                )}
-                <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
-              </div>
-            </div>
-            <aside className="space-y-4">
-              <CodewordsScoreboard board={board} players={players} roles={roles} />
-              <CodewordsGuessSummary guesses={guesses} players={players} />
-              <CodewordsGuessLog guesses={guesses} players={players} roles={roles} />
-            </aside>
-          </div>
-        )}
-
-        {game.status === 'active' && board && !board.winner && (
-          <div className="glass-card p-4 space-y-3">
-            <p className="label-caps">End game</p>
-            <p className="text-faint text-xs">
-              Return everyone to the lobby for a fresh board, or close the session so players see final results.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                type="button"
-                onClick={playAgain}
-                disabled={playingAgain || ending}
-                className="btn-primary flex-1"
-              >
-                {playingAgain ? 'Returning…' : 'Return to lobby'}
-              </button>
-              <button
-                type="button"
-                onClick={endSession}
-                disabled={playingAgain || ending}
-                className="btn-secondary flex-1"
-              >
-                {ending ? 'Closing…' : 'Close session'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {board && game.status === 'finished' && board.winner && showAdminBoard && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-start">
-            <div className="glass-card p-8 text-center space-y-2 border-amber-400/40">
-              <p className="text-4xl">🏆</p>
-              <p className="text-2xl font-black">{teamLabel(board.winner)} team wins!</p>
-              {board.assassin_team && (
-                <p className="text-muted text-sm">{teamLabel(board.assassin_team)} hit the assassin</p>
-              )}
-              <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
-            </div>
-            <aside className="space-y-4">
-              <CodewordsScoreboard board={board} players={players} roles={roles} />
-              <CodewordsGuessSummary guesses={guesses} players={players} />
-              <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
-            </aside>
-          </div>
-        )}
-
-        {board && game.status === 'finished' && !board.winner && showAdminBoard && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-start">
-            <div className="glass-card p-8 text-center space-y-2 border-amber-400/40">
-              <p className="text-4xl">🛑</p>
-              <p className="text-2xl font-black">Session ended</p>
-              <p className="text-muted text-sm">The host closed this game before a winner was decided.</p>
-              <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
-            </div>
-            <aside className="space-y-4">
-              <CodewordsScoreboard board={board} players={players} roles={roles} />
-              <CodewordsGuessSummary guesses={guesses} players={players} />
-              <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
-            </aside>
-          </div>
-        )}
-
-        {board && game.status === 'finished' && hostPlayerView && hostMyRole && (
-          <div className="glass-card p-5">
-            <CodewordsActiveRound
-              gameCode={gameCode}
-              game={game}
-              board={board}
-              myPlayerId={hostPlayerId!}
-              myPlayerName={hostPlayerName}
-              myRole={hostMyRole}
-              players={players}
-              roles={roles}
-              guesses={guesses}
-              onBoardChange={setBoard}
-              onReload={load}
-              hideKey
-              compactHeader
-            />
-          </div>
-        )}
-
-        {game.status === 'finished' && (
-          <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-secondary w-full">
-            {playingAgain ? 'Resetting…' : 'Return to lobby'}
-          </button>
+        {(tab === 'manage' || !canPlayTab) && (
+          <CodewordsHostManagePanel
+            game={game}
+            gameCode={gameCode}
+            playerLink={playerLink}
+            players={players}
+            roles={roles}
+            board={board}
+            guesses={guesses}
+            spymasterTimer={spymasterTimer}
+            operativeTimer={operativeTimer}
+            savingTimers={savingTimers}
+            savingRoleFor={savingRoleFor}
+            starting={starting}
+            playingAgain={playingAgain}
+            ending={ending}
+            onSpymasterTimerChange={setSpymasterTimer}
+            onOperativeTimerChange={setOperativeTimer}
+            onSaveTimers={saveTimers}
+            onSetSpymaster={setSpymaster}
+            onMoveTeam={moveTeam}
+            onStartGame={startGame}
+            onPlayAgain={playAgain}
+            onEndSession={endSession}
+            showSpectatorBoard={hostMode === 'spectator'}
+          />
         )}
 
         <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">

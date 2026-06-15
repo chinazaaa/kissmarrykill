@@ -260,6 +260,10 @@ export function codewordsPlayerPicks(game: Pick<Game, 'codewords_player_picks'>)
   return game.codewords_player_picks !== false
 }
 
+export function codewordsLateJoin(game: Pick<Game, 'codewords_late_join'>): boolean {
+  return game.codewords_late_join === true
+}
+
 export type CodewordsHostMode = 'spectator' | 'player'
 
 function codewordsHostModeKey(gameCode: string) {

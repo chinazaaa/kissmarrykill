@@ -136,6 +136,7 @@ export async function POST(req: NextRequest) {
     player_questions_order: rawPlayerQuestionsOrder,
     max_players: rawMaxPlayers,
     codewords_player_picks: rawCodewordsPlayerPicks,
+    codewords_late_join: rawCodewordsLateJoin,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -245,6 +246,7 @@ export async function POST(req: NextRequest) {
             Number(rawOperativeTimerSeconds) || CODEWORDS_DEFAULT_OPERATIVE_TIMER
           ),
           codewords_player_picks: rawCodewordsPlayerPicks !== false,
+          codewords_late_join: rawCodewordsLateJoin === true,
         }
       : {}),
     anonymous: isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isAnonymousGame(game_type) ? true : anonymous !== false,

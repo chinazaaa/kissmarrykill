@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
   if (!isCodewordsGame(parseGameType(game.game_type))) {
     return NextResponse.json({ error: 'Not a codewords game' }, { status: 400 })
   }
+  if (game.status !== 'waiting') {
+    return NextResponse.json({ error: 'Timers can only be changed in the lobby before the game starts' }, { status: 400 })
+  }
 
   const gameUpdate: Record<string, number> = {}
   const boardUpdate: Record<string, number> = {}
