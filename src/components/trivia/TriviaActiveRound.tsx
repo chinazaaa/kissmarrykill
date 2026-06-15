@@ -107,10 +107,12 @@ export function TriviaActiveRound({
     return () => clearInterval(id)
   }, [showCorrectAnswer, game.status, currentRound?.ended_at, currentRound?.id, expiredAtMs])
 
+  const roundStillTiming = currentRound?.status === 'active' && !timeExpired
+
   const timeLeft = useRoundTimer({
     game,
     currentRound: currentRound?.status === 'active' ? currentRound : null,
-    active: screen === 'active',
+    active: roundStillTiming,
     onExpire: () => {
       setTimeExpired(true)
       setExpiredAtMs(Date.now())
@@ -174,7 +176,7 @@ export function TriviaActiveRound({
             <span>
               Round {currentRound.round_number} of {game.rounds_count}
             </span>
-            {screen === 'active' && <span className={TIMER_BADGE}>{timeLeft}s</span>}
+            {roundStillTiming && <span className={TIMER_BADGE}>{timeLeft}s</span>}
           </div>
         )}
       </div>
@@ -267,8 +269,8 @@ export function TriviaActiveRound({
             </p>
           )}
           {waitingOnTimer && (myAnswer || lastResult) && (
-            <p className="text-muted text-sm sm:text-base">
-              Answer locked — results when time&apos;s up
+            <p className={`${COUNTDOWN_TEXT} text-sm sm:text-base`}>
+              Answer locked — results in {timeLeft}s
             </p>
           )}
           {showCorrectAnswer && game.status === 'active' && inRevealCountdown && revealCountdown > 0 && (
