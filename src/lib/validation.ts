@@ -430,6 +430,36 @@ export const createAppFeedbackSchema = z.object({
 export type CreateAppFeedbackInput = z.infer<typeof createAppFeedbackSchema>
 
 // ---------------------------------------------------------------------------
+// Product updates (admin)
+// ---------------------------------------------------------------------------
+
+const productUpdateTypeEnum = z.enum(['new', 'changed', 'upcoming'])
+
+const optionalMonth = z
+  .union([z.number().int().min(1).max(12), z.literal(''), z.null()])
+  .optional()
+  .transform((value) => (value === '' || value == null ? null : value))
+
+const optionalYear = z
+  .union([z.number().int().min(2000).max(2100), z.literal(''), z.null()])
+  .optional()
+  .transform((value) => (value === '' || value == null ? null : value))
+
+export const createProductUpdateSchema = z.object({
+  type: productUpdateTypeEnum,
+  title: sanitizedString(1, 120),
+  description: sanitizedString(1, 2000),
+  month: optionalMonth,
+  year: optionalYear,
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+})
+
+export const updateProductUpdateSchema = createProductUpdateSchema.partial()
+
+export type CreateProductUpdateInput = z.infer<typeof createProductUpdateSchema>
+export type UpdateProductUpdateInput = z.infer<typeof updateProductUpdateSchema>
+
+// ---------------------------------------------------------------------------
 // Re-exports for convenience
 // ---------------------------------------------------------------------------
 

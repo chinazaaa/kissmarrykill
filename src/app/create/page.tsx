@@ -11,7 +11,8 @@ import type {
   WstQuoteSource,
   PlayerQuestionsOrder,
 } from '@/types'
-import { THEMES, type ThemeConfig } from '@/lib/themes'
+import { THEMES } from '@/lib/themes'
+import { ThemePreviewCard, ThemePreviewModal } from '@/components/ThemePreviewModal'
 import {
   type ParticipantInput,
   parseParticipantsForGame,
@@ -108,6 +109,7 @@ function CreateGameInner() {
   const toast = useToast()
   const [step, setStep] = useState<Step>('settings')
   const [showGameTypes, setShowGameTypes] = useState(false)
+  const [previewTheme, setPreviewTheme] = useState<(typeof THEMES)[number] | null>(null)
   const [participantTab, setParticipantTab] = useState<ParticipantTab>('upload')
   const [settings, setSettings] = useState<Settings>({
     title: '',
@@ -607,6 +609,7 @@ function CreateGameInner() {
                   theme={t}
                   selected={settings.theme === t.id}
                   onClick={() => setSettings({ ...settings, theme: t.id })}
+                  onPreview={() => setPreviewTheme(t)}
                 />
               ))}
             </div>
@@ -1156,6 +1159,12 @@ function CreateGameInner() {
           selected={settings.game_type}
           onSelect={selectGameType}
         />
+        <ThemePreviewModal
+          open={previewTheme !== null}
+          theme={previewTheme}
+          onClose={() => setPreviewTheme(null)}
+          onSelect={(themeId) => setSettings({ ...settings, theme: themeId })}
+        />
       </>
     )
   }
@@ -1409,44 +1418,6 @@ function GenderBadge({ gender }: { gender: ParticipantGender }) {
 
 function Avatar({ name }: { name: string }) {
   return <div className="avatar w-7 h-7 text-xs shrink-0">{name.charAt(0).toUpperCase()}</div>
-}
-
-function ThemePreviewCard({
-  theme,
-  selected,
-  onClick,
-}: {
-  theme: ThemeConfig
-  selected: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-2.5 transition-all ${
-        selected
-          ? 'border-[var(--primary)] shadow-[0_0_0_1px_var(--primary)]'
-          : 'border-[var(--border)] hover:border-[var(--border-strong)]'
-      }`}
-      style={{ minWidth: '4.5rem' }}
-    >
-      <div className="flex gap-1">
-        <span className="block w-4 h-4 rounded-full border border-black/10" style={{ background: theme.preview.bg }} />
-        <span
-          className="block w-4 h-4 rounded-full border border-black/10"
-          style={{ background: theme.preview.accent }}
-        />
-        <span
-          className="block w-4 h-4 rounded-full border border-black/10"
-          style={{ background: theme.preview.text }}
-        />
-      </div>
-      <span className="text-xs font-medium text-body">
-        {theme.emoji} {theme.label}
-      </span>
-    </button>
-  )
 }
 
 function CopyCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {

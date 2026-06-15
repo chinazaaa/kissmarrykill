@@ -368,7 +368,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
   secret_message: landing('secret_message', {
     seoTitle: 'Secret Message Link — Free Anonymous Inbox',
     seoDescription:
-      'Create a free secret message link and share it anywhere. Friends send anonymous messages — only you see your private inbox. No sign-up for senders.',
+      'Create a free secret message link and share it anywhere. Friends send anonymous messages — only you see your private inbox. No sign-up.',
     keywords: [
       'secret message link',
       'anonymous message inbox',

@@ -123,6 +123,10 @@ export function HomePage() {
               Game history
             </button>
             <span aria-hidden>·</span>
+            <Link href="/updates" className="hover:text-[var(--foreground)] transition-colors">
+              What&apos;s new
+            </Link>
+            <span aria-hidden>·</span>
             <span>No sign-up required</span>
           </div>
         </div>

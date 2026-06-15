@@ -200,7 +200,7 @@ export function SecretMessageSenderView({ gameCode }: { gameCode: string }) {
                 sendMessage()
               }
             }}
-            placeholder="Say something honest…"
+            placeholder="Say something honest or not…"
             rows={4}
             disabled={joining || sending}
             className="input-field w-full resize-none"
