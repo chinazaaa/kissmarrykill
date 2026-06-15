@@ -1,18 +1,19 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
+import { useTheme } from '@/components/ThemeProvider'
+import type { Theme } from '@/lib/theme-cookie'
 import { themeStyleVars, type ThemeConfig } from '@/lib/themes'
 
-function EyeIcon({ className }: { className?: string }) {
+function EyeIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg
       className={className}
-      width="14"
-      height="14"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="2.25"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -23,7 +24,33 @@ function EyeIcon({ className }: { className?: string }) {
   )
 }
 
-function ThemeSampleRoom({ theme }: { theme: ThemeConfig }) {
+function PreviewModeToggle({ mode, onChange }: { mode: Theme; onChange: (mode: Theme) => void }) {
+  return (
+    <div
+      className="flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-inset-bg)] p-0.5"
+      role="group"
+      aria-label="Preview appearance"
+    >
+      {(['light', 'dark'] as const).map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChange(option)}
+          className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${
+            mode === option
+              ? 'bg-[var(--card-strong)] text-body shadow-sm'
+              : 'text-muted hover:text-body'
+          }`}
+          aria-pressed={mode === option}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ThemeSampleRoom({ theme, siteMode }: { theme: ThemeConfig; siteMode: Theme }) {
   const hasRoomVars = Object.keys(theme.cssVars).length > 0
   const roomStyle = themeStyleVars(theme.id)
 
@@ -31,7 +58,7 @@ function ThemeSampleRoom({ theme }: { theme: ThemeConfig }) {
     <div
       className="rounded-2xl overflow-hidden border border-[var(--border)] shadow-lg"
       style={roomStyle}
-      {...(!hasRoomVars ? { 'data-theme': 'dark' as const } : {})}
+      data-theme={hasRoomVars ? undefined : siteMode}
     >
       <div
         className="p-5 space-y-4"
@@ -104,6 +131,14 @@ export function ThemePreviewModal({
   onClose: () => void
   onSelect?: (themeId: ThemeConfig['id']) => void
 }) {
+  const { theme: siteTheme } = useTheme()
+  const [previewMode, setPreviewMode] = useState<Theme>(siteTheme)
+  const isDefaultTheme = theme?.id === 'default'
+
+  useEffect(() => {
+    if (open) setPreviewMode(siteTheme)
+  }, [open, siteTheme, theme?.id])
+
   if (!theme) return null
 
   return (
@@ -111,11 +146,20 @@ export function ThemePreviewModal({
       open={open}
       onClose={onClose}
       title={`${theme.emoji} ${theme.label}`}
-      subtitle="Sample of how your game room will look"
+      subtitle={
+        isDefaultTheme
+          ? 'Default follows your site light or dark appearance'
+          : 'This theme uses its own fixed color palette'
+      }
       size="md"
     >
-      <div className="space-y-5">
-        <ThemeSampleRoom theme={theme} />
+      <div className="space-y-4">
+        {isDefaultTheme && (
+          <div className="flex justify-center">
+            <PreviewModeToggle mode={previewMode} onChange={setPreviewMode} />
+          </div>
+        )}
+        <ThemeSampleRoom theme={theme} siteMode={previewMode} />
         {onSelect && (
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className="btn-secondary px-5 py-2.5 text-sm">
@@ -151,37 +195,36 @@ export function ThemePreviewCard({
 }) {
   return (
     <div
-      className={`relative flex flex-col items-center rounded-xl border transition-all ${
+      className={`flex min-w-0 flex-col overflow-hidden rounded-xl border transition-all ${
         selected
           ? 'border-[var(--primary)] shadow-[0_0_0_1px_var(--primary)]'
           : 'border-[var(--border)] hover:border-[var(--border-strong)]'
       }`}
-      style={{ minWidth: '4.5rem' }}
     >
-      <button type="button" onClick={onClick} className="flex flex-col items-center gap-1.5 px-3 py-2.5 w-full">
-        <div className="flex gap-1">
-          <span className="block w-4 h-4 rounded-full border border-black/10" style={{ background: theme.preview.bg }} />
+      <button type="button" onClick={onClick} className="flex w-full flex-col items-center gap-1 px-1.5 pt-2 pb-1.5">
+        <div className="flex gap-0.5">
+          <span className="block h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: theme.preview.bg }} />
           <span
-            className="block w-4 h-4 rounded-full border border-black/10"
+            className="block h-3.5 w-3.5 rounded-full border border-black/10"
             style={{ background: theme.preview.accent }}
           />
           <span
-            className="block w-4 h-4 rounded-full border border-black/10"
+            className="block h-3.5 w-3.5 rounded-full border border-black/10"
             style={{ background: theme.preview.text }}
           />
         </div>
-        <span className="text-xs font-medium text-body">
+        <span className="w-full truncate text-center text-[11px] font-medium leading-tight text-body">
           {theme.emoji} {theme.label}
         </span>
       </button>
       <button
         type="button"
         onClick={onPreview}
-        className="absolute top-1 right-1 w-5 h-5 rounded-md flex items-center justify-center text-faint hover:text-body hover:bg-[var(--surface-inset-bg)] transition-colors"
+        className="flex w-full items-center justify-center gap-0.5 border-t border-[var(--border)] bg-[var(--surface-inset-bg)] py-1 text-[10px] font-semibold text-body transition-colors hover:bg-[var(--card-hover)]"
         aria-label={`Preview ${theme.label} theme`}
-        title="Preview room"
       >
-        <EyeIcon />
+        <EyeIcon className="h-3 w-3 shrink-0 opacity-80" />
+        Preview
       </button>
     </div>
   )

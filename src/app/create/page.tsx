@@ -602,7 +602,7 @@ function CreateGameInner() {
           {/* Theme */}
           <div className="glass-card p-5 space-y-3">
             <p className="label-caps">Theme</p>
-            <div className="flex gap-2 flex-wrap">
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {THEMES.map((t) => (
                 <ThemePreviewCard
                   key={t.id}
