@@ -47,6 +47,7 @@ export function TriviaActiveRound({
   const [submitting, setSubmitting] = useState(false)
   const [lastResult, setLastResult] = useState<{ isCorrect: boolean; points: number } | null>(null)
   const [timeExpired, setTimeExpired] = useState(false)
+  const [expiredAtMs, setExpiredAtMs] = useState<number | null>(null)
   const [revealCountdown, setRevealCountdown] = useState(TRIVIA_REVEAL_SECONDS)
 
   const currentRound = useMemo(
@@ -59,17 +60,19 @@ export function TriviaActiveRound({
       currentRound ? answers.find((a) => a.player_id === myPlayerId && a.round_id === currentRound.id) ?? null : null,
     [answers, currentRound, myPlayerId]
   )
-  const roundAnswerCount = useMemo(
-    () => (currentRound ? answers.filter((a) => a.round_id === currentRound.id).length : 0),
-    [answers, currentRound]
-  )
   const leaderboard = useMemo(() => tallyTriviaPlayerScores(answers, players), [answers, players])
   const isLastRound = (game.current_round_number ?? 0) >= (game.rounds_count ?? 0)
 
   const screen: PlayScreen = useMemo(() => {
     if (game.status === 'finished') return 'finished'
     if (!currentRound || currentRound.status === 'pending') return 'waiting'
-    if (currentRound.status === 'finished') return 'revealed'
+    if (currentRound.status === 'finished') {
+      if (game.status === 'active' && currentRound.ended_at) {
+        const remaining = revealCountdownSeconds(currentRound.ended_at)
+        if (remaining <= 0) return 'waiting'
+      }
+      return 'revealed'
+    }
     if (myAnswer || lastResult || timeExpired) return 'locked'
     return 'active'
   }, [game.status, currentRound, myAnswer, lastResult, timeExpired])
@@ -78,21 +81,39 @@ export function TriviaActiveRound({
     setPendingChoice(null)
     setLastResult(null)
     setTimeExpired(false)
+    setExpiredAtMs(null)
   }, [currentRound?.id])
 
+  const showCorrectAnswer =
+    !!metadata && (currentRound?.status === 'finished' || timeExpired)
+
   useEffect(() => {
-    if (screen !== 'revealed' || !currentRound?.ended_at) return
-    const tick = () => setRevealCountdown(revealCountdownSeconds(currentRound.ended_at))
+    if (!showCorrectAnswer || game.status !== 'active') return
+
+    const tick = () => {
+      if (currentRound?.ended_at) {
+        setRevealCountdown(revealCountdownSeconds(currentRound.ended_at))
+        return
+      }
+      if (expiredAtMs != null) {
+        const deadline = expiredAtMs + TRIVIA_REVEAL_SECONDS * 1000
+        setRevealCountdown(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)))
+      }
+    }
+
     tick()
-    const id = setInterval(tick, 250)
+    const id = setInterval(tick, 100)
     return () => clearInterval(id)
-  }, [screen, currentRound?.ended_at, currentRound?.id])
+  }, [showCorrectAnswer, game.status, currentRound?.ended_at, currentRound?.id, expiredAtMs])
 
   const timeLeft = useRoundTimer({
     game,
     currentRound: currentRound?.status === 'active' ? currentRound : null,
     active: screen === 'active',
-    onExpire: () => setTimeExpired(true),
+    onExpire: () => {
+      setTimeExpired(true)
+      setExpiredAtMs(Date.now())
+    },
   })
 
   const correct = myAnswer?.is_correct ?? lastResult?.isCorrect
@@ -104,6 +125,7 @@ export function TriviaActiveRound({
     correct,
     timeLeft,
     timeExpired,
+    showCorrectAnswer,
   })
 
   const submitAnswer = useCallback(
@@ -136,8 +158,9 @@ export function TriviaActiveRound({
   )
 
   const points = myAnswer?.points ?? lastResult?.points ?? 0
-  const waitingForOthers = Math.max(0, players.length - roundAnswerCount)
-  const allAnswered = players.length > 0 && roundAnswerCount >= players.length
+  const waitingOnTimer = screen === 'locked' && !timeExpired && currentRound?.status === 'active'
+  const inRevealCountdown =
+    showCorrectAnswer && game.status === 'active' && (revealCountdown > 0 || !currentRound?.ended_at)
 
   return (
     <div className="space-y-5">
@@ -157,8 +180,18 @@ export function TriviaActiveRound({
 
       {screen === 'waiting' && (
         <div className="glass-card-strong p-8 sm:p-10 text-center space-y-3">
-          <p className="text-xl sm:text-2xl font-bold text-body">Get ready…</p>
-          <p className="text-muted text-base">Waiting for the next question</p>
+          <p className="text-xl sm:text-2xl font-bold text-body">
+            {currentRound?.status === 'finished' && game.status === 'active'
+              ? isLastRound
+                ? 'Wrapping up…'
+                : 'Starting next question…'
+              : 'Get ready…'}
+          </p>
+          <p className="text-muted text-base">
+            {currentRound?.status === 'finished' && game.status === 'active' && !isLastRound
+              ? 'Hang tight — the next round is loading'
+              : 'Waiting for the next question'}
+          </p>
         </div>
       )}
 
@@ -224,7 +257,7 @@ export function TriviaActiveRound({
           ) : (
             <p className="text-xl font-bold text-body">Time&apos;s up — no answer submitted</p>
           )}
-          {(screen === 'revealed' || currentRound.status === 'finished') && (
+          {showCorrectAnswer && (
             <p className="text-base sm:text-lg text-body pt-2">
               Answer:{' '}
               <span className="font-semibold">
@@ -232,23 +265,21 @@ export function TriviaActiveRound({
               </span>
             </p>
           )}
-          {screen === 'locked' && currentRound.status === 'active' && (
+          {waitingOnTimer && (myAnswer || lastResult) && (
             <p className="text-muted text-sm sm:text-base">
-              {allAnswered
-                ? 'Everyone answered — revealing results…'
-                : waitingForOthers === 1
-                  ? 'Waiting for 1 more player…'
-                  : `Waiting for ${waitingForOthers} more players…`}
-              <span className="block text-faint text-xs mt-1">
-                {roundAnswerCount}/{players.length} answered
-              </span>
+              Answer locked — results when time&apos;s up
             </p>
           )}
-          {screen === 'revealed' && game.status === 'active' && (
+          {showCorrectAnswer && game.status === 'active' && inRevealCountdown && revealCountdown > 0 && (
             <p className={`${COUNTDOWN_TEXT} pt-2`}>
               {isLastRound
                 ? `Final results in ${revealCountdown}s…`
                 : `Next question in ${revealCountdown}s…`}
+            </p>
+          )}
+          {showCorrectAnswer && game.status === 'active' && revealCountdown <= 0 && (
+            <p className={`${COUNTDOWN_TEXT} pt-2`}>
+              {isLastRound ? 'Showing final results…' : 'Starting next question…'}
             </p>
           )}
         </div>

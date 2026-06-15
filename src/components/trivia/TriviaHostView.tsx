@@ -6,6 +6,7 @@ import { TriviaHostManagePanel } from '@/components/trivia/TriviaHostManagePanel
 import { TriviaPlayAgainSetup, type TriviaSettingsPayload } from '@/components/trivia/TriviaPlayAgainSetup'
 import { gameTypeConfig } from '@/lib/game-types'
 import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
+import { useTriviaHostRoundAutomation } from '@/hooks/useTriviaHostRoundAutomation'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
@@ -60,9 +61,10 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   useEffect(() => {
     const channel = supabase
       .channel(`trivia-host-${gameCode}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (p) =>
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (p) => {
         setGame(p.new as Game)
-      )
+        void load()
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, (p) => {
         const player = p.new as Player
         setPlayers((prev) => (prev.some((x) => x.id === player.id) ? prev : [...prev, player]))
@@ -80,7 +82,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     const poll = setInterval(() => {
       if (settingsModalRef.current) return
       void load()
-    }, 1000)
+    }, 400)
     return () => {
       clearInterval(poll)
       supabase.removeChannel(channel)
@@ -121,6 +123,15 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   }
 
   const endRound = useCallback(async () => {
+    const roundNumber = game?.current_round_number
+    const now = new Date().toISOString()
+    if (roundNumber) {
+      setRounds((prev) =>
+        prev.map((r) =>
+          r.round_number === roundNumber ? { ...r, status: 'finished' as const, ended_at: now } : r
+        )
+      )
+    }
     setAdvancing(true)
     try {
       const res = await fetch(`/api/games/${gameCode}/end-round`, {
@@ -133,10 +144,11 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       await load()
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to end round')
+      await load()
     } finally {
       setAdvancing(false)
     }
-  }, [gameCode, hostToken, load, toastError])
+  }, [game?.current_round_number, gameCode, hostToken, load, toastError])
 
   const startGame = async () => {
     setStarting(true)
@@ -159,6 +171,16 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   }
 
   const nextRound = useCallback(async () => {
+    const nextRoundNumber = (game?.current_round_number ?? 0) + 1
+    const now = new Date().toISOString()
+    setGame((prev) => (prev ? { ...prev, current_round_number: nextRoundNumber } : prev))
+    setRounds((prev) =>
+      prev.map((r) =>
+        r.round_number === nextRoundNumber
+          ? { ...r, status: 'active' as const, started_at: now }
+          : r
+      )
+    )
     setAdvancing(true)
     try {
       const res = await fetch(`/api/games/${gameCode}/next-round`, {
@@ -171,10 +193,11 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       await load()
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to advance')
+      await load()
     } finally {
       setAdvancing(false)
     }
-  }, [gameCode, hostToken, load, toastError])
+  }, [game?.current_round_number, gameCode, hostToken, load, toastError])
 
   const finishGame = useCallback(async () => {
     setAdvancing(true)
@@ -193,6 +216,18 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       setAdvancing(false)
     }
   }, [gameCode, hostToken, load, toastError])
+
+  const roundAutomation = useTriviaHostRoundAutomation({
+    game: game ?? ({ status: 'waiting' } as Game),
+    rounds,
+    players,
+    answers,
+    advancing,
+    onEndRound: endRound,
+    onNextRound: nextRound,
+    onFinishGame: finishGame,
+    enabled: game?.status === 'active',
+  })
 
   const playAgain = useCallback(
     async (payload: TriviaSettingsPayload) => {
@@ -389,6 +424,12 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
             onFinishGame={finishGame}
             onPlayAgain={() => setSettingsModal('play-again')}
             onEditSettings={() => setSettingsModal('lobby')}
+            activeRound={roundAutomation.activeRound}
+            betweenRounds={roundAutomation.betweenRounds}
+            lastFinishedRound={roundAutomation.lastFinishedRound}
+            roundAnswers={roundAutomation.roundAnswers}
+            allAnswered={roundAutomation.allAnswered}
+            isLastRound={roundAutomation.isLastRound}
           />
         )}
 

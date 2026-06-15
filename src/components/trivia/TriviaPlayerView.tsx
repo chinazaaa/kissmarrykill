@@ -78,7 +78,7 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
       )
       .subscribe()
 
-    const poll = setInterval(load, 1000)
+    const poll = setInterval(load, 400)
     return () => {
       clearInterval(poll)
       supabase.removeChannel(channel)

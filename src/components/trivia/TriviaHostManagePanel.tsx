@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import {
@@ -14,7 +14,6 @@ import {
 } from '@/lib/trivia'
 import { triviaCategoryLabel } from '@/lib/trivia-questions'
 import { parseQuestionSource, parseStoredTriviaQuestions } from '@/lib/custom-questions'
-import { useRoundTimer } from '@/hooks/useRoundTimer'
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 
 const CHOICE_BADGE =
@@ -36,6 +35,12 @@ interface TriviaHostManagePanelProps {
   onFinishGame: () => void
   onPlayAgain: () => void
   onEditSettings: () => void
+  activeRound?: Round | null
+  betweenRounds?: boolean
+  lastFinishedRound?: Round | null
+  roundAnswers?: TriviaAnswer[]
+  allAnswered?: boolean
+  isLastRound?: boolean
 }
 
 export function TriviaHostManagePanel({
@@ -53,28 +58,34 @@ export function TriviaHostManagePanel({
   onFinishGame,
   onPlayAgain,
   onEditSettings,
+  activeRound: activeRoundProp,
+  betweenRounds: betweenRoundsProp,
+  lastFinishedRound: lastFinishedRoundProp,
+  roundAnswers: roundAnswersProp,
+  allAnswered: allAnsweredProp,
+  isLastRound: isLastRoundProp,
 }: TriviaHostManagePanelProps) {
   const [revealCountdown, setRevealCountdown] = useState(TRIVIA_REVEAL_SECONDS)
-  const autoAdvancedRoundId = useRef<string | null>(null)
-  const autoEndedRoundId = useRef<string | null>(null)
 
   const currentRound = useMemo(
     () => rounds.find((r) => r.round_number === game.current_round_number) ?? null,
     [rounds, game.current_round_number]
   )
-  const activeRound = currentRound?.status === 'active' ? currentRound : null
+  const activeRound = activeRoundProp ?? (currentRound?.status === 'active' ? currentRound : null)
   const lastFinishedRound = useMemo(() => {
+    if (lastFinishedRoundProp !== undefined) return lastFinishedRoundProp
     const finished = rounds.filter((r) => r.status === 'finished')
     return finished.length ? finished[finished.length - 1] : null
-  }, [rounds])
-  const betweenRounds = game.status === 'active' && !activeRound && lastFinishedRound != null
+  }, [lastFinishedRoundProp, rounds])
+  const betweenRounds =
+    betweenRoundsProp ?? (game.status === 'active' && !activeRound && lastFinishedRound != null)
   const metadata = activeRound ? parseTriviaMetadata(activeRound.trivia_metadata) : null
   const roundAnswers = useMemo(
-    () => (currentRound ? answers.filter((a) => a.round_id === currentRound.id) : []),
-    [answers, currentRound]
+    () => roundAnswersProp ?? (currentRound ? answers.filter((a) => a.round_id === currentRound.id) : []),
+    [roundAnswersProp, answers, currentRound]
   )
   const leaderboard = useMemo(() => tallyTriviaPlayerScores(answers, players), [answers, players])
-  const isLastRound = (game.current_round_number ?? 0) >= (game.rounds_count ?? 0)
+  const isLastRound = isLastRoundProp ?? (game.current_round_number ?? 0) >= (game.rounds_count ?? 0)
   const category = triviaCategoryLabel(triviaCategoryFromGame(game))
   const questionSource = parseQuestionSource(game.question_source, 'trivia')
   const customQuestionCount = parseStoredTriviaQuestions(game.custom_questions).length
@@ -82,63 +93,17 @@ export function TriviaHostManagePanel({
     questionSource === 'platform'
       ? `Platform · ${category} · ${game.rounds_count} rounds · ${game.timer_seconds}s per question`
       : `Custom · ${customQuestionCount} question${customQuestionCount === 1 ? '' : 's'} · ${game.rounds_count} rounds · ${game.timer_seconds}s per question`
-  const allAnswered = !!activeRound && players.length > 0 && roundAnswers.length >= players.length
-
-  useRoundTimer({
-    game,
-    currentRound: activeRound,
-    active: !!activeRound && !advancing && !allAnswered,
-    onExpire: () => {
-      if (!activeRound || advancing) return
-      if (autoEndedRoundId.current === activeRound.id) return
-      autoEndedRoundId.current = activeRound.id
-      onEndRound()
-    },
-  })
-
-  useEffect(() => {
-    if (!activeRound || advancing || players.length === 0) return
-    if (roundAnswers.length < players.length) return
-    if (autoEndedRoundId.current === activeRound.id) return
-    autoEndedRoundId.current = activeRound.id
-    onEndRound()
-  }, [activeRound?.id, roundAnswers.length, players.length, advancing, onEndRound])
-
-  useEffect(() => {
-    if (!activeRound) {
-      autoEndedRoundId.current = null
-    }
-  }, [activeRound?.id])
+  const allAnswered = allAnsweredProp ?? (!!activeRound && players.length > 0 && roundAnswers.length >= players.length)
 
   useEffect(() => {
     if (!betweenRounds || !lastFinishedRound?.ended_at) return
     const tick = () => setRevealCountdown(revealCountdownSeconds(lastFinishedRound.ended_at))
     tick()
-    const id = setInterval(tick, 250)
+    const id = setInterval(tick, 100)
     return () => clearInterval(id)
   }, [betweenRounds, lastFinishedRound?.ended_at, lastFinishedRound?.id])
 
-  useEffect(() => {
-    if (!betweenRounds) {
-      autoAdvancedRoundId.current = null
-      return
-    }
-    if (!lastFinishedRound?.ended_at || advancing) return
-    if (autoAdvancedRoundId.current === lastFinishedRound.id) return
-
-    const delayMs = Math.max(
-      0,
-      new Date(lastFinishedRound.ended_at).getTime() + TRIVIA_REVEAL_SECONDS * 1000 - Date.now()
-    )
-
-    const timer = setTimeout(() => {
-      autoAdvancedRoundId.current = lastFinishedRound.id
-      if (isLastRound) onFinishGame()
-      else onNextRound()
-    }, delayMs)
-
-    return () => clearTimeout(timer)
-  }, [betweenRounds, lastFinishedRound?.id, lastFinishedRound?.ended_at, isLastRound, advancing, onFinishGame, onNextRound])
+  const revealComplete = betweenRounds && revealCountdown <= 0
 
   return (
     <div className="space-y-5">
@@ -248,9 +213,15 @@ export function TriviaHostManagePanel({
             )
           })()}
           <p className={`text-center ${COUNTDOWN_TEXT} py-2`}>
-            {isLastRound
-              ? `Showing final leaderboard — ending in ${revealCountdown}s…`
-              : `Next question in ${revealCountdown}s…`}
+            {revealComplete
+              ? isLastRound
+                ? 'Showing final results…'
+                : advancing
+                  ? 'Starting next question…'
+                  : 'Starting next question…'
+              : isLastRound
+                ? `Showing final leaderboard — ending in ${revealCountdown}s…`
+                : `Next question in ${revealCountdown}s…`}
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
             {!isLastRound && (
