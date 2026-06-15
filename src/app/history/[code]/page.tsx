@@ -24,8 +24,11 @@ import {
   isWhoSaidThis,
   isHotSeat,
   isAnonymousMessagesGame,
+  isCodewordsGame,
 } from '@/lib/game-types'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
+import { CodewordsSessionSummary } from '@/components/codewords/CodewordsSessionSummary'
+import { mergeCodewordsGuesses } from '@/lib/codewords'
 import { hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import {
@@ -41,7 +44,7 @@ import {
   WstRoundResults,
   HotSeatRoundResults,
 } from '@/components/VoteResults'
-import type { Confession, Game, Participant, Player, Round, Vote } from '@/types'
+import type { Confession, CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Participant, Player, Round, Vote } from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
 
@@ -79,6 +82,9 @@ export default function GameHistoryPage() {
   const [hotSeatSubmissions, setHotSeatSubmissions] = useState<
     { id: string; round_id: string; text: string; submission_type: string }[]
   >([])
+  const [codewordsBoard, setCodewordsBoard] = useState<CodewordsBoard | null>(null)
+  const [codewordsRoles, setCodewordsRoles] = useState<CodewordsPlayerRole[]>([])
+  const [codewordsGuesses, setCodewordsGuesses] = useState<CodewordsGuess[]>([])
 
   useEffect(() => {
     if (!gameCode || gameCode.length < 4) {
@@ -96,6 +102,7 @@ export default function GameHistoryPage() {
       }
 
       const isAnonymousRoom = isAnonymousMessagesGame(parseGameType(gameData.game_type))
+      const isCodewords = isCodewordsGame(parseGameType(gameData.game_type))
 
       if (isAnonymousRoom) {
         const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
@@ -106,6 +113,30 @@ export default function GameHistoryPage() {
         setVotes([])
         setConfessions([])
         setHotSeatSubmissions([])
+        setCodewordsBoard(null)
+        setCodewordsRoles([])
+        setCodewordsGuesses([])
+        setLoadState('ready')
+        return
+      }
+
+      if (isCodewords) {
+        const [{ data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
+          supabase.from('codewords_boards').select('*').eq('game_id', gameCode).maybeSingle(),
+          supabase.from('codewords_guesses').select('*').eq('game_id', gameCode).order('created_at', { ascending: true }),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        setCodewordsBoard((boardData as CodewordsBoard | null) ?? null)
+        setCodewordsRoles(roleRows ?? [])
+        setCodewordsGuesses(mergeCodewordsGuesses([], (guessRows as CodewordsGuess[]) ?? []))
         setLoadState('ready')
         return
       }
@@ -183,6 +214,44 @@ export default function GameHistoryPage() {
         </div>
 
         <AnonymousRoomSessionSummary game={game} playerCount={players.length} />
+
+        <p className="text-center pb-4">
+          <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
+            ← Back home
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
+  if (isCodewordsGame(gameType)) {
+    return (
+      <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="label-caps">Game history</p>
+            <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
+            <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/history" className="btn-secondary text-sm py-2 px-4">
+              Search
+            </Link>
+            {game.status !== 'finished' && (
+              <Link href={`/game/${game.id}`} className="btn-primary text-sm py-2 px-4">
+                Open game
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <CodewordsSessionSummary
+          game={game}
+          players={players}
+          roles={codewordsRoles}
+          board={codewordsBoard}
+          guesses={codewordsGuesses}
+        />
 
         <p className="text-center pb-4">
           <Link href="/" className="text-faint text-sm hover:text-body transition-colors">

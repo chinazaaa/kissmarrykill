@@ -246,6 +246,18 @@ export function CodewordsHostManagePanel({
         </div>
       )}
 
+      {board && game.status === 'finished' && !board.winner && showSpectatorBoard && (
+        <div className="glass-card p-6 text-center space-y-3">
+          <p className="text-4xl">🏁</p>
+          <p className="text-xl font-black">Session ended</p>
+          <p className="text-muted text-sm">The game was closed before a team won.</p>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4 items-start text-left">
+            <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
+            <CodewordsScoreboard board={board} players={players} roles={roles} />
+          </div>
+        </div>
+      )}
+
       {board && game.status === 'finished' && board.winner && showSpectatorBoard && (
         <div className="glass-card p-6 text-center space-y-2 border-amber-400/40">
           <p className="text-4xl">🏆</p>

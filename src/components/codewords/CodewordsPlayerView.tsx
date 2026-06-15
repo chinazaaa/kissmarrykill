@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
+import { CodewordsWaitingPanel } from '@/components/codewords/CodewordsWaitingPanel'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
@@ -31,7 +31,6 @@ import { useToast } from '@/components/ui/Toast'
 type Screen = 'loading' | 'join' | 'lobby' | 'active' | 'finished' | 'not_found'
 
 export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
-  const router = useRouter()
   const { success, error: toastError } = useToast()
   const [screen, setScreen] = useState<Screen>('loading')
   const [game, setGame] = useState<Game | null>(null)
@@ -142,6 +141,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     } else {
       setBoard(null)
       setGuesses([])
+      await loadScoreboard()
     }
 
     syncScreen(gameData, playerId)
@@ -155,17 +155,16 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     onGame: (next) => {
       setGame(next)
       syncScreen(next, myPlayerId)
-      if (next.status === 'waiting') {
-        setBoard(null)
-        setGuesses([])
-        setMyRole(null)
-        setPickingTeam(null)
-        setPickingRole(null)
-      }
       if (next.status === 'active') {
         void loadBoard()
         void loadScoreboard()
         void loadGuesses()
+      }
+      if (next.status === 'waiting') {
+        setBoard(null)
+        setGuesses([])
+        void refreshMyRole(myPlayerId)
+        void loadScoreboard()
       }
     },
     onPlayers: (updater) => setAllPlayers(updater),
@@ -263,9 +262,6 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
         <p className="text-xl font-bold">Game not found</p>
-        <button type="button" onClick={() => router.push('/')} className="btn-secondary">
-          Go home
-        </button>
       </div>
     )
   }
@@ -389,7 +385,27 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
               ? 'You can play as soon as your team is set.'
               : 'Waiting for the host to start…'}
           </p>
+
+          <div className="rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] p-4 space-y-2">
+            <p className="label-caps text-xs">While you wait — how to play</p>
+            <p className="text-faint text-xs leading-relaxed">
+              Spymasters give one-word clues; operatives guess words on the grid. First team to find all their words
+              wins — but avoid the assassin!
+            </p>
+          </div>
         </div>
+      </div>
+    )
+  }
+
+  if (screen === 'lobby' && myPlayerId && myRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-8">
+        <CodewordsWaitingPanel
+          playerName={myPlayerName}
+          myRole={myRole}
+          playerCount={allPlayers.length}
+        />
       </div>
     )
   }
@@ -409,15 +425,15 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
-  if (!board || !myRole || !game || !myPlayerId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-muted">Loading game…</p>
-      </div>
-    )
-  }
-
   if (screen === 'finished') {
+    if (!board || !game || !myPlayerId) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <p className="text-muted">Loading…</p>
+        </div>
+      )
+    }
+
     const iWon = board.winner && myTeam === board.winner
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
@@ -450,6 +466,19 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             <CodewordsBoardGrid board={board} showKey={isSpymaster} />
           </div>
         </div>
+      </div>
+    )
+  }
+
+  if (!board || !myRole || !game || !myPlayerId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-8">
+        <CodewordsWaitingPanel
+          playerName={myPlayerName}
+          myRole={myRole}
+          playerCount={allPlayers.length}
+          variant="starting"
+        />
       </div>
     )
   }

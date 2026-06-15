@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsHostManagePanel } from '@/components/codewords/CodewordsHostManagePanel'
+import { CodewordsWaitingPanel } from '@/components/codewords/CodewordsWaitingPanel'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
@@ -25,7 +25,6 @@ import { useToast } from '@/components/ui/Toast'
 type HostTab = 'play' | 'manage'
 
 export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
-  const router = useRouter()
   const { error: toastError, success } = useToast()
   const [game, setGame] = useState<Game | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
@@ -224,6 +223,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to end session')
       await load()
+      setTab('manage')
       success('Session closed')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to end session')
@@ -237,7 +237,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const playersPickTeams = game ? codewordsPlayerPicks(game) : true
   const hostMyRole = hostPlayerId ? roles.find((r) => r.player_id === hostPlayerId) : undefined
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const canPlayTab = hostPlays && !!hostMyRole && !!board && (game?.status === 'active' || game?.status === 'finished')
+  const showPlayTab = hostPlays && !!hostMyRole
+  const inActivePlay = showPlayTab && game?.status === 'active' && !!board
 
   useCodewordsNotifications({
     game,
@@ -247,8 +248,12 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   })
 
   useEffect(() => {
-    if (canPlayTab && game?.status === 'active') setTab('play')
-  }, [canPlayTab, game?.status])
+    if (game?.status === 'finished') setTab('manage')
+  }, [game?.status])
+
+  useEffect(() => {
+    if (inActivePlay) setTab('play')
+  }, [inActivePlay])
 
   if (!game) {
     return (
@@ -299,23 +304,25 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
               </button>
             </div>
             {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your name to play"
-                  className="input-field flex-1"
-                  maxLength={40}
-                />
+              <div className="flex items-center gap-2">
+                <div className="w-36 sm:w-44 shrink-0">
+                  <input
+                    type="text"
+                    value={hostJoinName}
+                    onChange={(e) => setHostJoinName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                    placeholder="Your name"
+                    className="input-field w-full"
+                    maxLength={40}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={hostJoinGame}
                   disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary sm:w-auto"
+                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
                 >
-                  {hostJoining ? 'Joining…' : 'Join as player'}
+                  {hostJoining ? 'Joining…' : 'Join'}
                 </button>
               </div>
             )}
@@ -330,7 +337,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
           </div>
         )}
 
-        {canPlayTab && (
+        {showPlayTab && (
           <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
             <button
               type="button"
@@ -355,24 +362,34 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
           </div>
         )}
 
-        {tab === 'play' && canPlayTab && hostMyRole && board && (
-          <CodewordsActiveRound
-            gameCode={gameCode}
-            game={game}
-            board={board}
-            myPlayerId={hostPlayerId!}
-            myPlayerName={hostPlayerName}
-            myRole={hostMyRole}
-            players={players}
-            roles={roles}
-            guesses={guesses}
-            onBoardChange={setBoard}
-            onReload={load}
-            hideKey
-          />
+        {tab === 'play' && showPlayTab && hostMyRole && (
+          inActivePlay && board ? (
+            <CodewordsActiveRound
+              gameCode={gameCode}
+              game={game}
+              board={board}
+              myPlayerId={hostPlayerId!}
+              myPlayerName={hostPlayerName}
+              myRole={hostMyRole}
+              players={players}
+              roles={roles}
+              guesses={guesses}
+              onBoardChange={setBoard}
+              onReload={load}
+              hideKey
+            />
+          ) : (
+            <CodewordsWaitingPanel
+              playerName={hostPlayerName}
+              myRole={hostMyRole}
+              playerCount={players.length}
+              variant={game.status === 'active' ? 'starting' : 'lobby'}
+              manageHint="Head to Manage → Teams to assign players, then start the game when ready."
+            />
+          )
         )}
 
-        {(tab === 'manage' || !canPlayTab) && (
+        {(tab === 'manage' || !showPlayTab) && (
           <CodewordsHostManagePanel
             game={game}
             gameCode={gameCode}
@@ -400,9 +417,6 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
           />
         )}
 
-        <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">
-          Back home
-        </button>
       </div>
     </div>
   )
