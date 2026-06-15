@@ -52,7 +52,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
         .eq('game_id', gameCode)
         .eq('player_id', playerId)
         .maybeSingle()
-      if (data) setCard(data as BingoCard)
+      setCard(data ? (data as BingoCard) : null)
     },
     [gameCode]
   )
@@ -91,7 +91,13 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
     } else if (session) {
       setMyPlayerId(session.playerId)
       setMyPlayerName(session.playerName)
-      await loadCard(session.playerId)
+      if (gameData.status === 'waiting') {
+        setCard(null)
+      } else {
+        await loadCard(session.playerId)
+      }
+    } else {
+      setCard(null)
     }
     syncScreen(gameData, playerId)
   }, [gameCode, loadCard, syncScreen])
@@ -114,13 +120,8 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
-        async (payload) => {
-          const next = payload.new as Game
-          setGame(next)
-          syncScreen(next, myPlayerId)
-          if (next.status === 'active' && myPlayerId) {
-            await loadCard(myPlayerId)
-          }
+        () => {
+          void load()
         }
       )
       .on(
@@ -134,33 +135,39 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bingo_cards', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const next = payload.new as BingoCard
-          if (next.player_id === myPlayerId) setCard(next)
+        () => {
+          void load()
         }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bingo_claims', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const row = payload.new as BingoClaim
-          if (row.status === 'approved') setWinner(row)
+        () => {
+          void load()
         }
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'bingo_cards', filter: `game_id=eq.${gameCode}` },
-        (payload) => {
-          const next = payload.new as BingoCard
-          if (next.player_id === myPlayerId) setCard(next)
+        () => {
+          void load()
         }
       )
       .subscribe()
 
+    const poll = setInterval(() => void load(), 2000)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
+      clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, myPlayerId, syncScreen, loadCard])
+  }, [gameCode, load])
 
   useBingoAutoCall({
     gameCode,

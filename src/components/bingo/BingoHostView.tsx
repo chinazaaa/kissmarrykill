@@ -193,8 +193,10 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
+      setWinner(null)
+      setCalledNumbers([])
       await load()
-      success('New bingo round ready!')
+      success('Lobby reopened — waiting for players!')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to reset')
     } finally {
