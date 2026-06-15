@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BingoCardGrid, CalledNumbersBoard } from '@/components/bingo/BingoCardGrid'
+import { BingoCardGrid, BingoCardLegend, CalledNumbersBoard } from '@/components/bingo/BingoCardGrid'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import { formatBingoNumber, hasBingoWin } from '@/lib/bingo'
@@ -282,8 +282,10 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
             />
           </div>
           <p className="text-faint text-xs leading-relaxed">
-            You&apos;ll receive a random card when the host starts — tap squares when your numbers are called.
+            You&apos;ll get a random card when the host starts. Called numbers turn <strong className="text-blue-400">blue</strong>{' '}
+            on your card — tap them to mark <strong className="text-emerald-400">green</strong>.
           </p>
+          <BingoCardLegend />
           <button
             type="button"
             onClick={joinGame}
@@ -308,9 +310,10 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
             automatically — you don&apos;t pick the numbers on your card.
           </p>
           <p className="text-faint text-xs leading-relaxed">
-            Once the game starts, the host calls numbers (B1–O75). Tap matching squares on your card when they&apos;re
-            called, then hit BINGO when you complete a line.
+            When the host calls a number (B1–O75), matching squares on your card turn blue. Tap blue squares to mark them
+            green, then hit BINGO when you complete a line.
           </p>
+          <BingoCardLegend />
           <p className="text-faint text-xs">{players.length} player{players.length === 1 ? '' : 's'} in lobby</p>
         </div>
       </div>
@@ -349,6 +352,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
                 markedIndices={card.marked_indices}
                 calledNumbers={called}
                 disabled
+                showLegend={false}
               />
             </div>
           )}
@@ -377,8 +381,8 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
           <div className="glass-card p-4 space-y-3">
             <p className="text-faint text-xs text-center leading-relaxed">
               {called.length === 0
-                ? 'Your card is ready. Wait for the host to call a number — called squares turn blue and you can tap them to mark.'
-                : 'Tap blue squares to mark numbers the host has called. Complete a row, column, or diagonal, then tap BINGO!'}
+                ? 'Your card is ready. Wait for the host to call — matching squares turn blue; tap blue to mark green.'
+                : 'Tap blue squares to mark green. Complete a row, column, or diagonal, then tap BINGO!'}
             </p>
             <BingoCardGrid
               cells={card.cells}

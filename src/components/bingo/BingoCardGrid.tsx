@@ -9,6 +9,41 @@ type BingoCardGridProps = {
   onMark?: (index: number) => void
   disabled?: boolean
   compact?: boolean
+  showLegend?: boolean
+}
+
+const LEGEND_SWATCH =
+  'inline-block h-3.5 w-3.5 shrink-0 rounded border-2 align-middle'
+
+export function BingoCardLegend({ className = '' }: { className?: string }) {
+  const items = [
+    {
+      label: 'Not called yet',
+      swatch: `${LEGEND_SWATCH} border-[var(--border-strong)] bg-[var(--surface-inset-bg)]`,
+    },
+    {
+      label: 'Called — tap to mark',
+      swatch: `${LEGEND_SWATCH} border-blue-600 bg-blue-100 dark:border-blue-400 dark:bg-blue-500/30`,
+    },
+    {
+      label: 'Marked',
+      swatch: `${LEGEND_SWATCH} border-emerald-600 bg-emerald-200 dark:border-emerald-400 dark:bg-emerald-500/35`,
+    },
+  ] as const
+
+  return (
+    <ul
+      className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-faint ${className}`.trim()}
+      aria-label="Bingo card colour key"
+    >
+      {items.map((item) => (
+        <li key={item.label} className="inline-flex items-center gap-1.5">
+          <span className={item.swatch} aria-hidden />
+          <span>{item.label}</span>
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 export function BingoCardGrid({
@@ -18,6 +53,7 @@ export function BingoCardGrid({
   onMark,
   disabled = false,
   compact = false,
+  showLegend = true,
 }: BingoCardGridProps) {
   const marked = new Set(markedIndices)
   const called = new Set(calledNumbers)
@@ -79,6 +115,7 @@ export function BingoCardGrid({
           )
         })}
       </div>
+      {showLegend && !compact && <BingoCardLegend className="mt-3" />}
     </div>
   )
 }

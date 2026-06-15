@@ -725,8 +725,8 @@ function CreateGameInner() {
                   </select>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Players join with their name and get a unique 5×5 card. You call numbers B1–O75 — they mark called
-                  numbers and tap BINGO when they complete a line. First valid bingo wins the round.
+                  Players join with their name and get a unique 5×5 card. You call numbers B1–O75 — called squares turn
+                  blue on their card; they tap blue to mark green, then tap BINGO when they complete a line.
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (
