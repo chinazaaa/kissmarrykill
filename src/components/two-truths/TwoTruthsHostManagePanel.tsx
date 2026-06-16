@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { TwoTruthsSubmitterBadge } from '@/components/two-truths/TwoTruthsSubmitterBadge'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { HostAllowViewersField } from '@/components/HostAllowViewersField'
 import {
   formatTtlChoiceLabel,
   lobbyReadyForTwoTruths,
@@ -18,6 +19,8 @@ import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 
 export function TwoTruthsHostManagePanel({
   game,
+  gameCode,
+  hostToken,
   playerLink,
   players,
   statements,
@@ -30,8 +33,13 @@ export function TwoTruthsHostManagePanel({
   onTimerChange,
   savingTimer,
   onSaveTimer,
+  onRemovePlayer,
+  removingPlayerId,
+  onGameUpdate,
 }: {
   game: Game
+  gameCode: string
+  hostToken: string
   playerLink: string
   players: Player[]
   statements: TtlStatement[]
@@ -44,6 +52,9 @@ export function TwoTruthsHostManagePanel({
   onTimerChange: (seconds: number) => void
   savingTimer: boolean
   onSaveTimer: () => void
+  onRemovePlayer?: (playerId: string) => void
+  removingPlayerId?: string | null
+  onGameUpdate: (game: Game) => void
 }) {
   const inLobby = game.status === 'waiting'
   const playerIds = players.map((p) => p.id)
@@ -89,9 +100,22 @@ export function TwoTruthsHostManagePanel({
             {players.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-2">
                 <span className="font-semibold truncate">{p.name}</span>
-                <span className={submittedIds.has(p.id) ? 'text-emerald-600 dark:text-emerald-300 text-xs' : 'text-amber-600 dark:text-amber-300 text-xs'}>
-                  {submittedIds.has(p.id) ? '✓ Submitted' : 'Waiting…'}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={submittedIds.has(p.id) ? 'text-emerald-600 dark:text-emerald-300 text-xs' : 'text-amber-600 dark:text-amber-300 text-xs'}>
+                    {submittedIds.has(p.id) ? '✓ Submitted' : 'Waiting…'}
+                  </span>
+                  {onRemovePlayer && (
+                    <button
+                      type="button"
+                      onClick={() => onRemovePlayer(p.id)}
+                      disabled={removingPlayerId === p.id}
+                      className="text-faint hover:text-red-500 transition-colors text-xs px-1"
+                      title="Remove player"
+                    >
+                      {removingPlayerId === p.id ? '…' : '✕'}
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -125,6 +149,13 @@ export function TwoTruthsHostManagePanel({
               </button>
             )}
           </div>
+
+          <HostAllowViewersField
+            gameCode={gameCode}
+            hostToken={hostToken}
+            game={game}
+            onGameUpdate={onGameUpdate}
+          />
 
           <button
             type="button"

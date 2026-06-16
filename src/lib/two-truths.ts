@@ -1,11 +1,27 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Player, Round, TtlGuess, TtlMetadata, TtlStatement } from '@/types'
 
+export type TtlHostMode = 'spectator' | 'player'
+
+function ttlHostModeKey(gameCode: string) {
+  return `ttl-host-mode-${gameCode}`
+}
+
+export function getTtlHostMode(gameCode: string): TtlHostMode {
+  if (typeof window === 'undefined') return 'spectator'
+  return localStorage.getItem(ttlHostModeKey(gameCode)) === 'player' ? 'player' : 'spectator'
+}
+
+export function setTtlHostMode(gameCode: string, mode: TtlHostMode) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(ttlHostModeKey(gameCode), mode)
+}
+
 export const TTL_MIN_PLAYERS = 3
 export const TTL_MAX_PLAYERS = 40
 export const TTL_DEFAULT_MAX_PLAYERS = 20
 export const TTL_DEFAULT_TIMER = 45
-export const TTL_TIMER_OPTIONS = [30, 45, 60, 90] as const
+export const TTL_TIMER_OPTIONS = [10, 15, 30, 45, 60, 90] as const
 export const TTL_REVEAL_SECONDS = 5
 export const TTL_GUESS_POINTS = 100
 export const TTL_FOOL_POINTS = 50

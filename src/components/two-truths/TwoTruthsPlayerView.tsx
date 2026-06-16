@@ -19,6 +19,7 @@ import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
+import { EditNameInline } from '@/components/ui/EditNameInline'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
@@ -222,7 +223,12 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
         <div className="glass-card p-6 w-full max-w-lg space-y-5">
           <div className="text-center space-y-1">
             <h2 className="text-xl font-black">Lobby</h2>
-            <p className="text-muted text-sm">Playing as {myPlayerName}</p>
+            <EditNameInline
+              gameCode={gameCode}
+              playerId={myPlayerId}
+              currentName={myPlayerName}
+              onRenamed={(name) => { setMyPlayerName(name); void load() }}
+            />
           </div>
           {isViewer ? (
             <ViewerModeBanner />

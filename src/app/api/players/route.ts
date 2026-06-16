@@ -7,6 +7,7 @@ import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { anonymousPlayerCanChat } from '@/lib/anonymous-messages'
 import { createBingoCardForPlayer } from '@/lib/bingo'
 import { assignCodewordsLateJoinOperative, codewordsAllowsPlayerChanges, removeCodewordsPlayer } from '@/lib/codewords'
+import { isTwoTruthsGame } from '@/lib/game-types'
 import { fetchGamePlayerLimits, isLobbyLimitGameType, lobbyMaxPlayersFromGame } from '@/lib/game-limits'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
@@ -1068,6 +1069,12 @@ export async function DELETE(req: NextRequest) {
     } else if (isCodewordsGame(parseGameType(hostGame.game_type))) {
       if (!codewordsAllowsPlayerChanges(hostGame.status)) {
         return NextResponse.json({ error: 'Players can only be removed while the lobby or game is open' }, { status: 400 })
+      }
+      game = hostGame
+      id = code
+    } else if (isTwoTruthsGame(parseGameType(hostGame.game_type))) {
+      if (hostGame.status === 'finished') {
+        return NextResponse.json({ error: 'Players can only be removed while the lobby or game is active' }, { status: 400 })
       }
       game = hostGame
       id = code
