@@ -299,6 +299,7 @@ export async function processYahtzeeHold(
   const currentId = currentPlayerId(session as YahtzeeSession)
   if (currentId !== playerId) return { error: 'Not your turn' }
   if (session.phase !== 'rolling') return { error: 'Cannot hold right now' }
+  if ((session.rolls_this_turn ?? 0) < 1) return { error: 'Roll at least once before keeping dice' }
   if (!Array.isArray(held) || held.length !== YAHTZEE_DICE_COUNT) return { error: 'Invalid held array' }
 
   const { error: sessionError } = await supabase

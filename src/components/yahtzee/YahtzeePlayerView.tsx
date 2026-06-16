@@ -2,20 +2,19 @@
 
 // Yahtzee: player-facing roll/hold/score loop.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   YahtzeeCard,
+  YahtzeeDiceTray,
   YahtzeeLoadingScreen,
   YahtzeePrimaryButton,
   YahtzeeSecondaryButton,
   YahtzeeShell,
-  YahtzeeTurnBanner,
 } from '@/components/yahtzee/YahtzeeChrome'
-import { YahtzeeDiceRow } from '@/components/yahtzee/YahtzeeDice'
 import { YahtzeeLeaderboard, YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentPlayerId, YAHTZEE_MIN_PLAYERS, upperBonus, upperScore, totalScore } from '@/lib/yahtzee'
+import { currentPlayerId, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -43,6 +42,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
   const [localHeld, setLocalHeld] = useState<boolean[]>([false, false, false, false, false])
+  const turnIndexRef = useRef<number | null>(null)
 
   useApplyGameTheme(game?.theme)
 
@@ -90,10 +90,6 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     setSession(sessionData)
     setScores((scoresRes.data as YahtzeePlayerScore[]) ?? [])
 
-    if (sessionData?.held) {
-      setLocalHeld(sessionData.held)
-    }
-
     const stored = getPlayerSession(gameCode)
     let playerId = stored?.playerId ?? null
     if (stored && plrs && !plrs.some((p) => p.id === stored.playerId)) {
@@ -102,6 +98,18 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
       setMyPlayerId(null)
     } else if (stored) {
       setMyPlayerId(stored.playerId)
+    }
+
+    if (sessionData) {
+      const turnChanged = turnIndexRef.current !== sessionData.current_turn_index
+      const isMyActiveTurn =
+        playerId != null && currentPlayerId(sessionData) === playerId
+      const midTurn = (sessionData.rolls_this_turn ?? 0) > 0
+
+      if (turnChanged || !isMyActiveTurn || !midTurn) {
+        turnIndexRef.current = sessionData.current_turn_index
+        setLocalHeld(sessionData.held ?? [false, false, false, false, false])
+      }
     }
     syncScreen(gameData, playerId)
     return true
@@ -169,21 +177,32 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     }
   }
 
-  const toggleHold = async (index: number) => {
-    if (!session || !myPlayerId) return
+  const toggleHold = (index: number) => {
+    if (!session || !myPlayerId || currentPlayerId(session) !== myPlayerId) return
+    if ((session.rolls_this_turn ?? 0) < 1) return
+
     const next = [...localHeld]
     next[index] = !next[index]
     setLocalHeld(next)
-    await postAction('/api/yahtzee/hold', { held: next })
+
+    void fetch('/api/yahtzee/hold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, held: next }),
+    }).then(async (res) => {
+      const data = await res.json()
+      if (!res.ok) {
+        setLocalHeld(session.held ?? [false, false, false, false, false])
+        toastError(data.error ?? 'Could not keep dice')
+      }
+    })
   }
 
   const cfg = gameTypeConfig('yahtzee')
   const turnPlayerId = session ? currentPlayerId(session) : null
   const isMyTurn = turnPlayerId === myPlayerId
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
-  const myScore = scores.find((s) => s.player_id === myPlayerId)
   const winner = players.find((p) => p.id === session?.winner_player_id)
-  const canRoll = isMyTurn && (session?.rolls_remaining ?? 0) > 0
   const canScore = isMyTurn && (session?.rolls_this_turn ?? 0) > 0
 
   if (screen === 'loading') return <YahtzeeLoadingScreen />
@@ -253,69 +272,33 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   }
 
   return (
-    <YahtzeeShell title={game?.title}>
-      <YahtzeeTurnBanner
-        turnName={turnPlayer?.name ?? '—'}
-        isMyTurn={isMyTurn}
-        message={session?.status_message}
-      />
-
+    <YahtzeeShell title={game?.title} wide compact>
       {session && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          <YahtzeeCard className="p-5 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-faint">Dice</p>
-                <p className="text-sm font-semibold">
-                  Rolls left: {session.rolls_remaining}
-                  {isMyTurn && session.rolls_this_turn > 0 ? ' · Hold dice' : ''}
-                </p>
-              </div>
-              <div className="text-3xl">{isMyTurn ? '🎲' : '—'}</div>
-            </div>
+        <div className="space-y-2">
+          <YahtzeeScorecard
+            players={players}
+            scores={scores}
+            myPlayerId={myPlayerId}
+            activePlayerId={turnPlayerId}
+            dice={session.dice}
+            scoringEnabled={canScore}
+            onScore={(category: YahtzeeCategory) => postAction('/api/yahtzee/score', { category })}
+          />
 
-            <YahtzeeDiceRow
-              dice={session.dice}
-              held={localHeld}
-              interactive={isMyTurn && (session.rolls_this_turn ?? 0) > 0 && session.rolls_remaining > 0}
-              onToggleHold={toggleHold}
-            />
-
-            {canRoll && (
-              <YahtzeePrimaryButton onClick={() => postAction('/api/yahtzee/roll')} loading={acting}>
-                Roll dice
-              </YahtzeePrimaryButton>
-            )}
-          </YahtzeeCard>
-
-          {myScore && (
-            <YahtzeeCard className="p-4">
-              <p className="text-xs uppercase tracking-widest text-faint mb-3">Your scorecard</p>
-              {isMyTurn && (
-                <div className="mb-4 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] px-4 py-2.5 flex items-center justify-between">
-                  <span className="text-sm text-muted font-semibold">Upper: {upperScore(myScore.scores.categories)}</span>
-                  <span className="text-sm font-bold tabular-nums text-[var(--marry)]">
-                    {upperBonus(myScore.scores.categories) > 0 ? `+${upperBonus(myScore.scores.categories)} bonus` : 'No bonus yet'}
-                  </span>
-                  <span className="sr-only">Total score {totalScore(myScore.scores.categories)}</span>
-                </div>
-              )}
-
-              <YahtzeeScorecard
-                categories={myScore.scores.categories}
-                dice={isMyTurn ? session.dice : undefined}
-                scoringEnabled={canScore}
-                onScore={(category: YahtzeeCategory) => postAction('/api/yahtzee/score', { category })}
-              />
-            </YahtzeeCard>
-          )}
+          <YahtzeeDiceTray
+            dice={session.dice}
+            held={localHeld}
+            rollsThisTurn={session.rolls_this_turn}
+            rollsRemaining={session.rolls_remaining}
+            interactive={isMyTurn && (session.rolls_this_turn ?? 0) > 0}
+            onToggleHold={toggleHold}
+            onRoll={() => postAction('/api/yahtzee/roll')}
+            rolling={acting}
+            isMyTurn={isMyTurn}
+            turnName={turnPlayer?.name}
+          />
         </div>
       )}
-
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-faint mb-2 px-1">Standings</p>
-        <YahtzeeLeaderboard rows={scores} players={players} highlightPlayerId={myPlayerId} />
-      </div>
     </YahtzeeShell>
   )
 }

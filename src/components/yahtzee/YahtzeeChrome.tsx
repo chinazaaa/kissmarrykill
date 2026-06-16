@@ -3,41 +3,67 @@
 import type { ReactNode } from 'react'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
-import { PageShell } from '@/components/ui/PageShell'
+import { YahtzeeDiceRow } from '@/components/yahtzee/YahtzeeDice'
 
 export function YahtzeeShell({
   children,
   title,
   subtitle,
+  wide,
+  compact,
 }: {
   children: ReactNode
   title?: string
   subtitle?: string
+  wide?: boolean
+  compact?: boolean
 }) {
   const cfg = gameTypeConfig('yahtzee')
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <PageShell centered>{(title || subtitle) && (
-        <header className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center gap-2">
-            <span className="text-3xl drop-shadow-lg">{cfg.card.emoji}</span>
-            <GameTypeBadge gameType="yahtzee" />
-          </div>
-          {title && (
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title drop-shadow-sm">{title}</h1>
+      <div
+        className={[
+          'page-wrap flex flex-col items-center px-3 overflow-y-auto justify-start',
+          compact ? 'py-3 sm:py-4' : 'py-8 sm:py-10',
+        ].join(' ')}
+      >
+        <div
+          className={[
+            'w-full',
+            compact ? 'space-y-2' : 'space-y-5 sm:space-y-6',
+            wide ? 'max-w-3xl' : 'max-w-lg',
+          ].join(' ')}
+        >
+          {(title || subtitle) && !compact && (
+            <header className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center gap-2">
+                <span className="text-3xl drop-shadow-lg">{cfg.card.emoji}</span>
+                <GameTypeBadge gameType="yahtzee" />
+              </div>
+              {title && (
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title drop-shadow-sm">
+                  {title}
+                </h1>
+              )}
+              {subtitle && <p className="text-sm text-muted max-w-md mx-auto">{subtitle}</p>}
+            </header>
           )}
-          {subtitle && <p className="text-sm text-muted max-w-md mx-auto">{subtitle}</p>}
-        </header>
-      )}{children}</PageShell>
+          {compact && title && (
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="text-lg leading-none">{cfg.card.emoji}</span>
+              <p className="text-sm font-bold text-[var(--foreground)] truncate">{title}</p>
+            </div>
+          )}
+          {children}
+        </div>
+      </div>
     </div>
   )
 }
 
 export function YahtzeeCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`glass-card ${className}`}>{children}</div>
-  )
+  return <div className={`glass-card ${className}`}>{children}</div>
 }
 
 export function YahtzeePrimaryButton({
@@ -45,18 +71,26 @@ export function YahtzeePrimaryButton({
   onClick,
   disabled,
   loading,
+  className = '',
+  compact,
 }: {
   children: ReactNode
   onClick: () => void
   disabled?: boolean
   loading?: boolean
+  className?: string
+  compact?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className="btn-primary w-full py-4 text-base sm:text-lg disabled:opacity-45"
+      className={[
+        'btn-primary disabled:opacity-45 touch-manipulation',
+        compact ? 'py-2.5 px-4 text-sm' : 'py-4 text-base sm:text-lg',
+        className,
+      ].join(' ')}
     >
       {loading ? '…' : children}
     </button>
@@ -94,21 +128,108 @@ export function YahtzeeLoadingScreen() {
   )
 }
 
-export function YahtzeeTurnBanner({
-  turnName,
-  isMyTurn,
-  message,
-}: {
-  turnName: string
-  isMyTurn?: boolean
-  message?: string | null
-}) {
+export function YahtzeeRollPips({ rollsThisTurn, rollsPerTurn = 3 }: { rollsThisTurn: number; rollsPerTurn?: number }) {
   return (
-    <YahtzeeCard className={`px-4 py-3 text-sm ${isMyTurn ? 'border-[color-mix(in_srgb,var(--marry)_40%,var(--border-strong))]' : ''}`}>
-      <p className="font-semibold text-[var(--foreground)]">
-        {isMyTurn ? 'Your turn' : `${turnName}'s turn`}
-      </p>
-      {message && <p className="text-muted mt-1">{message}</p>}
+    <div className="flex items-center gap-1" aria-label={`Roll ${rollsThisTurn} of ${rollsPerTurn}`}>
+      {Array.from({ length: rollsPerTurn }, (_, i) => (
+        <span
+          key={i}
+          className={[
+            'h-2 w-2 rounded-full transition-all',
+            i < rollsThisTurn
+              ? 'bg-[var(--primary)] shadow-[0_0_4px_var(--primary-glow)]'
+              : 'bg-[var(--border-strong)]',
+          ].join(' ')}
+        />
+      ))}
+    </div>
+  )
+}
+
+export function YahtzeeDiceTray({
+  dice,
+  held,
+  rollsThisTurn,
+  rollsRemaining,
+  interactive,
+  onToggleHold,
+  onRoll,
+  rolling,
+  isMyTurn,
+  turnName,
+  spectator,
+}: {
+  dice: number[]
+  held: boolean[]
+  rollsThisTurn: number
+  rollsRemaining: number
+  interactive?: boolean
+  onToggleHold?: (index: number) => void
+  onRoll?: () => void
+  rolling?: boolean
+  isMyTurn?: boolean
+  turnName?: string
+  spectator?: boolean
+}) {
+  const canRoll = isMyTurn && rollsRemaining > 0 && !spectator
+  const showHoldHint = isMyTurn && rollsThisTurn > 0 && !spectator
+
+  return (
+    <YahtzeeCard className="yahtzee-dice-tray p-3 space-y-3">
+      {/* Status bar */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className={[
+              'h-2 w-2 rounded-full shrink-0',
+              isMyTurn && !spectator ? 'bg-[var(--primary)] animate-pulse' : 'bg-[var(--border-strong)]',
+            ].join(' ')}
+          />
+          <p className="text-xs font-bold text-[var(--foreground)] truncate">
+            {isMyTurn && !spectator ? 'Your turn' : `${turnName ?? 'Player'}'s turn`}
+          </p>
+          {showHoldHint && (
+            <span className="text-[10px] text-[var(--foreground)]/45 font-medium shrink-0">
+              tap dice to keep
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <YahtzeeRollPips rollsThisTurn={rollsThisTurn} />
+          <span className="text-[10px] font-bold tabular-nums text-[var(--foreground)]/50">
+            {rollsThisTurn}/3
+          </span>
+        </div>
+      </div>
+
+      {/* Dice + Roll button */}
+      <div className="flex items-end gap-3">
+        <div className="flex-1 flex justify-center pb-2">
+          <YahtzeeDiceRow
+            dice={dice}
+            held={held}
+            interactive={interactive}
+            onToggleHold={onToggleHold}
+          />
+        </div>
+
+        {canRoll && onRoll && (
+          <YahtzeePrimaryButton
+            onClick={onRoll}
+            loading={rolling}
+            compact
+            className="shrink-0 !w-auto min-w-[5.5rem]"
+          >
+            {rollsThisTurn === 0 ? '🎲 Roll' : '🎲 Roll again'}
+          </YahtzeePrimaryButton>
+        )}
+      </div>
+
+      {isMyTurn && rollsThisTurn > 0 && rollsRemaining === 0 && !spectator && (
+        <p className="text-center text-xs font-bold text-[var(--primary)]">
+          Pick a score from the board ↑
+        </p>
+      )}
     </YahtzeeCard>
   )
 }

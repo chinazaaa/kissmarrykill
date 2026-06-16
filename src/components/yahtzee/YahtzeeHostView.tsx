@@ -4,17 +4,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   YahtzeeCard,
+  YahtzeeDiceTray,
   YahtzeeLoadingScreen,
   YahtzeePrimaryButton,
   YahtzeeSecondaryButton,
   YahtzeeShell,
-  YahtzeeTurnBanner,
 } from '@/components/yahtzee/YahtzeeChrome'
-import { YahtzeeDiceRow } from '@/components/yahtzee/YahtzeeDice'
 import { YahtzeeLeaderboard, YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentPlayerId, YAHTZEE_MIN_PLAYERS, upperBonus, upperScore } from '@/lib/yahtzee'
+import { currentPlayerId, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
@@ -132,12 +131,11 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
   const turnPlayerId = session ? currentPlayerId(session) : null
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const winner = players.find((p) => p.id === session?.winner_player_id)
-  const activePlayerScore = scores.find((s) => s.player_id === turnPlayerId)
 
   if (!game) return <YahtzeeLoadingScreen />
 
   return (
-    <YahtzeeShell title={game.title} subtitle={`${cfg.label} · Room ${gameCode}`}>
+    <YahtzeeShell title={game.title} subtitle={`${cfg.label} · Room ${gameCode}`} wide compact>
       <CopyLinkButton
         value={joinUrl}
         label="Copy player link"
@@ -182,45 +180,25 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
 
       {game.status === 'active' && session && (
         <>
-          <YahtzeeTurnBanner turnName={turnPlayer?.name ?? '—'} message={session.status_message} />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-            <YahtzeeCard className="p-5 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-faint">Dice</p>
-                  <p className="text-sm font-semibold">Rolls left: {session.rolls_remaining}</p>
-                </div>
-                <div className="text-3xl">🎲</div>
-              </div>
+          <div className="space-y-2">
+            <YahtzeeScorecard
+              players={players}
+              scores={scores}
+              activePlayerId={turnPlayerId}
+              dice={session.dice}
+              scoringEnabled={false}
+            />
 
-              <YahtzeeDiceRow dice={session.dice} held={session.held} />
-              <p className="text-center text-xs text-muted">Host view</p>
-            </YahtzeeCard>
-
-            {activePlayerScore && (
-              <YahtzeeCard className="p-4">
-                <p className="text-xs uppercase tracking-widest text-faint mb-3">
-                  {turnPlayer?.name}&apos;s sheet
-                </p>
-
-                <div className="mb-4 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] px-4 py-2.5 flex items-center justify-between">
-                  <span className="text-sm text-muted font-semibold">Upper: {upperScore(activePlayerScore.scores.categories)}</span>
-                  <span className="text-sm font-bold tabular-nums text-[var(--marry)]">
-                    {upperBonus(activePlayerScore.scores.categories) > 0
-                      ? `+${upperBonus(activePlayerScore.scores.categories)} bonus`
-                      : 'No bonus yet'}
-                  </span>
-                </div>
-
-                <YahtzeeScorecard
-                  categories={activePlayerScore.scores.categories}
-                  dice={session.dice}
-                  scoringEnabled={false}
-                />
-              </YahtzeeCard>
-            )}
+            <YahtzeeDiceTray
+              dice={session.dice}
+              held={session.held}
+              rollsThisTurn={session.rolls_this_turn}
+              rollsRemaining={session.rolls_remaining}
+              turnName={turnPlayer?.name}
+              spectator
+            />
           </div>
-          <YahtzeeLeaderboard rows={scores} players={players} />
+
           <YahtzeeSecondaryButton onClick={finishGame} disabled={ending}>
             {ending ? 'Ending…' : 'End game early'}
           </YahtzeeSecondaryButton>
