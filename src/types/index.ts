@@ -26,6 +26,22 @@ export type GameType =
   | 'two_truths'
   | 'parent_approval'
   | 'monopoly'
+  | 'yahtzee'
+
+export type YahtzeeCategory =
+  | 'ones'
+  | 'twos'
+  | 'threes'
+  | 'fours'
+  | 'fives'
+  | 'sixes'
+  | 'three_kind'
+  | 'four_kind'
+  | 'full_house'
+  | 'small_straight'
+  | 'large_straight'
+  | 'yahtzee'
+  | 'chance'
 export type TriviaCategory = 'tech' | 'general'
 export type BingoCallMode = 'manual' | 'auto'
 export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
@@ -178,6 +194,37 @@ export interface MonopolyPlayerState {
   jail_turns: number
   get_out_of_jail_free: number
   bankrupt: boolean
+  player_order: number
+  created_at: string
+}
+
+export type YahtzeePhase = 'rolling' | 'finished'
+
+export interface YahtzeeSession {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: YahtzeePhase
+  dice: number[]
+  held: boolean[]
+  rolls_remaining: number
+  rolls_this_turn: number
+  status_message: string | null
+  winner_player_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type YahtzeeCategoryPoints = Record<YahtzeeCategory, number | null>
+
+export interface YahtzeePlayerScore {
+  id: string
+  game_id: string
+  player_id: string
+  scores: {
+    categories: YahtzeeCategoryPoints
+  }
   player_order: number
   created_at: string
 }

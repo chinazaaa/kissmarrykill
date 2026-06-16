@@ -51,6 +51,7 @@ import {
   isCustomGame,
   pairVoteModeOptions,
   gameHowItWorks,
+  isYahtzeeGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -117,6 +118,7 @@ import {
   TTL_TIMER_OPTIONS,
 } from '@/lib/two-truths'
 import { MONOPOLY_DEFAULT_MAX_PLAYERS } from '@/lib/monopoly'
+import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
 import {
   getCodeDefaultLimits,
   playerCountOptions,
@@ -204,6 +206,7 @@ function CreateGameInner() {
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
   const [ttlMaxPlayers, setTtlMaxPlayers] = useState(TTL_DEFAULT_MAX_PLAYERS)
   const [monopolyMaxPlayers, setMonopolyMaxPlayers] = useState(MONOPOLY_DEFAULT_MAX_PLAYERS)
+  const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
@@ -227,6 +230,7 @@ function CreateGameInner() {
     setTriviaMaxPlayers((v) => clamp('trivia', v))
     setTtlMaxPlayers((v) => clamp('two_truths', v))
     setMonopolyMaxPlayers((v) => clamp('monopoly', v))
+    setYahtzeeMaxPlayers((v) => clamp('yahtzee', v))
   }, [lobbyLimits])
 
   useEffect(() => {
@@ -277,6 +281,13 @@ function CreateGameInner() {
               rounds_count: 1,
             }
           : {}),
+        ...(isYahtzeeGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -306,6 +317,7 @@ function CreateGameInner() {
   const isTrivia = isTriviaGame(settings.game_type)
   const isTwoTruths = isTwoTruthsGame(settings.game_type)
   const isMonopoly = isMonopolyGame(settings.game_type)
+  const isYahtzee = isYahtzeeGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -370,7 +382,7 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
@@ -437,6 +449,13 @@ function CreateGameInner() {
             rounds_count: 1,
           }
         : {}),
+        ...(isYahtzeeGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
       ...(isWhoSaidThis(type)
         ? {
             participant_mode: 'import' as const,
@@ -763,9 +782,11 @@ function CreateGameInner() {
                   ? triviaMaxPlayers
                   : isTwoTruths
                     ? ttlMaxPlayers
-                    : isMonopoly
-                      ? monopolyMaxPlayers
-                    : undefined,
+                      : isMonopoly
+                        ? monopolyMaxPlayers
+                        : isYahtzee
+                          ? yahtzeeMaxPlayers
+                          : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? lateJoinPolicy === 'viewers_and_players' : undefined,
@@ -1006,6 +1027,26 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with their name and start on GO with $1,500. Take turns rolling dice, buying properties,
                   paying rent, and drawing cards. Last player standing wins!
+                </p>
+              </SettingsGroup>
+            ) : isYahtzee ? (
+              <SettingsGroup title="Yahtzee room">
+                <Field label={`Max players (${effectiveLimits.yahtzee.min}–${effectiveLimits.yahtzee.max})`}>
+                  <select
+                    value={yahtzeeMaxPlayers}
+                    onChange={(e) => setYahtzeeMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.yahtzee.min, effectiveLimits.yahtzee.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Players take turns rolling 5 dice, holding what they want, and scoring an unused category on
+                  their sheet. Highest total score at the end wins!
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (

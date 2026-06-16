@@ -763,6 +763,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  yahtzee: {
+    id: 'yahtzee',
+    label: 'Yahtzee',
+    tagline: 'Roll, hold, and score your way to a full board of combos',
+    headerEmoji: '🎲🧠',
+    card: {
+      accent: '#f59e0b',
+      accentSoft: 'rgba(245, 158, 11, 0.15)',
+      emoji: '🎲',
+      players: '2–8 players',
+      vibe: 'Dice strategy',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '6️⃣',
+        label: 'Upper total',
+        color: '#f59e0b',
+        leaderboardLabel: 'Top upper total',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+      marry: {
+        emoji: '🧩',
+        label: 'Lower total',
+        color: '#8b5cf6',
+        leaderboardLabel: 'Top lower total',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#ddd6fe',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Total score',
+        color: '#ef4444',
+        leaderboardLabel: 'Best total score',
+        activeClass: 'bg-red-500/20 text-red-100 border-red-400',
+        borderClass: 'border-red-500/50 bg-red-500/10',
+        textColor: '#fca5a5',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -773,6 +816,7 @@ export const HOMEPAGE_FEATURED_GAMES: GameType[] = [
   'bingo',
   'trivia',
   'anonymous_messages',
+  'yahtzee',
 ]
 
 export const GAME_TYPE_OPTIONS: GameType[] = [
@@ -793,6 +837,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'trivia',
   'two_truths',
   'monopoly',
+  'yahtzee',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -812,6 +857,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'trivia') return 'trivia'
   if (raw === 'two_truths') return 'two_truths'
   if (raw === 'monopoly') return 'monopoly'
+  if (raw === 'yahtzee') return 'yahtzee'
   return 'smash_marry_kill'
 }
 
@@ -852,6 +898,8 @@ export function gameHowItWorks(
       return 'Everyone joins with their name and submits two truths plus one lie in the lobby. Each round features one player — everyone else guesses which statement is the lie. Spot the fib for points; fool the room for bonus points.'
     case 'monopoly':
       return 'Players join with their name. Everyone starts on GO with $1,500. Take turns rolling dice, buying properties, paying rent, and drawing cards. Last player standing wins!'
+    case 'yahtzee':
+      return 'Players roll, hold dice, and choose a score category each turn. Build the best total across all combos.'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -1063,7 +1111,15 @@ type LobbyCounts = { participantMode?: string; participantCount: number }
 /** WYR + MLT + This or That player join: free name entry, no list. Hot Seat uses import + name claim (see isImportNameClaimGame). */
 export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to' || type === 'trivia' || type === 'two_truths' || type === 'monopoly'
+  return (
+    type === 'would_you_rather' ||
+    type === 'this_or_that' ||
+    type === 'most_likely_to' ||
+    type === 'trivia' ||
+    type === 'two_truths' ||
+    type === 'monopoly' ||
+    type === 'yahtzee'
+  )
 }
 
 /** Import list + claim your name when joining (no gender) — Who Said This & Hot Seat (import mode). */
@@ -1134,6 +1190,10 @@ export function isTwoTruthsGame(gameType: GameType | string | undefined): boolea
 
 export function isMonopolyGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'monopoly'
+}
+
+export function isYahtzeeGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'yahtzee'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

@@ -3,6 +3,7 @@ import {
   isBingoGame,
   isCodewordsGame,
   isMonopolyGame,
+  isYahtzeeGame,
   isMostLikelyTo,
   isSecretMessageGame,
   isThisOrThat,
@@ -38,7 +39,7 @@ export function lateJoinPolicyToFields(policy: LateJoinPolicy): {
 
 /** Host can toggle late join policy (excludes secret message and monopoly). */
 export function gameSupportsViewerSetting(gameType: GameType): boolean {
-  if (isSecretMessageGame(gameType) || isMonopolyGame(gameType)) return false
+  if (isSecretMessageGame(gameType) || isMonopolyGame(gameType) || isYahtzeeGame(gameType)) return false
   return true
 }
 
@@ -129,7 +130,7 @@ export function canJoinGame(
   }
   if (game.status === 'waiting') return { ok: true }
   if (game.status === 'active') {
-    if (isMonopolyGame(gameType)) {
+    if (isMonopolyGame(gameType) || isYahtzeeGame(gameType)) {
       return { ok: false, error: lateJoinBlockedMessage(gameType) }
     }
     if (allowLateJoin(game)) return { ok: true }

@@ -55,6 +55,7 @@ const gameTypeEnum = z.enum([
   'trivia',
   'two_truths',
   'monopoly',
+  'yahtzee',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -409,7 +410,15 @@ export const patchGamePlayerLimitsSchema = z.object({
   limits: z
     .array(
       z.object({
-        game_type: z.enum(['anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths', 'monopoly']),
+        game_type: z.enum([
+          'anonymous_messages',
+          'bingo',
+          'codewords',
+          'trivia',
+          'two_truths',
+          'monopoly',
+          'yahtzee',
+        ]),
         max_players: z.coerce.number().int().min(2).max(100),
       })
     )
@@ -481,6 +490,43 @@ export const monopolyJailSchema = monopolyActionSchema.extend({
 export type MonopolyActionInput = z.infer<typeof monopolyActionSchema>
 export type MonopolyBuyInput = z.infer<typeof monopolyBuySchema>
 export type MonopolyJailInput = z.infer<typeof monopolyJailSchema>
+
+// ---------------------------------------------------------------------------
+// Yahtzee (POST /api/yahtzee/*)
+// ---------------------------------------------------------------------------
+
+export const yahtzeeRollSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const yahtzeeHoldSchema = yahtzeeRollSchema.extend({
+  held: z.array(z.boolean()).length(5),
+})
+
+export const yahtzeeScoreCategoryEnum = z.enum([
+  'ones',
+  'twos',
+  'threes',
+  'fours',
+  'fives',
+  'sixes',
+  'three_kind',
+  'four_kind',
+  'full_house',
+  'small_straight',
+  'large_straight',
+  'yahtzee',
+  'chance',
+])
+
+export const yahtzeeScoreSchema = yahtzeeRollSchema.extend({
+  category: yahtzeeScoreCategoryEnum,
+})
+
+export type YahtzeeRollInput = z.infer<typeof yahtzeeRollSchema>
+export type YahtzeeHoldInput = z.infer<typeof yahtzeeHoldSchema>
+export type YahtzeeScoreInput = z.infer<typeof yahtzeeScoreSchema>
 
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
@@ -587,6 +633,7 @@ const feedbackGameTypeEnum = z.enum([
   'trivia',
   'two_truths',
   'monopoly',
+  'yahtzee',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])

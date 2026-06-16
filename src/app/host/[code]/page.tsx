@@ -57,6 +57,7 @@ import {
   isTriviaGame,
   isTwoTruthsGame,
   isMonopolyGame,
+  isYahtzeeGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
@@ -67,6 +68,7 @@ import { TriviaHostView } from '@/components/trivia/TriviaHostView'
 import { TwoTruthsHostView } from '@/components/two-truths/TwoTruthsHostView'
 import { CodewordsHostView } from '@/components/codewords/CodewordsHostView'
 import { MonopolyHostView } from '@/components/monopoly/MonopolyHostView'
+import { YahtzeeHostView } from '@/components/yahtzee/YahtzeeHostView'
 import {
   getCustomSlots,
   tallyCustomVotes,
@@ -1408,6 +1410,10 @@ export default function HostPage() {
 
   if (game && isMonopolyGame(game.game_type)) {
     return <MonopolyHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isYahtzeeGame(game.game_type)) {
+    return <YahtzeeHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {

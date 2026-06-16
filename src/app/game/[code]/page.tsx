@@ -77,6 +77,7 @@ import {
   isTriviaGame,
   isTwoTruthsGame,
   isMonopolyGame,
+  isYahtzeeGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
@@ -85,6 +86,7 @@ import { TriviaPlayerView } from '@/components/trivia/TriviaPlayerView'
 import { TwoTruthsPlayerView } from '@/components/two-truths/TwoTruthsPlayerView'
 import { CodewordsPlayerView } from '@/components/codewords/CodewordsPlayerView'
 import { MonopolyPlayerView } from '@/components/monopoly/MonopolyPlayerView'
+import { YahtzeePlayerView } from '@/components/yahtzee/YahtzeePlayerView'
 import {
   ParticipantRoundResults,
   VoteCountStat,
@@ -1321,6 +1323,9 @@ export default function GamePage() {
   }
   if (game && isMonopolyGame(game.game_type)) {
     return <MonopolyPlayerView gameCode={gameCode} />
+  }
+  if (game && isYahtzeeGame(game.game_type)) {
+    return <YahtzeePlayerView gameCode={gameCode} />
   }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />

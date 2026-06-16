@@ -33,6 +33,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   trivia: 'trivia',
   two_truths: 'two-truths-and-a-lie',
   monopoly: 'monopoly',
+  yahtzee: 'yahtzee',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -584,6 +585,34 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Last one wins', description: 'Buy properties, collect rent, and bankrupt opponents until one player remains.' },
     ],
     perfectFor: ['Game nights', 'Family gatherings', 'Friend groups', 'Remote hangouts'],
+  }),
+
+  yahtzee: landing('yahtzee', {
+    seoTitle: 'Yahtzee Online — Roll, Hold, and Score',
+    seoDescription: 'Play Yahtzee online with friends. Roll dice, hold what you want, and fill your scorecard with the best combos.',
+    keywords: ['yahtzee game online', 'dice game multiplayer', 'roll hold scorecard', 'play yahtzee friends'],
+    heroSubtitle: 'The classic dice puzzle — score straights, full houses, and Yahtzees together.',
+    highlights: ['5 dice', '2–8 players', 'Turn-based scoring'],
+    features: [
+      {
+        title: 'Roll & hold',
+        description: 'Up to 3 rolls per turn. Hold dice to try for straights or a full house.',
+        emoji: '🎲',
+      },
+      {
+        title: 'Fill your card',
+        description: 'Pick an unused category each turn and build the best total across all combos.',
+        emoji: '🧾',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: 'Enter your name and wait for the host to start.' },
+      { title: 'Take turns', description: 'Roll dice, hold the best ones, and score a category.' },
+      { title: 'Win the board', description: 'Highest total score after the board fills wins.' },
+    ],
+    perfectFor: ['Game nights', 'Casual hangouts', 'Friend groups'],
   }),
 }
 
