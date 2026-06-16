@@ -185,99 +185,105 @@ export function TwoTruthsActiveRound({
   if (!metadata || !currentRound) return null
 
   return (
-    <div className="space-y-4">
-      <div className="glass-card p-5 text-center space-y-3">
-        <p className="label-caps text-xs">
-          Round {currentRound.round_number} of {game.rounds_count}
-        </p>
-        <div className="flex justify-center">
-          <TwoTruthsSubmitterBadge
-            submitterId={currentRound.submitter_player_id}
-            players={players}
-            highlightPlayerId={myPlayerId}
-          />
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-4 items-start">
+      {/* Game content */}
+      <div className="space-y-4">
+        <div className="glass-card p-5 text-center space-y-3">
+          <p className="label-caps text-xs">
+            Round {currentRound.round_number} of {game.rounds_count}
+          </p>
+          <div className="flex justify-center">
+            <TwoTruthsSubmitterBadge
+              submitterId={currentRound.submitter_player_id}
+              players={players}
+              highlightPlayerId={myPlayerId}
+            />
+          </div>
+          <p className="text-lg font-black">{featuredName}&apos;s two truths & a lie</p>
+          {screen === 'featured' && (
+            <p className="text-muted text-sm">Sit tight — everyone else is guessing which statement is the lie.</p>
+          )}
+          {timerActive && secondsLeft > 0 && (
+            <p className="text-sm font-bold tabular-nums text-[var(--primary-strong)]">{secondsLeft}s left</p>
+          )}
         </div>
-        <p className="text-lg font-black">{featuredName}&apos;s two truths & a lie</p>
-        {screen === 'featured' && (
-          <p className="text-muted text-sm">Sit tight — everyone else is guessing which statement is the lie.</p>
-        )}
-        {timerActive && secondsLeft > 0 && (
-          <p className="text-sm font-bold tabular-nums text-[var(--primary-strong)]">{secondsLeft}s left</p>
-        )}
-      </div>
 
-      <div className="space-y-3">
-        {metadata.statements.map((statement, index) => {
-          const isLie = showLie && index === metadata.lie_index
-          const isPicked = pickedIndex === index && (screen === 'locked' || screen === 'revealed')
-          const canPick = screen === 'active' && !submitting && !readOnly
-          return (
-            <button
-              key={index}
-              type="button"
-              disabled={!canPick}
-              onClick={() => void submitGuess(index)}
-              className={[
-                'w-full text-left glass-card p-4 transition-all border-2',
-                isLie
-                  ? 'border-violet-500/60 bg-violet-500/10'
-                  : isPicked
-                    ? 'border-[var(--primary)]/50 bg-[var(--primary)]/5'
-                    : showLie
-                      ? 'border-[var(--border-strong)] opacity-80'
-                      : 'border-[var(--border-strong)] hover:border-[var(--primary)]/40',
-                canPick ? 'cursor-pointer' : 'cursor-default',
-              ].join(' ')}
-            >
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-white font-black">
-                  {formatTtlChoiceLabel(index)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold leading-snug">{statement}</p>
-                  {isLie && <p className="text-violet-600 dark:text-violet-300 text-xs font-bold mt-1">🤥 The lie</p>}
-                  {isPicked && !isLie && screen === 'locked' && (
-                    <p className="text-faint text-xs mt-1">Your guess</p>
-                  )}
-                  {submittingIndex === index && <p className="text-faint text-xs mt-1">Submitting…</p>}
+        <div className="space-y-3">
+          {metadata.statements.map((statement, index) => {
+            const isLie = showLie && index === metadata.lie_index
+            const isPicked = pickedIndex === index && (screen === 'locked' || screen === 'revealed')
+            const canPick = screen === 'active' && !submitting && !readOnly
+            return (
+              <button
+                key={index}
+                type="button"
+                disabled={!canPick}
+                onClick={() => void submitGuess(index)}
+                className={[
+                  'w-full text-left glass-card p-4 transition-all border-2',
+                  isLie
+                    ? 'border-violet-500/60 bg-violet-500/10'
+                    : isPicked
+                      ? 'border-[var(--primary)]/50 bg-[var(--primary)]/5'
+                      : showLie
+                        ? 'border-[var(--border-strong)] opacity-80'
+                        : 'border-[var(--border-strong)] hover:border-[var(--primary)]/40',
+                  canPick ? 'cursor-pointer' : 'cursor-default',
+                ].join(' ')}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-white font-black">
+                    {formatTtlChoiceLabel(index)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold leading-snug">{statement}</p>
+                    {isLie && <p className="text-violet-600 dark:text-violet-300 text-xs font-bold mt-1">🤥 The lie</p>}
+                    {isPicked && !isLie && screen === 'locked' && (
+                      <p className="text-faint text-xs mt-1">Your guess</p>
+                    )}
+                    {submittingIndex === index && <p className="text-faint text-xs mt-1">Submitting…</p>}
+                  </div>
                 </div>
-              </div>
-            </button>
-          )
-        })}
+              </button>
+            )
+          })}
+        </div>
+
+        {screen === 'locked' && (
+          <div className="glass-card p-4 text-center text-sm text-muted">
+            {myGuess
+              ? 'Guess locked in — results when everyone finishes or time runs out'
+              : "Time's up — waiting for results…"}
+          </div>
+        )}
+
+        {screen === 'revealed' && myGuess && (
+          <div
+            className={[
+              'glass-card p-4 text-center font-semibold',
+              myGuess.is_correct ? 'text-emerald-700 dark:text-emerald-200' : 'text-muted',
+            ].join(' ')}
+          >
+            {myGuess.is_correct ? `Correct! +${myGuess.points} pts` : 'Not the lie — better luck next round'}
+          </div>
+        )}
+
+        {screen === 'revealed' && (
+          <p className="text-center text-sm text-muted">
+            Next round in {revealCountdownSeconds(currentRound.ended_at)}s…
+          </p>
+        )}
       </div>
 
-      {screen === 'locked' && (
-        <div className="glass-card p-4 text-center text-sm text-muted">
-          {myGuess
-            ? 'Guess locked in — results when everyone finishes or time runs out'
-            : "Time's up — waiting for results…"}
-        </div>
-      )}
-
-      {screen === 'revealed' && myGuess && (
-        <div
-          className={[
-            'glass-card p-4 text-center font-semibold',
-            myGuess.is_correct ? 'text-emerald-700 dark:text-emerald-200' : 'text-muted',
-          ].join(' ')}
-        >
-          {myGuess.is_correct ? `Correct! +${myGuess.points} pts` : 'Not the lie — better luck next round'}
-        </div>
-      )}
-
-      {screen === 'revealed' && (
-        <p className="text-center text-sm text-muted">
-          Next round in {revealCountdownSeconds(currentRound.ended_at)}s…
-        </p>
-      )}
-
-      <PaginatedLeaderboard
-        title="Leaderboard"
-        rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}
-        highlightId={myPlayerId}
-        scoreLabel={(score) => `${score} pts`}
-      />
+      {/* Leaderboard — right column on desktop, below on mobile */}
+      <div>
+        <PaginatedLeaderboard
+          title="Leaderboard"
+          rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}
+          highlightId={myPlayerId}
+          scoreLabel={(score) => `${score} pts`}
+        />
+      </div>
     </div>
   )
 }
