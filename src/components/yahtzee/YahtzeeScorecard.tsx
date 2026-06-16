@@ -99,7 +99,7 @@ export function YahtzeeScorecard({
     const isActive = playerId === activePlayerId
     const isYou = playerId === myPlayerId
     return [
-      'px-1 py-0.5 text-center align-middle',
+      'px-1 py-1.5 text-center align-middle',
       isActive ? 'yahtzee-score-col-active' : '',
       isYou && !isActive ? 'yahtzee-score-col-you' : '',
     ].join(' ')
@@ -109,7 +109,7 @@ export function YahtzeeScorecard({
     <tr key={category} className="yahtzee-score-row">
       <td
         className={[
-          'sticky left-0 z-10 px-2 py-[5px] text-[11px] font-semibold whitespace-nowrap',
+          'sticky left-0 z-10 px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap',
           isYahtzeeRow
             ? 'text-[var(--marry)] font-black tracking-wide'
             : 'text-[var(--foreground)]/80',
@@ -264,6 +264,11 @@ export function YahtzeeScorecard({
           </tbody>
         </table>
       </div>
+      {players.length > 3 && (
+        <p className="text-center text-[9px] text-[var(--foreground)]/30 py-1 border-t border-[var(--border)]">
+          ← scroll to see all players →
+        </p>
+      )}
     </div>
   )
 }

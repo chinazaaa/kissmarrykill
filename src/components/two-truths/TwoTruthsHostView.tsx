@@ -111,6 +111,10 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
 
   const prevMyStatement = useRef<TtlStatement | null | undefined>(undefined)
 
+  useEffect(() => {
+    if (game?.status === 'finished') setTab('manage')
+  }, [game?.status])
+
   const changeHostMode = (mode: TtlHostMode) => {
     if (game?.status !== 'waiting') return
     setHostMode(mode)
@@ -242,7 +246,7 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   }, [myStatement])
 
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays
+  const showPlayTab = hostPlays && game?.status !== 'finished'
 
   if (!game) {
     return (
@@ -430,6 +434,7 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
             playingAgain={playingAgain}
             onStartGame={startGame}
             onPlayAgain={playAgain}
+            timerSeconds={timerSeconds}
             onTimerChange={setTimerSeconds}
             savingTimer={savingTimer}
             onSaveTimer={saveTimer}

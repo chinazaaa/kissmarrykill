@@ -212,6 +212,7 @@ export interface YahtzeeSession {
   rolls_this_turn: number
   status_message: string | null
   winner_player_id: string | null
+  turn_deadline_at: string | null
   created_at: string
   updated_at: string
 }

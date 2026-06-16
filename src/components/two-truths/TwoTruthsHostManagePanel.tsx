@@ -31,6 +31,7 @@ export function TwoTruthsHostManagePanel({
   playingAgain,
   onStartGame,
   onPlayAgain,
+  timerSeconds,
   onTimerChange,
   savingTimer,
   onSaveTimer,
@@ -50,6 +51,7 @@ export function TwoTruthsHostManagePanel({
   playingAgain: boolean
   onStartGame: () => void
   onPlayAgain: () => void
+  timerSeconds: number
   onTimerChange: (seconds: number) => void
   savingTimer: boolean
   onSaveTimer: () => void
@@ -133,7 +135,7 @@ export function TwoTruthsHostManagePanel({
           <div className="space-y-2">
             <p className="label-caps">Guess timer (per round)</p>
             <select
-              value={game.timer_seconds ?? 45}
+              value={timerSeconds}
               onChange={(e) => onTimerChange(Number(e.target.value))}
               disabled={!inLobby}
               className="input-field w-full"

@@ -192,6 +192,29 @@ export function currentPlayerId(session: YahtzeeSession): string | null {
   return order[session.current_turn_index % order.length] ?? null
 }
 
+/** Returns an ISO deadline string `secondsFromNow` seconds in the future, or null if timer is disabled (0). */
+export function yahtzeeTurnDeadline(timerSeconds: number): string | null {
+  if (!timerSeconds || timerSeconds <= 0) return null
+  return new Date(Date.now() + timerSeconds * 1000).toISOString()
+}
+
+/** Seconds remaining until a deadline (0 if no deadline or already expired). */
+export function yahtzeeSecondsLeft(deadlineAt: string | null | undefined): number {
+  if (!deadlineAt) return 0
+  return Math.max(0, Math.ceil((new Date(deadlineAt).getTime() - Date.now()) / 1000))
+}
+
+/** Pick the best category to auto-score when time expires (chance first, then first unscored). */
+export function pickAutoScoreCategory(
+  categories: YahtzeeCategoryPoints
+): YahtzeeCategory | null {
+  if (categories['chance'] == null) return 'chance'
+  for (const cat of YAHTZEE_ALL_CATEGORIES) {
+    if (categories[cat] == null) return cat
+  }
+  return null
+}
+
 export async function initializeYahtzeeGame(
   supabase: SupabaseClient,
   gameId: string,
@@ -250,7 +273,11 @@ export async function processYahtzeeRoll(
   gameId: string,
   playerId: string
 ): Promise<{ error?: string }> {
-  const { data: session } = await supabase.from('yahtzee_sessions').select('*').eq('game_id', gameId).maybeSingle()
+  const [sessionRes, gameRes] = await Promise.all([
+    supabase.from('yahtzee_sessions').select('*').eq('game_id', gameId).maybeSingle(),
+    supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle(),
+  ])
+  const session = sessionRes.data
   if (!session) return { error: 'Session not found' }
 
   const { data: scoresRows } = await supabase
@@ -272,12 +299,18 @@ export async function processYahtzeeRoll(
   const rolls_remaining = Math.max(0, (session.rolls_remaining ?? 0) - 1)
   const rolls_this_turn = (session.rolls_this_turn ?? 0) + 1
 
+  // Set / refresh the per-turn deadline on every roll so the player gets
+  // the full time window from their last roll (not from start of turn).
+  const timerSeconds = (gameRes.data?.timer_seconds ?? 0) as number
+  const turn_deadline_at = yahtzeeTurnDeadline(timerSeconds)
+
   const { error: sessionError } = await supabase
     .from('yahtzee_sessions')
     .update({
       dice: nextDice,
       rolls_remaining,
       rolls_this_turn,
+      turn_deadline_at,
       updated_at: new Date().toISOString(),
       status_message: rolls_remaining > 0 ? `Roll again (${rolls_remaining} left) or score.` : 'Rolls used — score your turn!',
     })
@@ -328,8 +361,13 @@ export async function processYahtzeeScore(
   playerId: string,
   category: YahtzeeCategory
 ): Promise<{ error?: string }> {
-  const { data: session } = await supabase.from('yahtzee_sessions').select('*').eq('game_id', gameId).maybeSingle()
+  const [sessionRes, gameRes] = await Promise.all([
+    supabase.from('yahtzee_sessions').select('*').eq('game_id', gameId).maybeSingle(),
+    supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle(),
+  ])
+  const session = sessionRes.data
   if (!session) return { error: 'Session not found' }
+  const timerSeconds = (gameRes.data?.timer_seconds ?? 0) as number
 
   const currentId = currentPlayerId(session as YahtzeeSession)
   if (currentId !== playerId) return { error: 'Not your turn' }
@@ -381,6 +419,7 @@ export async function processYahtzeeScore(
       .update({
         phase: 'finished',
         winner_player_id: winnerPlayerId,
+        turn_deadline_at: null,
         status_message: 'Game over — thanks for playing!',
         updated_at: new Date().toISOString(),
       })
@@ -415,12 +454,116 @@ export async function processYahtzeeScore(
       held: resetHeld,
       rolls_remaining: YAHTZEE_ROLLS_PER_TURN,
       rolls_this_turn: 0,
+      // Start the next player's deadline immediately so they have the full window
+      turn_deadline_at: yahtzeeTurnDeadline(timerSeconds),
       status_message: 'Next player — roll the dice.',
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
 
   if (sessionError) return { error: sessionError.message }
+  return {}
+}
+
+// ── Expire turn (timer ran out) ──────────────────────────────────────────────
+
+/** Called when turn_deadline_at has passed. Forces a score and advances the turn. */
+export async function processYahtzeeExpireTurn(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error?: string; skipped?: boolean }> {
+  const [sessionRes, gameRes, scoresRes] = await Promise.all([
+    supabase.from('yahtzee_sessions').select('*').eq('game_id', gameId).maybeSingle(),
+    supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle(),
+    supabase.from('yahtzee_player_scores').select('*').eq('game_id', gameId),
+  ])
+
+  const session = sessionRes.data
+  if (!session) return { error: 'Session not found' }
+  if (session.phase !== 'rolling') return { skipped: true }
+
+  // Check deadline is genuinely expired
+  if (!session.turn_deadline_at || new Date(session.turn_deadline_at) > new Date()) {
+    return { skipped: true }
+  }
+
+  const scoresRows = (scoresRes.data as YahtzeePlayerScore[]) ?? []
+  const timerSeconds = (gameRes.data?.timer_seconds ?? 0) as number
+  const currentId = currentPlayerId(session as YahtzeeSession)
+  if (!currentId) return { error: 'No current player' }
+
+  // If no rolls yet, do a fresh roll of all dice
+  let dice = (session.dice as number[]) ?? [1, 1, 1, 1, 1]
+  if ((session.rolls_this_turn ?? 0) === 0) {
+    dice = rollUnheldDice([1, 1, 1, 1, 1], [false, false, false, false, false])
+  }
+
+  // Find a category to auto-score
+  const playerRow = scoresRows.find((r) => r.player_id === currentId)
+  if (!playerRow) return { error: 'Player scores not found' }
+
+  const category = pickAutoScoreCategory(playerRow.scores.categories)
+  if (!category) return { error: 'No available category' }
+
+  const score = categoryScore(dice, category)
+  const nextPoints: YahtzeeCategoryPoints = { ...playerRow.scores.categories, [category]: score }
+
+  const { error: updateScoreError } = await supabase
+    .from('yahtzee_player_scores')
+    .update({ scores: { categories: nextPoints } })
+    .eq('game_id', gameId)
+    .eq('player_id', currentId)
+
+  if (updateScoreError) return { error: updateScoreError.message }
+
+  const updatedScoresRows = scoresRows.map((r) =>
+    r.player_id === currentId ? { ...r, scores: { categories: nextPoints } } : r
+  )
+
+  const allComplete = updatedScoresRows.every((r) => !hasAnyUnusedCategory(r.scores.categories))
+  if (allComplete) {
+    const totals = updatedScoresRows.map((r) => ({
+      playerId: r.player_id,
+      total: totalScore(r.scores.categories),
+    }))
+    const max = Math.max(...totals.map((t) => t.total))
+    const winners = totals.filter((t) => t.total === max).map((t) => t.playerId)
+    const winnerPlayerId = winners.length === 1 ? winners[0] : null
+
+    const { error: se } = await supabase
+      .from('yahtzee_sessions')
+      .update({ phase: 'finished', winner_player_id: winnerPlayerId, turn_deadline_at: null, updated_at: new Date().toISOString() })
+      .eq('game_id', gameId)
+    if (se) return { error: se.message }
+    await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    return {}
+  }
+
+  const order = (session.turn_order as string[]) ?? []
+  const nextIndex = nextUnfinishedIndex(order, updatedScoresRows, session.current_turn_index)
+  if (nextIndex == null) {
+    await supabase
+      .from('yahtzee_sessions')
+      .update({ phase: 'finished', turn_deadline_at: null, updated_at: new Date().toISOString() })
+      .eq('game_id', gameId)
+    return {}
+  }
+
+  const { error: se } = await supabase
+    .from('yahtzee_sessions')
+    .update({
+      current_turn_index: nextIndex,
+      dice,
+      held: [false, false, false, false, false],
+      rolls_remaining: YAHTZEE_ROLLS_PER_TURN,
+      rolls_this_turn: 0,
+      turn_deadline_at: yahtzeeTurnDeadline(timerSeconds),
+      status_message: 'Turn skipped (time ran out). Next player — roll the dice.',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+
+  if (se) return { error: se.message }
   return {}
 }
 

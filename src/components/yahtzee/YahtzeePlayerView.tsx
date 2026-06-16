@@ -26,6 +26,8 @@ import { GameStartedWaiting } from '@/components/GameStartedWaiting'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { preJoinScreen } from '@/lib/viewers'
+import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
+import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 
 type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
 
@@ -205,6 +207,16 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   const winner = players.find((p) => p.id === session?.winner_player_id)
   const canScore = isMyTurn && (session?.rolls_this_turn ?? 0) > 0
 
+  // Audio notifications
+  useYahtzeeNotifications({ game, session, myPlayerId, enabled: screen === 'active' })
+
+  // Turn timer countdown (also fires expire-turn when deadline passes)
+  const { secondsLeft, hasTimer, urgent } = useYahtzeeTurnTimer(
+    gameCode,
+    session,
+    screen === 'active'
+  )
+
   if (screen === 'loading') return <YahtzeeLoadingScreen />
 
   if (screen === 'not_found') {
@@ -282,7 +294,10 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
             activePlayerId={turnPlayerId}
             dice={session.dice}
             scoringEnabled={canScore}
-            onScore={(category: YahtzeeCategory) => postAction('/api/yahtzee/score', { category })}
+            onScore={(category: YahtzeeCategory) => {
+              playYahtzeeScoreSound()
+              void postAction('/api/yahtzee/score', { category })
+            }}
           />
 
           <YahtzeeDiceTray
@@ -296,6 +311,9 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
             rolling={acting}
             isMyTurn={isMyTurn}
             turnName={turnPlayer?.name}
+            secondsLeft={secondsLeft}
+            hasTimer={hasTimer}
+            urgent={urgent}
           />
         </div>
       )}

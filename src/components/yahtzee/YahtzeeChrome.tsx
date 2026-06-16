@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import { YahtzeeDiceRow } from '@/components/yahtzee/YahtzeeDice'
+import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 
 export function YahtzeeShell({
   children,
@@ -158,6 +159,9 @@ export function YahtzeeDiceTray({
   isMyTurn,
   turnName,
   spectator,
+  secondsLeft = 0,
+  hasTimer = false,
+  urgent = false,
 }: {
   dice: number[]
   held: boolean[]
@@ -170,9 +174,14 @@ export function YahtzeeDiceTray({
   isMyTurn?: boolean
   turnName?: string
   spectator?: boolean
+  secondsLeft?: number
+  hasTimer?: boolean
+  urgent?: boolean
 }) {
   const canRoll = isMyTurn && rollsRemaining > 0 && !spectator
   const showHoldHint = isMyTurn && rollsThisTurn > 0 && !spectator
+
+  useTimerTickSound(secondsLeft, hasTimer)
 
   return (
     <YahtzeeCard className="yahtzee-dice-tray p-3 space-y-3">
@@ -194,7 +203,21 @@ export function YahtzeeDiceTray({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {hasTimer && (
+            <span
+              className={[
+                'text-xs font-black tabular-nums px-2 py-0.5 rounded-full transition-colors',
+                urgent
+                  ? 'bg-red-500 text-white animate-pulse'
+                  : secondsLeft <= 20
+                    ? 'bg-amber-400/80 text-amber-900'
+                    : 'bg-[var(--surface-inset-bg)] text-[var(--foreground)]/60 border border-[var(--border-strong)]',
+              ].join(' ')}
+            >
+              {secondsLeft}s
+            </span>
+          )}
           <YahtzeeRollPips rollsThisTurn={rollsThisTurn} />
           <span className="text-[10px] font-bold tabular-nums text-[var(--foreground)]/50">
             {rollsThisTurn}/3

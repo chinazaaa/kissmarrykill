@@ -454,6 +454,7 @@ function CreateGameInner() {
               participant_mode: 'joiners' as const,
               anonymous: true,
               rounds_count: 1,
+              timer_seconds: 0,
             }
           : {}),
       ...(isWhoSaidThis(type)
@@ -1042,6 +1043,19 @@ function CreateGameInner() {
                         {n} players
                       </option>
                     ))}
+                  </select>
+                </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                    <option value={120}>2 minutes</option>
                   </select>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">

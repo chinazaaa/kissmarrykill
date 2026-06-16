@@ -21,6 +21,7 @@ import type { Game, Player, YahtzeePlayerScore, YahtzeeSession } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 
 export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const router = useRouter()
@@ -132,6 +133,13 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const winner = players.find((p) => p.id === session?.winner_player_id)
 
+  // Host also fires expire-turn when deadline passes (idempotent, no harm if player already did)
+  const { secondsLeft, hasTimer, urgent } = useYahtzeeTurnTimer(
+    gameCode,
+    session,
+    game?.status === 'active'
+  )
+
   if (!game) return <YahtzeeLoadingScreen />
 
   return (
@@ -195,6 +203,9 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
               rollsThisTurn={session.rolls_this_turn}
               rollsRemaining={session.rolls_remaining}
               turnName={turnPlayer?.name}
+              secondsLeft={secondsLeft}
+              hasTimer={hasTimer}
+              urgent={urgent}
               spectator
             />
           </div>

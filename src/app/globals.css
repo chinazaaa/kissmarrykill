@@ -742,7 +742,7 @@ body {
 
 .yahtzee-score-table td,
 .yahtzee-score-table th {
-  line-height: 1.2;
+  line-height: 1.35;
 }
 
 /* section header rows (UPPER / LOWER) */
