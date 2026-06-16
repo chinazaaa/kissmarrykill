@@ -240,3 +240,17 @@ export async function clearBingoSessionData(
   }
   return { error: null }
 }
+
+export type BingoHostMode = 'spectator' | 'player'
+
+const bingoHostModeKey = (gameCode: string) => `bingo_host_mode_${gameCode}`
+
+export function getBingoHostMode(gameCode: string): BingoHostMode {
+  if (typeof window === 'undefined') return 'spectator'
+  return localStorage.getItem(bingoHostModeKey(gameCode)) === 'player' ? 'player' : 'spectator'
+}
+
+export function setBingoHostMode(gameCode: string, mode: BingoHostMode): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(bingoHostModeKey(gameCode), mode)
+}

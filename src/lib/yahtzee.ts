@@ -567,3 +567,17 @@ export async function processYahtzeeExpireTurn(
   return {}
 }
 
+
+export type YahtzeeHostMode = 'spectator' | 'player'
+
+const yahtzeeHostModeKey = (gameCode: string) => `yahtzee_host_mode_${gameCode}`
+
+export function getYahtzeeHostMode(gameCode: string): YahtzeeHostMode {
+  if (typeof window === 'undefined') return 'spectator'
+  return localStorage.getItem(yahtzeeHostModeKey(gameCode)) === 'player' ? 'player' : 'spectator'
+}
+
+export function setYahtzeeHostMode(gameCode: string, mode: YahtzeeHostMode): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(yahtzeeHostModeKey(gameCode), mode)
+}

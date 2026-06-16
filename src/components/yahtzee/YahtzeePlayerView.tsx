@@ -283,40 +283,42 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
+  if (!session) {
+    return <YahtzeeLoadingScreen />
+  }
+
   return (
     <YahtzeeShell title={game?.title} wide compact>
-      {session && (
-        <div className="space-y-2">
-          <YahtzeeScorecard
-            players={players}
-            scores={scores}
-            myPlayerId={myPlayerId}
-            activePlayerId={turnPlayerId}
-            dice={session.dice}
-            scoringEnabled={canScore}
-            onScore={(category: YahtzeeCategory) => {
-              playYahtzeeScoreSound()
-              void postAction('/api/yahtzee/score', { category })
-            }}
-          />
+      <div className="space-y-2">
+        <YahtzeeScorecard
+          players={players}
+          scores={scores}
+          myPlayerId={myPlayerId}
+          activePlayerId={turnPlayerId}
+          dice={session.dice}
+          scoringEnabled={canScore}
+          onScore={(category: YahtzeeCategory) => {
+            playYahtzeeScoreSound()
+            void postAction('/api/yahtzee/score', { category })
+          }}
+        />
 
-          <YahtzeeDiceTray
-            dice={session.dice}
-            held={localHeld}
-            rollsThisTurn={session.rolls_this_turn}
-            rollsRemaining={session.rolls_remaining}
-            interactive={isMyTurn && (session.rolls_this_turn ?? 0) > 0}
-            onToggleHold={toggleHold}
-            onRoll={() => postAction('/api/yahtzee/roll')}
-            rolling={acting}
-            isMyTurn={isMyTurn}
-            turnName={turnPlayer?.name}
-            secondsLeft={secondsLeft}
-            hasTimer={hasTimer}
-            urgent={urgent}
-          />
-        </div>
-      )}
+        <YahtzeeDiceTray
+          dice={session.dice}
+          held={localHeld}
+          rollsThisTurn={session.rolls_this_turn}
+          rollsRemaining={session.rolls_remaining}
+          interactive={isMyTurn && (session.rolls_this_turn ?? 0) > 0}
+          onToggleHold={toggleHold}
+          onRoll={() => postAction('/api/yahtzee/roll')}
+          rolling={acting}
+          isMyTurn={isMyTurn}
+          turnName={turnPlayer?.name}
+          secondsLeft={secondsLeft}
+          hasTimer={hasTimer}
+          urgent={urgent}
+        />
+      </div>
     </YahtzeeShell>
   )
 }

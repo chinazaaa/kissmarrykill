@@ -819,3 +819,17 @@ export function formatDice(dice: { d1: number; d2: number } | null | undefined):
   if (!dice) return '—'
   return `${dice.d1} + ${dice.d2} = ${dice.d1 + dice.d2}`
 }
+
+export type MonopolyHostMode = 'spectator' | 'player'
+
+const monopolyHostModeKey = (gameCode: string) => `monopoly_host_mode_${gameCode}`
+
+export function getMonopolyHostMode(gameCode: string): MonopolyHostMode {
+  if (typeof window === 'undefined') return 'spectator'
+  return localStorage.getItem(monopolyHostModeKey(gameCode)) === 'player' ? 'player' : 'spectator'
+}
+
+export function setMonopolyHostMode(gameCode: string, mode: MonopolyHostMode): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(monopolyHostModeKey(gameCode), mode)
+}
