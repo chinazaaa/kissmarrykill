@@ -848,6 +848,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  whot: {
+    id: 'whot',
+    label: 'Whot',
+    tagline: 'Nigerian card classic — match shape or number, stack Pick 2 & Pick 3',
+    headerEmoji: '🃏🇳🇬',
+    card: {
+      accent: '#059669',
+      accentSoft: 'rgba(5, 150, 105, 0.15)',
+      emoji: '🃏',
+      players: '2–6 players',
+      vibe: 'Naija card night',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🃏',
+        label: 'Cards left',
+        color: '#059669',
+        leaderboardLabel: 'Fewest cards',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#6ee7b7',
+      },
+      marry: {
+        emoji: '2️⃣',
+        label: 'Pick 2',
+        color: '#f97316',
+        leaderboardLabel: 'Pick 2 plays',
+        activeClass: 'bg-orange-500/20 text-orange-100 border-orange-400',
+        borderClass: 'border-orange-500/50 bg-orange-500/10',
+        textColor: '#fdba74',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Winner',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winner',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -880,6 +923,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'two_truths',
   'monopoly',
   'yahtzee',
+  'whot',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -901,6 +945,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'two_truths') return 'two_truths'
   if (raw === 'monopoly') return 'monopoly'
   if (raw === 'yahtzee') return 'yahtzee'
+  if (raw === 'whot') return 'whot'
   return 'smash_marry_kill'
 }
 
@@ -945,6 +990,8 @@ export function gameHowItWorks(
       return 'Players join with their name. Everyone starts on GO with £1,500. UK board — roll, buy or auction, build houses, mortgage, trade, and draw full Chance & Community Chest decks. Last player standing wins!'
     case 'yahtzee':
       return 'Players roll, hold dice, and choose a score category each turn. Build the best total across all combos.'
+    case 'whot':
+      return 'Players join with their name. Match the top card by shape or number — WHOT lets you call the next match. Pick 2 and Pick 3 stacks are separate. First to empty their hand wins!'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -1168,7 +1215,8 @@ export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): b
     type === 'trivia' ||
     type === 'two_truths' ||
     type === 'monopoly' ||
-    type === 'yahtzee'
+    type === 'yahtzee' ||
+    type === 'whot'
   )
 }
 
@@ -1250,6 +1298,10 @@ export function isMonopolyGame(gameType: GameType | string | undefined): boolean
 
 export function isYahtzeeGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'yahtzee'
+}
+
+export function isWhotGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'whot'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

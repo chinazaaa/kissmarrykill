@@ -46,6 +46,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   two_truths: 'two-truths-and-a-lie',
   monopoly: 'monopoly',
   yahtzee: 'yahtzee',
+  whot: 'whot',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -829,6 +830,44 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
         question: 'How does scoring work in online Yahtzee?',
         answer:
           'Each turn you roll up to three times, holding dice between rolls. Pick an unused scorecard category to fill — upper section, lower section combos, or chance. Highest total when the board is full wins.',
+      },
+    ],
+  }),
+
+  whot: landing('whot', {
+    seoTitle: 'Whot Online — Nigerian Card Game with Friends',
+    seoDescription:
+      'Play Whot online with friends. Match shape or number, stack Pick 2 and Pick 3, call WHOT — classic Naija house rules.',
+    keywords: ['whot card game online', 'naija whot multiplayer', 'nigerian whot game', 'play whot friends'],
+    heroSubtitle: 'The Nigerian card classic — match, stack, and call WHOT on your crew.',
+    bodyParagraph:
+      'Whot on Fate Round follows common Nigerian house rules: match the top card by shape or number, play WHOT to call the next match, and keep Pick 2 and Pick 3 stacks separate. Special cards — Hold On, Suspension, General Market — keep the table lively. First to empty their hand wins.',
+    highlights: ['54-card deck', '2–6 players', 'Naija house rules'],
+    features: [
+      {
+        title: 'Match or WHOT',
+        description: 'Play a card matching shape or number — or drop WHOT and call what comes next.',
+        emoji: '🃏',
+      },
+      {
+        title: 'Pick stacks',
+        description: '2 stacks Pick 2, 5 stacks Pick 3 — separate penalties, defended only with the same number.',
+        emoji: '2️⃣',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: 'Enter your name and wait for the host to deal.' },
+      { title: 'Play your turn', description: 'Match the top card, defend pick stacks, or draw.' },
+      { title: 'Empty your hand', description: 'First player out of cards wins the game.' },
+    ],
+    perfectFor: ['Game nights', 'Nigerian diaspora hangouts', 'Card game lovers'],
+    extraFaqs: [
+      {
+        question: 'What are the special cards in Whot?',
+        answer:
+          '1 = Hold On (extra turn), 2 = Pick 2, 5 = Pick 3, 8 = Suspension (skip next player), 14 = General Market (others draw), 20 = WHOT (call shape or number). Pick 2 and Pick 3 stacks cannot be mixed.',
       },
     ],
   }),

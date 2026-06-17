@@ -4,6 +4,7 @@ import {
   isCodewordsGame,
   isMonopolyGame,
   isYahtzeeGame,
+  isWhotGame,
   isMostLikelyTo,
   isNeverHaveIEver,
   isThisOrThat,
@@ -120,6 +121,14 @@ export async function fetchLateJoinContext(
       statusLine: 'Game in progress',
       playerDetail: 'Yahtzee does not allow late players — watch only.',
       viewerDetail: 'Watch scores and dice rolls live — you can\'t play.',
+    }
+  }
+
+  if (isWhotGame(type)) {
+    return {
+      statusLine: 'Game in progress',
+      playerDetail: 'Whot does not allow late players — watch only.',
+      viewerDetail: 'Watch the table and hands live — you can\'t play.',
     }
   }
 

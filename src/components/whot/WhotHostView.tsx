@@ -1,0 +1,414 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { gameTypeConfig } from '@/lib/game-types'
+import {
+  currentPlayerId,
+  getWhotHostMode,
+  setWhotHostMode,
+  WHOT_MIN_PLAYERS,
+  type WhotHostMode,
+} from '@/lib/whot'
+import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT, WHOT_PLAYER_HANDS_SELECT, WHOT_SESSION_SELECT } from '@/lib/supabase-selects'
+import { appOrigin } from '@/lib/site'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
+import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
+import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
+import type { Game, Player, WhotPlayerHand, WhotSession, WhotShape } from '@/types'
+import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
+import { WhotChoosePanel, WhotHand, WhotTable } from '@/components/whot/WhotBoard'
+import { WhotCard, WhotPrimaryButton } from '@/components/whot/WhotChrome'
+
+type HostTab = 'play' | 'manage'
+
+export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
+  const { error: toastError, success } = useToast()
+  const [game, setGame] = useState<Game | null>(null)
+  const [players, setPlayers] = useState<Player[]>([])
+  const [session, setSession] = useState<WhotSession | null>(null)
+  const [hands, setHands] = useState<WhotPlayerHand[]>([])
+  const [starting, setStarting] = useState(false)
+  const [playingAgain, setPlayingAgain] = useState(false)
+  const [ending, setEnding] = useState(false)
+  const [hostMode, setHostMode] = useState<WhotHostMode>('spectator')
+  const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
+  const [hostPlayerName, setHostPlayerName] = useState('')
+  const [hostJoinName, setHostJoinName] = useState('')
+  const [hostJoining, setHostJoining] = useState(false)
+  const [hostActing, setHostActing] = useState(false)
+  const [tab, setTab] = useState<HostTab>('manage')
+
+  useApplyGameTheme(game?.theme)
+
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes, sessionRes, handsRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+      supabase.from('whot_sessions').select(WHOT_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
+      supabase.from('whot_player_hands').select(WHOT_PLAYER_HANDS_SELECT).eq('game_id', gameCode).order('player_order'),
+    ])
+    if (!supabasePollOk(gameRes, plrsRes, sessionRes, handsRes)) return false
+    setGame(gameRes.data)
+    setPlayers(plrsRes.data ?? [])
+    setSession(sessionRes.data as WhotSession | null)
+    setHands((handsRes.data as WhotPlayerHand[]) ?? [])
+    return true
+  }, [gameCode])
+
+  useEffect(() => {
+    load()
+    setHostMode(getWhotHostMode(gameCode))
+    const stored = getPlayerSession(gameCode)
+    if (stored) {
+      setHostPlayerId(stored.playerId)
+      setHostPlayerName(stored.playerName)
+    }
+  }, [gameCode, load])
+
+  useEffect(() => {
+    if (game?.status === 'finished') setTab('manage')
+  }, [game?.status])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`whot-host-${gameCode}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whot_sessions', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whot_player_hands', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [gameCode, load])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
+
+  const handlePlayerRemoved = useCallback(
+    (playerId: string) => {
+      if (playerId === hostPlayerId) {
+        setHostPlayerId(null)
+        setHostPlayerName('')
+        clearPlayerSession(gameCode)
+      }
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+    },
+    [gameCode, hostPlayerId]
+  )
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
+
+  const changeHostMode = (mode: WhotHostMode) => {
+    setHostMode(mode)
+    setWhotHostMode(gameCode, mode)
+  }
+
+  const hostJoinGame = async () => {
+    if (!hostJoinName.trim()) return
+    setHostJoining(true)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, playerName: hostJoinName.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to join')
+      setPlayerSession(gameCode, data.playerId, data.playerName, 'both')
+      setHostPlayerId(data.playerId)
+      setHostPlayerName(data.playerName)
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to join')
+    } finally {
+      setHostJoining(false)
+    }
+  }
+
+  const postHostAction = async (path: string, body: Record<string, unknown> = {}) => {
+    if (!hostPlayerId) return
+    setHostActing(true)
+    try {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId: hostPlayerId, ...body }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Action failed')
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Action failed')
+    } finally {
+      setHostActing(false)
+    }
+  }
+
+  const startGame = async () => {
+    setStarting(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to start')
+      success('Game started!')
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to start')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  const finishGame = async () => {
+    setEnding(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to end game')
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to end game')
+    } finally {
+      setEnding(false)
+    }
+  }
+
+  const playAgain = async () => {
+    setPlayingAgain(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/play-again`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
+      success('Ready for a new game!')
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to reset')
+    } finally {
+      setPlayingAgain(false)
+    }
+  }
+
+  const cfg = gameTypeConfig('whot')
+  const joinUrl = `${appOrigin()}/game/${gameCode}`
+  const canStart = players.filter((p) => p.spectator !== true).length >= WHOT_MIN_PLAYERS
+  const turnPlayerId = session ? currentPlayerId(session) : null
+  const winner = players.find((p) => p.id === session?.winner_player_id)
+  const hostPlays = hostMode === 'player' && !!hostPlayerId
+  const showPlayTab = hostPlays && game?.status !== 'waiting' && game?.status !== 'finished'
+  const isHostTurn = turnPlayerId === hostPlayerId
+
+  const myHand = useMemo(() => {
+    const row = hands.find((h) => h.player_id === hostPlayerId)
+    return row?.cards ?? []
+  }, [hands, hostPlayerId])
+
+  const handCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const h of hands) {
+      counts[h.player_id] = h.cards?.length ?? 0
+    }
+    return counts
+  }, [hands])
+
+  if (!game) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen pb-24">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+        <div className="text-center space-y-1">
+          <div className="text-4xl">{cfg.headerEmoji}</div>
+          <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
+          <p className="text-muted text-sm">{cfg.label} · Host panel</p>
+        </div>
+
+        {game.status === 'waiting' && (
+          <div className="glass-card-strong p-5 space-y-3">
+            <p className="label-caps">Host mode</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => changeHostMode('spectator')}
+                className={[
+                  'rounded-2xl border-2 px-4 py-4 text-left',
+                  hostMode === 'spectator'
+                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                    : 'border-[var(--border-strong)] text-muted',
+                ].join(' ')}
+              >
+                <span className="font-bold block text-base">Host only</span>
+                <span className="text-faint text-xs">Spectate from Manage</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => changeHostMode('player')}
+                className={[
+                  'rounded-2xl border-2 px-4 py-4 text-left',
+                  hostMode === 'player'
+                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                    : 'border-[var(--border-strong)] text-muted',
+                ].join(' ')}
+              >
+                <span className="font-bold block text-base">Host + play</span>
+                <span className="text-faint text-xs">Play tab + Manage tab</span>
+              </button>
+            </div>
+            {hostMode === 'player' && !hostPlayerId && (
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={hostJoinName}
+                  onChange={(e) => setHostJoinName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                  placeholder="Your name"
+                  className="input-field flex-1"
+                  maxLength={40}
+                />
+                <button
+                  type="button"
+                  onClick={() => void hostJoinGame()}
+                  disabled={!hostJoinName.trim() || hostJoining}
+                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
+                >
+                  {hostJoining ? 'Joining…' : 'Join'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showPlayTab && (
+          <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
+            <button
+              type="button"
+              onClick={() => setTab('play')}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
+            >
+              Play
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('manage')}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
+            >
+              Manage
+            </button>
+          </div>
+        )}
+
+        {tab === 'play' && session && hostPlayerId && (
+          <div className="space-y-3">
+            <WhotTable session={session} players={players} myPlayerId={hostPlayerId} handCounts={handCounts} />
+            {isHostTurn && session.phase === 'choose_whot' && (
+              <WhotChoosePanel
+                acting={hostActing}
+                onChooseShape={(shape: WhotShape) => void postHostAction('/api/whot/choose', { shape })}
+                onChooseNumber={(number) => void postHostAction('/api/whot/choose', { number })}
+              />
+            )}
+            {session.phase === 'playing' && (
+              <>
+                <WhotHand
+                  cards={myHand}
+                  session={session}
+                  acting={hostActing}
+                  onPlay={(cardId) => void postHostAction('/api/whot/play', { cardId })}
+                />
+                {isHostTurn && (
+                  <WhotPrimaryButton
+                    onClick={() => void postHostAction('/api/whot/draw')}
+                    loading={hostActing}
+                  >
+                    {(session.pick_two_stack ?? 0) > 0
+                      ? `Draw ${session.pick_two_stack} (Pick 2)`
+                      : (session.pick_five_stack ?? 0) > 0
+                        ? `Draw ${session.pick_five_stack} (Pick 3)`
+                        : 'Draw 1 card'}
+                  </WhotPrimaryButton>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {(tab === 'manage' || !showPlayTab) && (
+          <>
+            <div className="glass-card-strong p-5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="label-caps">Share link</p>
+                <CopyLinkButton value={joinUrl} label="Copy player link" />
+              </div>
+              <p className="text-xs text-muted break-all">{joinUrl}</p>
+            </div>
+
+            <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+
+            {session && (
+              <WhotTable session={session} players={players} myPlayerId={hostPlayerId} handCounts={handCounts} />
+            )}
+
+            {(game.status === 'waiting' || game.status === 'active') && (
+              <div className="glass-card p-4 space-y-3">
+                <p className="label-caps">Players — {players.length}</p>
+                <HostPlayerManageList
+                  players={players}
+                  removingPlayerId={removingPlayerId}
+                  onRemovePlayer={removePlayer}
+                  highlightPlayerId={hostPlayerId}
+                />
+              </div>
+            )}
+
+            {game.status === 'waiting' && (
+              <button
+                type="button"
+                onClick={() => void startGame()}
+                disabled={!canStart || starting}
+                className="btn-primary w-full py-3"
+              >
+                {starting ? 'Starting…' : canStart ? 'Start game' : `Need at least ${WHOT_MIN_PLAYERS} players`}
+              </button>
+            )}
+
+            {game.status === 'active' && (
+              <button type="button" onClick={() => void finishGame()} disabled={ending} className="btn-secondary w-full py-3">
+                {ending ? 'Ending…' : 'End game early'}
+              </button>
+            )}
+
+            {game.status === 'finished' && (
+              <WhotCard className="p-5 text-center space-y-3">
+                <div className="text-4xl">🏆</div>
+                {winner && <p className="text-xl font-black">{winner.name} wins!</p>}
+                <button type="button" onClick={() => void playAgain()} disabled={playingAgain} className="btn-primary w-full py-3">
+                  {playingAgain ? 'Resetting…' : 'Play again'}
+                </button>
+              </WhotCard>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -30,6 +30,7 @@ import {
   isTwoTruthsGame,
   isMonopolyGame,
   isYahtzeeGame,
+  isWhotGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
@@ -192,7 +193,7 @@ export async function POST(req: NextRequest) {
   }
 
   const participant_mode: ParticipantMode =
-    isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type) || isMonopolyGame(game_type) || isYahtzeeGame(game_type)
+    isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type) || isMonopolyGame(game_type) || isYahtzeeGame(game_type) || isWhotGame(game_type)
     ? 'joiners'
     : isWhoSaidThis(game_type)
       ? 'import'
@@ -236,7 +237,8 @@ export async function POST(req: NextRequest) {
     isCodewordsGame(game_type) ||
     isTwoTruthsGame(game_type) ||
     isMonopolyGame(game_type) ||
-    isYahtzeeGame(game_type)
+    isYahtzeeGame(game_type) ||
+    isWhotGame(game_type)
     ? 1
     : isWhoSaidThis(game_type)
       ? wstAutoRoundCount(participants.length)
@@ -285,6 +287,8 @@ export async function POST(req: NextRequest) {
               ? resolveMaxPlayers('monopoly', rawMaxPlayers, lobbyDefaultMaxPlayers('monopoly', lobbyLimits))
               : isYahtzeeGame(game_type)
                 ? resolveMaxPlayers('yahtzee', rawMaxPlayers, lobbyDefaultMaxPlayers('yahtzee', lobbyLimits))
+                : isWhotGame(game_type)
+                  ? resolveMaxPlayers('whot', rawMaxPlayers, lobbyDefaultMaxPlayers('whot', lobbyLimits))
             : null
   const isSecret = isSecretMessageGame(game_type)
   const lateJoinFields = gameSupportsViewerSetting(game_type)

@@ -53,6 +53,7 @@ import {
   pairVoteModeOptions,
   gameHowItWorks,
   isYahtzeeGame,
+  isWhotGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -128,6 +129,7 @@ import {
 import { MONOPOLY_DEFAULT_MAX_PLAYERS, MONOPOLY_GAME_DURATION_OPTIONS, formatMonopolyGameDuration } from '@/lib/monopoly'
 import { MONOPOLY_DEFAULT_TURN_TIMER } from '@/lib/supabase-selects'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
+import { WHOT_DEFAULT_MAX_PLAYERS } from '@/lib/whot'
 import {
   getCodeDefaultLimits,
   playerCountOptions,
@@ -217,6 +219,7 @@ function CreateGameInner() {
   const [monopolyMaxPlayers, setMonopolyMaxPlayers] = useState(MONOPOLY_DEFAULT_MAX_PLAYERS)
   const [monopolyGameDuration, setMonopolyGameDuration] = useState(0)
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
+  const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
@@ -241,6 +244,7 @@ function CreateGameInner() {
     setTtlMaxPlayers((v) => clamp('two_truths', v))
     setMonopolyMaxPlayers((v) => clamp('monopoly', v))
     setYahtzeeMaxPlayers((v) => clamp('yahtzee', v))
+    setWhotMaxPlayers((v) => clamp('whot', v))
   }, [lobbyLimits])
 
   useEffect(() => {
@@ -299,6 +303,13 @@ function CreateGameInner() {
               rounds_count: 1,
             }
           : {}),
+        ...(isWhotGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -330,6 +341,7 @@ function CreateGameInner() {
   const isTwoTruths = isTwoTruthsGame(settings.game_type)
   const isMonopoly = isMonopolyGame(settings.game_type)
   const isYahtzee = isYahtzeeGame(settings.game_type)
+  const isWhot = isWhotGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -400,7 +412,7 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
@@ -476,6 +488,14 @@ function CreateGameInner() {
               timer_seconds: 0,
             }
           : {}),
+      ...(isWhotGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: 0,
+          }
+        : {}),
       ...(isWhoSaidThis(type)
         ? {
             participant_mode: 'import' as const,
@@ -809,6 +829,8 @@ function CreateGameInner() {
                         ? monopolyMaxPlayers
                         : isYahtzee
                           ? yahtzeeMaxPlayers
+                          : isWhot
+                            ? whotMaxPlayers
                           : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
@@ -1117,6 +1139,42 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Play solo or with up to six friends. Take turns rolling 5 dice, holding what you want, and
                   scoring an unused category on your sheet. Highest total score at the end wins!
+                </p>
+              </SettingsGroup>
+            ) : isWhot ? (
+              <SettingsGroup title="Whot room">
+                <Field label={`Max players (${effectiveLimits.whot.min}–${effectiveLimits.whot.max})`}>
+                  <select
+                    value={whotMaxPlayers}
+                    onChange={(e) => setWhotMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.whot.min, effectiveLimits.whot.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                    <option value={120}>2 minutes</option>
+                  </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="whot" />
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Nigerian card classic — match shape or number, play WHOT to call the next match. Pick 2 and Pick 3
+                  stacks are separate. First to empty their hand wins!
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (

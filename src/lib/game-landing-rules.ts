@@ -575,4 +575,39 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       ],
     },
   ],
+
+  whot: [
+    {
+      title: 'Objective',
+      points: [
+        'Be the first player to play all your cards.',
+        'Match the top card by shape or number — or play WHOT to set what opponents must match next.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        '2–6 players join a room. Each player receives 5 cards (6 for a 2-player game).',
+        'One card is turned face-up to start the discard pile. The host starts when everyone is ready.',
+      ],
+    },
+    {
+      title: 'How to play',
+      points: [
+        'On your turn, play a card that matches the top card\'s shape or number.',
+        'If you cannot play, draw from the pile — or draw the full Pick 2 / Pick 3 penalty when those stacks are active.',
+        'WHOT (20) can always be played. After playing it, choose either a shape or a number for the next player to match.',
+      ],
+    },
+    {
+      title: 'Special cards',
+      points: [
+        '1 — Hold On: take another turn immediately.',
+        '2 — Pick 2: next player must play a 2 or draw 2 (stacks if they also play 2).',
+        '5 — Pick 3: next player must play a 5 or draw 3 (stacks if they also play 5). Pick 2 and Pick 3 stacks are separate and cannot be mixed.',
+        '8 — Suspension: skip the next player.',
+        '14 — General Market: every other player draws 1 card.',
+      ],
+    },
+  ],
 }

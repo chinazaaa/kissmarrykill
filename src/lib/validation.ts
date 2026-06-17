@@ -58,6 +58,7 @@ const gameTypeEnum = z.enum([
   'two_truths',
   'monopoly',
   'yahtzee',
+  'whot',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -578,6 +579,30 @@ export type YahtzeeRollInput = z.infer<typeof yahtzeeRollSchema>
 export type YahtzeeHoldInput = z.infer<typeof yahtzeeHoldSchema>
 export type YahtzeeScoreInput = z.infer<typeof yahtzeeScoreSchema>
 
+// Whot (POST /api/whot/*)
+
+const whotShapeEnum = z.enum(['circle', 'cross', 'triangle', 'square', 'star', 'whot'])
+
+export const whotActionSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const whotPlaySchema = whotActionSchema.extend({
+  cardId: z.string().min(1),
+})
+
+export const whotDrawSchema = whotActionSchema
+
+export const whotChooseSchema = whotActionSchema.extend({
+  shape: whotShapeEnum.optional(),
+  number: z.coerce.number().int().min(1).max(14).optional(),
+})
+
+export type WhotPlayInput = z.infer<typeof whotPlaySchema>
+export type WhotDrawInput = z.infer<typeof whotDrawSchema>
+export type WhotChooseInput = z.infer<typeof whotChooseSchema>
+
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
 
@@ -685,6 +710,7 @@ const feedbackGameTypeEnum = z.enum([
   'two_truths',
   'monopoly',
   'yahtzee',
+  'whot',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])

@@ -28,6 +28,7 @@ export type GameType =
   | 'parent_approval'
   | 'monopoly'
   | 'yahtzee'
+  | 'whot'
 
 export type YahtzeeCategory =
   | 'ones'
@@ -311,6 +312,44 @@ export interface YahtzeePlayerScore {
   scores: {
     categories: YahtzeeCategoryPoints
   }
+  player_order: number
+  created_at: string
+}
+
+export type WhotShape = 'circle' | 'cross' | 'triangle' | 'square' | 'star' | 'whot'
+
+export type WhotPhase = 'playing' | 'choose_whot' | 'finished'
+
+export interface WhotCard {
+  id: string
+  shape: WhotShape
+  number: number
+}
+
+export interface WhotSession {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: WhotPhase
+  draw_pile: WhotCard[]
+  top_card: WhotCard | null
+  required_shape: WhotShape | null
+  required_number: number | null
+  pick_two_stack: number
+  pick_five_stack: number
+  status_message: string | null
+  winner_player_id: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WhotPlayerHand {
+  id: string
+  game_id: string
+  player_id: string
+  cards: WhotCard[]
   player_order: number
   created_at: string
 }
