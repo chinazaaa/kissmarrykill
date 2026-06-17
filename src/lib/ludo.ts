@@ -463,14 +463,25 @@ async function persistMove(
     statusMessage = `${name} ${moveNote}. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`
   }
 
-  for (const row of nextStates) {
-    const { error } = await supabase
-      .from('ludo_player_state')
-      .update({ pieces: row.pieces })
-      .eq('game_id', gameId)
-      .eq('player_id', row.player_id)
-    if (error) return { error: error.message }
-  }
+  // Only write rows whose pieces actually changed (mover + any captured).
+  // Writing every row would fire a postgres_changes event per row, causing a
+  // reload storm on the clients and visible flicker.
+  const changedRows = nextStates.filter((row) => {
+    const original = states.find((s) => s.player_id === row.player_id)
+    return !original || JSON.stringify(original.pieces) !== JSON.stringify(row.pieces)
+  })
+
+  const writeResults = await Promise.all(
+    changedRows.map((row) =>
+      supabase
+        .from('ludo_player_state')
+        .update({ pieces: row.pieces })
+        .eq('game_id', gameId)
+        .eq('player_id', row.player_id)
+    )
+  )
+  const writeError = writeResults.find((r) => r.error)
+  if (writeError?.error) return { error: writeError.error.message }
 
   const { error: sessionError } = await supabase
     .from('ludo_sessions')

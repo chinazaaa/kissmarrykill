@@ -27,25 +27,13 @@ import { LudoCard, LudoDice, LudoTurnBar } from '@/components/ludo/LudoChrome'
 
 const BOARD_BG = '#e8d4b0'
 
-const COLOR_CORNER: Record<LudoColor, string> = {
-  red: '#fca5a5',
-  green: '#86efac',
-  yellow: '#fde047',
-  blue: '#93c5fd',
-}
-
-const COLOR_CORNER_DARK: Record<LudoColor, string> = {
-  red: '#ef4444',
-  green: '#22c55e',
-  yellow: '#eab308',
-  blue: '#3b82f6',
-}
-
-const COLOR_HOME: Record<LudoColor, string> = {
-  red: '#f87171',
-  green: '#4ade80',
-  yellow: '#facc15',
-  blue: '#60a5fa',
+/** Vivid solid colours used across the board — corners, home lanes,
+ *  start/safe squares and the centre pinwheel — to match a classic board. */
+const COLOR_VIVID: Record<LudoColor, string> = {
+  red: '#e11d2e',
+  green: '#1faa3e',
+  yellow: '#f5c518',
+  blue: '#1f7fe0',
 }
 
 const ARROW_GLYPH: Record<string, string> = {
@@ -87,64 +75,24 @@ function PieceToken({
   )
 }
 
-function BaseCorner({
-  color,
-  pieces,
-  myPlayerId,
-  selectablePieceIds,
-  onMovePiece,
-}: {
-  color: LudoColor
-  pieces: { color: LudoColor; pieceId: number; row: number; col: number; playerId: string }[]
-  myPlayerId: string | null
-  selectablePieceIds?: number[]
-  onMovePiece?: (pieceId: number) => void
-}) {
+/** The classic "yard" decoration behind each colour's base: a white rounded
+ *  square framing a colour-filled inner panel. The 4 home-slot circles and the
+ *  pieces themselves are drawn in the absolutely-positioned overlay so they can
+ *  animate between the yard and the track. */
+function BaseCorner({ color }: { color: LudoColor }) {
   const bounds = CORNER_BOUNDS[color]
   const left = (bounds.colStart / 15) * 100
   const top = (bounds.rowStart / 15) * 100
   const width = ((bounds.colEnd - bounds.colStart + 1) / 15) * 100
   const height = ((bounds.rowEnd - bounds.rowStart + 1) / 15) * 100
 
-  const cornerPieces = pieces.filter((p) => p.color === color && BASE_SLOTS[color].some((s) => s.row === p.row && s.col === p.col))
-  const hasSelectable = cornerPieces.some(
-    (p) => p.playerId === myPlayerId && selectablePieceIds?.includes(p.pieceId)
-  )
-
   return (
     <div
-      className={['pointer-events-none absolute flex items-center justify-center', hasSelectable ? 'z-[15]' : 'z-[5]'].join(' ')}
+      className="pointer-events-none absolute z-[5] flex items-center justify-center"
       style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
     >
-      <div
-        className="flex h-[76%] w-[76%] items-center justify-center rounded-full"
-        style={{ backgroundColor: '#ffffff' }}
-      >
-        <div className="grid h-[62%] w-[62%] grid-cols-2 gap-[20%]">
-          {BASE_SLOTS[color].map((slot, index) => {
-            const here = cornerPieces.find((p) => p.row === slot.row && p.col === slot.col)
-            if (!here) {
-              return (
-                <div
-                  key={index}
-                  className="aspect-square rounded-full"
-                  style={{ backgroundColor: COLOR_CORNER_DARK[color], opacity: 0.85 }}
-                />
-              )
-            }
-            const selectable = selectablePieceIds?.includes(here.pieceId) && here.playerId === myPlayerId
-            return (
-              <div key={index} className={selectable ? 'pointer-events-auto flex items-center justify-center' : 'flex items-center justify-center'}>
-                <PieceToken
-                  color={here.color}
-                  selected={selectable}
-                  label={here.playerId === myPlayerId ? here.pieceId : undefined}
-                  onClick={selectable && onMovePiece ? () => onMovePiece(here.pieceId) : undefined}
-                />
-              </div>
-            )
-          })}
-        </div>
+      <div className="flex h-[82%] w-[82%] items-center justify-center rounded-[18%] bg-white shadow-md">
+        <div className="h-[78%] w-[78%] rounded-[14%]" style={{ backgroundColor: COLOR_VIVID[color] }} />
       </div>
     </div>
   )
@@ -161,14 +109,11 @@ function CenterTriangles() {
       style={{ left: `${left}%`, top: `${top}%`, width: `${size}%`, height: `${size}%` }}
     >
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden>
-        <polygon points="50,50 0,0 100,0" fill={COLOR_CORNER_DARK.green} />
-        <polygon points="50,50 100,0 100,100" fill={COLOR_CORNER_DARK.yellow} />
-        <polygon points="50,50 0,100 100,100" fill={COLOR_CORNER_DARK.red} />
-        <polygon points="50,50 0,0 0,100" fill={COLOR_CORNER_DARK.blue} />
+        <polygon points="50,50 0,0 100,0" fill={COLOR_VIVID.green} stroke="#1e293b" strokeWidth="0.5" />
+        <polygon points="50,50 100,0 100,100" fill={COLOR_VIVID.yellow} stroke="#1e293b" strokeWidth="0.5" />
+        <polygon points="50,50 0,100 100,100" fill={COLOR_VIVID.red} stroke="#1e293b" strokeWidth="0.5" />
+        <polygon points="50,50 0,0 0,100" fill={COLOR_VIVID.blue} stroke="#1e293b" strokeWidth="0.5" />
       </svg>
-      <div className="relative z-10 flex h-[38%] w-[38%] items-center justify-center rounded-full border-2 border-slate-800 bg-white shadow-sm">
-        <span className="text-[7px] sm:text-[8px] font-black tracking-wider text-slate-900">KING</span>
-      </div>
     </div>
   )
 }
@@ -187,26 +132,26 @@ function cellStyle(
   }
 
   if (kind.kind === 'base' && kind.color) {
-    return { background: COLOR_CORNER[kind.color], border: 'none' }
+    return { background: COLOR_VIVID[kind.color], border: 'none' }
   }
 
   if (kind.kind === 'start' && kind.color) {
     return {
-      background: COLOR_CORNER_DARK[kind.color],
+      background: COLOR_VIVID[kind.color],
       borderColor: '#1e293b',
     }
   }
 
   if (kind.kind === 'safe' && kind.color) {
     return {
-      background: COLOR_HOME[kind.color],
+      background: COLOR_VIVID[kind.color],
       borderColor: '#1e293b',
       boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.7)',
     }
   }
 
   if (kind.kind === 'home' && kind.color) {
-    return { background: COLOR_HOME[kind.color], borderColor: '#1e293b' }
+    return { background: COLOR_VIVID[kind.color], borderColor: '#1e293b' }
   }
 
   return { background: '#ffffff', borderColor: '#1e293b' }
@@ -294,7 +239,23 @@ export function LudoBoard({
     return list
   }, [states])
 
-  const pathPieces = piecesOnBoard.filter((p) => !p.inBase)
+  // Pieces are drawn as one absolutely-positioned overlay so a change in a
+  // piece's (row,col) animates via CSS transition instead of teleporting.
+  // Co-located pieces get a small horizontal offset so a stack stays legible.
+  const overlayPieces = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const p of piecesOnBoard) {
+      const key = `${p.row},${p.col}`
+      totals.set(key, (totals.get(key) ?? 0) + 1)
+    }
+    const seen = new Map<string, number>()
+    return piecesOnBoard.map((p) => {
+      const key = `${p.row},${p.col}`
+      const stackIndex = seen.get(key) ?? 0
+      seen.set(key, stackIndex + 1)
+      return { ...p, stackIndex, stackTotal: totals.get(key) ?? 1 }
+    })
+  }, [piecesOnBoard])
 
   const cells: React.ReactNode[] = []
   for (let r = 0; r < 15; r += 1) {
@@ -305,10 +266,6 @@ export function LudoBoard({
       const isSafe = kind.kind === 'safe'
       const isMyStart = isStart && kind.color === myColor
       const direction = pathArrowAt(r, c)
-      const herePieces =
-        kind.kind === 'base'
-          ? []
-          : pathPieces.filter((p) => p.row === r && p.col === c)
 
       cells.push(
         <div
@@ -324,37 +281,16 @@ export function LudoBoard({
           style={cellStyle(kind, r, c)}
         >
           {isStart && (
-            <span
-              className={[
-                'absolute font-black text-white drop-shadow pointer-events-none',
-                herePieces.length > 0 ? 'text-[8px] opacity-90' : 'text-[11px]',
-              ].join(' ')}
-            >
-              ★
-            </span>
+            <span className="absolute text-[11px] font-black text-white drop-shadow pointer-events-none">★</span>
           )}
-          {isSafe && herePieces.length === 0 && (
+          {isSafe && (
             <span className="absolute text-[8px] font-black text-white/90 drop-shadow pointer-events-none">★</span>
           )}
-          {kind.kind === 'track' && direction && herePieces.length === 0 && (
+          {kind.kind === 'track' && direction && (
             <span className="absolute text-[7px] font-bold text-slate-300/90 pointer-events-none">
               {ARROW_GLYPH[direction]}
             </span>
           )}
-          {herePieces.map((p) => {
-            const selectable = selectablePieceIds?.includes(p.pieceId) && p.playerId === myPlayerId
-            const showLabel = p.playerId === myPlayerId
-            return (
-              <PieceToken
-                key={`${p.playerId}-${p.pieceId}`}
-                color={p.color}
-                selected={selectable}
-                small={herePieces.length > 1}
-                label={showLabel ? p.pieceId : undefined}
-                onClick={selectable && onMovePiece ? () => onMovePiece(p.pieceId) : undefined}
-              />
-            )
-          })}
         </div>
       )
     }
@@ -384,15 +320,52 @@ export function LudoBoard({
         {(['red', 'green', 'yellow', 'blue'] as LudoColor[])
           .filter((color) => activeColors.has(color))
           .map((color) => (
-            <BaseCorner
-              key={color}
-              color={color}
-              pieces={piecesOnBoard}
-              myPlayerId={myPlayerId}
-              selectablePieceIds={selectablePieceIds}
-              onMovePiece={onMovePiece}
-            />
+            <BaseCorner key={color} color={color} />
           ))}
+
+        {/* Animated piece overlay — tokens slide between cells via CSS transition */}
+        <div className="pointer-events-none absolute inset-0 z-20">
+          {(['red', 'green', 'yellow', 'blue'] as LudoColor[])
+            .filter((color) => activeColors.has(color))
+            .flatMap((color) =>
+              BASE_SLOTS[color].map((slot, i) => (
+                <span
+                  key={`yard-${color}-${i}`}
+                  className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-inner sm:h-6 sm:w-6"
+                  style={{
+                    left: `${((slot.col + 0.5) / 15) * 100}%`,
+                    top: `${((slot.row + 0.5) / 15) * 100}%`,
+                    boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.12)',
+                  }}
+                />
+              ))
+            )}
+          {overlayPieces.map((p) => {
+            const selectable = !!(selectablePieceIds?.includes(p.pieceId) && p.playerId === myPlayerId)
+            const offset = (p.stackIndex - (p.stackTotal - 1) / 2) * 7
+            return (
+              <div
+                key={`${p.playerId}-${p.pieceId}`}
+                className="absolute transition-all duration-300 ease-in-out"
+                style={{
+                  left: `${((p.col + 0.5) / 15) * 100}%`,
+                  top: `${((p.row + 0.5) / 15) * 100}%`,
+                  transform: `translate(calc(-50% + ${offset}px), -50%)`,
+                }}
+              >
+                <div className={selectable ? 'pointer-events-auto' : ''}>
+                  <PieceToken
+                    color={p.color}
+                    selected={selectable}
+                    small={p.stackTotal > 2}
+                    label={p.playerId === myPlayerId ? p.pieceId : undefined}
+                    onClick={selectable && onMovePiece ? () => onMovePiece(p.pieceId) : undefined}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
