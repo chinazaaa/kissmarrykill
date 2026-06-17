@@ -218,8 +218,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Need at least 2 names on the list' }, { status: 400 })
       }
     } else if (isHotSeat(game_type)) {
-      if (participant_mode === 'import' && participantsParsed.length < 3) {
-        return NextResponse.json({ error: 'Need at least 3 names on the list for Hot Seat' }, { status: 400 })
+      if (participant_mode === 'import' && participantsParsed.length < HOT_SEAT_MIN_PLAYERS) {
+        return NextResponse.json(
+          { error: `Need at least ${HOT_SEAT_MIN_PLAYERS} names on the list for Hot Seat` },
+          { status: 400 }
+        )
       }
     } else if (!hasEnoughForRounds(participantsParsed, game_type, participantOpts)) {
       const min = isCustomGame(game_type) ? customMinPool : roundPoolSize(game_type)

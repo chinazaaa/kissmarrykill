@@ -82,6 +82,12 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   }, [game?.status])
 
   useEffect(() => {
+    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
+      setTab('play')
+    }
+  }, [hostMode, hostPlayerId, game?.status])
+
+  useEffect(() => {
     const channel = supabase
       .channel(`whot-host-${gameCode}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
@@ -168,6 +174,7 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
       if (!res.ok) throw new Error(data.error ?? 'Failed to start')
       success('Game started!')
       await load()
+      if (hostMode === 'player' && hostPlayerId) setTab('play')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to start')
     } finally {

@@ -104,6 +104,12 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
   }, [game?.status])
 
   useEffect(() => {
+    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
+      setTab('play')
+    }
+  }, [hostMode, hostPlayerId, game?.status])
+
+  useEffect(() => {
     const channel = supabase
       .channel(`monopoly-host-${gameCode}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
@@ -208,6 +214,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
       if (!res.ok) throw new Error(data.error ?? 'Failed to start')
       success('Game started!')
       await load()
+      if (hostMode === 'player' && hostPlayerId) setTab('play')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to start')
     } finally {

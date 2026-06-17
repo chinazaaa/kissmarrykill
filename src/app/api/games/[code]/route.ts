@@ -13,7 +13,12 @@ import {
   isCodewordsGame,
 } from '@/lib/game-types'
 import { isCustomTwoSlotGame } from '@/lib/custom-game'
-import { clampHotSeatMaxCap, hotSeatJoinedPlayers, hotSeatMaxCapUpperBound } from '@/lib/hot-seat'
+import {
+  clampHotSeatMaxCap,
+  HOT_SEAT_MIN_PLAYERS,
+  hotSeatJoinedPlayers,
+  hotSeatMaxCapUpperBound,
+} from '@/lib/hot-seat'
 import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/player-question-pool'
 import { supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, gameAllowsLatePlayerJoin } from '@/lib/viewers'
@@ -51,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
 
   if (rawRoundsCount !== undefined) {
     const gameType = parseGameType(auth.game!.game_type)
-    const min = isHotSeat(gameType) ? 3 : 1
+    const min = isHotSeat(gameType) ? HOT_SEAT_MIN_PLAYERS : 1
     let rounds_count: number
 
     if (isHotSeat(gameType)) {

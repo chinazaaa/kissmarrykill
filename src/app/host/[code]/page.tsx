@@ -2649,12 +2649,12 @@ export default function HostPage() {
                             ? 'Waiting for voters to join...'
                             : isMlt && !isVoterOnly && players.length < 2
                               ? `Need at least 2 players (${players.length}/2)`
-                              : hotSeatLobby && hotSeatLegacyJoiners && players.length < 3
-                                ? `Need at least 3 players (${players.length}/3)`
-                                : hotSeatLobby && !hotSeatLegacyJoiners && roundParticipants.length < 3
-                                  ? `Need 3+ players who claimed a name (${roundParticipants.length}/3)`
-                                  : hotSeatLobby && !hotSeatLegacyJoiners && participants.length < 3
-                                    ? `Need at least 3 names on the list (${participants.length}/3)`
+                              : hotSeatLobby && hotSeatLegacyJoiners && players.length < HOT_SEAT_MIN_PLAYERS
+                                ? `Need at least ${HOT_SEAT_MIN_PLAYERS} players (${players.length}/${HOT_SEAT_MIN_PLAYERS})`
+                                : hotSeatLobby && !hotSeatLegacyJoiners && roundParticipants.length < HOT_SEAT_MIN_PLAYERS
+                                  ? `Need ${HOT_SEAT_MIN_PLAYERS}+ players who claimed a name (${roundParticipants.length}/${HOT_SEAT_MIN_PLAYERS})`
+                                  : hotSeatLobby && !hotSeatLegacyJoiners && participants.length < HOT_SEAT_MIN_PLAYERS
+                                    ? `Need at least ${HOT_SEAT_MIN_PLAYERS} names on the list (${participants.length}/${HOT_SEAT_MIN_PLAYERS})`
                                     : isNhie && players.length === 0
                                       ? 'Need at least 2 players to start'
                                       : isWyr && players.length === 0
