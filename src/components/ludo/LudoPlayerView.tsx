@@ -42,6 +42,8 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
+  const [rolling, setRolling] = useState(false)
+  const [displayDice, setDisplayDice] = useState<number | null>(null)
 
   useApplyGameTheme(game?.theme)
 
@@ -160,6 +162,10 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const postAction = async (path: string, body: Record<string, unknown> = {}) => {
     if (!myPlayerId) return
     setActing(true)
+    if (path.includes('/roll')) {
+      setRolling(true)
+      setDisplayDice(null)
+    }
     try {
       const res = await fetch(path, {
         method: 'POST',
@@ -167,10 +173,15 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
         body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, ...body }),
       })
       const data = await res.json()
-      if (!res.ok) toastError(data.error ?? 'Action failed')
-      else await load()
+      if (!res.ok) {
+        toastError(data.error ?? 'Action failed')
+      } else {
+        if (typeof data.dice === 'number') setDisplayDice(data.dice)
+        await load()
+      }
     } finally {
       setActing(false)
+      setRolling(false)
     }
   }
 
@@ -285,6 +296,8 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
           onRoll={isMyTurn && !isViewer ? () => postAction('/api/ludo/roll') : undefined}
           onMovePiece={isMyTurn && !isViewer ? (pieceId) => postAction('/api/ludo/move', { pieceId }) : undefined}
           acting={acting}
+          rolling={rolling}
+          displayDice={displayDice}
         />
       )}
       {myPlayerId && myName && (

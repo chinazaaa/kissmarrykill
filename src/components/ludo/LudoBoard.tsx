@@ -6,10 +6,17 @@ import {
   LUDO_COLOR_HEX,
   LUDO_COLOR_LABELS,
   START_POS,
-  TRACK_LENGTH,
   finishedPieceCount,
   getLegalMoves,
+  type LudoMoveOption,
 } from '@/lib/ludo'
+import {
+  BASE_SLOTS,
+  HOME_GRID,
+  TRACK_GRID,
+  moveDestinationCell,
+  pieceStatusLabel,
+} from '@/lib/ludo-board-layout'
 import { LudoCard, LudoDice, LudoTurnBar } from '@/components/ludo/LudoChrome'
 
 const BASE_BG: Record<LudoColor, string> = {
@@ -17,86 +24,6 @@ const BASE_BG: Record<LudoColor, string> = {
   green: 'bg-green-500/25 border-green-500/50',
   yellow: 'bg-yellow-500/25 border-yellow-500/50',
   blue: 'bg-blue-500/25 border-blue-500/50',
-}
-
-/** 15×15 grid positions for the classic cross board (simplified layout). */
-const TRACK_GRID: Record<number, { row: number; col: number }> = (() => {
-  const map: Record<number, { row: number; col: number }> = {}
-  // Top arm (red path going right then down)
-  for (let i = 0; i < 6; i += 1) map[i] = { row: 8, col: 1 + i }
-  for (let i = 0; i < 3; i += 1) map[6 + i] = { row: 7 - i, col: 6 }
-  for (let i = 0; i < 6; i += 1) map[9 + i] = { row: 1 + i, col: 6 }
-  // Right arm (green)
-  for (let i = 0; i < 6; i += 1) map[15 + i] = { row: 6, col: 8 + i }
-  for (let i = 0; i < 3; i += 1) map[21 + i] = { row: 6 + i, col: 13 }
-  for (let i = 0; i < 6; i += 1) map[24 + i] = { row: 8 + i, col: 8 }
-  // Bottom arm (yellow)
-  for (let i = 0; i < 6; i += 1) map[30 + i] = { row: 13, col: 13 - i }
-  for (let i = 0; i < 3; i += 1) map[36 + i] = { row: 13 - i, col: 8 }
-  for (let i = 0; i < 6; i += 1) map[39 + i] = { row: 7 + i, col: 8 }
-  // Left arm (blue)
-  for (let i = 0; i < 6; i += 1) map[45 + i] = { row: 8, col: 7 - i }
-  for (let i = 0; i < 3; i += 1) map[51] = { row: 8, col: 1 }
-  for (let i = 0; i < 2; i += 1) map[50 - i] = { row: 9 + i, col: 1 }
-  return map
-})()
-
-const HOME_GRID: Record<LudoColor, { row: number; col: number }[]> = {
-  red: [
-    { row: 7, col: 7 },
-    { row: 6, col: 7 },
-    { row: 5, col: 7 },
-    { row: 4, col: 7 },
-    { row: 3, col: 7 },
-  ],
-  green: [
-    { row: 7, col: 7 },
-    { row: 7, col: 8 },
-    { row: 7, col: 9 },
-    { row: 7, col: 10 },
-    { row: 7, col: 11 },
-  ],
-  yellow: [
-    { row: 7, col: 7 },
-    { row: 8, col: 7 },
-    { row: 9, col: 7 },
-    { row: 10, col: 7 },
-    { row: 11, col: 7 },
-  ],
-  blue: [
-    { row: 7, col: 7 },
-    { row: 7, col: 6 },
-    { row: 7, col: 5 },
-    { row: 7, col: 4 },
-    { row: 7, col: 3 },
-  ],
-}
-
-const BASE_SLOTS: Record<LudoColor, { row: number; col: number }[]> = {
-  red: [
-    { row: 2, col: 2 },
-    { row: 2, col: 4 },
-    { row: 4, col: 2 },
-    { row: 4, col: 4 },
-  ],
-  green: [
-    { row: 2, col: 10 },
-    { row: 2, col: 12 },
-    { row: 4, col: 10 },
-    { row: 4, col: 12 },
-  ],
-  yellow: [
-    { row: 10, col: 10 },
-    { row: 10, col: 12 },
-    { row: 12, col: 10 },
-    { row: 12, col: 12 },
-  ],
-  blue: [
-    { row: 10, col: 2 },
-    { row: 10, col: 4 },
-    { row: 12, col: 2 },
-    { row: 12, col: 4 },
-  ],
 }
 
 function PieceToken({
@@ -134,6 +61,7 @@ export function LudoBoard({
   myPlayerId,
   onMovePiece,
   selectablePieceIds,
+  highlightCells,
 }: {
   session: LudoSession
   states: LudoPlayerState[]
@@ -141,6 +69,7 @@ export function LudoBoard({
   myPlayerId: string | null
   onMovePiece?: (pieceId: number) => void
   selectablePieceIds?: number[]
+  highlightCells?: Set<string>
 }) {
   const piecesOnBoard = useMemo(() => {
     const list: {
@@ -162,6 +91,8 @@ export function LudoBoard({
         } else if (piece.zone === 'home') {
           const grid = HOME_GRID[row.color][piece.pos]
           if (grid) list.push({ color: row.color, pieceId: piece.id, row: grid.row, col: grid.col, playerId: row.player_id })
+        } else if (piece.zone === 'finished') {
+          list.push({ color: row.color, pieceId: piece.id, row: 7, col: 7, playerId: row.player_id })
         }
       }
     }
@@ -194,11 +125,17 @@ export function LudoBoard({
       if (trackHere) bg = startHere ? 'bg-white/20' : 'bg-white/10'
 
       const herePieces = piecesOnBoard.filter((p) => p.row === r && p.col === c)
+      const isHighlight = highlightCells?.has(`${r},${c}`)
 
       cells.push(
         <div
           key={`${r}-${c}`}
-          className={['relative border aspect-square flex items-center justify-center gap-0.5 flex-wrap p-0.5', bg, border].join(' ')}
+          className={[
+            'relative border aspect-square flex items-center justify-center gap-0.5 flex-wrap p-0.5',
+            bg,
+            border,
+            isHighlight ? 'ring-2 ring-[var(--primary)]/70 bg-[var(--primary)]/20' : '',
+          ].join(' ')}
         >
           {herePieces.map((p) => {
             const selectable = selectablePieceIds?.includes(p.pieceId) && p.playerId === myPlayerId
@@ -278,6 +215,8 @@ export function LudoGamePanel({
   onRoll,
   onMovePiece,
   acting,
+  rolling,
+  displayDice,
 }: {
   session: LudoSession
   states: LudoPlayerState[]
@@ -290,15 +229,30 @@ export function LudoGamePanel({
   onRoll?: () => void
   onMovePiece?: (pieceId: number) => void
   acting?: boolean
+  rolling?: boolean
+  displayDice?: number | null
 }) {
   const turnPlayer = players.find((p) => p.id === session.turn_order[session.current_turn_index])
   const myState = states.find((s) => s.player_id === myPlayerId)
 
-  const selectablePieceIds = useMemo(() => {
-    if (!isMyTurn || session.phase !== 'move' || !myState || !session.last_dice) return []
-    const moves = getLegalMoves(myState.color, myState.pieces, session.last_dice, states, myPlayerId!)
-    return moves.map((m) => m.pieceId)
+  const legalMoves = useMemo((): LudoMoveOption[] => {
+    if (!isMyTurn || session.phase !== 'move' || !myState || !session.last_dice || !myPlayerId) return []
+    return getLegalMoves(myState.color, myState.pieces, session.last_dice, states, myPlayerId)
   }, [isMyTurn, session, myState, states, myPlayerId])
+
+  const selectablePieceIds = legalMoves.map((m) => m.pieceId)
+
+  const highlightCells = useMemo(() => {
+    if (!myState || legalMoves.length === 0) return undefined
+    const cells = new Set<string>()
+    for (const move of legalMoves) {
+      const cell = moveDestinationCell(myState.color, move.to)
+      if (cell) cells.add(`${cell.row},${cell.col}`)
+    }
+    return cells
+  }, [legalMoves, myState])
+
+  const diceValue = displayDice ?? session.last_dice
 
   return (
     <LudoCard className="p-3 sm:p-4 space-y-3">
@@ -315,7 +269,7 @@ export function LudoGamePanel({
       )}
 
       <div className="flex items-center justify-center gap-4">
-        <LudoDice value={session.last_dice} />
+        <LudoDice value={diceValue} rolling={rolling} />
         {session.consecutive_sixes > 0 && (
           <span className="text-xs text-amber-400 font-semibold">6s: {session.consecutive_sixes}/3</span>
         )}
@@ -328,6 +282,7 @@ export function LudoGamePanel({
         myPlayerId={myPlayerId}
         onMovePiece={isMyTurn && session.phase === 'move' ? onMovePiece : undefined}
         selectablePieceIds={selectablePieceIds}
+        highlightCells={highlightCells}
       />
 
       <LudoPlayerStrip states={states} players={players} session={session} myPlayerId={myPlayerId} />
@@ -336,15 +291,55 @@ export function LudoGamePanel({
         <button
           type="button"
           onClick={onRoll}
-          disabled={acting}
+          disabled={acting || rolling}
           className="btn-primary w-full py-3 font-bold text-base"
         >
-          {acting ? 'Rolling…' : 'Roll die'}
+          {acting || rolling ? 'Rolling…' : 'Roll die'}
         </button>
       )}
 
-      {isMyTurn && session.phase === 'move' && selectablePieceIds.length > 0 && (
-        <p className="text-center text-xs text-muted">Tap a highlighted piece on the board to move</p>
+      {isMyTurn && session.phase === 'move' && legalMoves.length > 0 && onMovePiece && (
+        <div className="space-y-2">
+          <p className="text-center text-xs font-semibold text-muted">Choose a piece to move</p>
+          <div className="grid grid-cols-2 gap-2">
+            {legalMoves.map((move) => {
+              const fromLabel = pieceStatusLabel(move.from)
+              const toLabel =
+                move.to.zone === 'finished'
+                  ? 'Home!'
+                  : move.to.zone === 'home'
+                    ? `Home ${move.to.pos + 1}`
+                    : move.to.zone === 'track'
+                      ? `Square ${move.to.pos + 1}`
+                      : 'Start'
+              return (
+                <button
+                  key={move.pieceId}
+                  type="button"
+                  disabled={acting}
+                  onClick={() => onMovePiece(move.pieceId)}
+                  className="rounded-xl border border-[var(--primary)]/40 bg-[var(--primary)]/10 px-3 py-2 text-left text-xs font-semibold hover:bg-[var(--primary)]/20 disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-3 w-3 rounded-full border border-white/70"
+                      style={{ backgroundColor: myState ? LUDO_COLOR_HEX[myState.color] : undefined }}
+                    />
+                    Piece {move.pieceId + 1}
+                  </span>
+                  <span className="mt-0.5 block text-faint font-normal">
+                    {fromLabel} → {toLabel}
+                    {move.captures ? ' · Capture!' : ''}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {isMyTurn && session.phase === 'roll' && !rolling && (
+        <p className="text-center text-xs text-faint">You need a 6 to bring pieces onto the board</p>
       )}
     </LudoCard>
   )

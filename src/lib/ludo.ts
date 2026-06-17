@@ -370,6 +370,18 @@ export async function clearLudoSessionData(
 
 function pickAutoMove(moves: LudoMoveOption[]): LudoMoveOption | null {
   if (moves.length === 0) return null
+  if (moves.length === 1) return moves[0]!
+
+  // Rolling a 6 with every piece still in base — all moves go to the same start square.
+  const dest = moves[0]!.to
+  if (
+    moves.every(
+      (m) => m.from.zone === 'base' && m.to.zone === 'track' && m.to.pos === dest.pos
+    )
+  ) {
+    return [...moves].sort((a, b) => a.pieceId - b.pieceId)[0]!
+  }
+
   const capturing = moves.filter((m) => m.captures)
   if (capturing.length > 0) return capturing[0]!
   const finishing = moves.filter((m) => m.to.zone === 'finished')
@@ -379,6 +391,22 @@ function pickAutoMove(moves: LudoMoveOption[]): LudoMoveOption | null {
   const leavingBase = moves.filter((m) => m.from.zone === 'base')
   if (leavingBase.length > 0) return leavingBase[0]!
   return moves[0]!
+}
+
+function resolveAutoMove(moves: LudoMoveOption[]): LudoMoveOption | null {
+  if (moves.length === 0) return null
+  if (moves.length === 1) return moves[0]!
+
+  const dest = moves[0]!.to
+  if (
+    moves.every(
+      (m) => m.from.zone === 'base' && m.to.zone === 'track' && m.to.pos === dest.pos
+    )
+  ) {
+    return [...moves].sort((a, b) => a.pieceId - b.pieceId)[0]!
+  }
+
+  return null
 }
 
 async function persistMove(
@@ -408,6 +436,7 @@ async function persistMove(
 
   const myPieces = nextStates.find((s) => s.player_id === playerId)?.pieces ?? []
   const won = allPiecesFinished(myPieces)
+  const name = playerNames.get(playerId) ?? 'Player'
 
   const rolledSix = session.last_dice === 6
   let consecutiveSixes = session.consecutive_sixes
@@ -423,13 +452,22 @@ async function persistMove(
   let lastDice: number | null = null
   let statusMessage = ''
 
+  const movedFromBase = move.from.zone === 'base' && move.to.zone === 'track'
+  const moveNote = movedFromBase
+    ? 'brought a piece onto the board'
+    : move.captures
+      ? 'moved and captured an opponent'
+      : move.to.zone === 'finished'
+        ? 'finished a piece'
+        : 'moved a piece'
+
   if (won) {
     phase = 'finished'
-    statusMessage = `${playerNames.get(playerId) ?? 'Player'} wins!`
+    statusMessage = `${name} wins!`
     await markGameFinished(supabase, gameId)
   } else if (rolledSix && consecutiveSixes < 3) {
     extraTurn = true
-    statusMessage = `${playerNames.get(playerId) ?? 'Player'} rolled a 6 — roll again!`
+    statusMessage = `${name} ${moveNote} — rolled a 6, roll again!`
   } else if (consecutiveSixes >= 3) {
     currentTurnIndex = advanceTurnIndex(session)
     consecutiveSixes = 0
@@ -438,7 +476,7 @@ async function persistMove(
   } else {
     currentTurnIndex = advanceTurnIndex(session)
     const nextId = session.turn_order[currentTurnIndex]
-    statusMessage = `${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn — roll the die`
+    statusMessage = `${name} ${moveNote}. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`
   }
 
   for (const row of nextStates) {
@@ -544,7 +582,8 @@ export async function processLudoRoll(
     return { dice }
   }
 
-  if (moves.length === 1) {
+  const autoMove = resolveAutoMove(moves)
+  if (autoMove) {
     const interimSession = { ...session, last_dice: dice }
     const { error } = await persistMove(
       supabase,
@@ -552,7 +591,7 @@ export async function processLudoRoll(
       interimSession,
       states,
       playerId,
-      moves[0]!,
+      autoMove,
       timerSeconds,
       playerNames
     )
@@ -636,4 +675,18 @@ export async function processLudoExpireTurn(
   }
 
   return persistMove(supabase, gameId, session, states, playerId, auto, timerSeconds, playerNames)
+}
+
+export type LudoHostMode = 'spectator' | 'player'
+
+const LUDO_HOST_MODE_KEY = 'ludo_host_mode'
+
+export function getLudoHostMode(gameCode: string): LudoHostMode {
+  if (typeof window === 'undefined') return 'spectator'
+  return (localStorage.getItem(`${LUDO_HOST_MODE_KEY}_${gameCode}`) as LudoHostMode) ?? 'spectator'
+}
+
+export function setLudoHostMode(gameCode: string, mode: LudoHostMode): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(`${LUDO_HOST_MODE_KEY}_${gameCode}`, mode)
 }

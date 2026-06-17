@@ -197,6 +197,68 @@ export function canPlayCard(card: WhotCard, session: WhotSession): boolean {
   return card.shape === top.shape || card.number === top.number
 }
 
+/** Pick 2 and Pick 3 stacks are mutually exclusive — only one may be active. */
+export function normalizePickStacks(
+  pickTwo: number,
+  pickFive: number
+): { pickTwo: number; pickFive: number } {
+  const two = Math.max(0, pickTwo)
+  const five = Math.max(0, pickFive)
+  if (two > 0 && five > 0) return { pickTwo: two, pickFive: 0 }
+  return { pickTwo: two, pickFive: five }
+}
+
+/** How many cards to draw — full penalty when Pick 2 / Pick 3 is active, otherwise 1. */
+export function pickPenaltyDrawCount(session: WhotSession): number {
+  const { pickTwo, pickFive } = normalizePickStacks(
+    session.pick_two_stack ?? 0,
+    session.pick_five_stack ?? 0
+  )
+  if (pickTwo > 0) return pickTwo
+  if (pickFive > 0) return pickFive
+  return 1
+}
+
+/**
+ * Pick stacks after playing a card.
+ * - 2 stacks/adds Pick 2 and clears any Pick 3
+ * - 5 stacks/adds Pick 3 and clears any Pick 2
+ * - WHOT preserves the active penalty for the next player
+ * - Other cards never change an active penalty (only draw clears it)
+ */
+export function applyPickStacksAfterPlay(
+  cardNumber: number,
+  pickTwo: number,
+  pickFive: number
+): { pickTwo: number; pickFive: number } {
+  const current = normalizePickStacks(pickTwo, pickFive)
+
+  if (cardNumber === 2) {
+    return normalizePickStacks(current.pickTwo > 0 ? current.pickTwo + 2 : 2, 0)
+  }
+  if (cardNumber === 5) {
+    return normalizePickStacks(0, current.pickFive > 0 ? current.pickFive + 3 : 3)
+  }
+  if (cardNumber === 20) {
+    return current
+  }
+  return current
+}
+
+export function pickStackPlayError(card: WhotCard, session: WhotSession): string | null {
+  const { pickTwo, pickFive } = normalizePickStacks(
+    session.pick_two_stack ?? 0,
+    session.pick_five_stack ?? 0
+  )
+  if (pickTwo > 0 && card.number !== 2 && card.number !== 20) {
+    return 'Pick 2 active — play a 2, WHOT, or draw the penalty'
+  }
+  if (pickFive > 0 && card.number !== 5 && card.number !== 20) {
+    return 'Pick 3 active — play a 5, WHOT, or draw the penalty'
+  }
+  return null
+}
+
 export function hasPlayableCard(hand: WhotCard[], session: WhotSession): boolean {
   return hand.some((c) => canPlayCard(c, session))
 }
@@ -658,6 +720,8 @@ export async function processWhotPlay(
   if (cardIndex < 0) return { error: 'Card not in hand' }
 
   const card = hand[cardIndex]
+  const pickStackError = pickStackPlayError(card, session)
+  if (pickStackError) return { error: pickStackError }
   if (!canPlayCard(card, session)) return { error: 'Cannot play that card' }
 
   const newHand = hand.filter((_, i) => i !== cardIndex)
@@ -668,23 +732,19 @@ export async function processWhotPlay(
     .eq('game_id', gameId)
     .eq('player_id', playerId)
 
-  let pickTwo = session.pick_two_stack ?? 0
-  let pickFive = session.pick_five_stack ?? 0
-
-  if (card.number === 2) {
-    pickTwo = pickTwo > 0 ? pickTwo + 2 : 2
-    pickFive = 0
-  } else if (card.number === 5) {
-    pickFive = pickFive > 0 ? pickFive + 3 : 3
-    pickTwo = 0
-  } else {
-    if (pickTwo > 0 || pickFive > 0) {
-      pickTwo = 0
-      pickFive = 0
-    }
-  }
+  const stacks = applyPickStacksAfterPlay(
+    card.number,
+    session.pick_two_stack ?? 0,
+    session.pick_five_stack ?? 0
+  )
+  let pickTwo = stacks.pickTwo
+  let pickFive = stacks.pickFive
 
   if (card.number === 20) {
+    let whotStatus = `${playerName(playerNames, playerId)} played WHOT — choose shape or number`
+    if (pickTwo > 0) whotStatus = `Pick 2 active (${pickTwo} cards). ${whotStatus}`
+    if (pickFive > 0) whotStatus = `Pick 3 active (${pickFive} cards). ${whotStatus}`
+
     await persistSession(
       supabase,
       gameId,
@@ -696,7 +756,7 @@ export async function processWhotPlay(
         pick_two_stack: pickTwo,
         pick_five_stack: pickFive,
         phase: 'choose_whot',
-        status_message: `${playerName(playerNames, playerId)} played WHOT — choose shape or number`,
+        status_message: whotStatus,
       },
       timerSeconds
     )
@@ -797,9 +857,11 @@ export async function processWhotDraw(
 
   let drawPile = (session.draw_pile as WhotCard[]) ?? []
   let discardPile = (session.discard_pile as WhotCard[]) ?? []
-  const pickTwo = session.pick_two_stack ?? 0
-  const pickFive = session.pick_five_stack ?? 0
-  const drawCount = pickTwo > 0 ? pickTwo : pickFive > 0 ? pickFive : 1
+  const { pickTwo, pickFive } = normalizePickStacks(
+    session.pick_two_stack ?? 0,
+    session.pick_five_stack ?? 0
+  )
+  const drawCount = pickPenaltyDrawCount(session)
 
   const { drawn, drawPile: nextDrawPile, discardPile: nextDiscardPile, reshuffled } = drawCardsWithRefill(
     drawPile,
@@ -840,8 +902,8 @@ export async function processWhotDraw(
       {
         draw_pile: drawPile,
         discard_pile: discardPile,
-        pick_two_stack: 0,
-        pick_five_stack: 0,
+        pick_two_stack: pickTwo,
+        pick_five_stack: pickFive,
         current_turn_index: nextIndex,
         status_message: `${playerName(playerNames, nextPlayerId)}'s turn${matchHint} (draw pile empty)`,
       },
@@ -914,17 +976,25 @@ export async function processWhotChoose(
     ? `match ${WHOT_SHAPE_LABELS[choice.shape!]}`
     : `match number ${choice.number}`
 
+  const pickTwo = session.pick_two_stack ?? 0
+  const pickFive = session.pick_five_stack ?? 0
+  let status = `${playerName(playerNames, nextPlayerId)}'s turn — ${requirement}`
+  if (pickTwo > 0) status = `Pick 2 active (${pickTwo} cards). ${status}`
+  if (pickFive > 0) status = `Pick 3 active (${pickFive} cards). ${status}`
+
+  const stacks = normalizePickStacks(pickTwo, pickFive)
+
   await persistSession(
     supabase,
     gameId,
     {
       required_shape: hasShape ? choice.shape! : null,
       required_number: hasNumber ? choice.number! : null,
-      pick_two_stack: session.pick_two_stack ?? 0,
-      pick_five_stack: session.pick_five_stack ?? 0,
+      pick_two_stack: stacks.pickTwo,
+      pick_five_stack: stacks.pickFive,
       current_turn_index: nextIndex,
       phase: 'playing',
-      status_message: `${playerName(playerNames, nextPlayerId)}'s turn — ${requirement}`,
+      status_message: status,
     },
     timerSeconds
   )
