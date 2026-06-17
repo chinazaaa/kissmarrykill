@@ -26,7 +26,7 @@ export const MLT_QUESTIONS: string[] = [
   'Who is most likely to eat dessert before dinner?',
   'Who is most likely to talk their way out of a speeding ticket?',
   'Who is most likely to double-text after being left on read?',
-  'Who is most likely to accidentally like an old photo while stalking?',
+  'Who is most likely to accidentally like an old photo while scrolling someone\'s profile?',
   'Who is most likely to show up overdressed to a casual hangout?',
   'Who is most likely to show up underdressed to a formal event?',
   'Who is most likely to become a professional athlete?',

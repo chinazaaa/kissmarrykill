@@ -151,6 +151,7 @@ import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
+import { PollHostPlayShell } from '@/components/host/PollHostPlayShell'
 import { computeAchievements } from '@/lib/achievements'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -240,6 +241,7 @@ export default function HostPage() {
     []
   )
   const [activeHotSeatSubs, setActiveHotSeatSubs] = useState<{ id: string; player_id: string; round_id: string }[]>([])
+  const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
 
   const advancingRef = useRef(false)
   const autoFinishTriggeredRef = useRef(false)
@@ -1360,6 +1362,7 @@ export default function HostPage() {
           removingPlayerId={adminBusy}
           onRemovePlayer={hostRemovePlayer}
           compact
+          highlightPlayerId={hostPlayerId}
         />
       </div>
     ) : null
@@ -1581,6 +1584,12 @@ export default function HostPage() {
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         <div className="flex items-start justify-between">
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">Host Panel</p>
@@ -2656,6 +2665,8 @@ export default function HostPage() {
                 : `Start Game (${players.length} players)`}
         </button>
 
+        </PollHostPlayShell>
+
         {game && (
           <PlayAgainSetup
             open={poolSetup.open}
@@ -2702,6 +2713,12 @@ export default function HostPage() {
 
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
@@ -2768,6 +2785,7 @@ export default function HostPage() {
                   ? 'Skip Round (no quote)'
                   : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
@@ -2775,6 +2793,12 @@ export default function HostPage() {
     if (isMlt) {
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
@@ -2813,6 +2837,7 @@ export default function HostPage() {
           <button onClick={handleEndRound} disabled={ending || eligibleVotes.length === 0} className="btn-secondary">
             {ending ? 'Ending...' : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
@@ -2820,6 +2845,12 @@ export default function HostPage() {
     if (isBinaryGame) {
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
@@ -2865,6 +2896,7 @@ export default function HostPage() {
           <button onClick={handleEndRound} disabled={ending || eligibleVotes.length === 0} className="btn-secondary">
             {ending ? 'Ending...' : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
@@ -2882,6 +2914,12 @@ export default function HostPage() {
 
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
@@ -2950,12 +2988,19 @@ export default function HostPage() {
                   ? `End Round (${submissionCount}/${submitters.length} submitted)`
                   : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -3108,6 +3153,7 @@ export default function HostPage() {
           onEnded={syncGameState}
           className="btn-secondary w-full text-muted"
         />
+        </PollHostPlayShell>
       </div>
     )
   }
@@ -3136,6 +3182,12 @@ export default function HostPage() {
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         <div className="text-center">
           <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game.rounds_count}
@@ -3323,6 +3375,7 @@ export default function HostPage() {
             />
           </>
         )}
+        </PollHostPlayShell>
       </div>
     )
   }
@@ -3353,6 +3406,12 @@ export default function HostPage() {
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         <div className="text-center">
           <div className="text-4xl mb-2">🏆</div>
           <h1 className="text-3xl font-black text-body">{game.title}</h1>
@@ -3612,6 +3671,7 @@ export default function HostPage() {
             </div>
           </div>
         )}
+        </PollHostPlayShell>
         {game && (
           <PlayAgainSetup
             open={poolSetup.open}
