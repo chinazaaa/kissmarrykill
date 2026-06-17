@@ -59,7 +59,7 @@ export function MonopolyActiveLayout({
   const auctionBidderId =
     board.phase === 'auction' ? board.auction_state?.current_bidder_id ?? null : null
   const isMyAuctionTurn = auctionBidderId === myPlayerId
-  const amActor = isMyTurn || isMyAuctionTurn
+  const amActor = isMyTurn || isMyAuctionTurn || (board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId)
   const currentOwner =
     myState != null ? players.find((p) => p.id === owners[String(myState.position)])?.name : null
 
@@ -82,7 +82,7 @@ export function MonopolyActiveLayout({
   const showStatusBanner =
     bannerMessage &&
     (personalCashMessage ||
-      (board.phase !== 'buy' && board.phase !== 'pay_rent' && board.phase !== 'auction')) &&
+      (board.phase !== 'buy' && board.phase !== 'pay_rent' && board.phase !== 'auction' && board.phase !== 'raise_funds')) &&
     !board.last_card_event
 
   const panelTabs = (
@@ -166,6 +166,16 @@ export function MonopolyActiveLayout({
           className="w-full rounded-xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] px-4 py-2.5 text-sm font-semibold text-[var(--primary)] text-left"
         >
           🏠 You can build on your properties — open Build &amp; trade
+        </button>
+      )}
+
+      {board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId && panel !== 'build' && (
+        <button
+          type="button"
+          onClick={() => setPanel('build')}
+          className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 text-left"
+        >
+          ⚠️ Raise cash — mortgage or sell buildings in Build &amp; trade
         </button>
       )}
 

@@ -113,6 +113,23 @@ export function MonopolyBoardCenter({
   const isMyAuctionTurn = auction?.current_bidder_id === myPlayerId
   const [bidAmount, setBidAmount] = useState('')
 
+  const debt = board.pending_debt
+  const isMyDebt = debt?.player_id === myPlayerId
+  const debtAmount = debt ? (debt.debt_type === 'rent' && debt.space_index != null
+    ? computeRent(
+        spaceAt(debt.space_index),
+        owners,
+        debt.creditor_player_id ?? '',
+        board.last_dice?.total ?? 2,
+        buildings,
+        mortgaged
+      )
+    : debt.amount) : 0
+  const debtCreditor = debt?.creditor_player_id
+    ? players.find((p) => p.id === debt.creditor_player_id)
+    : null
+
+  const showRaiseFunds = !!(isMyDebt && board.phase === 'raise_funds' && debt)
   const showBuy = !!(isMyTurn && board.phase === 'buy' && pendingSpace)
   const showRent = !!(isMyTurn && board.phase === 'pay_rent' && pendingSpace)
   const showJail = !!(isMyTurn && board.phase === 'jail' && myState?.in_jail)
@@ -138,9 +155,14 @@ export function MonopolyBoardCenter({
     if (!actingRef.current) void postAction('/api/monopoly/roll')
   }, [postAction])
 
+  const autoForfeit = useCallback(() => {
+    if (!actingRef.current) void postAction('/api/monopoly/forfeit')
+  }, [postAction])
+
   const deadline = board.turn_deadline_at ?? null
   const buySeconds = useMonopolyDeadlineTimer(deadline, showBuy, autoBuyAuction)
   const rentSeconds = useMonopolyDeadlineTimer(deadline, showRent, autoPayRent)
+  const raiseFundsSeconds = useMonopolyDeadlineTimer(deadline, showRaiseFunds, autoForfeit)
   const jailSeconds = useMonopolyDeadlineTimer(deadline, showJail, autoJailRoll)
   const auctionSeconds = useMonopolyDeadlineTimer(deadline, showAuction, autoAuctionPass)
 
@@ -148,18 +170,22 @@ export function MonopolyBoardCenter({
     ? buySeconds
     : showRent
       ? rentSeconds
-      : showJail
-        ? jailSeconds
-        : showAuction
-          ? auctionSeconds
-          : 0
+      : showRaiseFunds
+        ? raiseFundsSeconds
+        : showJail
+          ? jailSeconds
+          : showAuction
+            ? auctionSeconds
+            : 0
 
   const phaseColorBar =
     (showBuy || showRent) && pendingSpace?.color
       ? colorBarClass(pendingSpace.color)
-      : showAuction && auctionSpace?.color
-        ? colorBarClass(auctionSpace.color)
-        : null
+      : showRaiseFunds && debt?.space_index != null && spaceAt(debt.space_index).color
+        ? colorBarClass(spaceAt(debt.space_index).color)
+        : showAuction && auctionSpace?.color
+          ? colorBarClass(auctionSpace.color)
+          : null
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full min-w-0 px-1 sm:px-2 py-1 sm:py-2 text-center overflow-y-auto">
@@ -181,7 +207,7 @@ export function MonopolyBoardCenter({
 
       {phaseColorBar && <div className={['h-1 w-12 sm:w-16 rounded-full mb-1', phaseColorBar].join(' ')} />}
 
-      {!showBuy && !showRent && !showJail && !showAuction && (
+      {!showBuy && !showRent && !showRaiseFunds && !showJail && !showAuction && (
         <MonopolyDiceRoll dice={board.last_dice} rolling={acting} />
       )}
 
@@ -224,6 +250,32 @@ export function MonopolyBoardCenter({
               Auction
             </BoardSecondaryButton>
           </div>
+        </div>
+      )}
+
+      {showRaiseFunds && debt && (
+        <div className="mt-1.5 w-full max-w-[12rem] sm:max-w-[13rem] space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-red-200/90">Need to pay</p>
+          <p className="text-xs sm:text-sm font-bold text-white leading-tight">{debt.reason}</p>
+          {debtCreditor && (
+            <p className="text-[10px] text-emerald-200/70 truncate">To {debtCreditor.name}</p>
+          )}
+          <p className="text-lg sm:text-xl font-black text-red-300 tabular-nums">
+            {formatMonopolyMoney(debtAmount)}
+          </p>
+          <p className="text-[9px] text-emerald-200/60 leading-snug">
+            Mortgage or sell houses in Build &amp; trade, then pay — or forfeit.
+          </p>
+          <BoardPrimaryButton
+            onClick={() => postAction('/api/monopoly/settle-debt')}
+            loading={acting}
+            disabled={(myState?.cash ?? 0) < debtAmount}
+          >
+            Pay now
+          </BoardPrimaryButton>
+          <BoardSecondaryButton onClick={() => postAction('/api/monopoly/forfeit')} disabled={acting}>
+            Forfeit
+          </BoardSecondaryButton>
         </div>
       )}
 

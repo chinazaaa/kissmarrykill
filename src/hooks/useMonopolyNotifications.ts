@@ -117,6 +117,9 @@ export function useMonopolyNotifications({
       } else if (phase === 'pay_rent') {
         info('Rent is due')
         playVoteSubmittedSound()
+      } else if (phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId) {
+        info('Raise cash to pay your debt — or forfeit')
+        playVoteSubmittedSound()
       } else if (phase === 'jail' && myState?.in_jail) {
         info('In jail — roll, pay, or use a card')
       }

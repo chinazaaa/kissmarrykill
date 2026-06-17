@@ -168,7 +168,16 @@ export interface Game {
   game_duration_seconds?: number | null
 }
 
-export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'auction' | 'finished'
+export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'auction' | 'raise_funds' | 'finished'
+
+export interface MonopolyPendingDebt {
+  player_id: string
+  creditor_player_id: string | null
+  amount: number
+  reason: string
+  debt_type: 'rent' | 'tax' | 'card' | 'jail' | 'other'
+  space_index?: number | null
+}
 
 export interface MonopolyAuctionState {
   space_index: number
@@ -236,6 +245,7 @@ export interface MonopolyBoard {
   community_discard: number[]
   auction_state: MonopolyAuctionState | null
   pending_trade: MonopolyPendingTrade | null
+  pending_debt: MonopolyPendingDebt | null
   pending_space: number | null
   status_message: string | null
   last_card_event: MonopolyLastCardEvent | null

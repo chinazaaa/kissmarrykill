@@ -8,7 +8,7 @@ function secondsUntil(deadlineAt: string | null | undefined): number {
   return Math.max(0, Math.ceil((new Date(deadlineAt).getTime() - Date.now()) / 1000))
 }
 
-const TIMED_PHASES: MonopolyPhase[] = ['roll', 'jail', 'buy', 'pay_rent', 'auction']
+const TIMED_PHASES: MonopolyPhase[] = ['roll', 'jail', 'buy', 'pay_rent', 'raise_funds', 'auction']
 
 export function useMonopolyTurnTimer(
   gameCode: string,
