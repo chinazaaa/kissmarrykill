@@ -173,6 +173,22 @@ export function movePosition(from: number, steps: number): { to: number; passedG
   return { to, passedGo }
 }
 
+/** First time passing GO unlocks buying/cards but pays no salary; £200 from the second lap onward. */
+export function applyGoPass(
+  cash: number,
+  passedGoOnce: boolean
+): { cash: number; passedGoOnce: boolean; collected: number } {
+  if (passedGoOnce) {
+    return { cash: cash + MONOPOLY_GO_SALARY, passedGoOnce: true, collected: MONOPOLY_GO_SALARY }
+  }
+  return { cash, passedGoOnce: true, collected: 0 }
+}
+
+function goPassStatusSuffix(collected: number): string {
+  if (collected > 0) return `Passed GO — collected ${formatMonopolyMoney(collected)}. `
+  return 'Passed GO — no salary on your first lap. '
+}
+
 export function nextTurnIndex(board: MonopolyBoard, states: MonopolyPlayerState[]): number {
   const order = board.turn_order
   if (order.length === 0) return 0
@@ -916,8 +932,9 @@ export async function processMonopolyRoll(
       const move = movePosition(position, dice.total)
       position = move.to
       if (move.passedGo) {
-        cash += MONOPOLY_GO_SALARY
-        passedGoOnce = true
+        const goPass = applyGoPass(cash, passedGoOnce)
+        cash = goPass.cash
+        passedGoOnce = goPass.passedGoOnce
       }
     } else if (jailTurns >= 3) {
       if (cash < MONOPOLY_JAIL_FINE) {
@@ -944,8 +961,9 @@ export async function processMonopolyRoll(
       const move = movePosition(position, dice.total)
       position = move.to
       if (move.passedGo) {
-        cash += MONOPOLY_GO_SALARY
-        passedGoOnce = true
+        const goPass = applyGoPass(cash, passedGoOnce)
+        cash = goPass.cash
+        passedGoOnce = goPass.passedGoOnce
       }
     } else {
       const turnIndex = nextTurnIndex(board, states)
@@ -993,9 +1011,10 @@ export async function processMonopolyRoll(
     const move = movePosition(position, dice.total)
     position = move.to
     if (move.passedGo) {
-      cash += MONOPOLY_GO_SALARY
-      passedGoOnce = true
-      statusMessage = `Passed GO — collected ${formatMonopolyMoney(MONOPOLY_GO_SALARY)}. `
+      const goPass = applyGoPass(cash, passedGoOnce)
+      cash = goPass.cash
+      passedGoOnce = goPass.passedGoOnce
+      statusMessage = goPassStatusSuffix(goPass.collected)
     }
   }
 
@@ -1019,6 +1038,11 @@ export async function processMonopolyRoll(
   }
 
   if (landed.type === 'chance' || landed.type === 'community') {
+    if (!passedGoOnce) {
+      const label = landed.type === 'chance' ? 'Chance' : 'Community Chest'
+      statusMessage += ` Pass GO once before drawing ${label} cards.`
+      phase = 'roll'
+    } else {
     const kind: CardKind = landed.type
     const drawn = drawCard(kind, kind === 'chance' ? chanceDeck : communityDeck, kind === 'chance' ? chanceDiscard : communityDiscard)
     if (kind === 'chance') {
@@ -1129,11 +1153,14 @@ export async function processMonopolyRoll(
 
       if (effect.moveTo !== undefined) {
         position = effect.moveTo
+        const hadPassedGoOnce = passedGoOnce
         if (effect.passedGo) passedGoOnce = true
-        const salary = goSalaryForCard(card, effect.passedGo ?? false)
+        const salary = goSalaryForCard(card, effect.passedGo ?? false, hadPassedGoOnce)
         if (salary > 0) {
           cash += salary
           statusMessage += ` Collected ${formatMonopolyMoney(salary)}.`
+        } else if (effect.passedGo && !hadPassedGoOnce) {
+          statusMessage += ' Passed GO — no salary on your first lap.'
         }
         statusMessage += ` Now on ${spaceAt(position).name}.`
         const afterCard = resolveSpaceLanding(spaceAt(position), {
@@ -1163,6 +1190,7 @@ export async function processMonopolyRoll(
       } else {
         phase = 'roll'
       }
+    }
     }
   } else {
     const resolution = resolveSpaceLanding(landed, landingCtx)

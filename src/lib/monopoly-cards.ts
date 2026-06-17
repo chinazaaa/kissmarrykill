@@ -232,7 +232,12 @@ export function applyCardEffect(
   }
 }
 
-export function goSalaryForCard(card: MonopolyCardDef, passedGo: boolean): number {
+export function goSalaryForCard(
+  card: MonopolyCardDef,
+  passedGo: boolean,
+  alreadyPassedGoOnce: boolean
+): number {
+  if (!alreadyPassedGoOnce) return 0
   if (card.effect === 'advance_go') return MONOPOLY_GO_SALARY
   if (passedGo) return MONOPOLY_GO_SALARY
   return 0

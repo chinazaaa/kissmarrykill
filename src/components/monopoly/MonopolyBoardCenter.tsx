@@ -224,7 +224,7 @@ export function MonopolyBoardCenter({
           </BoardPrimaryButton>
           {myState && !(myState.passed_go_once ?? false) && (
             <p className="text-[9px] text-emerald-200/65 leading-snug text-center">
-              Pass GO once before you can buy property
+              Pass GO once before buying, drawing cards, or collecting GO salary
             </p>
           )}
         </div>

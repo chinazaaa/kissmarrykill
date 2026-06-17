@@ -460,7 +460,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       title: 'Moving & GO',
       points: [
         'On your turn, roll two dice and move clockwise around the 40-space board.',
-        'Collect £200 from the Bank every time you land on or pass GO while moving forward.',
+        'Collect £200 from the Bank every time you land on or pass GO while moving forward — but not on your first lap around the board.',
         'Two or more tokens may occupy the same space.',
       ],
     },
@@ -474,7 +474,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Buying property',
       points: [
-        'You cannot buy from the Bank until you have passed GO at least once on your first lap.',
+        'You cannot buy from the Bank or draw Chance / Community Chest cards until you have passed GO at least once on your first lap.',
         'Landing on an unowned Property, Station, or Utility after that lets you buy it at the listed price.',
         'If you decline to buy, the property is auctioned to the highest bidder — including you.',
         'Own all Sites in a colour-group (a monopoly) to charge double rent on unimproved properties in that group.',
@@ -492,9 +492,10 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Chance & Community Chest',
       points: [
+        'You must pass GO once before drawing cards on your first lap — landing on Chance or Community Chest before that ends your turn without drawing.',
         'Draw from the full UK 16-card Chance and 16-card Community Chest decks.',
         'Cards may move you, pay or collect money, charge per house/hotel, or collect from every player.',
-        'If a card moves you forward past GO, collect £200. You do not collect GO salary when sent to Jail.',
+        'If a card moves you forward past GO, collect £200 (after your first lap). You do not collect GO salary when sent to Jail.',
         'Get Out of Jail Free cards are kept until used or traded.',
       ],
     },
