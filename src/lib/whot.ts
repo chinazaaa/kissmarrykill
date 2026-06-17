@@ -25,6 +25,39 @@ export function whotHandSum(cards: WhotCard[]): number {
   return cards.reduce((sum, card) => sum + card.number, 0)
 }
 
+export type WhotStanding = {
+  playerId: string
+  name: string
+  cardCount: number
+  handSum: number
+  rank: number
+}
+
+export function buildWhotStandings(
+  hands: WhotPlayerHand[],
+  players: { id: string; name: string }[],
+  turnOrder: string[]
+): WhotStanding[] {
+  const activeIds = new Set(turnOrder ?? [])
+  const rows = hands
+    .filter((h) => activeIds.has(h.player_id))
+    .map((h) => {
+      const cards = (h.cards as WhotCard[]) ?? []
+      return {
+        playerId: h.player_id,
+        name: players.find((p) => p.id === h.player_id)?.name ?? 'Player',
+        cardCount: cards.length,
+        handSum: whotHandSum(cards),
+      }
+    })
+    .sort((a, b) => {
+      if (a.cardCount !== b.cardCount) return a.cardCount - b.cardCount
+      return a.handSum - b.handSum
+    })
+
+  return rows.map((row, index) => ({ ...row, rank: index + 1 }))
+}
+
 export function whotGameSessionExpired(
   sessionStartedAt: string | null | undefined,
   durationSeconds: number | null | undefined
@@ -174,9 +207,44 @@ export function isDrawPileDepleted(session: WhotSession): boolean {
   return drawLen === 0 && discardLen === 0
 }
 
+export function whotHandCount(hands: WhotPlayerHand[], playerId: string): number {
+  return ((hands.find((h) => h.player_id === playerId)?.cards as WhotCard[]) ?? []).length
+}
+
+/** True when the player has no cards left and is watching the rest of the game. */
+export function isWhotPlayerOut(handCount: number, spectator?: boolean | null): boolean {
+  return handCount === 0 || spectator === true
+}
+
+export function whotNextTurnIndex(
+  session: WhotSession,
+  hands: WhotPlayerHand[],
+  fromIndex: number,
+  steps = 1
+): number {
+  const order = session.turn_order ?? []
+  const len = order.length
+  if (len === 0) return 0
+
+  let idx = fromIndex
+  for (let s = 0; s < steps; s += 1) {
+    let advanced = false
+    for (let attempt = 0; attempt < len; attempt += 1) {
+      idx = (idx + 1) % len
+      if (whotHandCount(hands, order[idx]!) > 0) {
+        advanced = true
+        break
+      }
+    }
+    if (!advanced) return fromIndex
+  }
+  return idx
+}
+
 export function anyPlayerCanPlay(hands: WhotPlayerHand[], session: WhotSession): boolean {
   for (const row of hands) {
     const cards = (row.cards as WhotCard[]) ?? []
+    if (cards.length === 0) continue
     if (hasPlayableCard(cards, session)) return true
   }
   return false
@@ -291,12 +359,13 @@ async function loadGameState(
   session: WhotSession | null
   hands: WhotPlayerHand[]
   timerSeconds: number
+  gameDurationSeconds: number
   playerNames: Map<string, string>
 }> {
   const [sessionRes, handsRes, gameRes, playersRes] = await Promise.all([
     supabase.from('whot_sessions').select('*').eq('game_id', gameId).maybeSingle(),
     supabase.from('whot_player_hands').select('*').eq('game_id', gameId).order('player_order'),
-    supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle(),
+    supabase.from('games').select('timer_seconds, game_duration_seconds').eq('id', gameId).maybeSingle(),
     supabase.from('players').select('id, name').eq('game_id', gameId),
   ])
 
@@ -309,6 +378,7 @@ async function loadGameState(
     session: sessionRes.data as WhotSession | null,
     hands: (handsRes.data as WhotPlayerHand[]) ?? [],
     timerSeconds: gameRes.data?.timer_seconds ?? 0,
+    gameDurationSeconds: gameRes.data?.game_duration_seconds ?? 0,
     playerNames,
   }
 }
@@ -413,30 +483,79 @@ async function finishWhotByLowestHand(
   await markGameFinished(supabase, gameId)
 }
 
+async function handlePlayerOutHand(
+  supabase: SupabaseClient,
+  gameId: string,
+  session: WhotSession,
+  playerId: string,
+  playerNames: Map<string, string>,
+  hands: WhotPlayerHand[],
+  gameDurationSeconds: number,
+  timerSeconds: number
+): Promise<void> {
+  await supabase.from('players').update({ spectator: true }).eq('id', playerId).eq('game_id', gameId)
+
+  const name = playerName(playerNames, playerId)
+  const remaining = (session.turn_order ?? []).filter(
+    (id) => id !== playerId && whotHandCount(hands, id) > 0
+  )
+
+  if (gameDurationSeconds <= 0) {
+    await supabase
+      .from('whot_sessions')
+      .update({
+        phase: 'finished',
+        winner_player_id: playerId,
+        status_message: `${name} wins!`,
+        turn_deadline_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('game_id', gameId)
+    await markGameFinished(supabase, gameId)
+    return
+  }
+
+  const nextIndex = whotNextTurnIndex(session, hands, session.current_turn_index, 1)
+  const nextId = session.turn_order[nextIndex]
+  const top = session.top_card
+  const matchHint = top ? ` — match ${cardLabel(top)}` : ''
+
+  await persistSession(
+    supabase,
+    gameId,
+    {
+      current_turn_index: nextIndex,
+      status_message: `${name} is out — now watching. ${remaining.length} player${remaining.length === 1 ? '' : 's'} left. ${playerName(playerNames, nextId)}'s turn${matchHint}`,
+    },
+    timerSeconds
+  )
+}
+
 async function finishIfEmptyHand(
   supabase: SupabaseClient,
   gameId: string,
   session: WhotSession,
   playerId: string,
-  playerNames: Map<string, string>
+  playerNames: Map<string, string>,
+  hands: WhotPlayerHand[],
+  gameDurationSeconds: number,
+  timerSeconds: number
 ): Promise<WhotSession | null> {
-  const handsRes = await supabase.from('whot_player_hands').select('player_id, cards').eq('game_id', gameId)
-  const hand = (handsRes.data ?? []).find((h) => h.player_id === playerId)
-  const cards = (hand?.cards as WhotCard[]) ?? []
+  const cards = handForPlayer(hands, playerId)
   if (cards.length > 0) return session
 
-  const name = playerName(playerNames, playerId)
-  const finished: Partial<WhotSession> = {
-    phase: 'finished',
-    winner_player_id: playerId,
-    status_message: `${name} wins!`,
-    turn_deadline_at: null,
-  }
+  await handlePlayerOutHand(
+    supabase,
+    gameId,
+    session,
+    playerId,
+    playerNames,
+    hands,
+    gameDurationSeconds,
+    timerSeconds
+  )
 
-  await supabase.from('whot_sessions').update(finished).eq('game_id', gameId)
-  await markGameFinished(supabase, gameId)
-
-  return { ...session, ...finished } as WhotSession
+  return session
 }
 
 type TurnAdvance = {
@@ -445,16 +564,29 @@ type TurnAdvance = {
   skipNext: boolean
 }
 
-function computeNextTurn(session: WhotSession, cardNumber: number): TurnAdvance {
+function resolveNextTurnIndex(
+  session: WhotSession,
+  hands: WhotPlayerHand[],
+  cardNumber: number
+): TurnAdvance {
   if (cardNumber === 1) {
-    return { nextIndex: session.current_turn_index, holdOn: true, skipNext: false }
+    const currentId = session.turn_order[session.current_turn_index]
+    if (currentId && whotHandCount(hands, currentId) > 0) {
+      return { nextIndex: session.current_turn_index, holdOn: true, skipNext: false }
+    }
   }
   if (cardNumber === 8) {
-    const len = session.turn_order.length
-    return { nextIndex: (session.current_turn_index + 2) % len, holdOn: false, skipNext: true }
+    return {
+      nextIndex: whotNextTurnIndex(session, hands, session.current_turn_index, 2),
+      holdOn: false,
+      skipNext: true,
+    }
   }
-  const len = session.turn_order.length
-  return { nextIndex: (session.current_turn_index + 1) % len, holdOn: false, skipNext: false }
+  return {
+    nextIndex: whotNextTurnIndex(session, hands, session.current_turn_index, 1),
+    holdOn: false,
+    skipNext: false,
+  }
 }
 
 async function applyGeneralMarket(
@@ -471,6 +603,8 @@ async function applyGeneralMarket(
 
   for (const row of nextHands) {
     if (row.player_id === currentPlayerId) continue
+    const existing = (row.cards as WhotCard[]) ?? []
+    if (existing.length === 0) continue
     const result = drawCardsWithRefill(pile, discard, 1)
     pile = result.drawPile
     discard = result.discardPile
@@ -510,13 +644,14 @@ export async function processWhotPlay(
   playerId: string,
   cardId: string
 ): Promise<{ error?: string }> {
-  const { session, hands, timerSeconds, playerNames } = await loadGameState(supabase, gameId)
+  const { session, hands, timerSeconds, gameDurationSeconds, playerNames } = await loadGameState(supabase, gameId)
   if (!session) return { error: 'Session not found' }
   if (session.phase === 'finished') return { error: 'Game is finished' }
   if (session.phase === 'choose_whot') return { error: 'Choose WHOT shape or number first' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
+  if (whotHandCount(hands, playerId) === 0) return { error: 'You are out of the game' }
 
   const hand = handForPlayer(hands, playerId)
   const cardIndex = hand.findIndex((c) => c.id === cardId)
@@ -526,6 +661,7 @@ export async function processWhotPlay(
   if (!canPlayCard(card, session)) return { error: 'Cannot play that card' }
 
   const newHand = hand.filter((_, i) => i !== cardIndex)
+  let nextHands = updateHand(hands, playerId, newHand)
   await supabase
     .from('whot_player_hands')
     .update({ cards: newHand })
@@ -566,14 +702,22 @@ export async function processWhotPlay(
     )
 
     if (newHand.length === 0) {
-      await finishIfEmptyHand(supabase, gameId, session, playerId, playerNames)
+      await finishIfEmptyHand(
+        supabase,
+        gameId,
+        session,
+        playerId,
+        playerNames,
+        nextHands,
+        gameDurationSeconds,
+        timerSeconds
+      )
     }
     return {}
   }
 
   let drawPile = (session.draw_pile as WhotCard[]) ?? []
   let discardPile = discardPlayedTop(session)
-  let nextHands = hands
 
   if (card.number === 14) {
     const market = await applyGeneralMarket(
@@ -582,14 +726,14 @@ export async function processWhotPlay(
       playerId,
       drawPile,
       discardPile,
-      hands
+      nextHands
     )
     drawPile = market.drawPile
     discardPile = market.discardPile
     nextHands = market.hands
   }
 
-  const advance = computeNextTurn(session, card.number)
+  const advance = resolveNextTurnIndex(session, nextHands, card.number)
   const nextPlayerId = session.turn_order[advance.nextIndex]
   const special = specialCardMessage(card.number)
 
@@ -622,7 +766,16 @@ export async function processWhotPlay(
   )
 
   if (newHand.length === 0) {
-    await finishIfEmptyHand(supabase, gameId, session, playerId, playerNames)
+    await finishIfEmptyHand(
+      supabase,
+      gameId,
+      session,
+      playerId,
+      playerNames,
+      nextHands,
+      gameDurationSeconds,
+      timerSeconds
+    )
   }
 
   return {}
@@ -640,6 +793,7 @@ export async function processWhotDraw(
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
+  if (whotHandCount(hands, playerId) === 0) return { error: 'You are out of the game' }
 
   let drawPile = (session.draw_pile as WhotCard[]) ?? []
   let discardPile = (session.discard_pile as WhotCard[]) ?? []
@@ -655,8 +809,7 @@ export async function processWhotDraw(
   drawPile = nextDrawPile
   discardPile = nextDiscardPile
 
-  const len = session.turn_order.length
-  const nextIndex = (session.current_turn_index + 1) % len
+  const nextIndex = whotNextTurnIndex(session, hands, session.current_turn_index, 1)
   const nextPlayerId = session.turn_order[nextIndex]
 
   const hand = handForPlayer(hands, playerId)
@@ -698,12 +851,16 @@ export async function processWhotDraw(
   }
 
   const newHand = [...hand, ...drawn]
+  const handsAfterDraw = updateHand(hands, playerId, newHand)
 
   await supabase
     .from('whot_player_hands')
     .update({ cards: newHand })
     .eq('game_id', gameId)
     .eq('player_id', playerId)
+
+  const nextIndexAfterDraw = whotNextTurnIndex(session, handsAfterDraw, session.current_turn_index, 1)
+  const nextPlayerIdAfterDraw = session.turn_order[nextIndexAfterDraw]
 
   const penaltyMsg =
     pickTwo > 0
@@ -722,8 +879,8 @@ export async function processWhotDraw(
       discard_pile: discardPile,
       pick_two_stack: 0,
       pick_five_stack: 0,
-      current_turn_index: nextIndex,
-      status_message: `${reshuffleNote}${penaltyMsg}. ${playerName(playerNames, nextPlayerId)}'s turn`,
+      current_turn_index: nextIndexAfterDraw,
+      status_message: `${reshuffleNote}${penaltyMsg}. ${playerName(playerNames, nextPlayerIdAfterDraw)}'s turn`,
     },
     timerSeconds
   )
@@ -737,20 +894,20 @@ export async function processWhotChoose(
   playerId: string,
   choice: { shape?: WhotShape; number?: number }
 ): Promise<{ error?: string }> {
-  const { session, timerSeconds, playerNames } = await loadGameState(supabase, gameId)
+  const { session, hands, timerSeconds, playerNames } = await loadGameState(supabase, gameId)
   if (!session) return { error: 'Session not found' }
   if (session.phase !== 'choose_whot') return { error: 'Not choosing WHOT' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
+  if (whotHandCount(hands, playerId) === 0) return { error: 'You are out of the game' }
 
   const hasShape = choice.shape != null && choice.shape !== 'whot'
   const hasNumber = choice.number != null && choice.number >= 1 && choice.number <= 14
   if (!hasShape && !hasNumber) return { error: 'Choose a shape or number' }
   if (hasShape && hasNumber) return { error: 'Choose shape or number, not both' }
 
-  const len = session.turn_order.length
-  const nextIndex = (session.current_turn_index + 1) % len
+  const nextIndex = whotNextTurnIndex(session, hands, session.current_turn_index, 1)
   const nextPlayerId = session.turn_order[nextIndex]
 
   const requirement = hasShape

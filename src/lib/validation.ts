@@ -59,6 +59,7 @@ const gameTypeEnum = z.enum([
   'monopoly',
   'yahtzee',
   'whot',
+  'ludo',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -603,6 +604,23 @@ export type WhotPlayInput = z.infer<typeof whotPlaySchema>
 export type WhotDrawInput = z.infer<typeof whotDrawSchema>
 export type WhotChooseInput = z.infer<typeof whotChooseSchema>
 
+// Ludo (POST /api/ludo/*)
+
+export const ludoActionSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const ludoMoveSchema = ludoActionSchema.extend({
+  pieceId: z.coerce.number().int().min(0).max(3),
+})
+
+export const ludoExpireSchema = z.object({
+  gameId: gameCodeString(),
+})
+
+export type LudoMoveInput = z.infer<typeof ludoMoveSchema>
+
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
 
@@ -711,6 +729,7 @@ const feedbackGameTypeEnum = z.enum([
   'monopoly',
   'yahtzee',
   'whot',
+  'ludo',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])

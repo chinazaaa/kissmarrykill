@@ -615,8 +615,56 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       title: 'Game length',
       points: [
         'The host can set a game length (10, 15, 30 minutes, etc.) or play with no limit.',
-        'First to empty their hand still wins during normal play.',
-        'If time runs out, add up the numbers on the cards left in each hand — lowest total wins (WHOT counts as 20).',
+        'First to empty their hand wins during normal play (no game clock).',
+        'With a game clock, players who go out keep watching until time runs out — lowest hand total wins (WHOT counts as 20).',
+      ],
+    },
+  ],
+
+  ludo: [
+    {
+      title: 'Objective',
+      points: [
+        'Move all four of your colored pieces clockwise around the board, up your home column, and into the center home triangle.',
+        'The first player to finish all four pieces wins. Remaining players continue for runner-up places.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        '2–4 players join a room. Each player is assigned a color (red, green, yellow, or blue) with four pieces in their corner base.',
+        'Turn order is set when the host starts. Optional per-turn timer keeps the game moving.',
+      ],
+    },
+    {
+      title: 'Getting pieces into play',
+      points: [
+        'You must roll a 6 to move a piece from your base onto your start position.',
+        'Until at least one piece is in play, you cannot make other moves.',
+        'When you roll a 6, you may bring a piece out of base or move a piece already in play.',
+      ],
+    },
+    {
+      title: 'Rolling a six',
+      points: [
+        'Any time you roll a 6, you get an extra roll after completing your move.',
+        'If you roll three 6s in a row, your turn ends immediately — play passes to the next player.',
+      ],
+    },
+    {
+      title: 'Captures & blockades',
+      points: [
+        'Landing on a single opponent piece sends it back to their base — they need another 6 to re-enter.',
+        'If two of your pieces share a square, that space is blocked. Opponents cannot land on or pass through it.',
+        'Your own pieces can still land on and pass your blockades.',
+      ],
+    },
+    {
+      title: 'Home column & winning',
+      points: [
+        'After completing the main track, pieces enter your colored home column toward the center.',
+        'You need an exact roll to enter the home triangle — overshooting is not allowed.',
+        'The first player with all four pieces in the center wins.',
       ],
     },
   ],

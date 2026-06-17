@@ -47,6 +47,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   monopoly: 'monopoly',
   yahtzee: 'yahtzee',
   whot: 'whot',
+  ludo: 'ludo',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -868,6 +869,46 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
         question: 'What are the special cards in Whot?',
         answer:
           '1 = Hold On (extra turn), 2 = Pick 2, 5 = Pick 3, 8 = Suspension (skip next player), 14 = General Market (others draw), 20 = WHOT (call shape or number). Pick 2 and Pick 3 stacks cannot be mixed.',
+      },
+    ],
+  }),
+  ludo: landing('ludo', {
+    seoTitle: 'Ludo Online — Play Classic Board Game with Friends',
+    seoDescription:
+      'Play Ludo online with friends. Roll the die, race your pieces home, capture opponents, and block with pairs — classic rules.',
+    keywords: ['ludo online', 'play ludo friends', 'ludo board game multiplayer', 'ludo game online free'],
+    heroSubtitle: 'The classic board game — roll, race, capture, and be first to get all four pieces home.',
+    bodyParagraph:
+      'Ludo on Fate Round follows classic rules: roll a 6 to enter the board, move pieces clockwise around the track, send opponents back to base on capture, and form blockades with pairs. Exact rolls are needed to enter the home triangle. First player to finish all four pieces wins.',
+    highlights: ['2–4 players', 'Classic rules', 'Real-time board'],
+    features: [
+      {
+        title: 'Roll & move',
+        description: 'Roll the die on your turn — a 6 lets you bring a piece out or move one in play, plus an extra roll.',
+        emoji: '🎲',
+      },
+      {
+        title: 'Captures & blockades',
+        description: 'Land on an opponent to send them home. Stack two of your pieces to block the square.',
+        emoji: '🎯',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: 'Enter your name and pick your color when the host starts.' },
+      { title: 'Roll the die', description: 'Roll a 6 to enter the board, then move pieces around the track.' },
+      { title: 'Race home', description: 'Get all four pieces into the center home triangle to win.' },
+    ],
+    perfectFor: ['Family game night', 'Friend groups', 'Board game fans'],
+    extraFaqs: [
+      {
+        question: 'What happens when I roll three 6s in a row?',
+        answer: 'Your turn ends immediately — no move and no extra roll. Play passes to the next player.',
+      },
+      {
+        question: 'Do I need an exact roll to finish?',
+        answer: 'Yes. A piece can only enter the home triangle with an exact roll — overshooting is not allowed.',
       },
     ],
   }),

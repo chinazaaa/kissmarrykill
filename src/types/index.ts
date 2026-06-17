@@ -29,6 +29,7 @@ export type GameType =
   | 'monopoly'
   | 'yahtzee'
   | 'whot'
+  | 'ludo'
 
 export type YahtzeeCategory =
   | 'ones'
@@ -351,6 +352,43 @@ export interface WhotPlayerHand {
   game_id: string
   player_id: string
   cards: WhotCard[]
+  player_order: number
+  created_at: string
+}
+
+export type LudoColor = 'red' | 'green' | 'yellow' | 'blue'
+export type LudoPieceZone = 'base' | 'track' | 'home' | 'finished'
+export type LudoPhase = 'roll' | 'move' | 'finished'
+
+export interface LudoPiece {
+  id: number
+  zone: LudoPieceZone
+  /** Track: 0–51. Home: 0–4 before finish. */
+  pos: number
+}
+
+export interface LudoSession {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: LudoPhase
+  last_dice: number | null
+  consecutive_sixes: number
+  extra_turn: boolean
+  status_message: string | null
+  winner_player_id: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LudoPlayerState {
+  id: string
+  game_id: string
+  player_id: string
+  color: LudoColor
+  pieces: LudoPiece[]
   player_order: number
   created_at: string
 }

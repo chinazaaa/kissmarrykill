@@ -74,7 +74,7 @@ export function playAgainNeedsSetup(game: Game): boolean {
 
 export function hostPoolSetupAvailable(game: Game): boolean {
   const type = parseGameType(game.game_type)
-  if (isAnonymousMessagesGame(type) || type === 'secret_message' || type === 'bingo' || type === 'codewords' || type === 'monopoly' || type === 'yahtzee' || type === 'whot') return false
+  if (isAnonymousMessagesGame(type) || type === 'secret_message' || type === 'bingo' || type === 'codewords' || type === 'monopoly' || type === 'yahtzee' || type === 'whot' || type === 'ludo') return false
   return hasQuestionPool(game) || hasParticipantPool(game)
 }
 

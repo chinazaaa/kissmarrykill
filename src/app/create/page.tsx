@@ -54,6 +54,7 @@ import {
   gameHowItWorks,
   isYahtzeeGame,
   isWhotGame,
+  isLudoGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -134,6 +135,9 @@ import {
   WHOT_GAME_DURATION_OPTIONS,
   formatWhotGameDuration,
 } from '@/lib/whot'
+import {
+  LUDO_DEFAULT_MAX_PLAYERS,
+} from '@/lib/ludo'
 import {
   getCodeDefaultLimits,
   playerCountOptions,
@@ -225,6 +229,7 @@ function CreateGameInner() {
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
   const [whotGameDuration, setWhotGameDuration] = useState(0)
+  const [ludoMaxPlayers, setLudoMaxPlayers] = useState(LUDO_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
@@ -250,6 +255,7 @@ function CreateGameInner() {
     setMonopolyMaxPlayers((v) => clamp('monopoly', v))
     setYahtzeeMaxPlayers((v) => clamp('yahtzee', v))
     setWhotMaxPlayers((v) => clamp('whot', v))
+    setLudoMaxPlayers((v) => clamp('ludo', v))
   }, [lobbyLimits])
 
   useEffect(() => {
@@ -315,6 +321,13 @@ function CreateGameInner() {
               rounds_count: 1,
             }
           : {}),
+        ...(isLudoGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -347,6 +360,7 @@ function CreateGameInner() {
   const isMonopoly = isMonopolyGame(settings.game_type)
   const isYahtzee = isYahtzeeGame(settings.game_type)
   const isWhot = isWhotGame(settings.game_type)
+  const isLudo = isLudoGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -417,7 +431,7 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
@@ -499,6 +513,14 @@ function CreateGameInner() {
             anonymous: true,
             rounds_count: 1,
             timer_seconds: 0,
+          }
+        : {}),
+      ...(isLudoGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: 60,
           }
         : {}),
       ...(isWhoSaidThis(type)
@@ -836,6 +858,8 @@ function CreateGameInner() {
                           ? yahtzeeMaxPlayers
                           : isWhot
                             ? whotMaxPlayers
+                            : isLudo
+                              ? ludoMaxPlayers
                           : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
@@ -1198,6 +1222,41 @@ function CreateGameInner() {
                   Nigerian card classic — match shape or number, play WHOT to call the next match. Pick 2 and Pick 3
                   stacks are separate. First to empty their hand wins! With a game length set, time running out ends
                   the game — whoever has the lowest total on the cards left in their hand wins.
+                </p>
+              </SettingsGroup>
+            ) : isLudo ? (
+              <SettingsGroup title="Ludo room">
+                <Field label={`Max players (${effectiveLimits.ludo.min}–${effectiveLimits.ludo.max})`}>
+                  <select
+                    value={ludoMaxPlayers}
+                    onChange={(e) => setLudoMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.ludo.min, effectiveLimits.ludo.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                  </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="ludo" />
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Classic Ludo — roll a 6 to enter, race around the board, capture opponents, and block with pairs.
+                  Exact rolls needed to finish. First to get all four pieces home wins!
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (

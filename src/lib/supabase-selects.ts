@@ -43,6 +43,11 @@ export const WHOT_SESSION_SELECT =
 
 export const WHOT_PLAYER_HANDS_SELECT = 'id,game_id,player_id,cards,player_order,created_at'
 
+export const LUDO_SESSION_SELECT =
+  'id,game_id,turn_order,current_turn_index,phase,last_dice,consecutive_sixes,extra_turn,status_message,winner_player_id,turn_deadline_at,created_at,updated_at'
+
+export const LUDO_PLAYER_STATE_SELECT = 'id,game_id,player_id,color,pieces,player_order,created_at'
+
 export const BINGO_CALLED_NUMBER_SELECT = 'id,game_id,number,called_at'
 
 export const BINGO_CLAIM_SELECT = 'id,game_id,player_id,pattern,status,created_at'

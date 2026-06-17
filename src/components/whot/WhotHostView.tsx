@@ -28,6 +28,7 @@ import { useWhotTurnTimer } from '@/hooks/useWhotTurnTimer'
 import { useWhotNotifications, playWhotActionSound } from '@/hooks/useWhotNotifications'
 import { WhotChoosePanel, WhotHand, WhotTable } from '@/components/whot/WhotBoard'
 import { WhotGameTimerBar } from '@/components/whot/WhotGameTimerBar'
+import { WhotFinalResultsShareBlock } from '@/components/whot/WhotFinalResultsShareBlock'
 import { WhotCard, WhotPrimaryButton } from '@/components/whot/WhotChrome'
 
 type HostTab = 'play' | 'manage'
@@ -453,13 +454,24 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {game.status === 'finished' && (
-              <WhotCard className="p-5 text-center space-y-3">
-                <div className="text-4xl">🏆</div>
-                {winner && <p className="text-xl font-black">{winner.name} wins!</p>}
-                <button type="button" onClick={() => void playAgain()} disabled={playingAgain} className="btn-primary w-full py-3">
-                  {playingAgain ? 'Resetting…' : 'Play again'}
-                </button>
-              </WhotCard>
+              <WhotFinalResultsShareBlock
+                game={game}
+                players={players}
+                hands={hands}
+                session={session}
+                winnerName={winner?.name}
+                highlightPlayerId={hostPlayerId}
+                playAgainButton={
+                  <button
+                    type="button"
+                    onClick={() => void playAgain()}
+                    disabled={playingAgain}
+                    className="btn-primary w-full py-3"
+                  >
+                    {playingAgain ? 'Resetting…' : 'Play again'}
+                  </button>
+                }
+              />
             )}
           </>
         )}

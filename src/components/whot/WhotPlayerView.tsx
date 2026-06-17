@@ -11,6 +11,7 @@ import {
 } from '@/components/whot/WhotChrome'
 import { WhotChoosePanel, WhotHand, WhotTable } from '@/components/whot/WhotBoard'
 import { WhotGameTimerBar } from '@/components/whot/WhotGameTimerBar'
+import { WhotFinalResultsShareBlock } from '@/components/whot/WhotFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
 import { currentPlayerId, hasPlayableCard, isDrawPileDepleted } from '@/lib/whot'
 import { supabase } from '@/lib/supabase'
@@ -199,6 +200,8 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const isMyTurn = myPlayerId != null && turnPlayerId === myPlayerId
   const activePlayer = myPlayerId ? players.find((p) => p.id === myPlayerId) : undefined
   const isViewer = !!(game && activePlayer && playerIsViewer(activePlayer, game))
+  const isOut = myHand.length === 0 && game?.status === 'active'
+  const isWatching = isViewer || isOut
 
   const { secondsLeft, hasTimer, urgent } = useWhotTurnTimer(
     gameCode,
@@ -215,7 +218,7 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
 
   const tableTimerProps = {
     turnPlayerName: turnPlayer?.name,
-    isMyTurn: isMyTurn && !isViewer,
+    isMyTurn: isMyTurn && !isWatching,
     secondsLeft,
     hasTimer,
     urgent,
@@ -305,15 +308,21 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   if (screen === 'finished') {
     return (
       <WhotShell title="Game over!" subtitle={winner ? `${winner.name} wins` : undefined}>
-        <WhotCard className="py-10 text-center space-y-2">
-          <div className="text-6xl mb-3">🏆</div>
-          {winner && <p className="text-2xl font-black text-[var(--marry)]">{winner.name}</p>}
-          {session?.status_message && (
-            <p className="text-sm text-muted max-w-sm mx-auto">{session.status_message}</p>
-          )}
-          <p className="text-sm text-muted mt-2">First to empty their hand wins — or lowest hand total when time runs out</p>
-        </WhotCard>
-        <WhotSecondaryButton onClick={() => router.push('/games')}>Create a new game</WhotSecondaryButton>
+        {game ? (
+          <WhotFinalResultsShareBlock
+            game={game}
+            players={players}
+            hands={hands}
+            session={session}
+            winnerName={winner?.name}
+            highlightPlayerId={myPlayerId}
+          />
+        ) : (
+          <WhotCard className="py-10 text-center space-y-2">
+            <div className="text-6xl mb-3">🏆</div>
+            {winner && <p className="text-2xl font-black text-[var(--marry)]">{winner.name}</p>}
+          </WhotCard>
+        )}
       </WhotShell>
     )
   }
@@ -323,10 +332,17 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const myPlayer = activePlayer
   const myName = myPlayer?.name ?? ''
 
-  if (isViewer) {
+  if (isWatching) {
     return (
       <WhotShell title={game?.title} wide compact>
-        <ViewerModeBanner gameCode={gameCode} playerId={myPlayerId} game={game} player={myPlayer} />
+        {isOut && !isViewer ? (
+          <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_35%,transparent)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-4 py-3 text-center text-sm text-body">
+            <p className="font-semibold">You&apos;re out</p>
+            <p className="text-muted text-xs mt-1">You played all your cards — watch until the game ends.</p>
+          </div>
+        ) : (
+          <ViewerModeBanner gameCode={gameCode} playerId={myPlayerId} game={game} player={myPlayer} />
+        )}
         {myPlayerId && myName && (
           <PlayerSessionControls
             gameCode={gameCode}
