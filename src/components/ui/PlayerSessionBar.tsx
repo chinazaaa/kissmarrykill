@@ -1,9 +1,7 @@
 'use client'
 
 import { Avatar } from '@/components/Avatar'
-import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
-import type { GameType } from '@/types'
 
 export function PlayerSessionBar({
   gameCode,
@@ -16,7 +14,6 @@ export function PlayerSessionBar({
   changeNameLabel,
   inLobby = false,
   showControls = true,
-  gameType,
 }: {
   gameCode: string
   playerId: string
@@ -28,15 +25,16 @@ export function PlayerSessionBar({
   changeNameLabel?: string
   inLobby?: boolean
   showControls?: boolean
-  gameType?: GameType | string | null
 }) {
   if (!name && !viewerBanner) return null
 
+  const showBadge = Boolean(name && onChangeName)
+
   return (
     <div className="mb-4 space-y-3">
-      {name ? (
+      {showBadge ? (
         <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/8">
-          <Avatar name={name} size="sm" />
+          <Avatar name={name!} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-wider text-faint leading-none">Playing as</p>
             <p className="text-sm font-semibold truncate">{name}</p>
@@ -55,11 +53,6 @@ export function PlayerSessionBar({
           changeNameLabel={changeNameLabel}
           inLobby={inLobby}
         />
-      ) : null}
-      {gameType ? (
-        <p className="text-center">
-          <GameRulesLink gameType={gameType} variant="subtle" />
-        </p>
       ) : null}
     </div>
   )

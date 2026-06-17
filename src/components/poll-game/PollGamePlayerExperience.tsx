@@ -166,7 +166,6 @@ import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { PlayerSessionBar } from '@/components/ui/PlayerSessionBar'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
-import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
@@ -1320,7 +1319,6 @@ export function PollGamePlayerExperience({
         onChangeName={useFreeNameJoin ? undefined : openEditJoin}
         changeNameLabel={isNameOnlyJoin || !joinNeedsGender ? 'Change name' : 'Change name or gender'}
         inLobby={view === 'waiting'}
-        gameType={game?.game_type}
       />
     ) : viewerBanner ? (
       <div className="mb-4">{viewerBanner}</div>
@@ -1509,6 +1507,11 @@ export function PollGamePlayerExperience({
               Cancel
             </button>
           ) : null}
+          {game ? (
+            <p className="text-center pt-1">
+              <GameRulesLink gameType={game.game_type} variant="subtle" />
+            </p>
+          ) : null}
           <ShareGameLinkCard gameCode={gameCode} />
         </div>
       </CenteredCard>
@@ -1589,7 +1592,6 @@ export function PollGamePlayerExperience({
 
     return (
       <CenteredCard>
-        {sessionBar}
         <div className="text-center space-y-1">
           <div className="text-4xl">⏳</div>
           <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
@@ -2151,22 +2153,10 @@ export function PollGamePlayerExperience({
           <ParticipantGallery participants={participants} />
         )}
 
+        {sessionBar}
+
         <ShareGameLinkCard gameCode={gameCode} />
 
-        <div className="flex flex-col gap-2">
-          {myPlayerId && myPlayerName && (
-            <PlayerSessionControls
-              gameCode={gameCode}
-              playerId={myPlayerId}
-              currentName={myPlayerName}
-              onRenamed={handlePlayerRenamed}
-              onLeft={handlePlayerLeft}
-              onChangeName={useFreeNameJoin ? undefined : openEditJoin}
-              changeNameLabel={isNameOnlyJoin || !joinNeedsGender ? 'Change name' : 'Change name or gender'}
-              inLobby
-            />
-          )}
-        </div>
         <p className="text-faint text-xs text-center">Keep this tab open</p>
       </CenteredCard>
     )
@@ -3283,7 +3273,6 @@ function FinalResultsView({
           name={myPlayerName}
           onRenamed={onPlayerRenamed}
           onLeft={onPlayerLeft}
-          gameType={gameType}
         />
       ) : null}
       <div className="text-center">

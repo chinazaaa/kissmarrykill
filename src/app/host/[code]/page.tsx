@@ -2729,7 +2729,6 @@ export default function HostPage() {
               <p className="label-teal text-sm mt-1">Guess who said it</p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <GameRulesLink gameType={gameType} variant="header" />
               <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
             </div>
           </div>
