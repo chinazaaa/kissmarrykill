@@ -1,7 +1,11 @@
 import type { LudoColor } from '@/types'
 import { START_POS } from '@/lib/ludo'
 
-/** 52 outer-track cells on a 15×15 grid, clockwise from red start. */
+/**
+ * Standard 15×15 Ludo board (0-indexed rows/cols).
+ * Corners: red TL · green TR · blue BL · yellow BR.
+ * 52-cell outer track clockwise from red ★ at (6,1).
+ */
 export const LUDO_TRACK_COORDS: ReadonlyArray<readonly [number, number]> = [
   [6, 1],
   [6, 2],
@@ -13,92 +17,100 @@ export const LUDO_TRACK_COORDS: ReadonlyArray<readonly [number, number]> = [
   [3, 6],
   [2, 6],
   [1, 6],
-  [1, 7],
+  [0, 6],
+  [0, 7],
+  [0, 8],
   [1, 8],
-  [1, 9],
-  [1, 10],
-  [1, 11],
-  [1, 12],
-  [2, 13],
-  [3, 13],
-  [4, 13],
-  [5, 13],
-  [6, 13],
-  [7, 13],
-  [8, 13],
-  [9, 13],
-  [10, 13],
-  [11, 13],
-  [12, 13],
-  [13, 12],
-  [13, 11],
-  [13, 10],
-  [13, 9],
-  [13, 8],
-  [13, 7],
-  [12, 6],
-  [11, 6],
-  [10, 6],
-  [9, 6],
-  [8, 6],
-  [7, 6],
-  [6, 7],
-  [6, 8],
+  [2, 8],
+  [3, 8],
+  [4, 8],
+  [5, 8],
   [6, 9],
   [6, 10],
   [6, 11],
   [6, 12],
-  [7, 1],
+  [6, 13],
+  [6, 14],
+  [7, 14],
+  [8, 14],
+  [8, 13],
+  [8, 12],
+  [8, 11],
+  [8, 10],
+  [8, 9],
+  [9, 8],
+  [10, 8],
+  [11, 8],
+  [12, 8],
+  [13, 8],
+  [14, 8],
+  [14, 7],
+  [14, 6],
+  [13, 6],
+  [12, 6],
+  [11, 6],
+  [10, 6],
+  [9, 6],
+  [8, 5],
+  [8, 4],
+  [8, 3],
+  [8, 2],
   [8, 1],
-  [9, 1],
-  [10, 1],
-  [11, 1],
-  [12, 1],
-  [5, 1],
+  [8, 0],
+  [7, 0],
+  [6, 0],
 ]
 
 export const TRACK_GRID: Record<number, { row: number; col: number }> = Object.fromEntries(
   LUDO_TRACK_COORDS.map(([row, col], index) => [index, { row, col }])
 )
 
-const TRACK_CELL_SET = new Set(LUDO_TRACK_COORDS.map(([r, c]) => `${r},${c}`))
-
+/** Coloured home lanes — pos 0 is the cell where pieces enter from the track. */
 export const HOME_GRID: Record<LudoColor, { row: number; col: number }[]> = {
   red: [
-    { row: 6, col: 7 },
-    { row: 5, col: 7 },
-    { row: 4, col: 7 },
-    { row: 3, col: 7 },
-    { row: 2, col: 7 },
+    { row: 7, col: 1 },
+    { row: 7, col: 2 },
+    { row: 7, col: 3 },
+    { row: 7, col: 4 },
+    { row: 7, col: 5 },
   ],
   green: [
-    { row: 7, col: 6 },
-    { row: 7, col: 5 },
-    { row: 7, col: 4 },
-    { row: 7, col: 3 },
-    { row: 7, col: 2 },
+    { row: 1, col: 7 },
+    { row: 2, col: 7 },
+    { row: 3, col: 7 },
+    { row: 4, col: 7 },
+    { row: 5, col: 7 },
   ],
   yellow: [
-    { row: 8, col: 7 },
+    { row: 7, col: 13 },
+    { row: 7, col: 12 },
+    { row: 7, col: 11 },
+    { row: 7, col: 10 },
+    { row: 7, col: 9 },
+  ],
+  blue: [
     { row: 9, col: 7 },
     { row: 10, col: 7 },
     { row: 11, col: 7 },
     { row: 12, col: 7 },
-  ],
-  blue: [
-    { row: 7, col: 8 },
-    { row: 7, col: 9 },
-    { row: 7, col: 10 },
-    { row: 7, col: 11 },
-    { row: 7, col: 12 },
+    { row: 13, col: 7 },
   ],
 }
 
-const HOME_CELL_MAP = new Map<string, LudoColor>()
-for (const [color, cells] of Object.entries(HOME_GRID) as [LudoColor, { row: number; col: number }[]][]) {
-  for (const cell of cells) {
-    HOME_CELL_MAP.set(`${cell.row},${cell.col}`, color)
-  }
+/** ★ at each colour's spawn square on the outer track. */
+export const START_CELL: Record<LudoColor, { row: number; col: number }> = {
+  red: { row: 6, col: 1 },
+  green: { row: 1, col: 8 },
+  yellow: { row: 8, col: 13 },
+  blue: { row: 13, col: 6 },
+}
+
+/** ★ where each home column meets the outer track (safe entry). */
+export const SAFE_ENTRY_CELL: Record<LudoColor, { row: number; col: number }> = {
+  red: { row: 7, col: 0 },
+  green: { row: 0, col: 7 },
+  yellow: { row: 7, col: 14 },
+  blue: { row: 14, col: 7 },
 }
 
 export const BASE_SLOTS: Record<LudoColor, { row: number; col: number }[]> = {
@@ -128,17 +140,34 @@ export const BASE_SLOTS: Record<LudoColor, { row: number; col: number }[]> = {
   ],
 }
 
-const START_CELL_MAP = new Map<string, LudoColor>()
-export const START_CELL: Record<LudoColor, { row: number; col: number }> = {} as Record<
-  LudoColor,
-  { row: number; col: number }
->
-for (const [color, pos] of Object.entries(START_POS) as [LudoColor, number][]) {
-  const cell = TRACK_GRID[pos]
-  if (cell) {
-    START_CELL_MAP.set(`${cell.row},${cell.col}`, color)
-    START_CELL[color] = cell
+const TRACK_CELL_SET = new Set(LUDO_TRACK_COORDS.map(([r, c]) => `${r},${c}`))
+
+const HOME_CELL_MAP = new Map<string, LudoColor>()
+for (const [color, cells] of Object.entries(HOME_GRID) as [LudoColor, { row: number; col: number }[]][]) {
+  for (const cell of cells) {
+    HOME_CELL_MAP.set(`${cell.row},${cell.col}`, color)
   }
+}
+
+const START_CELL_MAP = new Map<string, LudoColor>()
+for (const [color, cell] of Object.entries(START_CELL) as [LudoColor, { row: number; col: number }][]) {
+  START_CELL_MAP.set(`${cell.row},${cell.col}`, color)
+}
+
+const SAFE_ENTRY_MAP = new Map<string, LudoColor>()
+for (const [color, cell] of Object.entries(SAFE_ENTRY_CELL) as [LudoColor, { row: number; col: number }][]) {
+  SAFE_ENTRY_MAP.set(`${cell.row},${cell.col}`, color)
+}
+
+/** Extra junction cells on the 3-wide cross (visual path, not separate track indices). */
+const JUNCTION_CELLS = new Set(['6,6', '6,7', '6,8', '8,6', '8,8'])
+
+export function baseColorAt(row: number, col: number): LudoColor | null {
+  if (row >= 0 && row <= 5 && col >= 0 && col <= 5) return 'red'
+  if (row >= 0 && row <= 5 && col >= 9 && col <= 14) return 'green'
+  if (row >= 9 && row <= 14 && col >= 9 && col <= 14) return 'yellow'
+  if (row >= 9 && row <= 14 && col >= 0 && col <= 5) return 'blue'
+  return null
 }
 
 export type BoardCellKind =
@@ -148,35 +177,58 @@ export type BoardCellKind =
   | 'start'
   | 'home'
   | 'center'
-
-export function baseColorAt(row: number, col: number): LudoColor | null {
-  if (row >= 1 && row <= 5 && col >= 1 && col <= 5) return 'red'
-  if (row >= 1 && row <= 5 && col >= 9 && col <= 13) return 'green'
-  if (row >= 9 && row <= 13 && col >= 9 && col <= 13) return 'yellow'
-  if (row >= 9 && row <= 13 && col >= 1 && col <= 5) return 'blue'
-  return null
-}
+  | 'safe'
 
 export function boardCellKind(row: number, col: number): { kind: BoardCellKind; color?: LudoColor } {
   const key = `${row},${col}`
 
-  if (row >= 6 && row <= 8 && col >= 6 && col <= 8) {
+  if (row === 7 && col === 7) {
     return { kind: 'center' }
   }
 
-  const base = baseColorAt(row, col)
-  if (base) return { kind: 'base', color: base }
+  if (row >= 6 && row <= 8 && col >= 6 && col <= 8 && !(row === 7 && col === 7)) {
+    return { kind: 'center' }
+  }
 
   if (START_CELL_MAP.has(key)) {
     return { kind: 'start', color: START_CELL_MAP.get(key)! }
   }
 
+  if (SAFE_ENTRY_MAP.has(key)) {
+    return { kind: 'safe', color: SAFE_ENTRY_MAP.get(key)! }
+  }
+
   const home = HOME_CELL_MAP.get(key)
   if (home) return { kind: 'home', color: home }
 
-  if (TRACK_CELL_SET.has(key)) return { kind: 'track' }
+  if (TRACK_CELL_SET.has(key) || JUNCTION_CELLS.has(key)) {
+    return { kind: 'track' }
+  }
+
+  const base = baseColorAt(row, col)
+  if (base) return { kind: 'base', color: base }
 
   return { kind: 'void' }
+}
+
+export function trackIndexForColor(color: LudoColor, stepsFromStart: number): number {
+  return (START_POS[color] + stepsFromStart) % LUDO_TRACK_COORDS.length
+}
+
+export function trackCellsAlongSteps(
+  color: LudoColor,
+  stepsFromStart: number,
+  dice: number
+): { row: number; col: number }[] {
+  const cells: { row: number; col: number }[] = []
+  for (let step = 1; step <= dice; step += 1) {
+    const nextSteps = stepsFromStart + step
+    if (nextSteps >= LUDO_TRACK_COORDS.length) break
+    const idx = trackIndexForColor(color, nextSteps)
+    const cell = TRACK_GRID[idx]
+    if (cell) cells.push(cell)
+  }
+  return cells
 }
 
 export function moveDestinationCell(
@@ -190,17 +242,15 @@ export function moveDestinationCell(
   return null
 }
 
-/** Finished pieces sit in each color's center triangle (classic layout). */
 export const FINISHED_DISPLAY: Record<LudoColor, { row: number; col: number }> = {
-  red: { row: 6, col: 7 },
-  green: { row: 7, col: 6 },
-  yellow: { row: 8, col: 7 },
-  blue: { row: 7, col: 8 },
+  green: { row: 6, col: 7 },
+  yellow: { row: 7, col: 8 },
+  red: { row: 8, col: 7 },
+  blue: { row: 7, col: 6 },
 }
 
 export type TrackDirection = 'up' | 'down' | 'left' | 'right'
 
-/** Clockwise travel hint for each track cell. */
 export const TRACK_DIRECTION: Record<number, TrackDirection> = Object.fromEntries(
   LUDO_TRACK_COORDS.map((coord, index) => {
     const next = LUDO_TRACK_COORDS[(index + 1) % LUDO_TRACK_COORDS.length]
@@ -221,6 +271,22 @@ export function trackIndexAt(row: number, col: number): number | null {
   return TRACK_POS_BY_COORD.get(`${row},${col}`) ?? null
 }
 
+/** Arrow direction on any visible path cell (including junction fillers). */
+export function pathArrowAt(row: number, col: number): TrackDirection | null {
+  const idx = trackIndexAt(row, col)
+  if (idx != null) return TRACK_DIRECTION[idx] ?? null
+
+  const key = `${row},${col}`
+  if (!JUNCTION_CELLS.has(key)) return null
+
+  if (key === '6,6') return 'up'
+  if (key === '6,7') return 'right'
+  if (key === '6,8') return 'right'
+  if (key === '8,6') return 'left'
+  if (key === '8,8') return 'up'
+  return null
+}
+
 export const CORNER_BOUNDS: Record<
   LudoColor,
   { rowStart: number; rowEnd: number; colStart: number; colEnd: number }
@@ -235,6 +301,6 @@ export function pieceStatusLabel(piece: { zone: string; pos: number }): string {
   if (piece.zone === 'base') return 'In base'
   if (piece.zone === 'track') return `On path (space ${piece.pos + 1})`
   if (piece.zone === 'home') return `Home lane (${piece.pos + 1}/5)`
-  if (piece.zone === 'finished') return 'Finished'
+  if (piece.zone === 'finished') return 'In the center'
   return piece.zone
 }

@@ -393,22 +393,6 @@ function pickAutoMove(moves: LudoMoveOption[]): LudoMoveOption | null {
   return moves[0]!
 }
 
-function resolveAutoMove(moves: LudoMoveOption[]): LudoMoveOption | null {
-  if (moves.length === 0) return null
-  if (moves.length === 1) return moves[0]!
-
-  const dest = moves[0]!.to
-  if (
-    moves.every(
-      (m) => m.from.zone === 'base' && m.to.zone === 'track' && m.to.pos === dest.pos
-    )
-  ) {
-    return [...moves].sort((a, b) => a.pieceId - b.pieceId)[0]!
-  }
-
-  return null
-}
-
 async function persistMove(
   supabase: SupabaseClient,
   gameId: string,
@@ -579,23 +563,6 @@ export async function processLudoRoll(
       })
       .eq('game_id', gameId)
     if (error) return { error: error.message }
-    return { dice }
-  }
-
-  const autoMove = resolveAutoMove(moves)
-  if (autoMove) {
-    const interimSession = { ...session, last_dice: dice }
-    const { error } = await persistMove(
-      supabase,
-      gameId,
-      interimSession,
-      states,
-      playerId,
-      autoMove,
-      timerSeconds,
-      playerNames
-    )
-    if (error) return { error }
     return { dice }
   }
 

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { finishMonopolyGameEarly } from '@/lib/monopoly'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
 import { markGameFinished } from '@/lib/game-finish'
-import { parseGameType, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame, isWhotGame } from '@/lib/game-types'
+import { parseGameType, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame, isWhotGame, isLudoGame } from '@/lib/game-types'
 import { hostActionSchema } from '@/lib/validation'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -61,6 +61,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isWhotGame(parseGameType(game.game_type))) {
+    const { error } = await markGameFinished(supabase, gameId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isLudoGame(parseGameType(game.game_type))) {
     const { error } = await markGameFinished(supabase, gameId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })

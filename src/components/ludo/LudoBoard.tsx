@@ -5,6 +5,8 @@ import type { LudoColor, LudoPlayerState, LudoSession, Player } from '@/types'
 import {
   LUDO_COLOR_HEX,
   LUDO_COLOR_LABELS,
+  START_POS,
+  TRACK_LENGTH,
   finishedPieceCount,
   getLegalMoves,
   type LudoMoveOption,
@@ -14,12 +16,12 @@ import {
   CORNER_BOUNDS,
   FINISHED_DISPLAY,
   HOME_GRID,
-  TRACK_DIRECTION,
   TRACK_GRID,
   boardCellKind,
   moveDestinationCell,
+  pathArrowAt,
   pieceStatusLabel,
-  trackIndexAt,
+  trackCellsAlongSteps,
 } from '@/lib/ludo-board-layout'
 import { LudoCard, LudoDice, LudoTurnBar } from '@/components/ludo/LudoChrome'
 
@@ -105,25 +107,34 @@ function BaseCorner({
   const height = ((bounds.rowEnd - bounds.rowStart + 1) / 15) * 100
 
   const cornerPieces = pieces.filter((p) => p.color === color && BASE_SLOTS[color].some((s) => s.row === p.row && s.col === p.col))
+  const hasSelectable = cornerPieces.some(
+    (p) => p.playerId === myPlayerId && selectablePieceIds?.includes(p.pieceId)
+  )
 
   return (
     <div
-      className="pointer-events-none absolute z-[5] flex items-center justify-center"
+      className={['pointer-events-none absolute flex items-center justify-center', hasSelectable ? 'z-[15]' : 'z-[5]'].join(' ')}
       style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
     >
       <div
-        className="flex h-[72%] w-[72%] items-center justify-center rounded-full border-[3px] border-white/90 shadow-inner"
-        style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+        className="flex h-[76%] w-[76%] items-center justify-center rounded-full"
+        style={{ backgroundColor: '#ffffff' }}
       >
-        <div className="grid h-[68%] w-[68%] grid-cols-2 gap-[18%]">
+        <div className="grid h-[62%] w-[62%] grid-cols-2 gap-[20%]">
           {BASE_SLOTS[color].map((slot, index) => {
             const here = cornerPieces.find((p) => p.row === slot.row && p.col === slot.col)
             if (!here) {
-              return <div key={index} className="aspect-square rounded-full bg-slate-200/60" />
+              return (
+                <div
+                  key={index}
+                  className="aspect-square rounded-full"
+                  style={{ backgroundColor: COLOR_CORNER_DARK[color], opacity: 0.85 }}
+                />
+              )
             }
             const selectable = selectablePieceIds?.includes(here.pieceId) && here.playerId === myPlayerId
             return (
-              <div key={index} className="pointer-events-auto flex items-center justify-center">
+              <div key={index} className={selectable ? 'pointer-events-auto flex items-center justify-center' : 'flex items-center justify-center'}>
                 <PieceToken
                   color={here.color}
                   selected={selectable}
@@ -146,15 +157,18 @@ function CenterTriangles() {
 
   return (
     <div
-      className="pointer-events-none absolute z-[4]"
+      className="pointer-events-none absolute z-[4] flex items-center justify-center"
       style={{ left: `${left}%`, top: `${top}%`, width: `${size}%`, height: `${size}%` }}
     >
-      <svg viewBox="0 0 100 100" className="h-full w-full" aria-hidden>
-        <polygon points="50,50 0,0 100,0" fill={COLOR_CORNER_DARK.red} />
-        <polygon points="50,50 0,0 0,100" fill={COLOR_CORNER_DARK.green} />
-        <polygon points="50,50 100,0 100,100" fill={COLOR_CORNER_DARK.blue} />
-        <polygon points="50,50 0,100 100,100" fill={COLOR_CORNER_DARK.yellow} />
+      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden>
+        <polygon points="50,50 0,0 100,0" fill={COLOR_CORNER_DARK.green} />
+        <polygon points="50,50 100,0 100,100" fill={COLOR_CORNER_DARK.yellow} />
+        <polygon points="50,50 0,100 100,100" fill={COLOR_CORNER_DARK.red} />
+        <polygon points="50,50 0,0 0,100" fill={COLOR_CORNER_DARK.blue} />
       </svg>
+      <div className="relative z-10 flex h-[38%] w-[38%] items-center justify-center rounded-full border-2 border-slate-800 bg-white shadow-sm">
+        <span className="text-[7px] sm:text-[8px] font-black tracking-wider text-slate-900">KING</span>
+      </div>
     </div>
   )
 }
@@ -169,17 +183,25 @@ function cellStyle(
   }
 
   if (kind.kind === 'center') {
-    return { background: 'transparent', borderColor: '#1e293b' }
+    return { background: 'transparent', border: 'none' }
   }
 
   if (kind.kind === 'base' && kind.color) {
-    return { background: COLOR_CORNER[kind.color], borderColor: '#1e293b' }
+    return { background: COLOR_CORNER[kind.color], border: 'none' }
   }
 
   if (kind.kind === 'start' && kind.color) {
     return {
       background: COLOR_CORNER_DARK[kind.color],
       borderColor: '#1e293b',
+    }
+  }
+
+  if (kind.kind === 'safe' && kind.color) {
+    return {
+      background: COLOR_HOME[kind.color],
+      borderColor: '#1e293b',
+      boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.7)',
     }
   }
 
@@ -280,19 +302,24 @@ export function LudoBoard({
       const kind = boardCellKind(r, c)
       const isHighlight = highlightCells?.has(`${r},${c}`)
       const isStart = kind.kind === 'start'
+      const isSafe = kind.kind === 'safe'
       const isMyStart = isStart && kind.color === myColor
-      const trackIdx = trackIndexAt(r, c)
-      const direction = trackIdx != null ? TRACK_DIRECTION[trackIdx] : null
-      const herePieces = pathPieces.filter((p) => p.row === r && p.col === c)
+      const direction = pathArrowAt(r, c)
+      const herePieces =
+        kind.kind === 'base'
+          ? []
+          : pathPieces.filter((p) => p.row === r && p.col === c)
 
       cells.push(
         <div
           key={`${r}-${c}`}
           className={[
-            'relative aspect-square flex items-center justify-center gap-0.5 flex-wrap p-0.5 border border-slate-800',
+            'relative aspect-square flex items-center justify-center gap-0.5 flex-wrap p-0.5',
+            kind.kind === 'base' || kind.kind === 'center'
+              ? 'border-0 z-0'
+              : 'border border-slate-700/70 z-[6]',
             isHighlight ? 'ring-2 ring-[var(--primary)] z-10' : '',
             isMyStart ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 shadow-lg' : '',
-            kind.kind === 'base' ? 'z-0' : 'z-[6]',
           ].join(' ')}
           style={cellStyle(kind, r, c)}
         >
@@ -300,11 +327,14 @@ export function LudoBoard({
             <span
               className={[
                 'absolute font-black text-white drop-shadow pointer-events-none',
-                herePieces.length > 0 ? 'text-[7px] opacity-80' : 'text-[10px]',
+                herePieces.length > 0 ? 'text-[8px] opacity-90' : 'text-[11px]',
               ].join(' ')}
             >
-              ▶
+              ★
             </span>
+          )}
+          {isSafe && herePieces.length === 0 && (
+            <span className="absolute text-[8px] font-black text-white/90 drop-shadow pointer-events-none">★</span>
           )}
           {kind.kind === 'track' && direction && herePieces.length === 0 && (
             <span className="absolute text-[7px] font-bold text-slate-300/90 pointer-events-none">
@@ -338,8 +368,9 @@ export function LudoBoard({
           <span className="font-bold" style={{ color: LUDO_COLOR_HEX[myColor] }}>
             {LUDO_COLOR_LABELS[myColor]}
           </span>
-          . Roll a 6 to move a piece from your corner circle to your{' '}
-          <span className="font-bold text-[var(--foreground)]">▶</span> square — then follow the arrows clockwise.
+          . Roll a 6 to leave your yard onto your{' '}
+          <span className="font-bold text-[var(--foreground)]">★</span> start square, then follow the
+          arrows clockwise around the board into your coloured home column.
         </p>
       )}
       <div
@@ -459,14 +490,24 @@ export function LudoGamePanel({
   const selectablePieceIds = legalMoves.map((m) => m.pieceId)
 
   const highlightCells = useMemo(() => {
-    if (!myState || legalMoves.length === 0) return undefined
+    if (!myState || legalMoves.length === 0 || !session.last_dice) return undefined
     const cells = new Set<string>()
+    const dice = session.last_dice
+
     for (const move of legalMoves) {
-      const cell = moveDestinationCell(myState.color, move.to)
-      if (cell) cells.add(`${cell.row},${cell.col}`)
+      const dest = moveDestinationCell(myState.color, move.to)
+      if (dest) cells.add(`${dest.row},${dest.col}`)
+
+      if (move.from.zone === 'track' && move.to.zone === 'track') {
+        const steps =
+          (move.from.pos - START_POS[myState.color] + TRACK_LENGTH) % TRACK_LENGTH
+        for (const cell of trackCellsAlongSteps(myState.color, steps, dice)) {
+          cells.add(`${cell.row},${cell.col}`)
+        }
+      }
     }
     return cells
-  }, [legalMoves, myState])
+  }, [legalMoves, myState, session.last_dice])
 
   const diceValue =
     session.phase === 'move' ? session.last_dice : rolling ? null : (displayDice ?? session.last_dice)
@@ -518,13 +559,18 @@ export function LudoGamePanel({
 
       {isMyTurn && session.phase === 'move' && legalMoves.length > 0 && onMovePiece && (
         <div className="space-y-2">
-          <p className="text-center text-xs font-semibold text-muted">Tap a piece below or on the board</p>
+          <p className="text-center text-sm font-semibold text-[var(--foreground)]">
+            {session.last_dice === 6 && legalMoves.some((m) => m.from.zone === 'base')
+              ? 'You rolled a 6 — pick a piece to bring onto your ★ square'
+              : 'Choose which piece to move'}
+          </p>
+          <p className="text-center text-xs text-muted">Tap a highlighted piece on the board or use a button below</p>
           <div className="grid grid-cols-2 gap-2">
             {legalMoves.map((move) => {
               const fromLabel = pieceStatusLabel(move.from)
               const toLabel =
                 move.to.zone === 'finished'
-                  ? 'Center — finished!'
+                  ? 'Center — KING!'
                   : move.to.zone === 'home'
                     ? `Home lane step ${move.to.pos + 1}`
                     : move.to.zone === 'track'
@@ -558,9 +604,15 @@ export function LudoGamePanel({
         </div>
       )}
 
+      {isMyTurn && session.phase === 'move' && legalMoves.length === 0 && (
+        <p className="text-center text-xs text-amber-600 font-medium">
+          No legal moves for this roll — wait for the turn to pass.
+        </p>
+      )}
+
       {isMyTurn && session.phase === 'roll' && !rolling && (
         <p className="text-center text-xs text-faint">
-          Roll a 6 — piece leaves your corner and lands on your highlighted ▶ square
+          Roll a 6 — your piece jumps from the corner circle to your highlighted ★ square
         </p>
       )}
     </LudoCard>
