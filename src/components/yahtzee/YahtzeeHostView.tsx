@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { YahtzeeDiceTray } from '@/components/yahtzee/YahtzeeChrome'
 import { YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { YahtzeeFinalResultsShareBlock } from '@/components/yahtzee/YahtzeeFinalResultsShareBlock'
-import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { InviteLinkActions } from '@/components/InviteLinkActions'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   currentPlayerId,
@@ -436,7 +436,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                 <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
                 <p className="font-mono font-bold text-lg">{gameCode}</p>
               </div>
-              <CopyLinkButton value={joinUrl} label="Copy player link" />
+              <InviteLinkActions url={joinUrl} copyLabel="Copy player link" successMessage="Player link copied" />
             </div>
 
             {game.status === 'waiting' && (
