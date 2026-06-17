@@ -859,10 +859,19 @@ export async function processMonopolyRoll(
       position = move.to
       if (move.passedGo) cash += MONOPOLY_GO_SALARY
     } else {
+      const turnIndex = nextTurnIndex(board, states)
+      const nextPhase = phaseForTurn(board, states, turnIndex)
       await supabase.from('monopoly_player_state').update({ jail_turns: jailTurns }).eq('game_id', gameId).eq('player_id', playerId)
       await supabase
         .from('monopoly_boards')
-        .update({ last_dice: dice, phase: 'jail', status_message: `Still in jail — rolled ${dice.d1}+${dice.d2} (no doubles). Turn ${jailTurns}/3.`, updated_at: new Date().toISOString() })
+        .update({
+          last_dice: dice,
+          phase: nextPhase,
+          current_turn_index: turnIndex,
+          status_message: `Still in jail — rolled ${dice.d1}+${dice.d2} (no doubles). Attempt ${jailTurns}/3.`,
+          updated_at: new Date().toISOString(),
+          turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, nextPhase),
+        })
         .eq('game_id', gameId)
       return {}
     }

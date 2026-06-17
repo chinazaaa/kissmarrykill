@@ -303,9 +303,12 @@ export function MonopolyBoardCenter({
         <div className="mt-1.5 w-full max-w-[11rem] sm:max-w-[12rem] space-y-1.5">
           <p className="text-lg leading-none">🔒</p>
           <p className="text-xs font-bold text-white">In jail</p>
+          <p className="text-[10px] text-emerald-200/70 leading-snug">
+            Attempt {(myState?.jail_turns ?? 0) + 1}/3 — roll once for doubles, or pay £50 before rolling.
+          </p>
           <div className="space-y-1">
             <BoardPrimaryButton onClick={() => postAction('/api/monopoly/roll')} loading={acting}>
-              Roll doubles
+              Roll for doubles
             </BoardPrimaryButton>
             <BoardSecondaryButton
               onClick={() => postAction('/api/monopoly/jail', { method: 'pay' })}
