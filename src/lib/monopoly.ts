@@ -163,6 +163,10 @@ export function rollDice(): { d1: number; d2: number; total: number; doubles: bo
   return { d1, d2, total: d1 + d2, doubles: d1 === d2 }
 }
 
+export function playerCanBuyProperty(state: Pick<MonopolyPlayerState, 'passed_go_once'>): boolean {
+  return state.passed_go_once === true
+}
+
 export function movePosition(from: number, steps: number): { to: number; passedGo: boolean } {
   const to = (from + steps) % MONOPOLY_BOARD_SIZE
   const passedGo = from + steps >= MONOPOLY_BOARD_SIZE
@@ -517,6 +521,7 @@ function resolveSpaceLanding(
     states: MonopolyPlayerState[]
     diceTotal: number
     extraTurn: boolean
+    passedGoOnce: boolean
   }
 ): LandingResolution {
   let { cash, position, inJail, jailTurns, getOutCards, extraTurn } = ctx
@@ -570,6 +575,10 @@ function resolveSpaceLanding(
   if (landed.type === 'property' || landed.type === 'station' || landed.type === 'utility') {
     const ownerId = ctx.owners[String(landed.index)]
     if (!ownerId) {
+      if (!ctx.passedGoOnce) {
+        statusSuffix = ' Pass GO once before you can buy property.'
+        return { cash, position, inJail, jailTurns, getOutCards, phase: 'roll', pendingSpace: null, extraTurn, statusSuffix }
+      }
       if (cash >= (landed.price ?? 0)) {
         phase = 'buy'
         pendingSpace = landed.index
@@ -791,7 +800,7 @@ export async function initializeMonopolyGame(
     current_turn_index: 0,
     phase: 'roll',
     property_owners: {},
-    status_message: 'Game started — first player rolls the dice!',
+    status_message: 'Game started — pass GO once before you can buy property.',
     turn_deadline_at: monopolyTurnDeadline(timerSeconds),
     ...defaultBoardFields(),
   })
@@ -889,6 +898,7 @@ export async function processMonopolyRoll(
   let inJail = state.in_jail
   let jailTurns = state.jail_turns
   let getOutCards = state.get_out_of_jail_free
+  let passedGoOnce = state.passed_go_once ?? false
   let phase: MonopolyPhase = 'roll'
   let pendingSpace: number | null = null
   let auctionState: MonopolyAuctionState | null = null
@@ -905,14 +915,17 @@ export async function processMonopolyRoll(
       statusMessage = `Rolled doubles (${dice.d1}+${dice.d2}) — out of jail!`
       const move = movePosition(position, dice.total)
       position = move.to
-      if (move.passedGo) cash += MONOPOLY_GO_SALARY
+      if (move.passedGo) {
+        cash += MONOPOLY_GO_SALARY
+        passedGoOnce = true
+      }
     } else if (jailTurns >= 3) {
       if (cash < MONOPOLY_JAIL_FINE) {
         await updatePlayerAndBoard(
           supabase,
           gameId,
           playerId,
-          { cash, position, in_jail: inJail, jail_turns: jailTurns, get_out_of_jail_free: getOutCards },
+          { cash, position, in_jail: inJail, jail_turns: jailTurns, get_out_of_jail_free: getOutCards, passed_go_once: passedGoOnce },
           { last_dice: dice }
         )
         return enterRaiseFundsPhase(supabase, gameId, board, {
@@ -930,7 +943,10 @@ export async function processMonopolyRoll(
       statusMessage = `Paid ${formatMonopolyMoney(MONOPOLY_JAIL_FINE)} to leave jail. Rolled ${dice.d1}+${dice.d2}.`
       const move = movePosition(position, dice.total)
       position = move.to
-      if (move.passedGo) cash += MONOPOLY_GO_SALARY
+      if (move.passedGo) {
+        cash += MONOPOLY_GO_SALARY
+        passedGoOnce = true
+      }
     } else {
       const turnIndex = nextTurnIndex(board, states)
       const nextPhase = phaseForTurn(board, states, turnIndex)
@@ -978,6 +994,7 @@ export async function processMonopolyRoll(
     position = move.to
     if (move.passedGo) {
       cash += MONOPOLY_GO_SALARY
+      passedGoOnce = true
       statusMessage = `Passed GO — collected ${formatMonopolyMoney(MONOPOLY_GO_SALARY)}. `
     }
   }
@@ -998,6 +1015,7 @@ export async function processMonopolyRoll(
     states,
     diceTotal: dice.total,
     extraTurn,
+    passedGoOnce,
   }
 
   if (landed.type === 'chance' || landed.type === 'community') {
@@ -1075,7 +1093,7 @@ export async function processMonopolyRoll(
           supabase,
           gameId,
           playerId,
-          { cash, position, in_jail: inJail, jail_turns: jailTurns, get_out_of_jail_free: getOutCards },
+          { cash, position, in_jail: inJail, jail_turns: jailTurns, get_out_of_jail_free: getOutCards, passed_go_once: passedGoOnce },
           {
             last_dice: dice,
             chance_deck: chanceDeck,
@@ -1111,13 +1129,21 @@ export async function processMonopolyRoll(
 
       if (effect.moveTo !== undefined) {
         position = effect.moveTo
+        if (effect.passedGo) passedGoOnce = true
         const salary = goSalaryForCard(card, effect.passedGo ?? false)
         if (salary > 0) {
           cash += salary
           statusMessage += ` Collected ${formatMonopolyMoney(salary)}.`
         }
         statusMessage += ` Now on ${spaceAt(position).name}.`
-        const afterCard = resolveSpaceLanding(spaceAt(position), { ...landingCtx, cash, position, getOutCards, extraTurn })
+        const afterCard = resolveSpaceLanding(spaceAt(position), {
+          ...landingCtx,
+          cash,
+          position,
+          getOutCards,
+          extraTurn,
+          passedGoOnce,
+        })
         if (afterCard.pendingDebt) {
           pendingDebt = afterCard.pendingDebt
         }
@@ -1159,7 +1185,15 @@ export async function processMonopolyRoll(
   const turnIndex = turnEnds ? nextTurnIndex(board, states) : board.current_turn_index
   const updatedStatesForPhase = states.map((s) =>
     s.player_id === playerId
-      ? { ...s, cash, position, in_jail: inJail, jail_turns: jailTurns, get_out_of_jail_free: getOutCards }
+      ? {
+          ...s,
+          cash,
+          position,
+          in_jail: inJail,
+          jail_turns: jailTurns,
+          get_out_of_jail_free: getOutCards,
+          passed_go_once: passedGoOnce,
+        }
       : s
   )
   const boardPhase: MonopolyPhase =
@@ -1189,7 +1223,7 @@ export async function processMonopolyRoll(
     supabase,
     gameId,
     playerId,
-    { cash, position, in_jail: inJail, jail_turns: jailTurns, get_out_of_jail_free: getOutCards },
+    { cash, position, in_jail: inJail, jail_turns: jailTurns, get_out_of_jail_free: getOutCards, passed_go_once: passedGoOnce },
     {
       last_dice: dice,
       consecutive_doubles: consecutiveDoubles,
@@ -1238,6 +1272,7 @@ export async function processMonopolyBuy(
   const space = spaceAt(spaceIndex)
   const { data: state } = await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId).eq('player_id', playerId).maybeSingle()
   if (!state) return { error: 'Player not found' }
+  if (!playerCanBuyProperty(state)) return { error: 'Pass GO once before you can buy property' }
 
   const owners = parsePropertyOwners(board.property_owners)
   const { data: statesRaw } = await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId)

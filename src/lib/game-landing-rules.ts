@@ -474,7 +474,8 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Buying property',
       points: [
-        'Landing on an unowned Property, Station, or Utility lets you buy it from the Bank at the listed price.',
+        'You cannot buy from the Bank until you have passed GO at least once on your first lap.',
+        'Landing on an unowned Property, Station, or Utility after that lets you buy it at the listed price.',
         'If you decline to buy, the property is auctioned to the highest bidder — including you.',
         'Own all Sites in a colour-group (a monopoly) to charge double rent on unimproved properties in that group.',
       ],

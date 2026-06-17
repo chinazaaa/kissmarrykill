@@ -30,7 +30,7 @@ export const MONOPOLY_AUCTION_TIMER_SECONDS = 10
 export const MONOPOLY_CARD_MODAL_SECONDS = 5
 
 export const MONOPOLY_PLAYER_STATE_SELECT =
-  'id,game_id,player_id,position,cash,in_jail,jail_turns,get_out_of_jail_free,bankrupt,player_order,created_at'
+  'id,game_id,player_id,position,cash,in_jail,jail_turns,get_out_of_jail_free,bankrupt,passed_go_once,player_order,created_at'
 
 export const YAHTZEE_SESSION_SELECT =
   'id,game_id,turn_order,current_turn_index,phase,dice,held,rolls_remaining,rolls_this_turn,status_message,winner_player_id,turn_deadline_at,created_at,updated_at'

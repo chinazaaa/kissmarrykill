@@ -218,10 +218,15 @@ export function MonopolyBoardCenter({
       )}
 
       {showRoll && (
-        <div className="mt-2 w-full max-w-[9rem] sm:max-w-[10rem]">
+        <div className="mt-2 w-full max-w-[9rem] sm:max-w-[10rem] space-y-1">
           <BoardPrimaryButton onClick={() => postAction('/api/monopoly/roll')} loading={acting}>
             🎲 Roll
           </BoardPrimaryButton>
+          {myState && !(myState.passed_go_once ?? false) && (
+            <p className="text-[9px] text-emerald-200/65 leading-snug text-center">
+              Pass GO once before you can buy property
+            </p>
+          )}
         </div>
       )}
 

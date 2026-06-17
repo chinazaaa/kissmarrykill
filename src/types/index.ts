@@ -276,6 +276,7 @@ export interface MonopolyPlayerState {
   jail_turns: number
   get_out_of_jail_free: number
   bankrupt: boolean
+  passed_go_once: boolean
   player_order: number
   created_at: string
 }
