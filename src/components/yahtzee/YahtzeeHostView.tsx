@@ -17,7 +17,9 @@ import {
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
+import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
+import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player, YahtzeeCategory, YahtzeePlayerScore, YahtzeeSession } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
@@ -105,6 +107,34 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
   }, [gameCode, load])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
+
+  const handlePlayerRemoved = useCallback(
+    (playerId: string) => {
+      if (playerId === hostPlayerId) {
+        setHostPlayerId(null)
+        setHostPlayerName('')
+        setLocalHostHeld([false, false, false, false, false])
+        clearPlayerSession(gameCode)
+      }
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+    },
+    [gameCode, hostPlayerId]
+  )
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
+
+  const playerManageBlock =
+    game && (game.status === 'waiting' || game.status === 'active') ? (
+      <div className="glass-card p-4 space-y-3">
+        <p className="label-caps">Players — {players.length}</p>
+        <HostPlayerManageList
+          players={players}
+          removingPlayerId={removingPlayerId}
+          onRemovePlayer={removePlayer}
+          highlightPlayerId={hostPlayerId}
+        />
+      </div>
+    ) : null
 
   const changeHostMode = (mode: YahtzeeHostMode) => {
     if (game?.status !== 'waiting') return
@@ -401,24 +431,9 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
             </div>
 
             {game.status === 'waiting' && (
-              <div className="glass-card p-5 space-y-4">
-                <div>
-                  <p className="label-caps mb-2">Lobby ({players.length} joined)</p>
-                  {players.length === 0 ? (
-                    <p className="text-muted text-sm">Waiting for players to join…</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {players.map((p) => (
-                        <li key={p.id} className="text-sm font-medium flex items-center gap-2">
-                          {p.name}
-                          {p.id === hostPlayerId && (
-                            <span className="text-[10px] font-bold uppercase text-[var(--primary)]">You</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+              <>
+                {playerManageBlock}
+                <div className="glass-card p-5 space-y-4">
                 {!canStart && (
                   <p className="text-sm text-[var(--marry)]">Need at least {YAHTZEE_MIN_PLAYERS} players to start.</p>
                 )}
@@ -431,11 +446,13 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                   {starting ? 'Starting…' : `Start Yahtzee (${YAHTZEE_MIN_PLAYERS}+ players)`}
                 </button>
               </div>
+              </>
             )}
 
             {game.status === 'active' && (
               session ? (
                 <>
+                  {playerManageBlock}
                   <div className="space-y-2">
                     <YahtzeeScorecard
                       players={players}

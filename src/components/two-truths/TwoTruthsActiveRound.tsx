@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { TwoTruthsShareBlock } from '@/components/two-truths/TwoTruthsShareBlock'
 import { TwoTruthsSubmitterBadge } from '@/components/two-truths/TwoTruthsSubmitterBadge'
 import {
@@ -185,9 +186,16 @@ export function TwoTruthsActiveRound({
   if (!metadata || !currentRound) return null
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-4 items-start">
-      {/* Game content */}
-      <div className="space-y-4">
+    <LiveLeaderboardLayout
+      sidebar={
+        <PaginatedLeaderboard
+          title="Leaderboard"
+          rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}
+          highlightId={myPlayerId}
+          scoreLabel={(score) => `${score} pts`}
+        />
+      }
+    >
         <div className="glass-card p-5 text-center space-y-3">
           <p className="label-caps text-xs">
             Round {currentRound.round_number} of {game.rounds_count}
@@ -273,17 +281,6 @@ export function TwoTruthsActiveRound({
             Next round in {revealCountdownSeconds(currentRound.ended_at)}s…
           </p>
         )}
-      </div>
-
-      {/* Leaderboard — right column on desktop, below on mobile */}
-      <div>
-        <PaginatedLeaderboard
-          title="Leaderboard"
-          rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}
-          highlightId={myPlayerId}
-          scoreLabel={(score) => `${score} pts`}
-        />
-      </div>
-    </div>
+    </LiveLeaderboardLayout>
   )
 }

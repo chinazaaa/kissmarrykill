@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
 import {
   formatTriviaChoiceLabel,
@@ -193,8 +194,49 @@ export function TriviaActiveRound({
   const inRevealCountdown =
     showCorrectAnswer && game.status === 'active' && (revealCountdown > 0 || !currentRound?.ended_at)
 
+  const liveLeaderboard = (
+    <PaginatedLeaderboard
+      title="Leaderboard"
+      rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
+      highlightId={myPlayerId}
+      scoreLabel={(n) => `${n} pts`}
+    />
+  )
+
+  if (screen === 'finished') {
+    return (
+      <div className="space-y-5">
+        <FinalResultsShareBlock
+          game={game}
+          participants={[]}
+          votes={[]}
+          rounds={rounds}
+          players={players}
+          triviaAnswers={answers}
+        >
+          <PaginatedLeaderboard
+            title="Final leaderboard"
+            rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
+            highlightId={myPlayerId}
+            scoreLabel={(n) => `${n} pts`}
+          />
+          <div className="glass-card-strong p-8 text-center space-y-2">
+            <p className="text-4xl">🏆</p>
+            <p className="text-2xl font-black">Game over!</p>
+            {leaderboard[0] && (
+              <p className="text-muted text-base mt-2">
+                {leaderboard[0].name} wins with {leaderboard[0].score} pts
+              </p>
+            )}
+          </div>
+        </FinalResultsShareBlock>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-5">
+    <LiveLeaderboardLayout sidebar={liveLeaderboard}>
+      <div className="space-y-5">
       <div className="text-center space-y-2">
         <p className="text-muted text-sm sm:text-base">
           Playing as <span className="text-body font-semibold">{playerName}</span>
@@ -289,41 +331,7 @@ export function TriviaActiveRound({
         </div>
       )}
 
-      {screen !== 'finished' && (
-        <PaginatedLeaderboard
-          title="Leaderboard"
-          rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
-          highlightId={myPlayerId}
-          scoreLabel={(n) => `${n} pts`}
-        />
-      )}
-
-      {screen === 'finished' && (
-        <FinalResultsShareBlock
-          game={game}
-          participants={[]}
-          votes={[]}
-          rounds={rounds}
-          players={players}
-          triviaAnswers={answers}
-        >
-          <PaginatedLeaderboard
-            title="Final leaderboard"
-            rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
-            highlightId={myPlayerId}
-            scoreLabel={(n) => `${n} pts`}
-          />
-          <div className="glass-card-strong p-8 text-center space-y-2">
-            <p className="text-4xl">🏆</p>
-            <p className="text-2xl font-black">Game over!</p>
-            {leaderboard[0] && (
-              <p className="text-muted text-base mt-2">
-                {leaderboard[0].name} wins with {leaderboard[0].score} pts
-              </p>
-            )}
-          </div>
-        </FinalResultsShareBlock>
-      )}
-    </div>
+      </div>
+    </LiveLeaderboardLayout>
   )
 }

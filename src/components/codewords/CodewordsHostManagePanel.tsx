@@ -76,7 +76,7 @@ export function CodewordsHostManagePanel({
   onPlayAgain: () => void
   onEndSession: () => void
   onBenchPlayer?: (playerId: string) => void
-  onRemovePlayer?: (playerId: string) => void
+  onRemovePlayer?: (playerId: string, playerName: string) => void | Promise<void | boolean>
   benchingPlayerId?: string | null
   removingPlayerId?: string | null
   randomizingTeams?: boolean

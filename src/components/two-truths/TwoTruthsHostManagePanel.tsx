@@ -4,8 +4,10 @@ import { useMemo } from 'react'
 import { TwoTruthsSubmitterBadge } from '@/components/two-truths/TwoTruthsSubmitterBadge'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { TwoTruthsShareBlock } from '@/components/two-truths/TwoTruthsShareBlock'
 import {
@@ -59,7 +61,7 @@ export function TwoTruthsHostManagePanel({
   onTimerChange: (seconds: number) => void
   savingTimer: boolean
   onSaveTimer: () => void
-  onRemovePlayer?: (playerId: string) => void
+  onRemovePlayer?: (playerId: string, playerName: string) => void | Promise<void | boolean>
   removingPlayerId?: string | null
   onGameUpdate: (game: Game) => void
 }) {
@@ -74,6 +76,18 @@ export function TwoTruthsHostManagePanel({
   const metadata = activeRound ? parseTtlMetadata(activeRound.ttl_metadata) : null
   const lastFinished = [...rounds].reverse().find((r) => r.status === 'finished') ?? null
   const revealRemaining = lastFinished?.ended_at ? revealCountdownSeconds(lastFinished.ended_at) : 0
+
+  const liveLeaderboard = (
+    <PaginatedLeaderboard
+      title="Leaderboard"
+      rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}
+      scoreLabel={(score) => `${score} pts`}
+    />
+  )
+
+  const showActiveRoundPanel = game.status === 'active' && activeRound && metadata
+  const showRevealPanel =
+    game.status === 'active' && !activeRound && lastFinished && revealRemaining > 0
 
   return (
     <div className="space-y-5">
@@ -114,7 +128,7 @@ export function TwoTruthsHostManagePanel({
                   {onRemovePlayer && (
                     <button
                       type="button"
-                      onClick={() => onRemovePlayer(p.id)}
+                      onClick={() => onRemovePlayer(p.id, p.name)}
                       disabled={removingPlayerId === p.id}
                       className="text-faint hover:text-red-500 transition-colors text-xs px-1"
                       title="Remove player"
@@ -175,61 +189,87 @@ export function TwoTruthsHostManagePanel({
         </div>
       )}
 
-      {game.status === 'active' && activeRound && metadata && (
+      {game.status === 'active' && (
         <div className="glass-card p-5 space-y-3">
-          <p className="label-caps">Round {activeRound.round_number}</p>
-          <div className="flex justify-center">
-            <TwoTruthsSubmitterBadge submitterId={activeRound.submitter_player_id} players={players} />
-          </div>
-          <p className="text-center text-sm font-semibold text-muted">
-            {playerDisplayName(activeRound.submitter_player_id, players)}&apos;s statements
-          </p>
-          <div className="space-y-2">
-            {metadata.statements.map((statement, index) => (
-              <div key={index} className="rounded-xl border border-[var(--border-strong)] px-3 py-2 text-sm">
-                <span className="font-bold mr-2">{formatTtlChoiceLabel(index)}.</span>
-                {statement}
-              </div>
-            ))}
-          </div>
+          <p className="label-caps">Players — {players.length}</p>
+          {onRemovePlayer ? (
+            <HostPlayerManageList
+              players={players}
+              removingPlayerId={removingPlayerId}
+              onRemovePlayer={onRemovePlayer}
+              hint="Remove to kick someone out of the game"
+            />
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {players.map((p) => (
+                <li key={p.id} className="font-semibold truncate">
+                  {p.name}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
-      {game.status === 'active' && !activeRound && lastFinished && revealRemaining > 0 && (() => {
-        const finishedMeta = parseTtlMetadata(lastFinished.ttl_metadata)
-        if (!finishedMeta) return null
-        return (
-          <div className="glass-card p-5 space-y-3">
-            <p className="label-caps text-center">Round {lastFinished.round_number} reveal</p>
-            <div className="flex justify-center">
-              <TwoTruthsSubmitterBadge submitterId={lastFinished.submitter_player_id} players={players} />
-            </div>
-            <div className="space-y-2">
-              {finishedMeta.statements.map((statement, index) => {
-                const isLie = index === finishedMeta.lie_index
-                return (
-                  <div
-                    key={index}
-                    className={[
-                      'rounded-xl border px-3 py-2 text-sm',
-                      isLie
-                        ? 'border-violet-500/60 bg-violet-500/10'
-                        : 'border-[var(--border-strong)]',
-                    ].join(' ')}
-                  >
+      {(showActiveRoundPanel || showRevealPanel) && (
+        <LiveLeaderboardLayout sidebar={liveLeaderboard}>
+          {showActiveRoundPanel && (
+            <div className="glass-card p-5 space-y-3">
+              <p className="label-caps">Round {activeRound!.round_number}</p>
+              <div className="flex justify-center">
+                <TwoTruthsSubmitterBadge submitterId={activeRound!.submitter_player_id} players={players} />
+              </div>
+              <p className="text-center text-sm font-semibold text-muted">
+                {playerDisplayName(activeRound!.submitter_player_id, players)}&apos;s statements
+              </p>
+              <div className="space-y-2">
+                {metadata!.statements.map((statement, index) => (
+                  <div key={index} className="rounded-xl border border-[var(--border-strong)] px-3 py-2 text-sm">
                     <span className="font-bold mr-2">{formatTtlChoiceLabel(index)}.</span>
                     {statement}
-                    {isLie && (
-                      <span className="block text-violet-600 dark:text-violet-300 text-xs font-bold mt-1">🤥 The lie</span>
-                    )}
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
-            <p className="text-center text-sm text-muted">Next round in {revealRemaining}s…</p>
-          </div>
-        )
-      })()}
+          )}
+
+          {showRevealPanel && (() => {
+            const finishedMeta = parseTtlMetadata(lastFinished!.ttl_metadata)
+            if (!finishedMeta) return null
+            return (
+              <div className="glass-card p-5 space-y-3">
+                <p className="label-caps text-center">Round {lastFinished!.round_number} reveal</p>
+                <div className="flex justify-center">
+                  <TwoTruthsSubmitterBadge submitterId={lastFinished!.submitter_player_id} players={players} />
+                </div>
+                <div className="space-y-2">
+                  {finishedMeta.statements.map((statement, index) => {
+                    const isLie = index === finishedMeta.lie_index
+                    return (
+                      <div
+                        key={index}
+                        className={[
+                          'rounded-xl border px-3 py-2 text-sm',
+                          isLie
+                            ? 'border-violet-500/60 bg-violet-500/10'
+                            : 'border-[var(--border-strong)]',
+                        ].join(' ')}
+                      >
+                        <span className="font-bold mr-2">{formatTtlChoiceLabel(index)}.</span>
+                        {statement}
+                        {isLie && (
+                          <span className="block text-violet-600 dark:text-violet-300 text-xs font-bold mt-1">🤥 The lie</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="text-center text-sm text-muted">Next round in {revealRemaining}s…</p>
+              </div>
+            )
+          })()}
+        </LiveLeaderboardLayout>
+      )}
 
       {game.status === 'finished' && (
         <div className="space-y-4">

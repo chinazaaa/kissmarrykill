@@ -17,7 +17,8 @@ import {
   TTL_STATEMENT_SELECT,
 } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
@@ -42,7 +43,20 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostMode, setHostMode] = useState<TtlHostMode>('spectator')
   const [tab, setTab] = useState<HostTab>('manage')
   const [editingStatements, setEditingStatements] = useState(false)
-  const [removingPlayerId, setRemovingPlayerId] = useState<string | null>(null)
+
+  const handlePlayerRemoved = useCallback(
+    (playerId: string) => {
+      if (playerId === hostPlayerId) {
+        setHostPlayerId(null)
+        setHostPlayerName('')
+        clearPlayerSession(gameCode)
+      }
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+    },
+    [gameCode, hostPlayerId]
+  )
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, stmtsRes, rdsRes, gssRes] = await Promise.all([
@@ -208,29 +222,6 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
       toastError(err instanceof Error ? err.message : 'Failed to reset')
     } finally {
       setPlayingAgain(false)
-    }
-  }
-
-  const removePlayer = async (playerId: string) => {
-    setRemovingPlayerId(playerId)
-    try {
-      const res = await fetch('/api/players', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerId, hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to remove player')
-      if (playerId === hostPlayerId) {
-        setHostPlayerId(null)
-        setHostPlayerName('')
-      }
-      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
-      success('Player removed')
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to remove player')
-    } finally {
-      setRemovingPlayerId(null)
     }
   }
 

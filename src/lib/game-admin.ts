@@ -12,6 +12,18 @@ export async function assertHostGame(supabase: SupabaseClient, gameCode: string,
   return { error: null, status: 200 as const, game, id }
 }
 
+/** Host may remove a player while the lobby is open or the game is in progress. */
+export async function assertHostPlayerRemove(supabase: SupabaseClient, gameCode: string, hostToken: string) {
+  const id = gameCode.toUpperCase()
+  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
+  if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
+  if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
+  if (game.status !== 'waiting' && game.status !== 'active') {
+    return { error: 'Players can only be removed while the lobby or game is open', status: 400 as const, game: null, id }
+  }
+  return { error: null, status: 200 as const, game, id }
+}
+
 /** Host may tweak lobby/finished settings before the next game starts. */
 export async function assertHostGameSettings(supabase: SupabaseClient, gameCode: string, hostToken: string) {
   const id = gameCode.toUpperCase()

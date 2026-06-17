@@ -30,8 +30,10 @@ import {
   PLAYER_SELECT,
 } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
+import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import type { BingoCallMode, BingoCalledNumber, BingoClaim, BingoCard, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification, useBingoStartNotification } from '@/hooks/useBingoNotifications'
@@ -150,6 +152,34 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   }, [gameCode, load, hostPlayerId])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
+
+  const handlePlayerRemoved = useCallback(
+    (playerId: string) => {
+      if (playerId === hostPlayerId) {
+        setHostPlayerId(null)
+        setHostPlayerName('')
+        setHostCard(null)
+        clearPlayerSession(gameCode)
+      }
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+    },
+    [gameCode, hostPlayerId]
+  )
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
+
+  const playerManageBlock =
+    game && (game.status === 'waiting' || game.status === 'active') ? (
+      <div className="glass-card p-4 space-y-3">
+        <p className="label-caps">Players — {players.length}</p>
+        <HostPlayerManageList
+          players={players}
+          removingPlayerId={removingPlayerId}
+          onRemovePlayer={removePlayer}
+          highlightPlayerId={hostPlayerId}
+        />
+      </div>
+    ) : null
 
   useBingoAutoCall({ gameCode, game, enabled: game?.status === 'active', onSynced: load })
 
@@ -485,26 +515,10 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
             </div>
 
             {game.status === 'waiting' && (
-              <div className="glass-card p-5 space-y-4">
-                <div>
-                  <p className="label-caps mb-2">Lobby ({players.length} joined)</p>
-                  {players.length === 0 ? (
-                    <p className="text-muted text-sm">Waiting for players to join…</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {players.map((p) => (
-                        <li key={p.id} className="text-sm font-medium flex items-center gap-2">
-                          {p.name}
-                          {p.id === hostPlayerId && (
-                            <span className="text-[10px] font-bold uppercase text-[var(--primary)]">You</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="space-y-3 pt-2 border-t border-[var(--border-strong)]">
+              <>
+                {playerManageBlock}
+                <div className="glass-card p-5 space-y-4">
+                <div className="space-y-3">
                   <p className="label-caps">Game settings</p>
                   <label className="block text-sm text-muted">
                     Max players
@@ -585,10 +599,12 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                   {starting ? 'Starting…' : `Start Bingo (${BINGO_MIN_PLAYERS}+ players)`}
                 </button>
               </div>
+              </>
             )}
 
             {game.status === 'active' && (
               <>
+                {playerManageBlock}
                 <div className="glass-card p-5 space-y-4">
                   <p className="label-caps">{isAuto ? 'Automatic calling' : 'Call numbers'}</p>
                   {isAuto ? (

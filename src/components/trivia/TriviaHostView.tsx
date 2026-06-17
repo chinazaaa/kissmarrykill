@@ -7,10 +7,11 @@ import { TriviaPlayAgainSetup, type TriviaSettingsPayload } from '@/components/t
 import { gameTypeConfig } from '@/lib/game-types'
 import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
 import { useTriviaHostRoundAutomation } from '@/hooks/useTriviaHostRoundAutomation'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, TRIVIA_ANSWER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
@@ -63,6 +64,20 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     }
   }, [gameCode, load])
 
+  const handlePlayerRemoved = useCallback(
+    (playerId: string) => {
+      if (playerId === hostPlayerId) {
+        setHostPlayerId(null)
+        setHostPlayerName('')
+        clearPlayerSession(gameCode)
+      }
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+    },
+    [gameCode, hostPlayerId]
+  )
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
+
   useEffect(() => {
     const channel = supabase
       .channel(`trivia-host-${gameCode}`)
@@ -73,6 +88,10 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, (p) => {
         const player = p.new as Player
         setPlayers((prev) => (prev.some((x) => x.id === player.id) ? prev : [...prev, player]))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, (p) => {
+        const player = p.old as Player
+        setPlayers((prev) => prev.filter((x) => x.id !== player.id))
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` }, () => {
         load()
@@ -390,6 +409,9 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
             onPlayAgain={() => setSettingsModal('play-again')}
             onEditSettings={() => setSettingsModal('lobby')}
             onReload={load}
+            onRemovePlayer={removePlayer}
+            removingPlayerId={removingPlayerId}
+            highlightPlayerId={hostPlayerId}
             activeRound={roundAutomation.activeRound}
             betweenRounds={roundAutomation.betweenRounds}
             lastFinishedRound={roundAutomation.lastFinishedRound}

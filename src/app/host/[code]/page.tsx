@@ -149,6 +149,7 @@ import { AchievementsShareBlock } from '@/components/AchievementsShareBlock'
 import { ShareResults } from '@/components/ShareResults'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { computeAchievements } from '@/lib/achievements'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -1348,6 +1349,19 @@ export default function HostPage() {
       setAdminBusy(null)
     }
   }
+
+  const activePlayerManagePanel =
+    game?.status === 'active' ? (
+      <div className="glass-card p-4 space-y-3">
+        <p className="text-muted text-xs uppercase tracking-wider">Manage players</p>
+        <HostPlayerManageList
+          players={players}
+          removingPlayerId={adminBusy}
+          onRemovePlayer={hostRemovePlayer}
+          compact
+        />
+      </div>
+    ) : null
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
@@ -2732,6 +2746,8 @@ export default function HostPage() {
             )}
           </div>
 
+          {activePlayerManagePanel}
+
           <button
             onClick={handleEndRound}
             disabled={ending || (quote ? voterVotes.length === 0 : timeLeft > 0)}
@@ -2785,6 +2801,8 @@ export default function HostPage() {
             <p className="text-faint text-xs text-center">Votes are anonymous — winner is shown after the round</p>
           </div>
 
+          {activePlayerManagePanel}
+
           <button onClick={handleEndRound} disabled={ending || eligibleVotes.length === 0} className="btn-secondary">
             {ending ? 'Ending...' : 'End Round Early'}
           </button>
@@ -2834,6 +2852,8 @@ export default function HostPage() {
               Votes are anonymous — only totals are shown after the round
             </p>
           </div>
+
+          {activePlayerManagePanel}
 
           <button onClick={handleEndRound} disabled={ending || eligibleVotes.length === 0} className="btn-secondary">
             {ending ? 'Ending...' : 'End Round Early'}
@@ -2907,6 +2927,8 @@ export default function HostPage() {
               Answers stay anonymous — only who has submitted is shown here
             </p>
           </div>
+
+          {activePlayerManagePanel}
 
           <button
             onClick={handleEndRound}
@@ -3054,6 +3076,8 @@ export default function HostPage() {
             </div>
           </div>
         )}
+
+        {activePlayerManagePanel}
 
         {/* End round button */}
         <button
@@ -3255,6 +3279,8 @@ export default function HostPage() {
             </div>
           </div>
         )}
+
+        {activePlayerManagePanel}
 
         {isLastRound ? (
           game.auto_reveal ? (

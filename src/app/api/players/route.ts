@@ -13,6 +13,7 @@ import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import {
   assertHostGame,
+  assertHostPlayerRemove,
   deleteJoinerPair,
   findJoinerParticipant,
   pollGenderForPlayer,
@@ -1101,7 +1102,7 @@ export async function DELETE(req: NextRequest) {
       game = hostGame
       id = code
     } else {
-      const auth = await assertHostGame(supabase, gameCode, hostToken)
+      const auth = await assertHostPlayerRemove(supabase, gameCode, hostToken)
       if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
       game = auth.game
       id = auth.id

@@ -20,6 +20,7 @@ import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
 import { useCodewordsNotifications } from '@/hooks/useCodewordsNotifications'
 import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, CodewordsRole, CodewordsTeam, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
@@ -43,7 +44,6 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [operativeTimer, setOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
   const [savingTimers, setSavingTimers] = useState(false)
   const [benchingPlayerId, setBenchingPlayerId] = useState<string | null>(null)
-  const [removingPlayerId, setRemovingPlayerId] = useState<string | null>(null)
   const [hostMode, setHostMode] = useState<CodewordsHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
@@ -89,6 +89,23 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
     onGuesses: (updater) => setGuesses(updater),
     onReload: load,
   })
+
+  const handlePlayerRemoved = useCallback(
+    (playerId: string) => {
+      if (playerId === hostPlayerId) {
+        setHostPlayerId(null)
+        setHostPlayerName('')
+        clearPlayerSession(gameCode)
+        setHostMode('spectator')
+        setCodewordsHostMode(gameCode, 'spectator')
+      }
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+      setRoles((prev) => prev.filter((r) => r.player_id !== playerId))
+    },
+    [gameCode, hostPlayerId]
+  )
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
 
   const lateJoinNotifyReadyRef = useRef(false)
   const prevPlayerIdsRef = useRef<Set<string>>(new Set())
@@ -247,33 +264,6 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       toastError(err instanceof Error ? err.message : 'Failed to move player to waiting room')
     } finally {
       setBenchingPlayerId(null)
-    }
-  }
-
-  const removePlayer = async (playerId: string) => {
-    setRemovingPlayerId(playerId)
-    try {
-      const res = await fetch('/api/players', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerId, hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to remove player')
-      if (playerId === hostPlayerId) {
-        setHostPlayerId(null)
-        setHostPlayerName('')
-        clearPlayerSession(gameCode)
-        setHostMode('spectator')
-        setCodewordsHostMode(gameCode, 'spectator')
-      }
-      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
-      setRoles((prev) => prev.filter((r) => r.player_id !== playerId))
-      success('Player removed')
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to remove player')
-    } finally {
-      setRemovingPlayerId(null)
     }
   }
 

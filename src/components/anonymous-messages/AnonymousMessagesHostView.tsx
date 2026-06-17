@@ -27,6 +27,7 @@ import type { Game, Player } from '@/types'
 import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
@@ -40,7 +41,6 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   const [starting, setStarting] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
-  const [removingPlayerId, setRemovingPlayerId] = useState<string | null>(null)
   const [mutingPlayerId, setMutingPlayerId] = useState<string | null>(null)
   const [muteMinutes, setMuteMinutes] = useState(ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES)
 
@@ -75,6 +75,12 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   useEffect(() => {
     load()
   }, [load])
+
+  const handlePlayerRemoved = useCallback((playerId: string) => {
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+  }, [])
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
 
   useEffect(() => {
     const channel = supabase
@@ -161,25 +167,6 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
       toastError(err instanceof Error ? err.message : 'Failed to remove message')
     } finally {
       setRemovingId(null)
-    }
-  }
-
-  const removePlayerFromLobby = async (playerId: string) => {
-    setRemovingPlayerId(playerId)
-    try {
-      const res = await fetch('/api/players', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerId, hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to remove player')
-      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
-      success('Player removed from lobby')
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to remove player')
-    } finally {
-      setRemovingPlayerId(null)
     }
   }
 
@@ -328,7 +315,7 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
                       )}
                       <button
                         type="button"
-                        onClick={() => removePlayerFromLobby(player.id)}
+                        onClick={() => removePlayer(player.id, player.name)}
                         disabled={removingPlayerId === player.id}
                         className="text-faint hover:text-red-400 text-xs disabled:opacity-50"
                       >

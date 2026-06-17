@@ -4,6 +4,8 @@ import { CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { lobbyTeamSummary, otherTeam } from '@/lib/codewords'
 import type { CodewordsPlayerRole, CodewordsTeam, Player } from '@/types'
 
+type RemovePlayerHandler = (playerId: string, playerName: string) => void | Promise<void | boolean>
+
 function TeamSummaryLine({ team, roles }: { team: CodewordsTeam; roles: CodewordsPlayerRole[] }) {
   const summary = lobbyTeamSummary(roles, team)
   return (
@@ -16,6 +18,7 @@ function TeamSummaryLine({ team, roles }: { team: CodewordsTeam; roles: Codeword
 
 function PlayerManageButtons({
   playerId,
+  playerName,
   hasRole,
   benching,
   removing,
@@ -23,11 +26,12 @@ function PlayerManageButtons({
   onRemovePlayer,
 }: {
   playerId: string
+  playerName: string
   hasRole: boolean
   benching: boolean
   removing: boolean
   onBenchPlayer?: (playerId: string) => void
-  onRemovePlayer?: (playerId: string) => void
+  onRemovePlayer?: RemovePlayerHandler
 }) {
   if (!onBenchPlayer && !onRemovePlayer) return null
 
@@ -46,7 +50,7 @@ function PlayerManageButtons({
       {onRemovePlayer && (
         <button
           type="button"
-          onClick={() => onRemovePlayer(playerId)}
+          onClick={() => onRemovePlayer(playerId, playerName)}
           disabled={benching || removing}
           className="text-[10px] font-semibold text-faint hover:text-red-400 disabled:opacity-50"
         >
@@ -80,7 +84,7 @@ function PlayerRow({
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
   onBenchPlayer?: (playerId: string) => void
-  onRemovePlayer?: (playerId: string) => void
+  onRemovePlayer?: RemovePlayerHandler
 }) {
   const other = otherTeam(team)
   const isSpymaster = role.role === 'spymaster'
@@ -106,6 +110,7 @@ function PlayerRow({
         </span>
         <PlayerManageButtons
           playerId={player.id}
+          playerName={player.name}
           hasRole
           benching={!!benching}
           removing={!!removing}
@@ -149,6 +154,7 @@ function PlayerRow({
         </button>
         <PlayerManageButtons
           playerId={player.id}
+          playerName={player.name}
           hasRole
           benching={!!benching}
           removing={!!removing}
@@ -177,7 +183,7 @@ function UnassignedRow({
   removing?: boolean
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
   onSetSpymaster?: (playerId: string, team: CodewordsTeam) => void
-  onRemovePlayer?: (playerId: string) => void
+  onRemovePlayer?: RemovePlayerHandler
 }) {
   if (randomizeTeams && onSetSpymaster) {
     return (
@@ -188,6 +194,7 @@ function UnassignedRow({
           </span>
           <PlayerManageButtons
             playerId={player.id}
+            playerName={player.name}
             hasRole={false}
             benching={!!benching}
             removing={!!removing}
@@ -255,6 +262,7 @@ function UnassignedRow({
       </button>
       <PlayerManageButtons
         playerId={player.id}
+        playerName={player.name}
         hasRole={false}
         benching={!!benching}
         removing={!!removing}
@@ -287,7 +295,7 @@ function TeamColumn({
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
   onBenchPlayer?: (playerId: string) => void
-  onRemovePlayer?: (playerId: string) => void
+  onRemovePlayer?: RemovePlayerHandler
 }) {
   const roleByPlayer = new Map(roles.map((r) => [r.player_id, r]))
   const roster = players
@@ -360,7 +368,7 @@ export function CodewordsLobbyRoster({
   onSetSpymaster: (playerId: string, team: CodewordsTeam) => void
   onMoveTeam: (playerId: string, team: CodewordsTeam) => void
   onBenchPlayer?: (playerId: string) => void
-  onRemovePlayer?: (playerId: string) => void
+  onRemovePlayer?: RemovePlayerHandler
 }) {
   const roleByPlayer = new Map(roles.map((r) => [r.player_id, r]))
   const unassigned = players.filter((p) => !roleByPlayer.has(p.id))
@@ -418,6 +426,7 @@ export function CodewordsLobbyRoster({
                   </span>
                   <PlayerManageButtons
                     playerId={player.id}
+                    playerName={player.name}
                     hasRole={false}
                     benching={benchingPlayerId === player.id}
                     removing={removingPlayerId === player.id}

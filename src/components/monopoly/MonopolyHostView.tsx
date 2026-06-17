@@ -45,7 +45,9 @@ import {
   PLAYER_SELECT,
 } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
+import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
+import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
@@ -120,6 +122,34 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
   }, [gameCode, load])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
+
+  const handlePlayerRemoved = useCallback(
+    (playerId: string) => {
+      if (playerId === hostPlayerId) {
+        setHostPlayerId(null)
+        setHostPlayerName('')
+        clearPlayerSession(gameCode)
+      }
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+      setStates((prev) => prev.filter((s) => s.player_id !== playerId))
+    },
+    [gameCode, hostPlayerId]
+  )
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
+
+  const playerManageBlock =
+    game && (game.status === 'waiting' || game.status === 'active') ? (
+      <MonopolyGlassCard className="p-4 space-y-3">
+        <p className="text-[11px] uppercase tracking-widest text-faint">Manage players — {players.length}</p>
+        <HostPlayerManageList
+          players={players}
+          removingPlayerId={removingPlayerId}
+          onRemovePlayer={removePlayer}
+          highlightPlayerId={hostPlayerId}
+        />
+      </MonopolyGlassCard>
+    ) : null
 
   const changeHostMode = (mode: MonopolyHostMode) => {
     if (game?.status !== 'waiting') return
@@ -478,32 +508,13 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
                   </div>
                   <div className="text-4xl">🎩</div>
                 </div>
-                <div className="space-y-2">
-                  {players.length === 0 ? (
-                    <p className="text-sm text-faint text-center py-4">Waiting for players to join…</p>
-                  ) : (
-                    players.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center gap-3 rounded-xl bg-[var(--surface-inset-bg)] px-3 py-2.5 border border-[var(--border-strong)]"
-                      >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--primary)_25%,transparent)] text-sm font-bold text-[var(--foreground)]">
-                          {p.name.charAt(0).toUpperCase()}
-                        </span>
-                        <span className="font-semibold text-[var(--foreground)]">{p.name}</span>
-                        {p.id === hostPlayerId && (
-                          <span className="ml-auto text-[10px] font-bold uppercase text-[var(--primary)]">You</span>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
                 {!canStart && (
                   <p className="text-sm text-[var(--marry)] text-center">
                     Need at least {MONOPOLY_MIN_PLAYERS} players to start
                   </p>
                 )}
               </MonopolyGlassCard>
+              {playerManageBlock}
               <MonopolyPrimaryButton onClick={startGame} disabled={!canStart} loading={starting} variant="gold">
                 Start Monopoly
               </MonopolyPrimaryButton>
@@ -512,6 +523,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
 
           {game.status === 'active' && board && (
             <>
+              {playerManageBlock}
               <MonopolyTurnStrip turnName={turnPlayer?.name ?? '—'} phase={board.phase} />
               {board.status_message && <MonopolyStatusBanner message={board.status_message} />}
               <MonopolyClassicBoard

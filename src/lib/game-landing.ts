@@ -1,5 +1,13 @@
 import type { GameType } from '@/types'
 import { gameTypeConfig } from '@/lib/game-types'
+import { GAME_LANDING_RULES, type GameLandingRuleSection } from '@/lib/game-landing-rules'
+
+export type { GameLandingRuleSection } from '@/lib/game-landing-rules'
+
+export type GameLandingFaq = {
+  question: string
+  answer: string
+}
 
 export type GameLandingContent = {
   gameType: GameType
@@ -9,10 +17,13 @@ export type GameLandingContent = {
   keywords: string[]
   heroTitle: string
   heroSubtitle: string
+  bodyParagraph?: string
   highlights: string[]
   features: { title: string; description: string; emoji: string }[]
   steps: { title: string; description: string }[]
+  rules: GameLandingRuleSection[]
   perfectFor: string[]
+  extraFaqs?: GameLandingFaq[]
 }
 
 export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
@@ -67,13 +78,14 @@ const SHARED_FEATURES = {
 
 function landing(
   gameType: GameType,
-  extra: Omit<GameLandingContent, 'gameType' | 'slug' | 'heroTitle'> & { heroTitle?: string }
+  extra: Omit<GameLandingContent, 'gameType' | 'slug' | 'heroTitle' | 'rules'> & { heroTitle?: string }
 ): GameLandingContent {
   const cfg = gameTypeConfig(gameType)
   return {
     gameType,
     slug: GAME_TYPE_TO_SLUG[gameType],
     heroTitle: extra.heroTitle ?? cfg.label,
+    rules: GAME_LANDING_RULES[gameType],
     ...extra,
   }
 }
@@ -86,6 +98,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['smash marry kill online', 'smash marry kill game', 'kiss marry kill online', 'free smash marry kill'],
     heroSubtitle:
       'The classic party game, upgraded. Three faces land each round — your group assigns smash, marry, and kill. Results get messy.',
+    bodyParagraph:
+      'Smash Marry Kill (also called Kiss Marry Kill) puts three names in front of your group every round — celebrities, friends from a custom list, or names players add live. Unlike shouting answers across the room, Fate Round collects everyone’s votes privately and reveals who got smashed, married, and killed together. Upload a celebrity list, enable gender-based rounds, or let joiners fill the poll on the fly.',
     highlights: ['3 picks per round', 'Gender-based or names-only', 'Import a list or join & play'],
     features: [
       {
@@ -113,6 +127,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       },
     ],
     perfectFor: ['Friend groups', 'Birthday parties', 'Discord calls', 'Icebreakers'],
+    extraFaqs: [
+      {
+        question: 'What’s the difference between Smash Marry Kill and Smash or Pass?',
+        answer:
+          'Smash Marry Kill gives you three names each round and you must assign smash, marry, and kill to each one. Smash or Pass is simpler — two names per round and you only decide smash or pass on each person individually. Both are free on Fate Round.',
+      },
+    ],
   }),
 
   red_flag_green_flag: landing('red_flag_green_flag', {
@@ -122,6 +143,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['red flag green flag game', 'green flag red flag online', 'red flag game with friends'],
     heroSubtitle:
       'Two names, two judgments. Each round your group decides who’s a green flag and who’s a red flag — separately, honestly, and out loud.',
+    bodyParagraph:
+      'Red Flag Green Flag works like the viral dating debate format, but online with your whole group voting at once. Upload celebrities, crushes, or friends from a custom list — each round shows two names and everyone rates them green flag or red flag independently. Unlike arguing in a group chat, Fate Round tallies every vote and reveals who got flagged together.',
     highlights: ['Two names per round', 'Rate each person individually', 'Spicy group debates'],
     features: [
       {
@@ -139,6 +162,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Flag away', description: 'Reveal results round by round and see who’s collecting red flags.' },
     ],
     perfectFor: ['Date debates', 'Roommate nights', 'Twitch streams', 'Group chats'],
+    extraFaqs: [
+      {
+        question: 'How is Red Flag Green Flag different from Smash or Pass?',
+        answer:
+          'Red Flag Green Flag rates two people separately on a green-or-red scale — both names get judged each round. Smash or Pass is a simple smash-or-pass binary on each person. Both are free on Fate Round.',
+      },
+    ],
   }),
 
   smash_or_pass: landing('smash_or_pass', {
@@ -148,6 +178,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['smash or pass game', 'smash or pass online', 'smash pass party game'],
     heroSubtitle:
       'Fast, bold, and brutally simple. Two names show up — your group smashes or passes on each one. No overthinking required.',
+    bodyParagraph:
+      'Smash or Pass is the quickest party game on Fate Round — two names per round, smash or pass on each, done. Import a celebrity list, add friends from your group, or let players join the poll live. Unlike playing verbally where loudest voice wins, everyone votes privately and results reveal together with a live smash leaderboard.',
     highlights: ['Quick binary votes', 'Two names per round', 'Perfect for rapid rounds'],
     features: [
       { title: 'Smash or pass', description: 'Clean A/B energy on every name — no third option needed.', emoji: '🔥' },
@@ -161,6 +193,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Smash or pass', description: 'Vote, reveal, repeat. Leaderboards show who got the most smashes.' },
     ],
     perfectFor: ['Quick warm-ups', 'College hangs', 'After-parties', 'Bold friend groups'],
+    extraFaqs: [
+      {
+        question: 'What’s the difference between Smash or Pass and Smash Marry Kill?',
+        answer:
+          'Smash or Pass shows two names per round and you pick smash or pass on each person. Smash Marry Kill gives you three names and you must assign smash, marry, and kill to all three. Smash or Pass is faster; Smash Marry Kill has more chaos.',
+      },
+    ],
   }),
 
   parent_approval: landing('parent_approval', {
@@ -170,6 +209,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['date my kid game', 'parent approval game', 'would you let your kid date them', 'party game online'],
     heroSubtitle:
       'One name steps into the spotlight. Everyone votes yes or no — would you let your son or daughter date or marry this person?',
+    bodyParagraph:
+      'Date My Kid (Parent Approval) puts one name in the spotlight each round and asks the brutal question: would you let your son or daughter date or marry them? Load celebrities, exes, or friends from a custom list — everyone votes yes or no privately, then results reveal together. It’s funnier than shouting across the room because you see the actual split, not just the loudest opinion.',
     highlights: ['One name per round', 'Yes or no votes', 'Import a list or join & play'],
     features: [
       {
@@ -191,6 +232,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Yes or no', description: 'Each round reveals one person. Vote, reveal, repeat.' },
     ],
     perfectFor: ['Friend groups', 'Family game night', 'Podcast bits', 'Group chats'],
+    extraFaqs: [
+      {
+        question: 'Can I use celebrities in Date My Kid?',
+        answer:
+          'Yes. Upload a custom name list with celebrities, fictional characters, or anyone your group wants to judge. You can also let players join the poll and add names live when creating the room.',
+      },
+    ],
   }),
 
   would_you_rather: landing('would_you_rather', {
@@ -200,6 +248,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['would you rather online', 'would you rather game', 'wyr with friends', 'would you rather no signup'],
     heroSubtitle:
       'Impossible choices, anonymous votes. Every round pits two options against each other — see where your group actually stands.',
+    bodyParagraph:
+      'Would You Rather on Fate Round handles the classic “pick A or B” format with anonymous voting and instant reveals. Use hundreds of built-in prompts or upload your own questions — perfect for icebreakers, road trips, or Zoom calls. Unlike playing out loud where people follow the crowd, anonymous votes show where your group actually stands before the arguments start.',
     highlights: ['Anonymous voting', 'Platform or custom questions', '2+ players, zero setup'],
     features: [
       {
@@ -221,6 +271,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Pick A or B', description: 'Vote each round, reveal the split, and argue about the minority.' },
     ],
     perfectFor: ['Road trips (passenger mode)', 'Zoom hangs', 'Icebreakers', 'Late-night nonsense'],
+    extraFaqs: [
+      {
+        question: 'Can I add my own Would You Rather questions?',
+        answer:
+          'Yes. Fate Round includes a built-in question pool, and you can upload your own prompts when creating a room. Pick round count, set a timer, and share the link — no participant list required.',
+      },
+    ],
   }),
 
   this_or_that: landing('this_or_that', {
@@ -230,6 +287,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['this or that game', 'this or that online', 'this or that with friends', 'coffee or tea game'],
     heroSubtitle:
       'Your prompts, your vibe. Upload “Coffee or Tea?” style questions — everyone picks A or B and you see where the group lands.',
+    bodyParagraph:
+      'This or That is Would You Rather with your own personality — upload “Coffee or Tea?”, “Dogs or Cats?”, or inside-joke prompts from a CSV. Everyone votes anonymously and you see the split instantly. Unlike verbal rounds where one person picks first and influences everyone else, Fate Round collects private votes before revealing results.',
     highlights: ['Upload your own CSV', 'Anonymous voting', '2+ players, zero setup'],
     features: [
       {
@@ -254,6 +313,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Pick A or B', description: 'Vote each round, reveal the split, and argue about the minority.' },
     ],
     perfectFor: ['Icebreakers', 'Team meetings', 'Group chats', 'Custom themed nights'],
+    extraFaqs: [
+      {
+        question: 'What’s the difference between This or That and Would You Rather?',
+        answer:
+          'Would You Rather uses Fate Round’s built-in impossible-choice prompts. This or That lets you upload your own “X or Y?” questions — ideal for themed nights, team meetings, or inside jokes. Both use anonymous A/B voting.',
+      },
+    ],
   }),
 
   most_likely_to: landing('most_likely_to', {
@@ -263,6 +329,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['most likely to game', 'most likely to online', 'mlt party game', 'most likely to with friends'],
     heroSubtitle:
       '“Most likely to…” prompts meet your actual friend group. Anonymous votes, savage reveals, zero mercy.',
+    bodyParagraph:
+      'Most Likely To on Fate Round lets your group vote on who fits each prompt — “most likely to ghost the group chat”, “most likely to become famous”, and more. Use your actual friend group as the roster or import names, with anonymous votes so nobody knows who picked whom until reveal. It beats playing verbally because shy friends vote honestly and the roast hits harder.',
     highlights: ['Anonymous votes', 'Friend group or imported list', 'Custom prompts supported'],
     features: [
       { title: 'Call out friends', description: 'Each prompt asks who fits best — the group decides.', emoji: '🎯' },
@@ -280,6 +348,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Vote & reveal', description: 'See who wins each “most likely to” and crown the chaos.' },
     ],
     perfectFor: ['Friend reunions', 'Team offsites', 'Birthday roasts', 'Group chat nights'],
+    extraFaqs: [
+      {
+        question: 'Can I use custom Most Likely To prompts?',
+        answer:
+          'Yes. Fate Round includes built-in prompts and supports custom questions when you create a room. Vote on your friend group directly or import a name list — results reveal anonymously round by round.',
+      },
+    ],
   }),
 
   who_said_this: landing('who_said_this', {
@@ -289,6 +364,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['who said this game', 'guess the quote game', 'who said it party game'],
     heroSubtitle:
       'Your group writes the content. Quotes hit the pool, everyone guesses the author — and friendships get tested.',
+    bodyParagraph:
+      'Who Said This turns your group’s own messages into the game. Players submit quotes in the lobby — inside jokes, unhinged texts, or anime lines — then everyone guesses who wrote each one. Unlike reading quotes aloud and having one person guess, Fate Round scores every player and tracks who knows the group best.',
     highlights: ['Player-submitted quotes', 'Anime quote mode', 'Lobby quote pool'],
     features: [
       {
@@ -313,6 +390,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Reveal & score', description: 'See who guessed right and who wrote the most unhinged lines.' },
     ],
     perfectFor: ['Close friend groups', 'Work teams', 'Anime watch parties', 'Inside-joke nights'],
+    extraFaqs: [
+      {
+        question: 'Do players need to submit quotes before the game starts?',
+        answer:
+          'Yes. Everyone joins the lobby, claims their name, and adds quotes to the pool before the host starts. Only pooled quotes become rounds — so the more your group submits, the better the game gets.',
+      },
+    ],
   }),
 
   hot_seat: landing('hot_seat', {
@@ -322,6 +406,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['hot seat game', 'hot seat party game online', 'roast compliment game'],
     heroSubtitle:
       'One person in the hot seat. Everyone else drops a compliment, observation, or roast. Take turns until nobody’s safe.',
+    bodyParagraph:
+      'Hot Seat gives every player a turn in the spotlight while the rest of the group submits anonymously — a compliment, an honest observation, or a roast. Upload your friend group, claim names on join, and take turns until everyone has sat in the seat. Unlike verbal roast sessions where people hold back, anonymous submissions bring the real takes.',
     highlights: ['One spotlight per round', 'Compliment · observation · roast', 'Claim-from-list roster'],
     features: [
       {
@@ -339,6 +425,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Read the room', description: 'Reveal submissions one by one — compliments, observations, roasts.' },
     ],
     perfectFor: ['Birthday honorees', 'Send-offs', 'Team bonding', 'Roast sessions'],
+    extraFaqs: [
+      {
+        question: 'Are Hot Seat submissions anonymous?',
+        answer:
+          'Yes. When someone is in the hot seat, every other player submits one compliment, observation, or roast anonymously. Submissions reveal one by one — the person in the seat sees what the room really thinks.',
+      },
+    ],
   }),
 
   custom: landing('custom', {
@@ -349,6 +442,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     heroTitle: 'Custom Voting Game',
     heroSubtitle:
       'You name the slots. Date, Friendzone, CEO — whatever fits your group. Build categories, pick rules, run the poll.',
+    bodyParagraph:
+      'The Custom Voting Game lets you build your own Smash Marry Kill-style format with 2–5 named slots — Date, Friendzone, CEO, or whatever your group actually says. Upload a name list, set gender rules if you want, and run rounds where everyone assigns one person per slot. Perfect for inside jokes and themed nights that no off-the-shelf party game covers.',
     highlights: ['2–5 custom slots', 'Your labels & emojis', 'Gender-based or names-only'],
     features: [
       {
@@ -370,6 +465,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Assign & reveal', description: 'Each round, assign one person per slot and reveal the group’s picks.' },
     ],
     perfectFor: ['Inside jokes', 'Themed nights', 'Streamer communities', 'Niche friend groups'],
+    extraFaqs: [
+      {
+        question: 'How many custom categories can I create?',
+        answer:
+          'You can define 2–5 custom slots when creating a room — each with its own label, emoji, and color. Assign one person per slot each round, then reveal the group’s picks together.',
+      },
+    ],
   }),
 
   anonymous_messages: landing('anonymous_messages', {
@@ -379,6 +481,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['anonymous chat game', 'anonymous messages party', 'anonymous room online', 'free anonymous chat'],
     heroSubtitle:
       'A live anonymous wall for your group. Join with one tap, get a random lobby name, and post messages everyone sees in real time — with no names attached.',
+    bodyParagraph:
+      'Anonymous Room is a live confession wall for your group — join with one tap, get a random lobby name, and post messages the whole room sees with no sender attached. Unlike separate anonymous apps, everyone shares one live feed in real time. Perfect for confession nights, team retros, or icebreakers where people need cover to be honest.',
     highlights: ['One-tap join', 'Auto-assigned names', 'Live anonymous feed'],
     features: [
       {
@@ -400,6 +504,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Post live', description: 'Host starts the session and anonymous messages flow for the whole room.' },
     ],
     perfectFor: ['Confession nights', 'Team retros', 'Icebreakers', 'Group chats'],
+    extraFaqs: [
+      {
+        question: 'Are Anonymous Room messages truly anonymous?',
+        answer:
+          'Yes. Players get auto-assigned random lobby names and messages never show who sent them. Everyone in the room sees the live feed — but no one can tell which message came from which person.',
+      },
+    ],
   }),
 
   secret_message: landing('secret_message', {
@@ -414,6 +525,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     heroSubtitle:
       'Like a private suggestion box for your link. Share once — anyone can send you a message, and only you read them.',
+    bodyParagraph:
+      'Secret Message gives you a private anonymous inbox link — share it on Instagram, in your bio, or a group chat, and anyone can send you a message without signing up. Only you see the inbox; senders never see each other’s messages. Unlike public confession walls, this is a one-to-many suggestion box built for honest feedback, Q&A prompts, or fan messages.',
     highlights: ['Host-only inbox', 'Share anywhere', 'No sender sign-up'],
     features: [
       {
@@ -435,6 +548,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Read your inbox', description: 'Messages arrive on your host panel in real time.' },
     ],
     perfectFor: ['Instagram stories', 'Honest feedback', 'Q&A prompts', 'Fan messages'],
+    extraFaqs: [
+      {
+        question: 'Can senders see each other’s Secret Messages?',
+        answer:
+          'No. Only the host sees the private inbox. Senders open your link, type a message, and send — they never see other submissions or who else wrote in.',
+      },
+    ],
   }),
 
   bingo: landing('bingo', {
@@ -444,6 +564,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['online bingo game', 'free bingo party', 'number bingo multiplayer', 'host bingo night'],
     heroSubtitle:
       'Classic 75-ball bingo for parties and game nights. Everyone gets their own card on their phone — you call the numbers, they mark and shout BINGO.',
+    bodyParagraph:
+      'Online Bingo on Fate Round brings 75-ball bingo to your group without printing cards. Every player gets a unique 5×5 card on their phone with a free center square — you call numbers B1 through O75, they tap to mark, and the first completed line wins. Perfect for family nights, office parties, or classrooms where everyone already has a phone.',
     highlights: ['Unique cards', 'Host calls numbers', 'First line wins'],
     features: [
       {
@@ -465,6 +587,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Call & win', description: 'Call numbers until someone completes a line and claims BINGO.' },
     ],
     perfectFor: ['Family game night', 'Office parties', 'Classroom fun', 'Pub quizzes'],
+    extraFaqs: [
+      {
+        question: 'Does each player get a different Bingo card?',
+        answer:
+          'Yes. When the host starts the game, every player receives a unique 5×5 bingo card automatically. Numbers called by the host sync in real time across all devices.',
+      },
+    ],
   }),
 
   codewords: landing('codewords', {
@@ -474,6 +603,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['codenames online', 'codewords party game', 'word spy game', 'free codenames alternative'],
     heroSubtitle:
       'The classic word-association spy game online. Red vs Blue — spymasters know the secret key, operatives guess the right words. One wrong pick on the assassin ends it all.',
+    bodyParagraph:
+      'Codewords is the word-association spy game online — Red vs Blue teams, spymasters who see the secret key card, and operatives who guess words from one-word clues. Hit the assassin word and the game is over. Unlike passing a physical board around, everyone plays from their phone with roles assigned automatically.',
     highlights: ['Red vs Blue teams', 'Spymaster clues', '5×5 word grid'],
     features: [
       {
@@ -495,6 +626,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Guess to win', description: 'Operatives tap words — first team to find all their words wins.' },
     ],
     perfectFor: ['Game nights', 'Team building', 'Word nerds', 'Board game fans'],
+    extraFaqs: [
+      {
+        question: 'How is Codewords different from Codenames?',
+        answer:
+          'Codewords follows the same word-association spy game format — two teams, spymaster clues, and a 5×5 word grid — playable free in your browser on Fate Round with no board or app required.',
+      },
+    ],
   }),
 
   trivia: landing('trivia', {
@@ -504,6 +642,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['online trivia game', 'quiz party game', 'tech trivia', 'general knowledge quiz'],
     heroSubtitle:
       'Speed-based trivia for groups. Pick Tech or General Knowledge, or upload your own questions. Fastest correct answers score the most.',
+    bodyParagraph:
+      'Trivia on Fate Round is built for fast-finger competition — multiple-choice questions, a live timer, and speed bonuses for the first correct answer. Use Tech or General Knowledge categories or upload your own CSV of questions. Unlike shouting answers in a pub quiz, every player taps their choice and the leaderboard updates automatically.',
     highlights: ['Tech & general categories', 'Speed scoring', 'Live leaderboard'],
     features: [
       {
@@ -525,6 +665,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Climb the board', description: 'Points stack across rounds — fastest fingers win the leaderboard.' },
     ],
     perfectFor: ['Pub quizzes', 'Team meetings', 'Classroom reviews', 'Game nights'],
+    extraFaqs: [
+      {
+        question: 'Can I upload my own trivia questions?',
+        answer:
+          'Yes. Pick Tech or General Knowledge from the built-in pool, or upload a CSV with your own multiple-choice questions when creating a room. Fastest correct answers earn speed bonus points.',
+      },
+    ],
   }),
 
   two_truths: landing('two_truths', {
@@ -534,6 +681,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['two truths and a lie online', 'party game', 'icebreaker game', 'social deduction'],
     heroSubtitle:
       'Classic icebreaker, online. Write two truths and a lie, then take turns in the hot seat while everyone guesses the fib.',
+    bodyParagraph:
+      'Two Truths and a Lie on Fate Round handles the classic icebreaker end to end — everyone submits two truths and one lie in the lobby, then takes turns in the hot seat while the group guesses the fib. Statements shuffle each round and points track who spots lies best. Better than playing in person because scoring is automatic and shy players participate through their phone.',
     highlights: ['Lobby statement prep', 'One round per player', 'Lie spotting scores'],
     features: [
       {
@@ -555,6 +704,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Score points', description: 'Correct guesses earn points; fool the most people for bonus points.' },
     ],
     perfectFor: ['Icebreakers', 'Team offsites', 'Classrooms', 'Friend groups'],
+    extraFaqs: [
+      {
+        question: 'When do players write their Two Truths and a Lie?',
+        answer:
+          'In the lobby before the host starts. Each player submits two true statements and one lie about themselves. Once the game begins, one player’s statements are shown each round for the group to guess.',
+      },
+    ],
   }),
 
   monopoly: landing('monopoly', {
@@ -564,6 +720,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['online monopoly game', 'free monopoly multiplayer', 'board game night', 'property game online'],
     heroSubtitle:
       'Classic Monopoly on your phones. Join a room, roll the dice, buy properties, and be the last player standing.',
+    bodyParagraph:
+      'Monopoly on Fate Round puts the full 40-space board on everyone’s phone — roll dice, buy properties, pay rent, draw Chance and Community Chest cards, and manage jail just like the tabletop game. Join a room with 2–6 players, share the link, and play turn-by-turn in real time without setting up a physical board.',
     highlights: ['Full 40-space board', '2–6 players', 'Real-time turns'],
     features: [
       {
@@ -585,6 +743,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Last one wins', description: 'Buy properties, collect rent, and bankrupt opponents until one player remains.' },
     ],
     perfectFor: ['Game nights', 'Family gatherings', 'Friend groups', 'Remote hangouts'],
+    extraFaqs: [
+      {
+        question: 'How many people can play Monopoly online?',
+        answer:
+          'Monopoly on Fate Round supports 2–6 players in one room. Everyone joins with a display name, starts on GO with $1,500, and takes turns rolling dice until one player bankrupts the rest.',
+      },
+    ],
   }),
 
   yahtzee: landing('yahtzee', {
@@ -592,6 +757,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     seoDescription: 'Play Yahtzee online with friends. Roll dice, hold what you want, and fill your scorecard with the best combos.',
     keywords: ['yahtzee game online', 'dice game multiplayer', 'roll hold scorecard', 'play yahtzee friends'],
     heroSubtitle: 'The classic dice puzzle — score straights, full houses, and Yahtzees together.',
+    bodyParagraph:
+      'Yahtzee on Fate Round brings roll-and-hold dice scoring to your group online. Up to three rolls per turn, hold the dice you want, and fill your scorecard category by category — straights, full houses, chance, and the coveted Yahtzee. Turn-based play with 2–8 players means no one needs a physical scorecard or dice cup.',
     highlights: ['5 dice', '2–8 players', 'Turn-based scoring'],
     features: [
       {
@@ -613,6 +780,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       { title: 'Win the board', description: 'Highest total score after the board fills wins.' },
     ],
     perfectFor: ['Game nights', 'Casual hangouts', 'Friend groups'],
+    extraFaqs: [
+      {
+        question: 'How does scoring work in online Yahtzee?',
+        answer:
+          'Each turn you roll up to three times, holding dice between rolls. Pick an unused scorecard category to fill — upper section, lower section combos, or chance. Highest total when the board is full wins.',
+      },
+    ],
   }),
 }
 
@@ -620,4 +794,32 @@ export function getGameLandingContent(slug: string): GameLandingContent | null {
   const gameType = gameTypeFromSlug(slug)
   if (!gameType) return null
   return GAME_LANDING_CONTENT[gameType]
+}
+
+export function getGameBodyParagraph(content: GameLandingContent): string {
+  if (content.bodyParagraph) return content.bodyParagraph
+
+  const cfg = gameTypeConfig(content.gameType)
+  return `${cfg.label} on Fate Round runs entirely in the browser — no app download or account required. ${content.heroSubtitle} Create a room, share a short code with your group, and play together from any phone or computer in real time.`
+}
+
+export function getGameFaqs(content: GameLandingContent): GameLandingFaq[] {
+  const cfg = gameTypeConfig(content.gameType)
+  const label = cfg.label
+
+  return [
+    {
+      question: `How many players do you need for ${label}?`,
+      answer: `${label} works with ${cfg.card.players.toLowerCase()}. Create a room on Fate Round, share the link or code, and everyone joins from their browser — no sign-up required.`,
+    },
+    {
+      question: `Is ${label} free to play online?`,
+      answer: `Yes. ${label} on Fate Round is completely free — no download, no payment, and no account needed. Create a room and start playing in under a minute.`,
+    },
+    {
+      question: `Can I play ${label} on my phone?`,
+      answer: `Yes. Fate Round runs in any mobile browser. Share the room link in your group chat and everyone can play ${label} from their phone or desktop.`,
+    },
+    ...(content.extraFaqs ?? []),
+  ]
 }

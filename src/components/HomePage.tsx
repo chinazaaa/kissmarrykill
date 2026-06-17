@@ -37,10 +37,10 @@ export function HomePage() {
         </Link>
       </header>
 
-      <div className="page-wrap min-h-dvh flex flex-col items-center justify-center px-4 pt-14 pb-6 sm:py-8">
-        <div className="relative z-10 w-full max-w-sm flex flex-col gap-4 sm:gap-5">
-          <div className="text-center space-y-3 shrink-0">
-            <h1 className="text-[2.5rem] sm:text-5xl font-black tracking-tighter leading-[0.95] gradient-title">
+      <div className="page-wrap min-h-dvh flex flex-col items-center px-4 pt-14 pb-4">
+        <div className="relative z-10 w-full max-w-sm flex flex-col gap-3 sm:gap-4">
+          <div className="text-center space-y-2 shrink-0">
+            <h1 className="text-[2.25rem] sm:text-5xl font-black tracking-tighter leading-[0.95] gradient-title">
               Vote.
               <br />
               Laugh.
@@ -53,41 +53,7 @@ export function HomePage() {
             </p>
           </div>
 
-          <div className="space-y-2.5 shrink-0">
-            <p className="label-caps text-center">Popular games</p>
-            <div className="grid grid-cols-3 gap-2">
-              {featuredTypes.map((type) => {
-                const cfg = gameTypeConfig(type)
-                const slug = gameLandingSlug(type)
-                return (
-                  <Link
-                    key={type}
-                    href={`/games/${slug}`}
-                    className="glass-card glass-card-interactive flex flex-col items-center gap-2 p-3.5 text-center no-underline"
-                    style={{ '--accent': cfg.card.accent } as React.CSSProperties}
-                  >
-                    <span
-                      className="flex h-11 w-11 items-center justify-center rounded-2xl text-2xl"
-                      style={{ background: cfg.card.accentSoft }}
-                    >
-                      {cfg.card.emoji}
-                    </span>
-                    <span className="text-xs font-semibold leading-tight text-balance">
-                      {cfg.label}
-                    </span>
-                  </Link>
-                )
-              })}
-            </div>
-            <Link
-              href="/games"
-              className="block w-full text-center text-faint text-xs hover:text-[var(--foreground)] transition-colors"
-            >
-              See all game modes →
-            </Link>
-          </div>
-
-          <div className="glass-card-strong p-5 space-y-3.5 shrink-0">
+          <div className="glass-card-strong p-4 sm:p-5 space-y-3 shrink-0">
             <button type="button" onClick={() => startCreate()} className="btn-primary">
               Create a Game
             </button>
@@ -112,6 +78,40 @@ export function HomePage() {
                 Join
               </button>
             </div>
+          </div>
+
+          <div className="space-y-2 shrink-0">
+            <p className="label-caps text-center">Popular games</p>
+            <div className="grid grid-cols-3 gap-2">
+              {featuredTypes.map((type) => {
+                const cfg = gameTypeConfig(type)
+                const slug = gameLandingSlug(type)
+                return (
+                  <Link
+                    key={type}
+                    href={`/games/${slug}`}
+                    className="glass-card glass-card-interactive flex flex-col items-center gap-1.5 p-2.5 sm:p-3.5 text-center no-underline"
+                    style={{ '--accent': cfg.card.accent } as React.CSSProperties}
+                  >
+                    <span
+                      className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-2xl text-xl sm:text-2xl"
+                      style={{ background: cfg.card.accentSoft }}
+                    >
+                      {cfg.card.emoji}
+                    </span>
+                    <span className="text-[0.6875rem] sm:text-xs font-semibold leading-tight text-balance">
+                      {cfg.label}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+            <Link
+              href="/games"
+              className="block w-full text-center text-faint text-xs hover:text-[var(--foreground)] transition-colors"
+            >
+              See all game modes →
+            </Link>
           </div>
 
           <div className="shrink-0 flex items-center justify-center gap-4 text-xs text-faint">
