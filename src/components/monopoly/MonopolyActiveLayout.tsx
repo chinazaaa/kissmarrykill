@@ -62,7 +62,13 @@ export function MonopolyActiveLayout({
   const isMyAuctionTurn = auctionBidderId === myPlayerId
   const amActor = isMyTurn || isMyAuctionTurn || (board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId)
   const currentOwner =
-    myState != null ? players.find((p) => p.id === owners[String(myState.position)])?.name : null
+    myState != null
+      ? players.find((p) => p.id === owners[String(myState.position)])?.name ?? null
+      : null
+  const ownershipKey = Object.entries(owners)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([index, playerId]) => `${index}:${playerId}`)
+    .join('|')
 
   const buildActions =
     board && myPlayerId ? getMonopolyBuildActionCount(board, myPlayerId) : 0
@@ -202,9 +208,10 @@ export function MonopolyActiveLayout({
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,22rem)] lg:gap-5 lg:items-start">
         <div className="space-y-4 lg:sticky lg:top-4">
           <MonopolyClassicBoard
+            key={ownershipKey}
             states={states}
             players={players}
-            propertyOwners={owners}
+            propertyOwners={board.property_owners}
             propertyBuildings={board.property_buildings}
             mortgagedProperties={board.mortgaged_properties}
             lastDiceTotal={board.last_dice?.total ?? 2}

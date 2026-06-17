@@ -114,7 +114,25 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 export function parsePropertyOwners(raw: unknown): Record<string, string> {
-  return parseJsonRecord(raw)
+  return { ...parseJsonRecord(raw) }
+}
+
+export function propertyOwnerId(owners: Record<string, string>, spaceIndex: number): string | undefined {
+  return owners[String(spaceIndex)]
+}
+
+function applyPendingTradeToOwners(
+  owners: Record<string, string>,
+  trade: MonopolyPendingTrade
+): Record<string, string> {
+  const next = { ...owners }
+  for (const idx of trade.offer_properties ?? []) {
+    next[String(idx)] = trade.to_player_id
+  }
+  for (const idx of trade.request_properties ?? []) {
+    next[String(idx)] = trade.from_player_id
+  }
+  return next
 }
 
 export function currentPlayerId(board: MonopolyBoard): string | null {
@@ -1655,9 +1673,15 @@ export async function processMonopolyTradeRespond(
     return {}
   }
 
-  const owners = parsePropertyOwners(board.property_owners)
-  const buildings = parseBuildings(board.property_buildings)
-  const mortgaged = parseMortgaged(board.mortgaged_properties)
+  const { data: freshBoardRaw, error: freshBoardError } = await supabase
+    .from('monopoly_boards')
+    .select('property_owners, property_buildings')
+    .eq('game_id', gameId)
+    .maybeSingle()
+  if (freshBoardError || !freshBoardRaw) return { error: 'Board not found' }
+
+  const owners = parsePropertyOwners(freshBoardRaw.property_owners)
+  const buildings = parseBuildings(freshBoardRaw.property_buildings)
 
   const { data: fromState } = await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId).eq('player_id', trade.from_player_id).maybeSingle()
   const { data: toState } = await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId).eq('player_id', trade.to_player_id).maybeSingle()
@@ -1687,15 +1711,27 @@ export async function processMonopolyTradeRespond(
   )
   if (toErr) return { error: toErr }
 
-  for (const idx of trade.offer_properties) owners[String(idx)] = trade.to_player_id
-  for (const idx of trade.request_properties) owners[String(idx)] = trade.from_player_id
+  const nextOwners = applyPendingTradeToOwners(owners, trade)
 
   const names = await playerNamesById(supabase, gameId, [trade.from_player_id, trade.to_player_id])
   const fromName = names[trade.from_player_id] ?? 'A player'
   const toName = names[trade.to_player_id] ?? 'A player'
   const lastTradeEvent = nextTradeEvent(board, trade.from_player_id, trade.to_player_id, 'accepted')
 
-  await supabase
+  const { error: boardUpdateError } = await supabase
+    .from('monopoly_boards')
+    .update({
+      property_owners: nextOwners,
+      pending_trade: null,
+      status_message: `${toName} accepted ${fromName}'s trade offer.`,
+      last_trade_event: lastTradeEvent,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+
+  if (boardUpdateError) return { error: boardUpdateError.message }
+
+  const { error: fromUpdateError } = await supabase
     .from('monopoly_player_state')
     .update({
       cash: fromState.cash - trade.offer_cash + trade.request_cash,
@@ -1704,7 +1740,9 @@ export async function processMonopolyTradeRespond(
     .eq('game_id', gameId)
     .eq('player_id', trade.from_player_id)
 
-  await supabase
+  if (fromUpdateError) return { error: fromUpdateError.message }
+
+  const { error: toUpdateError } = await supabase
     .from('monopoly_player_state')
     .update({
       cash: toState.cash + trade.offer_cash - trade.request_cash,
@@ -1713,16 +1751,7 @@ export async function processMonopolyTradeRespond(
     .eq('game_id', gameId)
     .eq('player_id', trade.to_player_id)
 
-  await supabase
-    .from('monopoly_boards')
-    .update({
-      property_owners: owners,
-      pending_trade: null,
-      status_message: `${toName} accepted ${fromName}'s trade offer.`,
-      last_trade_event: lastTradeEvent,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('game_id', gameId)
+  if (toUpdateError) return { error: toUpdateError.message }
 
   return {}
 }

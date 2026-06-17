@@ -139,6 +139,7 @@ function BoardSpaceCell({
 }) {
   const space = spaceAt(spaceIndex)
   const ownerId = owners[String(spaceIndex)]
+  const ownerLabel = ownerId ? playerName(players, ownerId) : null
   const orderMap = playerOrderMap(states)
   const tokens = states.filter((s) => !s.bankrupt && s.position === spaceIndex)
   const highlighted = highlightIndex === spaceIndex
@@ -199,8 +200,9 @@ function BoardSpaceCell({
         </div>
       </div>
 
-      {ownerId && (
+      {ownerId && ownerLabel && (
         <div
+          title={`Owned by ${ownerLabel}`}
           className={[
             'absolute z-[1] rounded-sm px-0.5 py-px text-[6px] font-bold text-white leading-none max-w-[90%] truncate',
             tokenColorForOrder(orderMap.get(ownerId) ?? 0).bg,
@@ -211,7 +213,7 @@ function BoardSpaceCell({
             isCorner ? 'bottom-0.5 left-0.5 right-0.5' : '',
           ].join(' ')}
         >
-          {playerName(players, ownerId).slice(0, 6)}
+          {ownerLabel.slice(0, 6)}
         </div>
       )}
 

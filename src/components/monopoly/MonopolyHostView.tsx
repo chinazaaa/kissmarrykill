@@ -20,6 +20,7 @@ import {
   getMonopolyHostMode,
   MONOPOLY_COLOR_CLASSES,
   MONOPOLY_MIN_PLAYERS,
+  parsePropertyOwners,
   setMonopolyHostMode,
   type MonopolyColorGroup,
   type MonopolyHostMode,
@@ -459,20 +460,30 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
                       <p className="text-sm text-muted text-center leading-relaxed">{manageStatus}</p>
                     ) : null
                   })()}
-                  <MonopolyClassicBoard
-                    states={states}
-                    players={players}
-                    propertyOwners={board.property_owners}
-                    propertyBuildings={board.property_buildings}
-                    mortgagedProperties={board.mortgaged_properties}
-                    lastDiceTotal={board.last_dice?.total ?? 2}
-                    center={
-                      <div className="flex flex-col items-center justify-center h-full gap-1">
-                        <MonopolyDiceRoll dice={board.last_dice} />
-                        <p className="text-[10px] uppercase tracking-widest text-faint mt-1">Host view</p>
-                      </div>
-                    }
-                  />
+                  {(() => {
+                    const hostOwners = parsePropertyOwners(board.property_owners)
+                    const ownershipKey = Object.entries(hostOwners)
+                      .sort(([a], [b]) => Number(a) - Number(b))
+                      .map(([index, playerId]) => `${index}:${playerId}`)
+                      .join('|')
+                    return (
+                      <MonopolyClassicBoard
+                        key={ownershipKey}
+                        states={states}
+                        players={players}
+                        propertyOwners={board.property_owners}
+                        propertyBuildings={board.property_buildings}
+                        mortgagedProperties={board.mortgaged_properties}
+                        lastDiceTotal={board.last_dice?.total ?? 2}
+                        center={
+                          <div className="flex flex-col items-center justify-center h-full gap-1">
+                            <MonopolyDiceRoll dice={board.last_dice} />
+                            <p className="text-[10px] uppercase tracking-widest text-faint mt-1">Host view</p>
+                          </div>
+                        }
+                      />
+                    )
+                  })()}
                 </div>
                 <MonopolyPlayerList
                   states={states}
