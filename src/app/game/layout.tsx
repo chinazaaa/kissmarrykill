@@ -11,7 +11,7 @@ export default function GameLayout({ children }: { children: React.ReactNode }) 
     <GameRulesProvider>
       <GameRulesLoader />
       <GamePlayerChrome />
-      {children}
+      <main className="pt-[3.75rem]">{children}</main>
     </GameRulesProvider>
   )
 }

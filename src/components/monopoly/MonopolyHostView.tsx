@@ -12,6 +12,7 @@ import { MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { gameTypeConfig } from '@/lib/game-types'
+import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import {
   currentPlayerId,
   getMonopolyHostMode,
@@ -369,6 +370,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
         {tab === 'play' && hostPlays && hostPlayerId && game.status === 'active' && (
           board ? (
             <MonopolyActiveLayout
+              gameCode={gameCode}
               board={board}
               states={states}
               players={players}
@@ -450,13 +452,21 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
                       'Waiting for turn…'
                     )}
                   </p>
-                  {board.status_message && (
-                    <p className="text-sm text-muted text-center leading-relaxed">{board.status_message}</p>
-                  )}
+                  {(() => {
+                    const manageStatus = board.last_rent_event
+                      ? formatRentMessageForPlayer(board.last_rent_event, hostPlayerId, players)
+                      : board.status_message
+                    return manageStatus ? (
+                      <p className="text-sm text-muted text-center leading-relaxed">{manageStatus}</p>
+                    ) : null
+                  })()}
                   <MonopolyClassicBoard
                     states={states}
                     players={players}
                     propertyOwners={board.property_owners}
+                    propertyBuildings={board.property_buildings}
+                    mortgagedProperties={board.mortgaged_properties}
+                    lastDiceTotal={board.last_dice?.total ?? 2}
                     center={
                       <div className="flex flex-col items-center justify-center h-full gap-1">
                         <MonopolyDiceRoll dice={board.last_dice} />

@@ -11,11 +11,7 @@ import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout
 import { MONOPOLY_COLOR_CLASSES } from '@/lib/monopoly'
 import type { MonopolyColorGroup } from '@/lib/monopoly'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
-import {
-  MonopolyCashBadge,
-  MonopolyStatusBanner,
-  MonopolyTurnStrip,
-} from '@/components/monopoly/MonopolyChrome'
+import { MonopolyPageHeader } from '@/components/monopoly/MonopolyChrome'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   currentPlayerId,
@@ -387,12 +383,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   return (
     <div className="min-h-screen pb-24">
       <div className="max-w-5xl mx-auto px-4 py-4 sm:py-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-black tracking-tight gradient-title truncate">{game?.title}</h1>
-            <p className="text-faint text-xs">{cfg.label}</p>
-          </div>
-          {myPlayerId && sessionName && (
+        <MonopolyPageHeader title={game?.title}>
+          {myPlayerId && sessionName ? (
             <PlayerSessionControls
               gameCode={gameCode}
               playerId={myPlayerId}
@@ -402,11 +394,13 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
                 setPlayerSession(gameCode, myPlayerId, name, 'both')
               }}
               onLeft={handlePlayerLeft}
+              align="center"
             />
-          )}
-        </div>
+          ) : null}
+        </MonopolyPageHeader>
 
         <MonopolyActiveLayout
+          gameCode={gameCode}
           board={board}
           states={states}
           players={players}

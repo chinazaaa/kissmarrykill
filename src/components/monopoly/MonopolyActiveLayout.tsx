@@ -13,7 +13,9 @@ import {
   MonopolyStatusBanner,
   MonopolyTurnStrip,
 } from '@/components/monopoly/MonopolyChrome'
+import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import { currentPlayerId, parsePropertyOwners, type MonopolyColorGroup } from '@/lib/monopoly'
+import { useMonopolyTurnTimer } from '@/hooks/useMonopolyTurnTimer'
 import type { MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 
 type SidePanel = 'build' | 'players'
@@ -21,6 +23,7 @@ type SidePanel = 'build' | 'players'
 type PostAction = (url: string, body?: Record<string, unknown>) => Promise<void>
 
 export function MonopolyActiveLayout({
+  gameCode,
   board,
   states,
   players,
@@ -32,6 +35,7 @@ export function MonopolyActiveLayout({
   colorBarClass,
   boardCenter,
 }: {
+  gameCode: string
   board: MonopolyBoard
   states: MonopolyPlayerState[]
   players: Player[]
@@ -49,14 +53,24 @@ export function MonopolyActiveLayout({
   const turnPlayerId = currentPlayerId(board)
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const isMyTurn = turnPlayerId === myPlayerId && !myState?.bankrupt
+  const auctionBidderId =
+    board.phase === 'auction' ? board.auction_state?.current_bidder_id ?? null : null
+  const isMyAuctionTurn = auctionBidderId === myPlayerId
+  const amActor = isMyTurn || isMyAuctionTurn
   const currentOwner =
     myState != null ? players.find((p) => p.id === owners[String(myState.position)])?.name : null
 
   const buildActions =
     board && myPlayerId ? getMonopolyBuildActionCount(board, myPlayerId) : 0
 
+  const { secondsLeft, hasTimer, urgent } = useMonopolyTurnTimer(gameCode, board, true)
+
+  const bannerMessage = board.last_rent_event
+    ? formatRentMessageForPlayer(board.last_rent_event, myPlayerId, players)
+    : board.status_message
+
   const showStatusBanner =
-    board.status_message &&
+    bannerMessage &&
     board.phase !== 'buy' &&
     board.phase !== 'pay_rent' &&
     board.phase !== 'auction' &&
@@ -102,14 +116,35 @@ export function MonopolyActiveLayout({
 
   return (
     <>
-      <div className="flex items-start justify-between gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 items-stretch">
         <MonopolyTurnStrip
+          compact
           turnName={turnPlayer?.name ?? '—'}
           isMyTurn={isMyTurn}
+          isMyAuctionTurn={isMyAuctionTurn}
           phase={board.phase}
-          myName={myName}
+          secondsLeft={secondsLeft}
+          hasTimer={hasTimer && amActor}
+          urgent={urgent}
         />
-        {myState && <MonopolyCashBadge amount={myState.cash} />}
+        {myState ? (
+          <MonopolyCurrentSpace
+            compact
+            index={myState.position}
+            ownerName={currentOwner}
+            propertyOwners={board.property_owners}
+            propertyBuildings={board.property_buildings}
+            mortgagedProperties={board.mortgaged_properties}
+            lastDiceTotal={board.last_dice?.total ?? 2}
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
+        )}
+        {myState ? (
+          <MonopolyCashBadge compact amount={myState.cash} label="Cash" />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
+        )}
       </div>
 
       {buildActions > 0 && panel !== 'build' && (
@@ -123,7 +158,7 @@ export function MonopolyActiveLayout({
       )}
 
       {showStatusBanner && (
-        <MonopolyStatusBanner message={board.status_message!} isMyTurn={isMyTurn} />
+        <MonopolyStatusBanner message={bannerMessage!} isMyTurn={isMyTurn} />
       )}
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,22rem)] lg:gap-5 lg:items-start">
@@ -132,10 +167,12 @@ export function MonopolyActiveLayout({
             states={states}
             players={players}
             propertyOwners={owners}
+            propertyBuildings={board.property_buildings}
+            mortgagedProperties={board.mortgaged_properties}
+            lastDiceTotal={board.last_dice?.total ?? 2}
             highlightIndex={myState?.position}
             center={boardCenter}
           />
-          {myState && <MonopolyCurrentSpace index={myState.position} ownerName={currentOwner} />}
         </div>
 
         <div className="mt-4 lg:mt-0 space-y-3">

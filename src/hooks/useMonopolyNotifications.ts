@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { formatCardAlertForPlayer } from '@/lib/monopoly-card-messages'
+import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import {
   playGameFinishedSound,
   playRoundEndSound,
@@ -35,6 +36,7 @@ export function useMonopolyNotifications({
   const prevTradeKeyRef = useRef<string | null>(null)
   const prevAuctionBidderRef = useRef<string | null>(null)
   const prevCardSeqRef = useRef<number | null>(null)
+  const prevRentSeqRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!enabled || !game) return
@@ -47,6 +49,7 @@ export function useMonopolyNotifications({
         : null
     const auctionBidder = board?.auction_state?.current_bidder_id ?? null
     const cardSeq = board?.last_card_event?.seq ?? null
+    const rentSeq = board?.last_rent_event?.seq ?? null
 
     if (!readyRef.current) {
       readyRef.current = true
@@ -56,6 +59,7 @@ export function useMonopolyNotifications({
       prevTradeKeyRef.current = tradeKey
       prevAuctionBidderRef.current = auctionBidder
       prevCardSeqRef.current = cardSeq
+      prevRentSeqRef.current = rentSeq
       return
     }
 
@@ -140,11 +144,22 @@ export function useMonopolyNotifications({
       playVoteSubmittedSound()
     }
 
+    if (
+      board?.last_rent_event &&
+      rentSeq != null &&
+      rentSeq !== prevRentSeqRef.current &&
+      myPlayerId === board.last_rent_event.owner_player_id
+    ) {
+      info(formatRentMessageForPlayer(board.last_rent_event, myPlayerId, players))
+      playVoteSubmittedSound()
+    }
+
     prevStatusRef.current = game.status
     prevTurnIndexRef.current = turnIndex
     prevPhaseRef.current = phase
     prevTradeKeyRef.current = tradeKey
     prevAuctionBidderRef.current = auctionBidder
     prevCardSeqRef.current = cardSeq
+    prevRentSeqRef.current = rentSeq
   }, [board, enabled, game, info, myPlayerId, myState?.in_jail, players, success])
 }

@@ -283,7 +283,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: initError } = await initializeMonopolyGame(
       supabase,
       code.toUpperCase(),
-      playersData.map((p) => p.id)
+      playersData.map((p) => p.id),
+      (game.timer_seconds ?? 0) as number
     )
     if (initError) return NextResponse.json({ error: initError }, { status: 500 })
 

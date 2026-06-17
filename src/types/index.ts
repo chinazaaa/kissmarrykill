@@ -188,6 +188,14 @@ export interface MonopolyPendingTrade {
   request_properties: number[]
 }
 
+export interface MonopolyLastRentEvent {
+  seq: number
+  payer_player_id: string
+  owner_player_id: string
+  amount: number
+  space_name: string
+}
+
 export interface MonopolyLastCardEvent {
   seq: number
   kind: 'chance' | 'community'
@@ -220,6 +228,8 @@ export interface MonopolyBoard {
   pending_space: number | null
   status_message: string | null
   last_card_event: MonopolyLastCardEvent | null
+  last_rent_event: MonopolyLastRentEvent | null
+  turn_deadline_at: string | null
   winner_player_id: string | null
   created_at: string
   updated_at: string

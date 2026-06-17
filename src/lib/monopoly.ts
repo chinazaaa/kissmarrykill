@@ -3,6 +3,7 @@ import type {
   MonopolyAuctionState,
   MonopolyBoard,
   MonopolyLastCardEvent,
+  MonopolyLastRentEvent,
   MonopolyPendingTrade,
   MonopolyPhase,
   MonopolyPlayerState,
@@ -25,6 +26,7 @@ import {
   type MonopolyColorGroup,
   type MonopolySpace,
 } from '@/lib/monopoly-board'
+import { MONOPOLY_AUCTION_TIMER_SECONDS } from '@/lib/supabase-selects'
 import {
   applyCardEffect,
   createShuffledDeck,
@@ -55,6 +57,25 @@ export { computeRent } from '@/lib/monopoly-rent'
 export const MONOPOLY_MIN_PLAYERS = 2
 export const MONOPOLY_MAX_PLAYERS = 6
 export const MONOPOLY_DEFAULT_MAX_PLAYERS = 6
+
+export function monopolyTurnDeadline(timerSeconds: number): string | null {
+  if (!timerSeconds || timerSeconds <= 0) return null
+  return new Date(Date.now() + timerSeconds * 1000).toISOString()
+}
+
+async function getMonopolyTimerSeconds(supabase: SupabaseClient, gameId: string): Promise<number> {
+  const { data } = await supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle()
+  return (data?.timer_seconds ?? 0) as number
+}
+
+function monopolyDeadlineForPhase(timerSeconds: number, phase: MonopolyPhase): string | null {
+  if (phase === 'finished') return null
+  if (phase === 'auction') return monopolyTurnDeadline(MONOPOLY_AUCTION_TIMER_SECONDS)
+  if (phase === 'roll' || phase === 'jail' || phase === 'buy' || phase === 'pay_rent') {
+    return monopolyTurnDeadline(timerSeconds)
+  }
+  return null
+}
 
 function shuffle<T>(items: T[]): T[] {
   const next = [...items]
@@ -390,6 +411,7 @@ async function finalizeAuction(
   }
 
   const turnFinish = finishTurnAfterSpaceAction(board, states, turnPlayerId)
+  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
   await supabase
     .from('monopoly_boards')
     .update({
@@ -400,6 +422,7 @@ async function finalizeAuction(
       current_turn_index: turnFinish.turnIndex,
       consecutive_doubles: turnFinish.consecutiveDoubles,
       status_message: statusMessage,
+      turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, turnFinish.phase),
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
@@ -410,7 +433,8 @@ async function finalizeAuction(
 export async function initializeMonopolyGame(
   supabase: SupabaseClient,
   gameId: string,
-  playerIds: string[]
+  playerIds: string[],
+  timerSeconds = 0
 ): Promise<{ error: string | null }> {
   const turnOrder = shuffle(playerIds)
   const stateRows = turnOrder.map((playerId, index) => ({
@@ -431,6 +455,7 @@ export async function initializeMonopolyGame(
     phase: 'roll',
     property_owners: {},
     status_message: 'Game started — first player rolls the dice!',
+    turn_deadline_at: monopolyTurnDeadline(timerSeconds),
     ...defaultBoardFields(),
   })
   if (boardError) return { error: boardError.message }
@@ -509,6 +534,8 @@ export async function processMonopolyRoll(
 
   const state = states.find((s) => s.player_id === playerId)
   if (!state || state.bankrupt) return { error: 'Invalid player' }
+
+  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
 
   const owners = parsePropertyOwners(board.property_owners)
   const buildings = parseBuildings(board.property_buildings)
@@ -746,6 +773,7 @@ export async function processMonopolyRoll(
       chance_discard: chanceDiscard,
       community_discard: communityDiscard,
       ...(lastCardEvent ? { last_card_event: lastCardEvent } : {}),
+      turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, boardPhase),
     }
   )
 
@@ -753,7 +781,7 @@ export async function processMonopolyRoll(
     ((await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId)).data as MonopolyPlayerState[]) ?? states
   )
   if (winner) {
-    await supabase.from('monopoly_boards').update({ phase: 'finished', winner_player_id: winner, status_message: 'Game over!' }).eq('game_id', gameId)
+    await supabase.from('monopoly_boards').update({ phase: 'finished', winner_player_id: winner, status_message: 'Game over!', turn_deadline_at: null }).eq('game_id', gameId)
     await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
   }
 
@@ -782,6 +810,7 @@ export async function processMonopolyBuy(
   const owners = parsePropertyOwners(board.property_owners)
   const { data: statesRaw } = await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId)
   const states = (statesRaw ?? []) as MonopolyPlayerState[]
+  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
 
   if (buy) {
     const price = space.price ?? 0
@@ -798,6 +827,7 @@ export async function processMonopolyBuy(
         current_turn_index: turnFinish.turnIndex,
         consecutive_doubles: turnFinish.consecutiveDoubles,
         status_message: `Bought ${space.name} for ${formatMonopolyMoney(price)}.`,
+        turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, turnFinish.phase),
         updated_at: new Date().toISOString(),
       })
       .eq('game_id', gameId)
@@ -811,6 +841,7 @@ export async function processMonopolyBuy(
       phase: 'auction',
       auction_state: auction,
       status_message: `Auction started for ${space.name}.`,
+      turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, 'auction'),
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
@@ -861,6 +892,7 @@ export async function processMonopolyAuction(
   }
 
   const space = spaceAt(nextAuction.space_index)
+  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
   await supabase
     .from('monopoly_boards')
     .update({
@@ -869,6 +901,7 @@ export async function processMonopolyAuction(
         action === 'bid'
           ? `${space.name} — high bid ${formatMonopolyMoney(nextAuction.high_bid)}.`
           : `${space.name} — waiting for next bid.`,
+      turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, 'auction'),
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
@@ -922,6 +955,15 @@ export async function processMonopolyPayRent(
 
   const { data: statesRaw } = await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId)
   const turnFinish = finishTurnAfterSpaceAction(board, (statesRaw ?? []) as MonopolyPlayerState[], playerId)
+  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
+
+  const lastRentEvent: MonopolyLastRentEvent = {
+    seq: (board.last_rent_event?.seq ?? 0) + 1,
+    payer_player_id: playerId,
+    owner_player_id: ownerId,
+    amount: rent,
+    space_name: space.name,
+  }
 
   await supabase
     .from('monopoly_boards')
@@ -930,7 +972,9 @@ export async function processMonopolyPayRent(
       pending_space: null,
       current_turn_index: turnFinish.turnIndex,
       consecutive_doubles: turnFinish.consecutiveDoubles,
-      status_message: `Paid ${formatMonopolyMoney(rent)} rent on ${space.name}.`,
+      status_message: `Rent paid on ${space.name}.`,
+      last_rent_event: lastRentEvent,
+      turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, turnFinish.phase),
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
@@ -1379,6 +1423,68 @@ async function bankruptPlayer(
   }
 
   return {}
+}
+
+async function skipMonopolyTurnForTimeout(
+  supabase: SupabaseClient,
+  gameId: string,
+  board: MonopolyBoard,
+  playerId: string
+): Promise<{ error?: string }> {
+  const { data: statesRaw } = await supabase.from('monopoly_player_state').select('*').eq('game_id', gameId)
+  const states = (statesRaw ?? []) as MonopolyPlayerState[]
+  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
+  const turnIndex = nextTurnIndex(board, states)
+  const phase = phaseForTurn(board, states, turnIndex)
+
+  await supabase
+    .from('monopoly_boards')
+    .update({
+      current_turn_index: turnIndex,
+      phase,
+      consecutive_doubles: 0,
+      pending_space: null,
+      status_message: 'Turn skipped — time ran out.',
+      turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, phase),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+
+  return {}
+}
+
+/** Advance or resolve the current turn when the per-turn timer expires. */
+export async function processMonopolyExpireTurn(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error?: string; skipped?: boolean }> {
+  const { data: boardRaw } = await supabase.from('monopoly_boards').select('*').eq('game_id', gameId).maybeSingle()
+  if (!boardRaw) return { error: 'Board not found' }
+  const board = boardRaw as MonopolyBoard
+
+  if (board.phase === 'finished') return { skipped: true }
+  if (!board.turn_deadline_at || new Date(board.turn_deadline_at) > new Date()) {
+    return { skipped: true }
+  }
+
+  const playerId = currentPlayerId(board)
+  if (!playerId) return { error: 'No current player' }
+
+  switch (board.phase) {
+    case 'buy':
+      return processMonopolyBuy(supabase, gameId, playerId, false)
+    case 'pay_rent':
+      return processMonopolyPayRent(supabase, gameId, playerId)
+    case 'auction': {
+      const bidderId = board.auction_state?.current_bidder_id
+      if (!bidderId) return { error: 'No auction bidder' }
+      return processMonopolyAuction(supabase, gameId, bidderId, 'pass')
+    }
+    case 'roll':
+    case 'jail':
+    default:
+      return skipMonopolyTurnForTimeout(supabase, gameId, board, playerId)
+  }
 }
 
 export function playerProperties(

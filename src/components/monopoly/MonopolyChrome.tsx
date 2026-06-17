@@ -1,8 +1,38 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
+
+export function MonopolyPageHeader({
+  title,
+  children,
+}: {
+  title?: string
+  children?: ReactNode
+}) {
+  const cfg = gameTypeConfig('monopoly')
+
+  return (
+    <header className="space-y-3">
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center justify-center gap-2 flex-wrap">
+          <span className="text-2xl sm:text-3xl drop-shadow-lg" aria-hidden>
+            {cfg.card.emoji}
+          </span>
+          <GameTypeBadge gameType="monopoly" />
+        </div>
+        {title ? (
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight gradient-title drop-shadow-sm px-2">
+            {title}
+          </h1>
+        ) : null}
+      </div>
+      {children}
+    </header>
+  )
+}
 
 export function MonopolyShell({
   children,
@@ -13,8 +43,6 @@ export function MonopolyShell({
   title?: string
   subtitle?: string
 }) {
-  const cfg = gameTypeConfig('monopoly')
-
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]">
       <div
@@ -24,16 +52,9 @@ export function MonopolyShell({
 
       <div className="relative z-10 mx-auto max-w-2xl px-4 pb-28 pt-5 sm:pt-8 space-y-5">
         {(title || subtitle) && (
-          <header className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center gap-2">
-              <span className="text-3xl drop-shadow-lg">{cfg.card.emoji}</span>
-              <GameTypeBadge gameType="monopoly" />
-            </div>
-            {title && (
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title drop-shadow-sm">{title}</h1>
-            )}
-            {subtitle && <p className="text-sm text-muted max-w-md mx-auto">{subtitle}</p>}
-          </header>
+          <MonopolyPageHeader title={title}>
+            {subtitle ? <p className="text-sm text-muted max-w-md mx-auto text-center">{subtitle}</p> : null}
+          </MonopolyPageHeader>
         )}
         {children}
       </div>
@@ -144,7 +165,44 @@ export function MonopolySecondaryButton({
   )
 }
 
-export function MonopolyCashBadge({ amount, label = 'Your cash' }: { amount: number; label?: string }) {
+export function MonopolyCashBadge({
+  amount,
+  label = 'Your cash',
+  compact = false,
+  className = '',
+}: {
+  amount: number
+  label?: string
+  compact?: boolean
+  className?: string
+}) {
+  if (compact) {
+    return (
+      <div
+        className={[
+          'overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--card-strong)] shadow-[var(--card-shadow)] min-w-0 h-full flex flex-col',
+          className,
+        ].join(' ')}
+      >
+        <div className="h-1.5 w-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-strong)]" />
+        <div className="flex flex-1 items-center gap-2 px-2 sm:px-3 py-2 min-h-[3.25rem]">
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--primary)_14%,var(--surface-inset-bg))] text-sm font-black text-[var(--primary)]"
+            aria-hidden
+          >
+            £
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">{label}</p>
+            <p className="text-sm sm:text-base font-black tabular-nums text-[var(--primary)] truncate leading-tight mt-0.5">
+              £{amount.toLocaleString('en-GB')}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_12%,var(--card))] px-4 py-2.5 text-right shadow-[var(--card-shadow)]">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">{label}</p>
@@ -156,14 +214,76 @@ export function MonopolyCashBadge({ amount, label = 'Your cash' }: { amount: num
 export function MonopolyTurnStrip({
   turnName,
   isMyTurn,
+  isMyAuctionTurn = false,
   phase,
   myName,
+  secondsLeft = 0,
+  hasTimer = false,
+  urgent = false,
+  compact = false,
 }: {
   turnName: string
   isMyTurn?: boolean
+  isMyAuctionTurn?: boolean
   phase?: string
   myName?: string | null
+  secondsLeft?: number
+  hasTimer?: boolean
+  urgent?: boolean
+  compact?: boolean
 }) {
+  const acting = isMyTurn || isMyAuctionTurn
+  useTimerTickSound(secondsLeft, !!(hasTimer && acting))
+
+  const timerBadge = hasTimer ? (
+    <span
+      className={[
+        'rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-bold tabular-nums',
+        urgent
+          ? 'bg-[color-mix(in_srgb,var(--marry)_25%,transparent)] text-[var(--marry)] animate-pulse'
+          : 'bg-[var(--surface-inset-bg)] text-muted',
+      ].join(' ')}
+    >
+      {secondsLeft}s
+    </span>
+  ) : null
+
+  const actionBadge = acting ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--marry)_20%,transparent)] px-2 py-0.5 text-[10px] font-bold text-[var(--marry)]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[var(--marry)] animate-pulse" />
+      {isMyAuctionTurn && !isMyTurn ? 'Bid' : phase === 'roll' || phase === 'jail' ? 'Roll' : 'Act'}
+    </span>
+  ) : (
+    <span className="text-[10px] text-faint capitalize">{phase?.replace('_', ' ') ?? 'Wait'}</span>
+  )
+
+  if (compact) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--card-strong)] shadow-[var(--card-shadow)] min-w-0 h-full flex flex-col">
+        <div
+          className={[
+            'h-1.5 w-full',
+            acting
+              ? 'bg-gradient-to-r from-[var(--marry)] to-[color-mix(in_srgb,var(--marry)_70%,var(--primary))]'
+              : 'bg-[var(--surface-inset-bg)]',
+          ].join(' ')}
+        />
+        <div className="flex flex-1 items-center justify-between gap-1.5 px-2 sm:px-3 py-2 min-h-[3.25rem] min-w-0">
+          <div className="min-w-0">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">Current turn</p>
+            <p className="text-sm font-black text-[var(--foreground)] truncate leading-tight mt-0.5">
+              {acting ? (isMyAuctionTurn && !isMyTurn ? 'Your bid' : 'Your turn') : turnName}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-0.5 shrink-0">
+            {timerBadge}
+            {actionBadge}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-2 min-w-0 flex-1">
       {myName && (
@@ -176,21 +296,15 @@ export function MonopolyTurnStrip({
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-faint">Current turn</p>
           <p className="text-lg font-black text-[var(--foreground)] truncate">
-            {isMyTurn ? 'Your turn' : turnName}
+            {acting ? (isMyAuctionTurn && !isMyTurn ? 'Your bid' : 'Your turn') : turnName}
           </p>
-          {isMyTurn && myName && (
+          {acting && myName && !isMyAuctionTurn && (
             <p className="text-xs text-muted truncate">{myName}</p>
           )}
         </div>
-        <div className="text-right shrink-0">
-          {isMyTurn ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--marry)_20%,transparent)] px-3 py-1 text-xs font-bold text-[var(--marry)]">
-              <span className="h-2 w-2 rounded-full bg-[var(--marry)] animate-pulse" />
-              Roll
-            </span>
-          ) : (
-            <span className="text-xs text-faint capitalize">{phase?.replace('_', ' ') ?? 'Waiting'}</span>
-          )}
+        <div className="text-right shrink-0 flex flex-col items-end gap-1">
+          {timerBadge}
+          {actionBadge}
         </div>
       </MonopolyGlassCard>
     </div>
@@ -204,6 +318,7 @@ export function MonopolyModal({
   subtitle,
   children,
   colorBar,
+  timerSecondsLeft,
 }: {
   open: boolean
   onClose?: () => void
@@ -211,8 +326,11 @@ export function MonopolyModal({
   subtitle?: string
   children: ReactNode
   colorBar?: string
+  timerSecondsLeft?: number
 }) {
   if (!open) return null
+
+  const urgent = timerSecondsLeft != null && timerSecondsLeft > 0 && timerSecondsLeft <= 5
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
@@ -239,6 +357,18 @@ export function MonopolyModal({
               <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">{subtitle}</p>
             )}
             <h2 className="text-xl sm:text-2xl font-black text-[var(--foreground)] mt-1">{title}</h2>
+            {timerSecondsLeft != null && timerSecondsLeft > 0 && (
+              <p
+                className={[
+                  'mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums',
+                  urgent
+                    ? 'bg-[color-mix(in_srgb,var(--marry)_20%,transparent)] text-[var(--marry)] animate-pulse'
+                    : 'bg-[var(--surface-inset-bg)] text-muted',
+                ].join(' ')}
+              >
+                {timerSecondsLeft}s left
+              </p>
+            )}
           </div>
           {children}
         </div>

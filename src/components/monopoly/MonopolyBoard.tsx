@@ -3,11 +3,16 @@
 import {
   MONOPOLY_BOARD,
   MONOPOLY_COLOR_CLASSES,
+  formatMonopolyMoney,
+  mortgageValue,
   parsePropertyOwners,
   playerProperties,
   spaceAt,
+  unmortgageCost,
   type MonopolyColorGroup,
+  type MonopolySpace,
 } from '@/lib/monopoly'
+import { computeRent, parseBuildings, parseMortgaged } from '@/lib/monopoly-rent'
 import type { MonopolyPlayerState, Player } from '@/types'
 import {
   DICE_PIPS,
@@ -90,11 +95,35 @@ export function MonopolyDiceRoll({
   )
 }
 
+function boardTileRentLabel(
+  space: MonopolySpace,
+  ownerId: string | undefined,
+  owners: Record<string, string>,
+  buildings: Record<string, number>,
+  mortgaged: Record<string, boolean>,
+  diceTotal: number
+): string | null {
+  if (space.type !== 'property' && space.type !== 'station' && space.type !== 'utility') {
+    return null
+  }
+  if (ownerId) {
+    if (mortgaged[String(space.index)]) return 'Mortgaged'
+    return formatMonopolyMoney(computeRent(space, owners, ownerId, diceTotal, buildings, mortgaged))
+  }
+  if (space.type === 'utility') return '4×/10×'
+  if (space.type === 'station') return formatMonopolyMoney(space.rent ?? 25)
+  if (space.rent != null) return formatMonopolyMoney(space.rent)
+  return null
+}
+
 function BoardSpaceCell({
   spaceIndex,
   states,
   players,
   owners,
+  buildings,
+  mortgaged,
+  diceTotal,
   highlightIndex,
   edge,
 }: {
@@ -102,6 +131,9 @@ function BoardSpaceCell({
   states: MonopolyPlayerState[]
   players: Player[]
   owners: Record<string, string>
+  buildings: Record<string, number>
+  mortgaged: Record<string, boolean>
+  diceTotal: number
   highlightIndex?: number | null
   edge: ReturnType<typeof boardEdgeForSpace>
 }) {
@@ -113,6 +145,7 @@ function BoardSpaceCell({
   const isCorner = edge === 'corner'
   const icon = spaceIcon(space.type)
   const lines = boardSpaceLines(space.name, space.type)
+  const rentLabel = boardTileRentLabel(space, ownerId, owners, buildings, mortgaged, diceTotal)
 
   return (
     <div
@@ -134,8 +167,22 @@ function BoardSpaceCell({
 
       <div className="flex flex-1 min-w-0 min-h-0 flex-col items-center justify-center gap-px p-0.5">
         {isCorner && icon && <span className="text-base sm:text-lg leading-none">{icon}</span>}
-        {!isCorner && space.price != null && !ownerId && (
-          <span className="text-[7px] sm:text-[8px] font-bold text-neutral-500 leading-none">£{space.price}</span>
+        {!isCorner && (space.price != null || rentLabel) && (
+          <div className="flex flex-col items-center gap-px leading-none">
+            {space.price != null && !ownerId && (
+              <span className="text-[7px] sm:text-[8px] font-bold text-neutral-500">£{space.price}</span>
+            )}
+            {rentLabel && (
+              <span
+                className={[
+                  'text-[6px] sm:text-[7px] font-bold tabular-nums',
+                  rentLabel === 'Mortgaged' ? 'text-red-600' : 'text-emerald-800',
+                ].join(' ')}
+              >
+                {rentLabel === 'Mortgaged' ? 'Mtg' : rentLabel}
+              </span>
+            )}
+          </div>
         )}
         <div className="flex flex-col items-center justify-center leading-[1.08] gap-px">
           {lines.map((line, i) => (
@@ -212,12 +259,18 @@ function BoardCellWrapper({
   states,
   players,
   owners,
+  buildings,
+  mortgaged,
+  diceTotal,
   highlightIndex,
 }: {
   spaceIndex: number
   states: MonopolyPlayerState[]
   players: Player[]
   owners: Record<string, string>
+  buildings: Record<string, number>
+  mortgaged: Record<string, boolean>
+  diceTotal: number
   highlightIndex?: number | null
 }) {
   return (
@@ -226,6 +279,9 @@ function BoardCellWrapper({
       states={states}
       players={players}
       owners={owners}
+      buildings={buildings}
+      mortgaged={mortgaged}
+      diceTotal={diceTotal}
       highlightIndex={highlightIndex}
       edge={boardEdgeForSpace(spaceIndex)}
     />
@@ -236,16 +292,25 @@ export function MonopolyClassicBoard({
   states,
   players,
   propertyOwners,
+  propertyBuildings,
+  mortgagedProperties,
+  lastDiceTotal = 2,
   highlightIndex,
   center,
 }: {
   states: MonopolyPlayerState[]
   players: Player[]
   propertyOwners: Record<string, string> | unknown
+  propertyBuildings?: unknown
+  mortgagedProperties?: unknown
+  lastDiceTotal?: number
   highlightIndex?: number | null
   center?: React.ReactNode
 }) {
   const owners = parsePropertyOwners(propertyOwners)
+  const buildings = parseBuildings(propertyBuildings)
+  const mortgaged = parseMortgaged(mortgagedProperties)
+  const cellProps = { states, players, owners, buildings, mortgaged, diceTotal: lastDiceTotal, highlightIndex }
 
   return (
     <div className="mx-auto w-full max-w-[min(100vw-1rem,580px)]">
@@ -260,17 +325,17 @@ export function MonopolyClassicBoard({
           {/* Top row: Free Parking — properties — Go To Jail */}
           <div className="flex h-[13%] min-h-[44px] gap-0.5 sm:gap-1">
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={20} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={20} {...cellProps} />
             </div>
             <div className="flex flex-1 gap-0.5 sm:gap-1">
               {TOP_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-w-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={30} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={30} {...cellProps} />
             </div>
           </div>
 
@@ -279,7 +344,7 @@ export function MonopolyClassicBoard({
             <div className="flex w-[13%] min-w-[36px] shrink-0 flex-col gap-0.5 sm:gap-1">
               {LEFT_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-h-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
@@ -306,7 +371,7 @@ export function MonopolyClassicBoard({
             <div className="flex w-[13%] min-w-[36px] shrink-0 flex-col gap-0.5 sm:gap-1">
               {RIGHT_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-h-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
@@ -315,17 +380,17 @@ export function MonopolyClassicBoard({
           {/* Bottom row: Jail — properties — GO */}
           <div className="flex h-[13%] min-h-[44px] gap-0.5 sm:gap-1">
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={10} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={10} {...cellProps} />
             </div>
             <div className="flex flex-1 gap-0.5 sm:gap-1">
               {BOTTOM_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-w-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={0} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={0} {...cellProps} />
             </div>
           </div>
         </div>
@@ -337,12 +402,71 @@ export function MonopolyClassicBoard({
 export function MonopolyCurrentSpace({
   index,
   ownerName,
+  propertyOwners,
+  propertyBuildings,
+  mortgagedProperties,
+  lastDiceTotal = 2,
+  compact = false,
 }: {
   index: number
   ownerName?: string | null
+  propertyOwners?: unknown
+  propertyBuildings?: unknown
+  mortgagedProperties?: unknown
+  lastDiceTotal?: number
+  compact?: boolean
 }) {
   const space = spaceAt(index)
   const icon = spaceIcon(space.type)
+  const owners = parsePropertyOwners(propertyOwners)
+  const buildings = parseBuildings(propertyBuildings)
+  const mortgaged = parseMortgaged(mortgagedProperties)
+  const ownerId = owners[String(index)]
+  const rentLabel = boardTileRentLabel(space, ownerId, owners, buildings, mortgaged, lastDiceTotal)
+
+  const detailLine = (() => {
+    if (space.price != null) {
+      if (ownerName) {
+        if (rentLabel === 'Mortgaged') return `${ownerName} · Mortgaged`
+        if (rentLabel) return `${ownerName} · Rent ${rentLabel}`
+        return `Owned by ${ownerName}`
+      }
+      if (rentLabel) return `For sale · £${space.price} · Rent ${rentLabel}`
+      return `For sale · £${space.price}`
+    }
+    if (ownerName && rentLabel && rentLabel !== 'Mortgaged') return `${ownerName} · Rent ${rentLabel}`
+    if (ownerName) return `Owned by ${ownerName}`
+    if (rentLabel) return `Rent ${rentLabel}`
+    return null
+  })()
+
+  if (compact) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--card-strong)] shadow-[var(--card-shadow)] min-w-0 h-full flex flex-col">
+        {space.color ? (
+          <div className={['h-1.5 w-full', colorBar(space.color)].join(' ')} />
+        ) : (
+          <div className="h-1 w-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-strong)]" />
+        )}
+        <div className="flex flex-1 items-center gap-2.5 px-3 py-2 min-h-[3.25rem]">
+          {icon && (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-inset-bg)] text-lg">
+              {icon}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">
+              You landed on
+            </p>
+            <p className="text-sm font-black text-[var(--foreground)] truncate leading-tight mt-0.5">{space.name}</p>
+            {detailLine && (
+              <p className="text-[11px] text-muted truncate leading-snug mt-0.5">{detailLine}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--card-strong)] shadow-[var(--card-shadow)]">
@@ -368,13 +492,36 @@ export function MonopolyCurrentSpace({
                 {ownerName ? (
                   <>
                     Owned by <span className="font-bold text-[var(--foreground)]">{ownerName}</span>
-                    {space.rent != null ? ` · Rent £${space.rent}` : ''}
+                    {rentLabel && rentLabel !== 'Mortgaged' ? (
+                      <> · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                    ) : null}
+                    {rentLabel === 'Mortgaged' ? (
+                      <> · <span className="font-bold text-red-500">Mortgaged — no rent</span></>
+                    ) : null}
                   </>
                 ) : (
                   <>
                     For sale · <span className="font-bold text-[var(--marry)]">£{space.price}</span>
-                    {space.rent != null ? ` · Rent £${space.rent}` : ''}
+                    {rentLabel ? (
+                      <> · Site rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                    ) : null}
                   </>
+                )}
+              </p>
+            )}
+            {space.price == null && rentLabel && (
+              <p className="mt-2 text-sm text-muted">
+                {ownerName ? (
+                  <>
+                    Owned by <span className="font-bold text-[var(--foreground)]">{ownerName}</span>
+                    {rentLabel !== 'Mortgaged' ? (
+                      <> · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                    ) : (
+                      <> · <span className="font-bold text-red-500">Mortgaged</span></>
+                    )}
+                  </>
+                ) : (
+                  <>Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
                 )}
               </p>
             )}
@@ -418,7 +565,7 @@ export function MonopolyMyProperties({
                 <p className="text-sm font-bold text-[var(--foreground)] truncate">{space.name}</p>
                 <p className="text-[10px] text-faint">
                   £{space.price}
-                  {space.rent != null ? ` · Rent $${space.rent}` : ''}
+                  {space.rent != null ? ` · Rent ${formatMonopolyMoney(space.rent)}` : ''}
                 </p>
               </div>
             </div>

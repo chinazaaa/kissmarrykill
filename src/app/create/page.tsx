@@ -124,6 +124,7 @@ import {
   TTL_TIMER_OPTIONS,
 } from '@/lib/two-truths'
 import { MONOPOLY_DEFAULT_MAX_PLAYERS } from '@/lib/monopoly'
+import { MONOPOLY_DEFAULT_TURN_TIMER } from '@/lib/supabase-selects'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
 import {
   getCodeDefaultLimits,
@@ -285,6 +286,7 @@ function CreateGameInner() {
               participant_mode: 'joiners' as const,
               anonymous: true,
               rounds_count: 1,
+              timer_seconds: MONOPOLY_DEFAULT_TURN_TIMER,
             }
           : {}),
         ...(isYahtzeeGame(type)
@@ -455,6 +457,7 @@ function CreateGameInner() {
             participant_mode: 'joiners' as const,
             anonymous: true,
             rounds_count: 1,
+            timer_seconds: MONOPOLY_DEFAULT_TURN_TIMER,
           }
         : {}),
         ...(isYahtzeeGame(type)
@@ -1033,9 +1036,22 @@ function CreateGameInner() {
                     ))}
                   </select>
                 </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                    <option value={120}>2 minutes</option>
+                  </select>
+                </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with their name and start on GO with $1,500. Take turns rolling dice, buying properties,
-                  paying rent, and drawing cards. Last player standing wins!
+                  paying rent, and drawing cards. Last player standing wins! If someone stalls, their turn auto-resolves.
                 </p>
               </SettingsGroup>
             ) : isYahtzee ? (
