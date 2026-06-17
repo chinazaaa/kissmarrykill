@@ -8,7 +8,6 @@ import {
 } from '@/components/monopoly/MonopolyChrome'
 import { formatCardAlertForPlayer } from '@/lib/monopoly-card-messages'
 import {
-  useMonopolyDeadlineTimer,
   useMonopolyFixedTimer,
 } from '@/hooks/useMonopolyModalTimer'
 import { MONOPOLY_CARD_MODAL_SECONDS } from '@/lib/supabase-selects'
@@ -39,7 +38,6 @@ import {
 import {
   currentPlayerId,
   formatMonopolyMoney,
-  MONOPOLY_JAIL_FINE,
   mortgageValue,
   parsePropertyOwners,
   playerProperties,
@@ -110,197 +108,24 @@ export function MonopolyCardAlertModal({
 export function MonopolyTurnModals({
   board,
   myPlayerId,
-  myState,
   players,
   acting,
   postAction,
-  colorBarClass,
 }: {
   board: MonopolyBoard | null
   myPlayerId: string | null
-  myState: MonopolyPlayerState | undefined
+  myState?: MonopolyPlayerState | undefined
   players: Player[]
   acting: boolean
   postAction: PostAction
-  colorBarClass: (color?: MonopolyColorGroup) => string
+  colorBarClass?: (color?: MonopolyColorGroup) => string
 }) {
-  const turnPlayerId = board ? currentPlayerId(board) : null
-  const isMyTurn = turnPlayerId === myPlayerId && !myState?.bankrupt
-
-  const owners = parsePropertyOwners(board?.property_owners)
-  const buildings = parseBuildings(board?.property_buildings)
-  const mortgaged = parseMortgaged(board?.mortgaged_properties)
-  const pendingSpace = board?.pending_space != null ? spaceAt(board.pending_space) : null
-
-  const rentOwnerId =
-    board?.phase === 'pay_rent' && board.pending_space != null ? owners[String(board.pending_space)] : null
-  const rentOwner = rentOwnerId ? players.find((p) => p.id === rentOwnerId) : null
-  const rentAmount =
-    pendingSpace && rentOwnerId
-      ? computeRent(pendingSpace, owners, rentOwnerId, board?.last_dice?.total ?? 2, buildings, mortgaged)
-      : 0
-
-  const auction = board?.auction_state
-  const auctionSpace = auction ? spaceAt(auction.space_index) : null
-  const isMyAuctionTurn = auction?.current_bidder_id === myPlayerId
-  const [bidAmount, setBidAmount] = useState('')
-
   const trade = board?.pending_trade
   const tradeFrom = trade ? players.find((p) => p.id === trade.from_player_id) : null
-
-  const showBuyModal = !!(isMyTurn && board?.phase === 'buy' && pendingSpace)
-  const showRentModal = !!(isMyTurn && board?.phase === 'pay_rent' && pendingSpace)
-  const showJailModal = !!(isMyTurn && board?.phase === 'jail' && myState?.in_jail)
-  const showAuctionModal = !!(board?.phase === 'auction' && auction && isMyAuctionTurn)
   const showTradeModal = !!(trade && trade.to_player_id === myPlayerId)
-
-  const actingRef = useRef(acting)
-  actingRef.current = acting
-
-  const autoBuyAuction = useCallback(() => {
-    if (!actingRef.current) void postAction('/api/monopoly/buy', { buy: false })
-  }, [postAction])
-
-  const autoPayRent = useCallback(() => {
-    if (!actingRef.current) void postAction('/api/monopoly/rent')
-  }, [postAction])
-
-  const autoAuctionPass = useCallback(() => {
-    if (!actingRef.current) void postAction('/api/monopoly/auction', { action: 'pass' })
-  }, [postAction])
-
-  const autoJailRoll = useCallback(() => {
-    if (!actingRef.current) void postAction('/api/monopoly/roll')
-  }, [postAction])
-
-  const modalDeadline = board?.turn_deadline_at ?? null
-  const buySeconds = useMonopolyDeadlineTimer(modalDeadline, showBuyModal, autoBuyAuction)
-  const rentSeconds = useMonopolyDeadlineTimer(modalDeadline, showRentModal, autoPayRent)
-  const jailSeconds = useMonopolyDeadlineTimer(modalDeadline, showJailModal, autoJailRoll)
-  const auctionSeconds = useMonopolyDeadlineTimer(modalDeadline, showAuctionModal, autoAuctionPass)
 
   return (
     <>
-      <MonopolyModal
-        open={showBuyModal}
-        subtitle="Property available"
-        title={pendingSpace?.name ?? ''}
-        colorBar={pendingSpace?.color ? colorBarClass(pendingSpace.color) : undefined}
-        timerSecondsLeft={buySeconds > 0 ? buySeconds : undefined}
-      >
-        <p className="text-center text-3xl font-black text-[var(--marry)]">
-          {formatMonopolyMoney(pendingSpace?.price ?? 0)}
-        </p>
-        {pendingSpace?.rent != null && (
-          <p className="text-center text-sm text-muted">Site rent {formatMonopolyMoney(pendingSpace.rent)}</p>
-        )}
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <MonopolyPrimaryButton
-            onClick={() => postAction('/api/monopoly/buy', { buy: true })}
-            loading={acting}
-            disabled={(myState?.cash ?? 0) < (pendingSpace?.price ?? 0)}
-          >
-            Buy
-          </MonopolyPrimaryButton>
-          <MonopolySecondaryButton
-            onClick={() => postAction('/api/monopoly/buy', { buy: false })}
-            disabled={acting}
-          >
-            Auction
-          </MonopolySecondaryButton>
-        </div>
-      </MonopolyModal>
-
-      <MonopolyModal
-        open={showRentModal}
-        subtitle="Rent due"
-        title={pendingSpace?.name ?? ''}
-        colorBar={pendingSpace?.color ? colorBarClass(pendingSpace.color) : undefined}
-        timerSecondsLeft={rentSeconds > 0 ? rentSeconds : undefined}
-      >
-        <p className="text-center text-sm text-muted">
-          Owned by <span className="font-bold text-[var(--foreground)]">{rentOwner?.name ?? 'another player'}</span>
-        </p>
-        <p className="text-center text-3xl font-black text-red-500">{formatMonopolyMoney(rentAmount)}</p>
-        <MonopolyPrimaryButton
-          onClick={() => postAction('/api/monopoly/rent')}
-          loading={acting}
-          disabled={(myState?.cash ?? 0) < rentAmount}
-        >
-          Pay {formatMonopolyMoney(rentAmount)}
-        </MonopolyPrimaryButton>
-      </MonopolyModal>
-
-      <MonopolyModal
-        open={showJailModal}
-        subtitle="In jail"
-        title="🔒 Roll, pay, or use a card"
-        timerSecondsLeft={jailSeconds > 0 ? jailSeconds : undefined}
-      >
-        <div className="space-y-2">
-          <MonopolyPrimaryButton onClick={() => postAction('/api/monopoly/roll')} loading={acting}>
-            Roll for doubles
-          </MonopolyPrimaryButton>
-          <MonopolySecondaryButton
-            onClick={() => postAction('/api/monopoly/jail', { method: 'pay' })}
-            disabled={acting || (myState?.cash ?? 0) < MONOPOLY_JAIL_FINE}
-          >
-            Pay {formatMonopolyMoney(MONOPOLY_JAIL_FINE)} fine
-          </MonopolySecondaryButton>
-          {(myState?.get_out_of_jail_free ?? 0) > 0 && (
-            <MonopolySecondaryButton
-              onClick={() => postAction('/api/monopoly/jail', { method: 'card' })}
-              disabled={acting}
-            >
-              Use Get Out of Jail Free card
-            </MonopolySecondaryButton>
-          )}
-        </div>
-      </MonopolyModal>
-
-      {showAuctionModal && auction && (
-        <MonopolyModal
-          open
-          subtitle="Property auction"
-          title={auctionSpace?.name ?? 'Auction'}
-          colorBar={auctionSpace?.color ? colorBarClass(auctionSpace.color) : undefined}
-          timerSecondsLeft={auctionSeconds > 0 ? auctionSeconds : undefined}
-        >
-          <p className="text-center text-sm text-muted">
-            High bid:{' '}
-            <span className="font-bold text-[var(--foreground)]">
-              {auction.high_bid > 0 ? formatMonopolyMoney(auction.high_bid) : 'None yet'}
-            </span>
-          </p>
-          <p className="text-center text-[11px] text-faint">Pass automatically when time runs out.</p>
-          <input
-            type="number"
-            min={auction.high_bid + 1}
-            value={bidAmount}
-            onChange={(e) => setBidAmount(e.target.value)}
-            placeholder={`Min ${auction.high_bid + 1}`}
-            className="input-field w-full"
-          />
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            <MonopolyPrimaryButton
-              onClick={() =>
-                postAction('/api/monopoly/auction', { action: 'bid', amount: Number(bidAmount) || undefined })
-              }
-              loading={acting}
-              disabled={!bidAmount || Number(bidAmount) <= auction.high_bid}
-            >
-              Bid
-            </MonopolyPrimaryButton>
-            <MonopolySecondaryButton
-              onClick={() => postAction('/api/monopoly/auction', { action: 'pass' })}
-              disabled={acting}
-            >
-              Pass
-            </MonopolySecondaryButton>
-          </div>
-        </MonopolyModal>
-      )}
-
       {showTradeModal && trade && (
         <MonopolyModal open subtitle="Trade offer" title={`From ${tradeFrom?.name ?? 'player'}`}>
           <div className="text-sm text-muted space-y-2">

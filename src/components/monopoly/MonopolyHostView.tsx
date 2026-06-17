@@ -9,11 +9,12 @@ import {
 } from '@/components/monopoly/MonopolyBoard'
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
 import { MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels'
+import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { gameTypeConfig } from '@/lib/game-types'
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import {
+  buildMonopolyStandings,
   currentPlayerId,
   getMonopolyHostMode,
   MONOPOLY_COLOR_CLASSES,
@@ -250,11 +251,21 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
   const turnPlayerId = board ? currentPlayerId(board) : null
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const winner = players.find((p) => p.id === board?.winner_player_id)
+  const finishedWinnerName =
+    winner?.name ??
+    (board && states.length
+      ? buildMonopolyStandings(
+          states,
+          players,
+          board.property_owners,
+          board.property_buildings,
+          board.mortgaged_properties
+        )[0]?.name
+      : null)
   const hostPlays = hostMode === 'player' && !!hostPlayerId
   const showPlayTab = hostPlays && game?.status !== 'waiting' && game?.status !== 'finished'
 
   const hostState = hostPlayerId ? states.find((s) => s.player_id === hostPlayerId) : null
-  const isHostTurn = turnPlayerId === hostPlayerId && !hostState?.bankrupt
 
   useMonopolyNotifications({
     game,
@@ -380,21 +391,6 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
               acting={hostActing}
               postAction={postHostAction}
               colorBarClass={colorBarClass}
-              boardCenter={
-                <div className="flex flex-col items-center justify-center h-full gap-2 px-1">
-                  <MonopolyDiceRoll dice={board.last_dice} rolling={hostActing} />
-                  {isHostTurn && board.phase === 'roll' && !hostState?.in_jail && (
-                    <button
-                      type="button"
-                      disabled={hostActing}
-                      onClick={() => postHostAction('/api/monopoly/roll')}
-                      className="btn-primary btn-fit px-4 py-2 text-xs"
-                    >
-                      {hostActing ? '…' : '🎲 Roll'}
-                    </button>
-                  )}
-                </div>
-              }
             />
           ) : (
             <div className="glass-card p-8 text-center text-sm text-muted">Loading board…</div>
@@ -492,29 +488,25 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
               </>
             )}
 
-            {game.status === 'finished' && (
-              <>
-                <div className="glass-card p-8 text-center space-y-3">
-                  <p className="text-4xl">🏆</p>
-                  <p className="text-xl font-black gradient-title">
-                    {winner ? `${winner.name} wins!` : 'Game over'}
-                  </p>
-                </div>
-                <MonopolyPlayerList
-                  states={states}
-                  players={players}
-                  propertyOwners={board?.property_owners}
-                />
-                <button
-                  type="button"
-                  onClick={playAgain}
-                  disabled={playingAgain}
-                  className="btn-secondary w-full py-3"
-                >
-                  {playingAgain ? 'Resetting…' : 'Play again'}
-                </button>
-                <CreateNewGameButton className="btn-ghost w-full text-muted" />
-              </>
+            {game.status === 'finished' && game && (
+              <MonopolyFinalResultsShareBlock
+                game={game}
+                players={players}
+                states={states}
+                board={board}
+                winnerName={finishedWinnerName}
+                highlightPlayerId={hostPlayerId}
+                playAgainButton={
+                  <button
+                    type="button"
+                    onClick={playAgain}
+                    disabled={playingAgain}
+                    className="btn-secondary w-full py-3"
+                  >
+                    {playingAgain ? 'Resetting…' : 'Play again'}
+                  </button>
+                }
+              />
             )}
           </>
         )}

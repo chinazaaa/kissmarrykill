@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import {
   MonopolyClassicBoard,
   MonopolyCurrentSpace,
   MonopolyPlayerList,
 } from '@/components/monopoly/MonopolyBoard'
+import { MonopolyBoardCenter } from '@/components/monopoly/MonopolyBoardCenter'
 import { MonopolyManagePanel, MonopolyTurnModals, MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels'
 import { getMonopolyBuildActionCount } from '@/components/monopoly/monopoly-manage-utils'
 import {
@@ -33,7 +34,6 @@ export function MonopolyActiveLayout({
   acting,
   postAction,
   colorBarClass,
-  boardCenter,
 }: {
   gameCode: string
   board: MonopolyBoard
@@ -45,7 +45,6 @@ export function MonopolyActiveLayout({
   acting: boolean
   postAction: PostAction
   colorBarClass: (color?: MonopolyColorGroup) => string
-  boardCenter: ReactNode
 }) {
   const [panel, setPanel] = useState<SidePanel>('build')
 
@@ -171,7 +170,17 @@ export function MonopolyActiveLayout({
             mortgagedProperties={board.mortgaged_properties}
             lastDiceTotal={board.last_dice?.total ?? 2}
             highlightIndex={myState?.position}
-            center={boardCenter}
+            center={
+              <MonopolyBoardCenter
+                board={board}
+                myPlayerId={myPlayerId}
+                myState={myState}
+                players={players}
+                acting={acting}
+                postAction={postAction}
+                colorBarClass={colorBarClass}
+              />
+            }
           />
         </div>
 

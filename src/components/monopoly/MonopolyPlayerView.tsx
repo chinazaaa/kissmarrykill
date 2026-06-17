@@ -2,19 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  MonopolyClassicBoard,
-  MonopolyDiceRoll,
-  MonopolyPlayerList,
-} from '@/components/monopoly/MonopolyBoard'
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
 import { MONOPOLY_COLOR_CLASSES } from '@/lib/monopoly'
 import type { MonopolyColorGroup } from '@/lib/monopoly'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { MonopolyPageHeader } from '@/components/monopoly/MonopolyChrome'
 import { gameTypeConfig } from '@/lib/game-types'
+import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
 import {
-  currentPlayerId,
+  buildMonopolyStandings,
   MONOPOLY_MIN_PLAYERS,
   MONOPOLY_STARTING_CASH,
 } from '@/lib/monopoly'
@@ -33,7 +29,6 @@ import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
@@ -212,8 +207,6 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
 
   const cfg = gameTypeConfig('monopoly')
   const myState = states.find((s) => s.player_id === myPlayerId)
-  const turnPlayerId = board ? currentPlayerId(board) : null
-  const isMyTurn = turnPlayerId === myPlayerId && !myState?.bankrupt
 
   useMonopolyNotifications({
     game,
@@ -348,23 +341,38 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'finished') {
     const winner = players.find((p) => p.id === board?.winner_player_id)
+    const finishedWinnerName =
+      winner?.name ??
+      (board && states.length
+        ? buildMonopolyStandings(
+            states,
+            players,
+            board.property_owners,
+            board.property_buildings,
+            board.mortgaged_properties
+          )[0]?.name
+        : null)
+
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md space-y-4">
-          <div className="glass-card p-8 text-center space-y-3">
-            <p className="text-4xl">🏆</p>
-            <h2 className="text-xl font-black gradient-title">
-              {winner ? `${winner.name} wins!` : 'Game over'}
-            </h2>
-            {winner && <p className="text-sm text-muted">Monopoly champion</p>}
-          </div>
-          <MonopolyPlayerList
-            states={states}
-            players={players}
-            propertyOwners={board?.property_owners}
-            myPlayerId={myPlayerId}
-          />
-          <CreateNewGameButton />
+        <div className="w-full max-w-md">
+          {game ? (
+            <MonopolyFinalResultsShareBlock
+              game={game}
+              players={players}
+              states={states}
+              board={board}
+              winnerName={finishedWinnerName}
+              highlightPlayerId={myPlayerId}
+            />
+          ) : (
+            <div className="glass-card p-8 text-center space-y-3">
+              <p className="text-4xl">🏆</p>
+              <h2 className="text-xl font-black gradient-title">
+                {finishedWinnerName ? `${finishedWinnerName} wins!` : 'Game over'}
+              </h2>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -410,21 +418,6 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
           acting={acting}
           postAction={postAction}
           colorBarClass={colorBarClass}
-          boardCenter={
-            <div className="flex flex-col items-center justify-center h-full gap-2 px-1">
-              <MonopolyDiceRoll dice={board.last_dice} rolling={acting} />
-              {isMyTurn && board.phase === 'roll' && !myState?.in_jail && (
-                <button
-                  type="button"
-                  disabled={acting}
-                  onClick={() => postAction('/api/monopoly/roll')}
-                  className="btn-primary btn-fit px-4 py-2 text-xs"
-                >
-                  {acting ? '…' : '🎲 Roll'}
-                </button>
-              )}
-            </div>
-          }
         />
       </div>
     </div>

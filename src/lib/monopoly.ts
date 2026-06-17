@@ -142,6 +142,154 @@ export function checkWinner(states: MonopolyPlayerState[]): string | null {
   return null
 }
 
+function buildingAssetValue(space: MonopolySpace, level: number): number {
+  if (level === 0) return 0
+  const half = Math.floor((space.houseCost ?? 0) / 2)
+  if (level === 5) return half * 4
+  return level * half
+}
+
+export function computeMonopolyNetWorth(
+  state: MonopolyPlayerState,
+  owners: Record<string, string>,
+  buildings: Record<string, number>,
+  mortgaged: Record<string, boolean>
+): number {
+  if (state.bankrupt) return 0
+  let total = state.cash
+  for (const [idx, ownerId] of Object.entries(owners)) {
+    if (ownerId !== state.player_id) continue
+    const spaceIndex = Number(idx)
+    const space = spaceAt(spaceIndex)
+    if (space.type !== 'property' && space.type !== 'station' && space.type !== 'utility') continue
+    if (mortgaged[idx]) {
+      total += mortgageValue(space)
+    } else {
+      total += space.price ?? 0
+      total += buildingAssetValue(space, buildingLevel(buildings, spaceIndex))
+    }
+  }
+  return total
+}
+
+export function rankMonopolyPlayers(
+  states: MonopolyPlayerState[],
+  owners: Record<string, string>,
+  buildings: Record<string, number>,
+  mortgaged: Record<string, boolean>
+): { playerId: string; netWorth: number }[] {
+  return activePlayers(states)
+    .map((state) => ({
+      playerId: state.player_id,
+      netWorth: computeMonopolyNetWorth(state, owners, buildings, mortgaged),
+    }))
+    .sort((a, b) => b.netWorth - a.netWorth)
+}
+
+export type MonopolyStanding = {
+  playerId: string
+  name: string
+  rank: number
+  netWorth: number
+  cash: number
+  propertyCount: number
+}
+
+export function buildMonopolyStandings(
+  states: MonopolyPlayerState[],
+  players: { id: string; name: string }[],
+  propertyOwners: unknown,
+  propertyBuildings: unknown,
+  mortgagedProperties: unknown
+): MonopolyStanding[] {
+  const owners = parsePropertyOwners(propertyOwners)
+  const buildings = parseBuildings(propertyBuildings)
+  const mortgaged = parseMortgaged(mortgagedProperties)
+
+  return rankMonopolyPlayers(states, owners, buildings, mortgaged).map((row, index) => {
+    const state = states.find((s) => s.player_id === row.playerId)
+    return {
+      playerId: row.playerId,
+      name: players.find((p) => p.id === row.playerId)?.name ?? 'Player',
+      rank: index + 1,
+      netWorth: row.netWorth,
+      cash: state?.cash ?? 0,
+      propertyCount: playerProperties(owners, row.playerId).length,
+    }
+  })
+}
+
+export function resolveMonopolyWinnerId(
+  states: MonopolyPlayerState[],
+  owners: Record<string, string>,
+  buildings: Record<string, number>,
+  mortgaged: Record<string, boolean>,
+  existingWinnerId?: string | null
+): string | null {
+  const byElimination = checkWinner(states)
+  if (byElimination) return byElimination
+  if (existingWinnerId) return existingWinnerId
+  return rankMonopolyPlayers(states, owners, buildings, mortgaged)[0]?.playerId ?? null
+}
+
+export async function finishMonopolyGameEarly(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { data: boardRaw } = await supabase.from('monopoly_boards').select('*').eq('game_id', gameId).maybeSingle()
+  if (!boardRaw) return { error: 'Board not found' }
+  const board = boardRaw as MonopolyBoard
+
+  const { data: statesRaw } = await supabase
+    .from('monopoly_player_state')
+    .select('*')
+    .eq('game_id', gameId)
+  const states = (statesRaw ?? []) as MonopolyPlayerState[]
+
+  const { data: playersRaw } = await supabase.from('players').select('id,name').eq('game_id', gameId)
+  const players = playersRaw ?? []
+
+  const owners = parsePropertyOwners(board.property_owners)
+  const buildings = parseBuildings(board.property_buildings)
+  const mortgaged = parseMortgaged(board.mortgaged_properties)
+
+  const winnerId = resolveMonopolyWinnerId(states, owners, buildings, mortgaged, board.winner_player_id)
+  const winnerName = winnerId ? players.find((p) => p.id === winnerId)?.name : null
+  const winnerNetWorth =
+    winnerId != null
+      ? computeMonopolyNetWorth(
+          states.find((s) => s.player_id === winnerId)!,
+          owners,
+          buildings,
+          mortgaged
+        )
+      : null
+
+  const statusMessage = winnerName
+    ? `${winnerName} wins with ${formatMonopolyMoney(winnerNetWorth ?? 0)} total assets!`
+    : 'Game over!'
+
+  const { error: boardError } = await supabase
+    .from('monopoly_boards')
+    .update({
+      phase: 'finished',
+      winner_player_id: winnerId,
+      status_message: statusMessage,
+      turn_deadline_at: null,
+      auction_state: null,
+      pending_trade: null,
+      pending_space: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+  if (boardError) return { error: boardError.message }
+
+  const { error: gameError } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+  if (gameError) return { error: gameError.message }
+
+  return { error: null }
+}
+
 function parseDeck(raw: unknown): number[] {
   if (!Array.isArray(raw)) return []
   return raw as number[]

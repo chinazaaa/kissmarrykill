@@ -13,6 +13,7 @@ import {
   isTriviaGame,
   isBingoGame,
   isYahtzeeGame,
+  isMonopolyGame,
 } from '@/lib/game-types'
 import { tallyTriviaPlayerScores } from '@/lib/trivia'
 import { totalScore } from '@/lib/yahtzee'
@@ -25,6 +26,8 @@ import { filterParticipantsInRounds } from '@/lib/utils'
 import { appDomain } from '@/lib/site'
 import { captureElementAsImage } from '@/lib/capture-element-image'
 import { shareImageBlob } from '@/lib/share-image'
+import type { MonopolyStanding } from '@/lib/monopoly'
+import { formatMonopolyMoney } from '@/lib/monopoly'
 
 function buildShareText({
   game,
@@ -36,6 +39,8 @@ function buildShareText({
   bingoWinnerName,
   yahtzeeScores,
   yahtzeeWinnerName,
+  monopolyStandings,
+  monopolyWinnerName,
 }: {
   game: Game
   participants: Participant[]
@@ -46,9 +51,28 @@ function buildShareText({
   bingoWinnerName?: string
   yahtzeeScores?: YahtzeePlayerScore[]
   yahtzeeWinnerName?: string
+  monopolyStandings?: MonopolyStanding[]
+  monopolyWinnerName?: string
 }): string {
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
+
+  if (isMonopolyGame(gameType) && monopolyStandings && monopolyStandings.length > 0) {
+    const lines = [
+      config.headerEmoji,
+      game.title,
+      '',
+      monopolyWinnerName ? `🏆 ${monopolyWinnerName} wins!` : '🏆 Game over',
+      '',
+      'Final standings (total assets):',
+      ...monopolyStandings.slice(0, 8).map(
+        (row) => `  ${row.rank}. ${row.name} — ${formatMonopolyMoney(row.netWorth)}`
+      ),
+      '',
+      `Play at ${appDomain()}`,
+    ]
+    return lines.join('\n')
+  }
 
   if (isBingoGame(gameType) && bingoWinnerName) {
     return [
@@ -211,6 +235,8 @@ export function ShareResults({
   bingoWinnerName,
   yahtzeeScores,
   yahtzeeWinnerName,
+  monopolyStandings,
+  monopolyWinnerName,
 }: {
   captureRef?: RefObject<HTMLElement | null>
   game: Game
@@ -222,6 +248,8 @@ export function ShareResults({
   bingoWinnerName?: string
   yahtzeeScores?: YahtzeePlayerScore[]
   yahtzeeWinnerName?: string
+  monopolyStandings?: MonopolyStanding[]
+  monopolyWinnerName?: string
 }) {
   const { success, error } = useToast()
   const [sharing, setSharing] = useState(false)
@@ -265,6 +293,8 @@ export function ShareResults({
         bingoWinnerName,
         yahtzeeScores,
         yahtzeeWinnerName,
+        monopolyStandings,
+        monopolyWinnerName,
       })
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
@@ -296,6 +326,8 @@ export function ShareResults({
         bingoWinnerName,
         yahtzeeScores,
         yahtzeeWinnerName,
+        monopolyStandings,
+        monopolyWinnerName,
       })
         await navigator.clipboard.writeText(text)
         success('Results copied to clipboard!')
@@ -306,7 +338,7 @@ export function ShareResults({
       sharingLock.current = false
       setSharing(false)
     }
-  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName, yahtzeeScores, yahtzeeWinnerName, success, error])
+  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName, yahtzeeScores, yahtzeeWinnerName, monopolyStandings, monopolyWinnerName, success, error])
 
   return (
     <button
