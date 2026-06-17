@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   LudoCard,
@@ -109,17 +109,27 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
     load()
   }, [load])
 
+  // A single move can update several rows at once, firing a burst of
+  // postgres_changes events. Coalesce them into one reload to avoid refetch
+  // storms and flicker from partial mid-write snapshots.
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleLoad = useCallback(() => {
+    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = setTimeout(() => void load(), 90)
+  }, [load])
+
   useEffect(() => {
     const channel = supabase
       .channel(`ludo-player-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_sessions', filter: `game_id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_player_state', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, scheduleLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_sessions', filter: `game_id=eq.${gameCode}` }, scheduleLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_player_state', filter: `game_id=eq.${gameCode}` }, scheduleLoad)
       .subscribe()
     return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, load])
+  }, [gameCode, scheduleLoad])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 

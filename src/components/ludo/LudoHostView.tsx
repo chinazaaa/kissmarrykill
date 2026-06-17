@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
@@ -86,17 +86,26 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     }
   }, [hostMode, hostPlayerId, game?.status])
 
+  // Coalesce the burst of postgres_changes events a single move produces into
+  // one reload, avoiding refetch storms and flicker from partial snapshots.
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleLoad = useCallback(() => {
+    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = setTimeout(() => void load(), 90)
+  }, [load])
+
   useEffect(() => {
     const channel = supabase
       .channel(`ludo-host-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_sessions', filter: `game_id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_player_state', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, scheduleLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_sessions', filter: `game_id=eq.${gameCode}` }, scheduleLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_player_state', filter: `game_id=eq.${gameCode}` }, scheduleLoad)
       .subscribe()
     return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, load])
+  }, [gameCode, scheduleLoad])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
