@@ -9,7 +9,6 @@ import { HostAllowViewersField } from '@/components/HostAllowViewersField'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { TwoTruthsShareBlock } from '@/components/two-truths/TwoTruthsShareBlock'
 import {
   formatTtlChoiceLabel,
@@ -297,7 +296,6 @@ export function TwoTruthsHostManagePanel({
           <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-secondary w-full">
             {playingAgain ? 'Resetting…' : 'Return to lobby'}
           </button>
-          <CreateNewGameButton />
         </div>
       )}
 

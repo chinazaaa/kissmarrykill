@@ -148,7 +148,6 @@ import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
 import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
 import { AchievementsShareBlock } from '@/components/AchievementsShareBlock'
 import { ShareResults } from '@/components/ShareResults'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
@@ -3585,13 +3584,8 @@ export default function HostPage() {
             )}
           </FinalResultsShareBlock>
         ) : showFinalShareResults ? (
-          <>
-            <ShareResults game={game} participants={participants} votes={votes} rounds={allRounds} players={players} />
-            <CreateNewGameButton />
-          </>
-        ) : (
-          <CreateNewGameButton />
-        )}
+          <ShareResults game={game} participants={participants} votes={votes} rounds={allRounds} players={players} />
+        ) : null}
 
         <AchievementsShareBlock achievements={achievements} gameTitle={game.title} />
 

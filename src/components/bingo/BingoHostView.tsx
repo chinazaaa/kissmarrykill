@@ -640,10 +640,19 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
             )}
 
             {game.status === 'finished' && winnerPlayer && (
-              <BingoFinalResultsShareBlock game={game} players={players} winnerName={winnerPlayer.name} />
+              <BingoFinalResultsShareBlock
+                game={game}
+                players={players}
+                winnerName={winnerPlayer.name}
+                playAgainButton={
+                  <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-secondary w-full">
+                    {playingAgain ? 'Resetting…' : 'Play again'}
+                  </button>
+                }
+              />
             )}
 
-            {game.status === 'finished' && (
+            {game.status === 'finished' && !winnerPlayer && (
               <>
                 <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-secondary w-full">
                   {playingAgain ? 'Resetting…' : 'Play again'}

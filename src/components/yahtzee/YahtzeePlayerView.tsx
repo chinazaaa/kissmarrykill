@@ -323,9 +323,9 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
               {winner && <p className="text-2xl font-black text-[var(--marry)]">{winner.name}</p>}
             </YahtzeeCard>
             <YahtzeeLeaderboard rows={scores} players={players} highlightPlayerId={myPlayerId} />
+            <YahtzeeSecondaryButton onClick={() => router.push('/games')}>Create a new game</YahtzeeSecondaryButton>
           </>
         )}
-        <YahtzeeSecondaryButton onClick={() => router.push('/games')}>Create a new game</YahtzeeSecondaryButton>
       </YahtzeeShell>
     )
   }
