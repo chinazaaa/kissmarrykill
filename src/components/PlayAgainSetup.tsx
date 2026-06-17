@@ -34,6 +34,7 @@ import {
 import {
   isBinaryChoiceGame,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isThisOrThat,
   isWouldYouRather,
   parseGameType,
@@ -89,6 +90,7 @@ function hasQuestionPool(game: Game): boolean {
   const type = parseGameType(game.game_type)
   if (isThisOrThat(type)) return true
   if (isWouldYouRather(type) && parseQuestionSource(game.question_source, type) === 'custom') return true
+  if (isNeverHaveIEver(type) && parseQuestionSource(game.question_source, type) === 'custom') return true
   if (isMostLikelyTo(type) && parseQuestionSource(game.question_source, type) === 'custom') return true
   return false
 }
@@ -111,6 +113,7 @@ export function PlayAgainSetup({
   const showParticipants = hasParticipantPool(game)
   const isTot = isThisOrThat(gameType)
   const isWyr = isWouldYouRather(gameType)
+  const isNhie = isNeverHaveIEver(gameType)
   const isMlt = isMostLikelyTo(gameType)
   const isBinaryLobby = isBinaryChoiceGame(gameType)
   const needsGender = participantsNeedGenderForGame(gameType, { game, genderBased: isGameGenderBased(game) })
@@ -200,7 +203,7 @@ export function PlayAgainSetup({
             return
           }
           addCustomQuestionsFromRows(rows, [], replace)
-        } else if (isMlt) {
+        } else if (isMlt || isNhie) {
           const rows = parseMltQuestionRows(text)
           if (rows.length === 0) {
             setQuestionsUploadError('No valid rows. Add one question per line.')
@@ -227,7 +230,7 @@ export function PlayAgainSetup({
             return
           }
           addCustomQuestionsFromRows(rows, [], replace)
-        } else if (isMlt) {
+        } else if (isMlt || isNhie) {
           const rows = await parseExcelMltQuestions(buffer)
           if (rows.length === 0) {
             setQuestionsUploadError('No valid rows. Add one question per line.')

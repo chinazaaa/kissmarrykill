@@ -6,6 +6,7 @@ import {
   isPairGame,
   isWhoSaidThis,
   isWouldYouRather,
+  isNeverHaveIEver,
   isThisOrThat,
   isAnonymousMessagesGame,
   parseGameType,
@@ -26,7 +27,7 @@ export type LobbySummaryChip = {
 export function participantModeLobbyLabel(game: Pick<Game, 'participant_mode' | 'game_type'>): string | null {
   const type = parseGameType(game.game_type)
   if (isAnonymousMessagesGame(type)) return 'Auto-assigned lobby names — shown on messages'
-  if (isWouldYouRather(type) || isThisOrThat(type)) return null
+  if (isWouldYouRather(type) || isNeverHaveIEver(type) || isThisOrThat(type)) return null
   if (isWhoSaidThis(type) || isHotSeat(type)) return 'Claim your name from the list'
   if (isJoinersPollMode(game)) return 'Join & play — you’re in the poll'
   if (isVoterOnlyMode(game)) return 'Vote on the imported list'

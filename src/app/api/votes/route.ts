@@ -9,6 +9,7 @@ import {
   isBinaryPeoplePollGame,
   isThreeChoiceGame,
   isBinaryChoiceGame,
+  isNeverHaveIEver,
   isMostLikelyTo,
   isWhoSaidThis,
   isLobbyGame,
@@ -141,6 +142,20 @@ export async function POST(req: NextRequest) {
         target_player_id: null,
         target_participant_id: targetParticipantId,
       }
+    }
+  } else if (isNeverHaveIEver(gameType)) {
+    const wyrChoice = rawWyrChoice === 'a' || rawWyrChoice === 'b' ? rawWyrChoice : null
+    if (!wyrChoice) {
+      return NextResponse.json({ error: 'Pick I have or I haven\'t' }, { status: 400 })
+    }
+    row = {
+      kiss_participant_id: null,
+      marry_participant_id: null,
+      kill_participant_id: null,
+      pair_assignments: null,
+      wyr_choice: wyrChoice,
+      target_player_id: null,
+      target_participant_id: null,
     }
   } else if (isMostLikelyTo(gameType)) {
     const isImport = isVoterOnlyMode(game)
@@ -315,6 +330,7 @@ export async function POST(req: NextRequest) {
 
   if (
     !isLobbyGame(gameType) &&
+    !isNeverHaveIEver(gameType) &&
     !isMostLikelyTo(gameType) &&
     !isWhoSaidThis(gameType) &&
     !(supportsGenderToggle(gameType) && !isGameGenderBased(game))

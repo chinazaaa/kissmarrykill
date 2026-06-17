@@ -3,6 +3,7 @@ import {
   parseGameType,
   isBinaryChoiceGame,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isPairGame,
   isUnaryPollGame,
   isThreeChoiceGame,
@@ -21,7 +22,7 @@ export function parsePlayerQuestionsOrder(raw: unknown): PlayerQuestionsOrder {
 
 export function lobbyAllowsPlayerQuestions(game: Pick<Game, 'game_type' | 'player_questions_enabled'>): boolean {
   const type = parseGameType(game.game_type)
-  if (!isBinaryChoiceGame(type) && !isMostLikelyTo(type)) return false
+  if (!isBinaryChoiceGame(type) && !isMostLikelyTo(type) && !isNeverHaveIEver(type)) return false
   return game.player_questions_enabled !== false
 }
 

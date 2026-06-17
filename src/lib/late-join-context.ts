@@ -3,6 +3,7 @@ import {
   isBingoGame,
   isCodewordsGame,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isThisOrThat,
   isTriviaGame,
   isBinaryChoiceGame,
@@ -51,6 +52,14 @@ export async function fetchLateJoinContext(
       statusLine: `Question ${roundLabel(current)}`,
       playerDetail: 'You\'ll vote on the current question only. Past questions can\'t be voted on.',
       viewerDetail: 'Watch the current question and results live — you can\'t vote.',
+    }
+  }
+
+  if (isNeverHaveIEver(type)) {
+    return {
+      statusLine: `Round ${roundLabel(current)}`,
+      playerDetail: 'You\'ll vote on the current prompt only. Past rounds can\'t be voted on.',
+      viewerDetail: 'Watch the current round and results live — you can\'t vote.',
     }
   }
 

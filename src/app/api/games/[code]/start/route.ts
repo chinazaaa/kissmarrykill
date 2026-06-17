@@ -8,6 +8,7 @@ import {
   isWouldYouRather,
   isThisOrThat,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isWhoSaidThis,
   isHotSeat,
   isCustomGame,
@@ -25,7 +26,8 @@ import { buildHotSeatRoundRows } from '@/lib/hot-seat'
 import { buildRoundsFromQuotePool, buildRoundsFromAnimePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
-import { fetchMltQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
+import { pickNhieQuestions } from '@/lib/never-have-i-ever-questions'
+import { fetchMltQuestionUsage, fetchNhieQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
 import {
   parseQuestionSource,
   parseStoredWyrQuestions,
@@ -680,6 +682,80 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       : pickMltQuestions(poolNeeded, mergeUsageMaps(await fetchMltQuestionUsage(supabase), customMltUsage))
     const questions = combineLobbyQuestions(
       playerQuestionsEnabled ? playerMltQuestions : [],
+      platformQuestions,
+      game.rounds_count,
+      playerQuestionsEnabled ? questionOrder : 'uploaded_first'
+    )
+    if (questions.length === 0) {
+      return NextResponse.json(
+        { error: useCustom ? 'No custom prompts available' : 'No prompts available' },
+        { status: 400 }
+      )
+    }
+
+    const roundRows = questions.map((question, index) => ({
+      game_id: code.toUpperCase(),
+      round_number: index + 1,
+      participant_ids: [],
+      mlt_question: question,
+      status: index === 0 ? 'active' : 'pending',
+      started_at: index === 0 ? now : null,
+      ended_at: null,
+    }))
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  }
+
+  if (isNeverHaveIEver(gameType)) {
+    if (playersData.length < 2) {
+      return NextResponse.json({ error: 'Need at least 2 players to start' }, { status: 400 })
+    }
+
+    const { data: playerNhieRows } = await supabase
+      .from('player_questions')
+      .select('question_text')
+      .eq('game_id', code.toUpperCase())
+      .eq('question_type', 'mlt')
+    const playerNhieQuestions = (playerNhieRows ?? [])
+      .map((q) => q.question_text)
+      .filter((t): t is string => !!t?.trim())
+      .sort(() => Math.random() - 0.5)
+
+    const playerQuestionsEnabled = lobbyAllowsPlayerQuestions(game)
+    const questionOrder = parsePlayerQuestionsOrder(game.player_questions_order)
+    const effectivePlayerCount = playerQuestionsEnabled ? playerNhieQuestions.length : 0
+    const basePoolCap = questionPoolCap(game, effectivePlayerCount)
+    const totalAvailable = basePoolCap
+    if (game.rounds_count > totalAvailable) {
+      return NextResponse.json(
+        { error: `Too many rounds — lower to ${totalAvailable} or fewer before starting` },
+        { status: 400 }
+      )
+    }
+
+    const useCustom = parseQuestionSource(game.question_source, gameType) === 'custom'
+    const customPool = useCustom ? parseStoredMltQuestions(game.custom_questions) : []
+    const poolNeeded = poolPickCountForLobby(
+      game.rounds_count,
+      effectivePlayerCount,
+      questionOrder,
+      playerQuestionsEnabled
+    )
+    const platformQuestions = useCustom
+      ? pickCustomMltQuestions(customPool, poolNeeded, customMltUsage)
+      : pickNhieQuestions(poolNeeded, mergeUsageMaps(await fetchNhieQuestionUsage(supabase), customMltUsage))
+    const questions = combineLobbyQuestions(
+      playerQuestionsEnabled ? playerNhieQuestions : [],
       platformQuestions,
       game.rounds_count,
       playerQuestionsEnabled ? questionOrder : 'uploaded_first'

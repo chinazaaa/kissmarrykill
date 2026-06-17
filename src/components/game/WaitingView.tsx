@@ -5,7 +5,7 @@ import { Avatar } from '@/components/Avatar'
 import { ParticipantGallery } from '@/components/ParticipantGallery'
 import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
-import { isWouldYouRather, isMostLikelyTo, isWhoSaidThis } from '@/lib/game-types'
+import { isWouldYouRather, isMostLikelyTo, isNeverHaveIEver, isWhoSaidThis } from '@/lib/game-types'
 import { playerIdentityLabel } from '@/lib/participants'
 import { wstVoteTargets } from '@/lib/who-said-this'
 import type { Game, Participant, Player, WstQuotePoolEntry } from '@/types'
@@ -105,7 +105,7 @@ export function WaitingView({
       ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at))
       : []
   const canSubmitPoolQuote = !!me?.participant_id
-  const isPeopleMode = !isWouldYouRather(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst
+  const isPeopleMode = !isWouldYouRather(game?.game_type) && !isNeverHaveIEver(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst
   const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
   const canUploadPhoto = isPeopleMode && !!me?.participant_id
 
@@ -380,7 +380,7 @@ export function WaitingView({
         </div>
       </div>
       {/* Player question submission for WYR / MLT */}
-      {(isWyrGame || isMostLikelyTo(game?.game_type)) && myPlayerId && (
+      {(isWyrGame || isNeverHaveIEver(game?.game_type) || isMostLikelyTo(game?.game_type)) && myPlayerId && (
         <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">
           <button type="button" onClick={() => setPqOpen(!pqOpen)} className="w-full flex items-center justify-between">
             <p className="text-muted text-xs uppercase tracking-wider">
@@ -514,7 +514,7 @@ export function WaitingView({
       )}
 
       {/* Participant gallery for games with photo cards */}
-      {participants.length > 0 && !isWyrGame && !isMostLikelyTo(game?.game_type) && !isWst && (
+      {participants.length > 0 && !isWyrGame && !isNeverHaveIEver(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && (
         <ParticipantGallery participants={participants} />
       )}
 

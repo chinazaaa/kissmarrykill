@@ -5,6 +5,7 @@ import {
   isMonopolyGame,
   isYahtzeeGame,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isSecretMessageGame,
   isThisOrThat,
   isTriviaGame,
@@ -50,6 +51,7 @@ export function gameOffersLateJoinChoice(gameType: GameType): boolean {
     isCodewordsGame(gameType) ||
     isBingoGame(gameType) ||
     isWouldYouRather(gameType) ||
+    isNeverHaveIEver(gameType) ||
     isThisOrThat(gameType) ||
     isMostLikelyTo(gameType)
   )

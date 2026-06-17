@@ -7,6 +7,15 @@ export async function fetchMltQuestionUsage(supabase: SupabaseClient): Promise<M
   return countValues((data ?? []).map((row) => row.mlt_question))
 }
 
+export async function fetchNhieQuestionUsage(supabase: SupabaseClient): Promise<Map<string, number>> {
+  const { data } = await supabase
+    .from('rounds')
+    .select('mlt_question, games!inner(game_type)')
+    .not('mlt_question', 'is', null)
+    .eq('games.game_type', 'never_have_i_ever')
+  return countValues((data ?? []).map((row) => row.mlt_question))
+}
+
 export async function fetchWyrQuestionUsage(supabase: SupabaseClient): Promise<Map<string, number>> {
   const { data } = await supabase.from('rounds').select('wyr_option_a, wyr_option_b').not('wyr_option_a', 'is', null)
 

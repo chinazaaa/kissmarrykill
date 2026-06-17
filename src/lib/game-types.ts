@@ -211,6 +211,48 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  never_have_i_ever: {
+    id: 'never_have_i_ever',
+    label: 'Never Have I Ever',
+    tagline: 'Confess if you have — see who else has too',
+    headerEmoji: '🙈🍷',
+    card: {
+      accent: '#e879f9',
+      accentSoft: 'rgba(232, 121, 249, 0.15)',
+      emoji: '🙈',
+      players: '2+ players',
+      vibe: 'Spicy confessions',
+    },
+    slots: {
+      kiss: {
+        emoji: '✋',
+        label: 'I have',
+        color: '#e879f9',
+        leaderboardLabel: 'I have',
+        activeClass: 'bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400',
+        borderClass: 'border-fuchsia-500/50 bg-fuchsia-500/10',
+        textColor: '#f0abfc',
+      },
+      marry: {
+        emoji: '🙅',
+        label: "I haven't",
+        color: '#94a3b8',
+        leaderboardLabel: "I haven't",
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+      kill: {
+        emoji: '🙅',
+        label: "I haven't",
+        color: '#94a3b8',
+        leaderboardLabel: "I haven't",
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+    },
+  },
   would_you_rather: {
     id: 'would_you_rather',
     label: 'Would You Rather',
@@ -824,6 +866,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'smash_or_pass',
   'parent_approval',
   'would_you_rather',
+  'never_have_i_ever',
   'this_or_that',
   'most_likely_to',
   'who_said_this',
@@ -844,6 +887,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'smash_or_pass') return 'smash_or_pass'
   if (raw === 'parent_approval') return 'parent_approval'
   if (raw === 'would_you_rather') return 'would_you_rather'
+  if (raw === 'never_have_i_ever') return 'never_have_i_ever'
   if (raw === 'this_or_that') return 'this_or_that'
   if (raw === 'most_likely_to') return 'most_likely_to'
   if (raw === 'who_said_this') return 'who_said_this'
@@ -877,6 +921,8 @@ export function gameHowItWorks(
       return "Upload everyone's names on the next step. Players claim their name when joining, then submit quotes and who said each one in the lobby. You can add host quotes too — each quote in the pool becomes a round."
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
+    case 'never_have_i_ever':
+      return 'Players join with any name — no list to set up. Each round shows a "Never have I ever…" prompt. Tap I have or I haven\'t — votes stay anonymous until reveal.'
     case 'this_or_that':
       return 'Upload your own “Coffee or Tea?” style prompts. Players join with any name — each round shows two options and everyone picks A or B. Votes stay anonymous.'
     case 'hot_seat':
@@ -1084,6 +1130,10 @@ export function isWouldYouRather(gameType: GameType | string | undefined): boole
   return parseGameType(gameType) === 'would_you_rather'
 }
 
+export function isNeverHaveIEver(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'never_have_i_ever'
+}
+
 export function isThisOrThat(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'this_or_that'
 }
@@ -1112,6 +1162,7 @@ export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): b
   const type = parseGameType(gameType)
   return (
     type === 'would_you_rather' ||
+    type === 'never_have_i_ever' ||
     type === 'this_or_that' ||
     type === 'most_likely_to' ||
     type === 'trivia' ||
@@ -1148,7 +1199,13 @@ export function isPlayerOnlyJoinLobby(gameType: GameType | string | undefined, o
 /** WYR + This or That — forced joiners, no gender, always anonymous. */
 export function isLobbyGame(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'anonymous_messages' || type === 'secret_message'
+  return (
+    type === 'would_you_rather' ||
+    type === 'never_have_i_ever' ||
+    type === 'this_or_that' ||
+    type === 'anonymous_messages' ||
+    type === 'secret_message'
+  )
 }
 
 export function isAnonymousGame(gameType: GameType | string | undefined): boolean {
@@ -1208,6 +1265,7 @@ export function isAutoNameJoinGame(gameType: GameType | string | undefined): boo
 
 export function roundPoolSize(gameType: GameType | string | undefined): 1 | 2 | 3 {
   if (isUnaryPollGame(gameType)) return 1
+  if (isNeverHaveIEver(gameType)) return 2
   if (isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType) || isWhoSaidThis(gameType)) return 2
   return isPairGame(gameType) ? 2 : 3
 }

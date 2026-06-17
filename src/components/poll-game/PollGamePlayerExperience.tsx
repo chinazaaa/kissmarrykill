@@ -56,6 +56,7 @@ import {
   isBinaryPeoplePollGame,
   isUnaryPollGame,
   isWouldYouRather,
+  isNeverHaveIEver,
   isThisOrThat,
   isBinaryChoiceGame,
   isMostLikelyTo,
@@ -348,6 +349,7 @@ export function PollGamePlayerExperience({
   const isWstGame = isWhoSaidThis(game?.game_type)
   const isWyrGame = isWouldYouRather(game?.game_type)
   const isTotGame = isThisOrThat(game?.game_type)
+  const isNhieGame = isNeverHaveIEver(game?.game_type)
   const isBinaryGame = isBinaryChoiceGame(game?.game_type)
   const { context: lateJoinContext, loading: lateJoinContextLoading } = useLateJoinContext(
     gameCode,
@@ -519,6 +521,8 @@ export function PollGamePlayerExperience({
               if (existingVote) {
                 const gameType = parseGameType(gameData.game_type)
                 if (isBinaryChoiceGame(gameType)) {
+                  setWyrChoice(existingVote.wyr_choice)
+                } else if (isNeverHaveIEver(gameType)) {
                   setWyrChoice(existingVote.wyr_choice)
                 } else if (isMostLikelyTo(gameType)) {
                   const targetId = isMltImportGame(gameData)
@@ -869,7 +873,7 @@ export function PollGamePlayerExperience({
       enabled:
         view === 'waiting' &&
         !!game &&
-        (isBinaryGame || isMostLikelyTo(game.game_type)) &&
+        (isBinaryGame || isNhieGame || isMostLikelyTo(game.game_type)) &&
         lobbyAllowsPlayerQuestions(game),
     }
   )
@@ -1130,7 +1134,7 @@ export function PollGamePlayerExperience({
       const customMode = customAssignmentMode(game, roundIds.length, slotKeys)
       if (!isCustomAssignmentValid(customAssignments, roundIds, slotKeys, customMode)) return
     }
-    const voteBody = isBinaryChoiceGame(submitGameType)
+    const voteBody = isBinaryChoiceGame(submitGameType) || isNeverHaveIEver(submitGameType)
       ? { wyrChoice }
       : isMostLikelyTo(submitGameType)
         ? isMltImportGame(game!)
@@ -1440,6 +1444,7 @@ export function PollGamePlayerExperience({
             />
           )}
           {!isBinaryChoiceGame(game?.game_type) &&
+            !isNeverHaveIEver(game?.game_type) &&
             !isMostLikelyTo(game?.game_type) &&
             !isWhoSaidThis(game?.game_type) && (
               <p className="text-faint text-xs text-center leading-snug">
@@ -1527,7 +1532,7 @@ export function PollGamePlayerExperience({
       isWst && myPlayerId ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at)) : []
     const canSubmitPoolQuote = !!me?.participant_id
     const isPeopleMode =
-      !isBinaryChoiceGame(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly
+      !isBinaryChoiceGame(game?.game_type) && !isNeverHaveIEver(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly
     const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
     const canUploadPhoto = isPeopleMode && !!me?.participant_id
 
@@ -1816,7 +1821,7 @@ export function PollGamePlayerExperience({
           </div>
         </div>
         {/* Player question submission for WYR / MLT */}
-        {game && (isBinaryGame || isMostLikelyTo(game.game_type)) && lobbyAllowsPlayerQuestions(game) && myPlayerId && (
+        {game && (isBinaryGame || isNhieGame || isMostLikelyTo(game.game_type)) && lobbyAllowsPlayerQuestions(game) && myPlayerId && (
           <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">
             <button
               type="button"
@@ -2149,7 +2154,7 @@ export function PollGamePlayerExperience({
         )}
 
         {/* Participant gallery for games with photo cards */}
-        {participants.length > 0 && !isBinaryGame && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly && (
+        {participants.length > 0 && !isBinaryGame && !isNhieGame && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly && (
           <ParticipantGallery participants={participants} />
         )}
 
@@ -2385,6 +2390,82 @@ export function PollGamePlayerExperience({
             >
               <p className="text-[10px] uppercase tracking-wider text-faint mb-1">Option B</p>
               <p className="text-base font-semibold text-body leading-snug">{optionB}</p>
+            </button>
+          </div>
+        </div>
+
+        {!submitted ? (
+          <button
+            onClick={handleSubmit}
+            disabled={!wyrChoice}
+            className={wyrChoice ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}
+          >
+            {wyrChoice ? 'Submit Vote ✓' : 'Pick one option'}
+          </button>
+        ) : (
+          <div className="w-full py-4 rounded-2xl glass-card border border-emerald-500/30 text-center">
+            <p className="text-green-400 font-semibold">✓ Vote submitted!</p>
+            <p className="text-muted text-sm mt-0.5">Results will show when the round ends</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ROUND — Never Have I Ever
+  if (view === 'round' && currentRound && isNhieGame) {
+    const gameType = parseGameType(game?.game_type)
+    const statement = currentRound.mlt_question ?? ''
+    const canVote = !!myPlayerId && !isViewer
+    const borderCls =
+      wyrChoice === 'a'
+        ? 'border-fuchsia-500/40'
+        : wyrChoice === 'b'
+          ? 'border-sky-500/40'
+          : 'border-theme'
+
+    return (
+      <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
+        {sessionBar}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
+            <GameTypeBadge gameType={gameType} className="mt-1 mb-1" />
+            <p className="font-black text-body text-2xl">
+              Round {currentRound.round_number}
+              <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
+            </p>
+          </div>
+          {canVote ? <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} /> : null}
+        </div>
+
+        <div className={`glass-card border-2 ${borderCls} rounded-2xl p-5 mb-6 flex-1`}>
+          <p className="text-muted text-xs uppercase tracking-wider text-center mb-3">Never have I ever…</p>
+          <p className="text-xl font-semibold text-body text-center leading-snug mb-5">{statement}</p>
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={submitted || !canVote}
+              onClick={() => canVote && !submitted && setWyrChoice('a')}
+              className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
+                wyrChoice === 'a'
+                  ? 'border-fuchsia-400 bg-fuchsia-500/15 ring-2 ring-fuchsia-400/25'
+                  : 'border-theme surface-inset hover:border-theme-strong'
+              } disabled:cursor-not-allowed`}
+            >
+              <p className="text-base font-semibold text-body leading-snug">✋ I have</p>
+            </button>
+            <button
+              type="button"
+              disabled={submitted || !canVote}
+              onClick={() => canVote && !submitted && setWyrChoice('b')}
+              className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
+                wyrChoice === 'b'
+                  ? 'border-sky-400 bg-sky-500/15 ring-2 ring-sky-400/25'
+                  : 'border-theme surface-inset hover:border-theme-strong'
+              } disabled:cursor-not-allowed`}
+            >
+              <p className="text-base font-semibold text-body leading-snug">🙅 I haven&apos;t</p>
             </button>
           </div>
         </div>
@@ -2777,6 +2858,52 @@ export function PollGamePlayerExperience({
             <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
           </RoundResultsShareBlock>
 
+          <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
+          <p className="text-faint text-sm text-center">
+            {roundResultsWaitMessage({
+              isLastRound,
+              autoReveal: !!game?.auto_reveal,
+              nextRoundSecondsLeft: nextRoundCountdown,
+              finalRevealSecondsLeft: finalRevealCountdown,
+            })}
+          </p>
+        </div>
+      )
+    }
+
+    if (isNeverHaveIEver(gameType)) {
+      const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
+      const { countA, countB, voterCount } = tallyWyrVotes(lastRoundVotes)
+      const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
+
+      return (
+        <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+          {sessionBar}
+          <div className="text-center">
+            <p className="text-muted text-xs uppercase tracking-wider">
+              Round {lastFinishedRound.round_number} of {game?.rounds_count}
+            </p>
+            <GameTypeBadge gameType={gameType} className="mt-2" />
+            <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🙈</h2>
+          </div>
+          <RoundResultsShareBlock
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          >
+            <WyrRoundResults
+              optionA={lastFinishedRound.mlt_question ?? ''}
+              optionB=""
+              countA={countA}
+              countB={countB}
+              voterCount={voterCount}
+              myChoice={myVote?.wyr_choice ?? null}
+              mode="nhie"
+            />
+          </RoundResultsShareBlock>
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
@@ -3244,11 +3371,12 @@ function FinalResultsView({
   const gameType = parseGameType(game.game_type)
   const playedParticipants = filterParticipantsInRounds(participants, rounds)
   const isBinaryGameType = isBinaryChoiceGame(gameType)
+  const isNhie = isNeverHaveIEver(gameType)
   const isMlt = isMostLikelyTo(gameType)
   const isWst = isWhoSaidThis(gameType)
   const isHotSeatGame = isHotSeat(gameType)
   const isMltImport = isMltImportGame(game)
-  const showPollLeaderboards = !isBinaryGameType && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
+  const showPollLeaderboards = !isBinaryGameType && !isNhie && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
   const genderBasedLeaderboards = showPollLeaderboards && isGameGenderBased(game)
   const namesOnlyLeaderboards = showPollLeaderboards && isGenderFreeVoting(game)
   const wstScores = isWst ? tallyWstPlayerScores(rounds, votes, players) : []
@@ -3262,7 +3390,7 @@ function FinalResultsView({
     genderBasedLeaderboards ||
     namesOnlyLeaderboards
   const showFinalShareResults =
-    !isThisOrThat(gameType) && !isWouldYouRather(gameType) && !isMlt && !isHotSeatGame
+    !isThisOrThat(gameType) && !isWouldYouRather(gameType) && !isNhie && !isMlt && !isHotSeatGame
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -3418,6 +3546,24 @@ function FinalResultsView({
                   <div key={round.id}>
                     <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
                     <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
+                  </div>
+                )
+              }
+
+              if (isNhie) {
+                const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
+                return (
+                  <div key={round.id}>
+                    <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                    <WyrRoundResults
+                      optionA={round.mlt_question ?? ''}
+                      optionB=""
+                      countA={countA}
+                      countB={countB}
+                      voterCount={voterCount}
+                      myChoice={myVote?.wyr_choice ?? null}
+                      mode="nhie"
+                    />
                   </div>
                 )
               }

@@ -153,6 +153,31 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     },
   ],
 
+  never_have_i_ever: [
+    {
+      title: 'Objective',
+      points: [
+        'Each round reads a "Never have I ever…" prompt. Tap I have if you\'ve done it, or I haven\'t if you haven\'t.',
+        'See how many in the group confess — votes stay anonymous until reveal.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        'No participant list required — players join with a display name.',
+        'Use built-in prompts or upload your own statements when creating the room.',
+      ],
+    },
+    {
+      title: 'How a round works',
+      points: [
+        'Read the prompt and tap I have or I haven\'t before the timer ends.',
+        'The host reveals how many people have done it — nobody knows who picked what.',
+        'Play through all rounds and compare confessions.',
+      ],
+    },
+  ],
+
   most_likely_to: [
     {
       title: 'Objective',

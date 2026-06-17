@@ -32,6 +32,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   smash_or_pass: 'smash-or-pass',
   parent_approval: 'date-my-kid',
   would_you_rather: 'would-you-rather',
+  never_have_i_ever: 'never-have-i-ever',
   this_or_that: 'this-or-that',
   most_likely_to: 'most-likely-to',
   who_said_this: 'who-said-this',
@@ -280,6 +281,45 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
         question: 'Can I add my own Would You Rather questions?',
         answer:
           'Yes. Fate Round includes a built-in question pool, and you can upload your own prompts when creating a room. Pick round count, set a timer, and share the link — no participant list required.',
+      },
+    ],
+  }),
+
+  never_have_i_ever: landing('never_have_i_ever', {
+    seoTitle: 'Never Have I Ever Online — Free Party Game',
+    seoDescription:
+      'Play Never Have I Ever online with friends for free. Anonymous I have / I haven\'t votes, instant reveals, built-in or custom prompts.',
+    keywords: ['never have i ever online', 'never have i ever game', 'nhie party game', 'never have i ever with friends'],
+    heroSubtitle:
+      'Classic confession game, online. Each prompt asks who\'s done it — anonymous votes reveal how spicy the group really is.',
+    bodyParagraph:
+      'Never Have I Ever on Fate Round reads each prompt aloud on every screen while players tap I have or I haven\'t anonymously. Use built-in prompts or upload your own — perfect for parties, pregames, or friend groups who want honest confessions without the awkward eye contact. Unlike playing in a circle where people hesitate, anonymous votes get real answers.',
+    highlights: ['Anonymous voting', 'Platform or custom prompts', '2+ players, zero setup'],
+    features: [
+      {
+        title: 'Built-in prompt pool',
+        description: 'Jump in with curated Never Have I Ever statements — or upload your own.',
+        emoji: '🙈',
+      },
+      {
+        title: 'Fully anonymous',
+        description: 'See how many have done it — not who raised their hand.',
+        emoji: '🎭',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Start a lobby', description: 'Choose round count and timer — no participant list needed.' },
+      { title: 'Friends join', description: 'Share the link. Everyone enters a display name and waits.' },
+      { title: 'Confess & reveal', description: 'Tap I have or I haven\'t each round and see the group split.' },
+    ],
+    perfectFor: ['Pregames', 'Friend reunions', 'Icebreakers', 'Spicy confession nights'],
+    extraFaqs: [
+      {
+        question: 'Can I add my own Never Have I Ever prompts?',
+        answer:
+          'Yes. Fate Round includes a built-in prompt pool, and you can upload your own statements when creating a room. The "Never have I ever" prefix is added automatically — just upload the action (e.g. "been skydiving").',
       },
     ],
   }),

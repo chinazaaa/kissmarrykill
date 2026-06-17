@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react'
 import {
   parseGameType,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isWhoSaidThis,
   isPairGame,
   isBinaryPeoplePollGame,
@@ -125,7 +126,7 @@ export function useAutoSubmit(
 
     // Only auto-fill random choices if the player has started voting
     // (picked at least one option). If they haven't touched anything, skip.
-    const hasStartedVoting = isBinaryChoiceGame(gameType)
+    const hasStartedVoting = isBinaryChoiceGame(gameType) || isNeverHaveIEver(gameType)
       ? !!wyr
       : isAnimeWst
         ? !!animeCh
@@ -138,7 +139,7 @@ export function useAutoSubmit(
               : Object.values(a).some(Boolean)
 
     if (useRandom && hasStartedVoting) {
-      if (isBinaryChoiceGame(gameType)) {
+      if (isBinaryChoiceGame(gameType) || isNeverHaveIEver(gameType)) {
         wyr = Math.random() < 0.5 ? 'a' : 'b'
       } else if (isMostLikelyTo(gameType)) {
         const targets = mltVoteTargets(g, parts, plrs)
@@ -182,7 +183,7 @@ export function useAutoSubmit(
 
     let voteBody: Record<string, unknown>
 
-    if (isBinaryChoiceGame(gameType)) {
+    if (isBinaryChoiceGame(gameType) || isNeverHaveIEver(gameType)) {
       if (!wyr) return false
       voteBody = { wyrChoice: wyr }
     } else if (isMostLikelyTo(gameType)) {

@@ -4,6 +4,7 @@ import {
   parseGameType,
   isBinaryChoiceGame,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isThisOrThat,
 } from '@/lib/game-types'
 import { usesHostParticipantList } from '@/lib/participant-mode'
@@ -64,7 +65,7 @@ export function parseHostPoolCustomQuestions(
     const parsed = parseStoredWyrQuestions(raw)
     return parsed.length > 0 ? parsed : null
   }
-  if (isMostLikelyTo(gameType)) {
+  if (isMostLikelyTo(gameType) || isNeverHaveIEver(gameType)) {
     const parsed = parseStoredMltQuestions(raw)
     return parsed.length > 0 ? parsed : null
   }
@@ -129,7 +130,7 @@ export function applyCustomQuestionsUpdate(
         wyrQuestionKey(q.optionA, q.optionB)
       ),
     }
-  } else if (isMostLikelyTo(gameType)) {
+  } else if (isMostLikelyTo(gameType) || isNeverHaveIEver(gameType)) {
     poolUsage = {
       ...poolUsage,
       mlt: pruneQuestionUsage(poolUsage.mlt, nextQuestions as string[], (q) => q),

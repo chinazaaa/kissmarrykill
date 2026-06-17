@@ -41,6 +41,7 @@ import {
   isTwoTruthsGame,
   isMonopolyGame,
   isWouldYouRather,
+  isNeverHaveIEver,
   isThisOrThat,
   isMostLikelyTo,
   isWhoSaidThis,
@@ -56,6 +57,7 @@ import {
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
+import { NHIE_QUESTION_COUNT } from '@/lib/never-have-i-ever-questions'
 import {
   parseWyrQuestionRows,
   parseThisOrThatQuestionRows,
@@ -320,8 +322,9 @@ function CreateGameInner() {
   const genderCounts = countByGender(participants)
   const isJoinersMode = settings.participant_mode === 'joiners'
   const isWyr = isWouldYouRather(settings.game_type)
+  const isNhie = isNeverHaveIEver(settings.game_type)
   const isTot = isThisOrThat(settings.game_type)
-  const isBinaryLobby = isWyr || isTot
+  const isBinaryLobby = isWyr || isTot || isNhie
   const isMlt = isMostLikelyTo(settings.game_type)
   const isTrivia = isTriviaGame(settings.game_type)
   const isTwoTruths = isTwoTruthsGame(settings.game_type)
@@ -352,9 +355,11 @@ function CreateGameInner() {
   const isPlayerSubmissions = (isLobbyQuestions && !isTrivia) || isPeoplePollVoters
   const customQuestionCount = isTrivia
     ? customTriviaQuestions.length
-    : isBinaryLobby
+    : isWyr || isTot
       ? customWyrQuestions.length
-      : customMltQuestions.length
+      : isMlt || isNhie
+        ? customMltQuestions.length
+        : 0
   const questionCap =
     questionSource === 'custom' && customQuestionCount > 0
       ? customQuestionCount
@@ -364,6 +369,8 @@ function CreateGameInner() {
           ? TRIVIA_QUESTION_COUNT
           : isWyr
             ? WYR_QUESTION_COUNT
+            : isNhie
+              ? NHIE_QUESTION_COUNT
             : isMlt
               ? MLT_QUESTION_COUNT
               : 10
@@ -594,6 +601,9 @@ function CreateGameInner() {
     if (isMlt && mltRows.length > 0) {
       setCustomMltQuestions((prev) => mergeMltQuestions(prev, mltRows))
     }
+    if (isNhie && mltRows.length > 0) {
+      setCustomMltQuestions((prev) => mergeMltQuestions(prev, mltRows))
+    }
     if (isTrivia && triviaRows.length > 0) {
       setCustomTriviaQuestions((prev) => mergeTriviaQuestions(prev, triviaRows))
     }
@@ -620,7 +630,7 @@ function CreateGameInner() {
       setMltQuestionInput('')
       return
     }
-    if (isMlt) {
+    if (isMlt || isNhie) {
       const question = mltQuestionInput.trim()
       if (!question) return
       addCustomQuestionsFromRows([], [question])
@@ -645,7 +655,7 @@ function CreateGameInner() {
         return
       }
       addCustomQuestionsFromRows(rows, [])
-    } else if (isMlt) {
+    } else if (isMlt || isNhie) {
       const rows = parseMltQuestionRows(questionsBulkPaste)
       if (rows.length === 0) {
         setQuestionsUploadError('Add one question per line')
@@ -688,7 +698,7 @@ function CreateGameInner() {
             return
           }
           addCustomQuestionsFromRows(rows, [])
-        } else if (isMlt) {
+        } else if (isMlt || isNhie) {
           const rows = parseMltQuestionRows(text)
           if (rows.length === 0) {
             setQuestionsUploadError('No valid rows. Add one question per line.')
@@ -723,7 +733,7 @@ function CreateGameInner() {
             return
           }
           addCustomQuestionsFromRows(rows, [])
-        } else if (isMlt) {
+        } else if (isMlt || isNhie) {
           const rows = await parseExcelMltQuestions(buffer)
           if (rows.length === 0) {
             setQuestionsUploadError('No valid rows. Add one question per line.')
@@ -750,7 +760,7 @@ function CreateGameInner() {
 
   const removeCustomQuestion = (index: number) => {
     if (isWyr || isTot) setCustomWyrQuestions((prev) => prev.filter((_, i) => i !== index))
-    if (isMlt) setCustomMltQuestions((prev) => prev.filter((_, i) => i !== index))
+    if (isMlt || isNhie) setCustomMltQuestions((prev) => prev.filter((_, i) => i !== index))
     if (isTrivia) setCustomTriviaQuestions((prev) => prev.filter((_, i) => i !== index))
   }
 
@@ -772,7 +782,7 @@ function CreateGameInner() {
           question_source: isTot ? 'custom' : isLobbyQuestions ? questionSource : 'platform',
           custom_questions:
             isLobbyQuestions && (isTot || questionSource === 'custom')
-              ? isBinaryLobby
+              ? isWyr || isTot
                 ? customWyrQuestions
                 : isTrivia
                   ? customTriviaQuestions
@@ -1513,7 +1523,9 @@ function CreateGameInner() {
                                 value={mltQuestionInput}
                                 onChange={(e) => setMltQuestionInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
-                                placeholder={isTot ? 'Coffee or Tea?' : 'Who is most likely to…'}
+                                placeholder={
+                                  isTot ? 'Coffee or Tea?' : isNhie ? 'been skydiving' : 'Who is most likely to…'
+                                }
                                 className="input-field py-2.5 text-sm"
                               />
                             )}
@@ -1532,7 +1544,9 @@ function CreateGameInner() {
                                   ? 'Paste from Excel:\nNever have pizza,Never have tacos\nLive without music,Live without movies'
                                   : isTot
                                     ? 'Paste questions:\nCoffee or Tea?\nBeach vacation or Mountain getaway?'
-                                    : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
+                                    : isNhie
+                                      ? 'Paste prompts:\nbeen skydiving\nkissed a stranger\nsung karaoke sober'
+                                      : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
                               }
                               rows={4}
                               className="input-field resize-none font-medium text-sm"
@@ -1556,7 +1570,7 @@ function CreateGameInner() {
                             <p className="text-muted text-xs uppercase tracking-wider">
                               Loaded ({customQuestionCount})
                             </p>
-                            {isBinaryLobby
+                            {isWyr || isTot
                               ? customWyrQuestions.map((q, i) => (
                                   <div key={i} className="flex items-start gap-2 text-sm">
                                     <p className="text-body flex-1 min-w-0">

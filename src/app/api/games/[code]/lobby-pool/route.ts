@@ -13,7 +13,7 @@ import {
   parseHostPoolParticipants,
   replaceHostParticipantList,
 } from '@/lib/host-pool-update'
-import { parseGameType, isBinaryChoiceGame, isMostLikelyTo, isTriviaGame } from '@/lib/game-types'
+import { parseGameType, isBinaryChoiceGame, isMostLikelyTo, isNeverHaveIEver, isTriviaGame } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { parsePoolUsage } from '@/lib/pool-usage'
 
@@ -122,9 +122,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     nextGame = { ...nextGame, pool_usage: poolUsage }
   }
 
-  const isLobbyQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
+  const isLobbyQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType) || isNeverHaveIEver(gameType)
   if (isLobbyQuestions) {
-    const questionType = isMostLikelyTo(gameType) ? 'mlt' : 'wyr'
+    const questionType = isMostLikelyTo(gameType) || isNeverHaveIEver(gameType) ? 'mlt' : 'wyr'
     const { count } = await supabase
       .from('player_questions')
       .select('*', { count: 'exact', head: true })
