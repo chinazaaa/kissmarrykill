@@ -1,4 +1,42 @@
+import { formatMonopolyMoney, spaceAt } from '@/lib/monopoly'
 import type { MonopolyLastTradeEvent } from '@/types'
+
+export type TradeSideItem =
+  | { kind: 'cash'; amount: number }
+  | { kind: 'property'; name: string; index: number }
+  | { kind: 'jail_cards'; count: number }
+
+export function buildTradeSideItems(
+  cash: number,
+  propertyIndexes: number[],
+  jailCards = 0
+): TradeSideItem[] {
+  const items: TradeSideItem[] = []
+  if (cash > 0) items.push({ kind: 'cash', amount: cash })
+  for (const index of propertyIndexes) {
+    items.push({ kind: 'property', name: spaceAt(index).name, index })
+  }
+  if (jailCards > 0) items.push({ kind: 'jail_cards', count: jailCards })
+  return items
+}
+
+export function tradeSideHasValue(cash: number, propertyIndexes: number[], jailCards = 0): boolean {
+  return cash > 0 || propertyIndexes.length > 0 || jailCards > 0
+}
+
+/** Human-readable trade side — omits £0 when there is no cash. */
+export function formatTradeSideText(cash: number, propertyIndexes: number[], jailCards = 0): string {
+  const items = buildTradeSideItems(cash, propertyIndexes, jailCards)
+  if (items.length === 0) return 'Nothing'
+
+  return items
+    .map((item) => {
+      if (item.kind === 'cash') return formatMonopolyMoney(item.amount)
+      if (item.kind === 'property') return item.name
+      return `${item.count} jail card${item.count === 1 ? '' : 's'}`
+    })
+    .join(' · ')
+}
 
 export function formatTradeMessageForPlayer(
   event: MonopolyLastTradeEvent,

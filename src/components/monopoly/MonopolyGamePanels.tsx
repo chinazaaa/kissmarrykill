@@ -45,9 +45,120 @@ import {
   unmortgageCost,
   type MonopolyColorGroup,
 } from '@/lib/monopoly'
+import {
+  buildTradeSideItems,
+  tradeSideHasValue,
+} from '@/lib/monopoly-trade-messages'
 import type { MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 
 type PostAction = (url: string, body?: Record<string, unknown>) => Promise<void>
+
+function TradeSideItems({
+  cash,
+  propertyIndexes,
+  jailCards = 0,
+  compact = false,
+}: {
+  cash: number
+  propertyIndexes: number[]
+  jailCards?: number
+  compact?: boolean
+}) {
+  const items = buildTradeSideItems(cash, propertyIndexes, jailCards)
+  if (items.length === 0) {
+    return <p className={`text-muted italic ${compact ? 'text-xs' : 'text-sm'}`}>Nothing</p>
+  }
+
+  return (
+    <ul className={`space-y-0.5 ${compact ? 'text-xs' : 'text-sm'} font-semibold text-[var(--foreground)] leading-snug`}>
+      {items.map((item) => {
+        if (item.kind === 'cash') {
+          return (
+            <li key="cash">
+              <span className="text-muted font-normal">Cash </span>
+              {formatMonopolyMoney(item.amount)}
+            </li>
+          )
+        }
+        if (item.kind === 'property') {
+          return <li key={`prop-${item.index}`}>{item.name}</li>
+        }
+        return (
+          <li key="jail">
+            {item.count} Get Out of Jail card{item.count === 1 ? '' : 's'}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function TradeExchangeReview({
+  giveLabel,
+  getLabel,
+  giveCash,
+  giveProps,
+  getCash,
+  getProps,
+  giveJailCards = 0,
+  getJailCards = 0,
+  compact = false,
+}: {
+  giveLabel: string
+  getLabel: string
+  giveCash: number
+  giveProps: number[]
+  getCash: number
+  getProps: number[]
+  giveJailCards?: number
+  getJailCards?: number
+  compact?: boolean
+}) {
+  const oneSidedGift = tradeSideHasValue(giveCash, giveProps, giveJailCards) && !tradeSideHasValue(getCash, getProps, getJailCards)
+  const oneSidedReceive =
+    tradeSideHasValue(getCash, getProps, getJailCards) && !tradeSideHasValue(giveCash, giveProps, giveJailCards)
+
+  return (
+    <div className={compact ? 'space-y-2' : 'space-y-3'}>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/8 p-2.5 sm:p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/90">{giveLabel}</p>
+          <div className="mt-1">
+            <TradeSideItems
+              cash={giveCash}
+              propertyIndexes={giveProps}
+              jailCards={giveJailCards}
+              compact={compact}
+            />
+          </div>
+        </div>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-2.5 sm:p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            {getLabel}
+          </p>
+          <div className="mt-1">
+            <TradeSideItems
+              cash={getCash}
+              propertyIndexes={getProps}
+              jailCards={getJailCards}
+              compact={compact}
+            />
+          </div>
+        </div>
+      </div>
+      {oneSidedGift && (
+        <p className="text-xs text-red-400 leading-relaxed rounded-lg border border-red-500/25 bg-red-500/8 px-3 py-2">
+          You are not asking for anything in return — this is a one-way gift, not a swap.
+        </p>
+      )}
+      {oneSidedReceive && (
+        <p className="text-xs text-amber-600 dark:text-amber-300 leading-relaxed rounded-lg border border-amber-500/25 bg-amber-500/8 px-3 py-2">
+          You are not offering anything — you would only receive from them.
+        </p>
+      )}
+    </div>
+  )
+}
 
 export function MonopolyCardAlertModal({
   board,
@@ -127,25 +238,24 @@ export function MonopolyTurnModals({
   return (
     <>
       {showTradeModal && trade && (
-        <MonopolyModal open subtitle="Trade offer" title={`From ${tradeFrom?.name ?? 'player'}`}>
-          <div className="text-sm text-muted space-y-2">
-            <p>
-              <span className="font-semibold text-[var(--foreground)]">They offer:</span>{' '}
-              {formatMonopolyMoney(trade.offer_cash)}
-              {trade.offer_properties.length > 0 &&
-                ` · ${trade.offer_properties.map((i) => spaceAt(i).name).join(', ')}`}
-              {trade.offer_get_out_cards > 0 && ` · ${trade.offer_get_out_cards} jail card(s)`}
-            </p>
-            <p>
-              <span className="font-semibold text-[var(--foreground)]">They want:</span>{' '}
-              {formatMonopolyMoney(trade.request_cash)}
-              {trade.request_properties.length > 0 &&
-                ` · ${trade.request_properties.map((i) => spaceAt(i).name).join(', ')}`}
-            </p>
+        <MonopolyModal open subtitle="Review before you accept" title={`Trade from ${tradeFrom?.name ?? 'player'}`}>
+          <p className="text-sm text-muted leading-relaxed">
+            If you accept, the exchange below happens immediately. Decline if anything looks wrong.
+          </p>
+          <div className="pt-2">
+            <TradeExchangeReview
+              giveLabel="You pay"
+              getLabel="You receive"
+              giveCash={trade.request_cash}
+              giveProps={trade.request_properties}
+              getCash={trade.offer_cash}
+              getProps={trade.offer_properties}
+              getJailCards={trade.offer_get_out_cards}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-2 pt-2">
+          <div className="grid grid-cols-2 gap-2 pt-3">
             <MonopolyPrimaryButton onClick={() => postAction('/api/monopoly/trade', { accept: true })} loading={acting}>
-              Accept
+              Accept trade
             </MonopolyPrimaryButton>
             <MonopolySecondaryButton
               onClick={() => postAction('/api/monopoly/trade', { accept: false })}
@@ -176,10 +286,12 @@ export function MonopolyManagePanel({
   postAction: PostAction
 }) {
   const [tradeTarget, setTradeTarget] = useState('')
-  const [offerCash, setOfferCash] = useState('0')
-  const [requestCash, setRequestCash] = useState('0')
+  const [offerCash, setOfferCash] = useState('')
+  const [requestCash, setRequestCash] = useState('')
   const [offerProps, setOfferProps] = useState<number[]>([])
   const [requestProps, setRequestProps] = useState<number[]>([])
+  const [tradeConfirmOpen, setTradeConfirmOpen] = useState(false)
+  const [confirmOneWayGift, setConfirmOneWayGift] = useState(false)
 
   if (!board || !myPlayerId || !myState || myState.bankrupt) {
     return (
@@ -199,6 +311,39 @@ export function MonopolyManagePanel({
 
   const toggleProp = (list: number[], setList: (v: number[]) => void, idx: number) => {
     setList(list.includes(idx) ? list.filter((i) => i !== idx) : [...list, idx])
+    setTradeConfirmOpen(false)
+    setConfirmOneWayGift(false)
+  }
+
+  const targetName = tradeTarget ? players.find((p) => p.id === tradeTarget)?.name ?? 'player' : ''
+  const parsedOfferCash = Number(offerCash) || 0
+  const parsedRequestCash = Number(requestCash) || 0
+  const givingSomething = tradeSideHasValue(parsedOfferCash, offerProps)
+  const gettingSomething = tradeSideHasValue(parsedRequestCash, requestProps)
+  const isOneWayGift = givingSomething && !gettingSomething
+  const isOneWayReceive = gettingSomething && !givingSomething
+  const tradeIsEmpty = !givingSomething && !gettingSomething
+  const canOpenConfirm =
+    !!tradeTarget && !tradeIsEmpty && (!isOneWayGift || confirmOneWayGift) && (!isOneWayReceive || confirmOneWayGift)
+
+  const resetTradeForm = () => {
+    setOfferCash('')
+    setRequestCash('')
+    setOfferProps([])
+    setRequestProps([])
+    setTradeConfirmOpen(false)
+    setConfirmOneWayGift(false)
+  }
+
+  const sendTradeOffer = () => {
+    void postAction('/api/monopoly/trade', {
+      toPlayerId: tradeTarget,
+      offerCash: parsedOfferCash,
+      requestCash: parsedRequestCash,
+      offerProperties: offerProps,
+      requestProperties: requestProps,
+    })
+    resetTradeForm()
   }
 
   if (mine.length === 0) {
@@ -350,104 +495,216 @@ export function MonopolyManagePanel({
         })}
       </div>
 
-      {board.pending_trade?.from_player_id === myPlayerId && (
-        <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] px-3 py-2.5 text-sm text-muted">
-          Waiting for{' '}
-          <strong className="text-[var(--foreground)]">
-            {players.find((p) => p.id === board.pending_trade?.to_player_id)?.name ?? 'player'}
-          </strong>{' '}
-          to accept or decline your trade offer…
+      {board.pending_trade?.from_player_id === myPlayerId && board.pending_trade && (
+        <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] p-3 space-y-2">
+          <p className="text-sm text-muted">
+            Waiting for{' '}
+            <strong className="text-[var(--foreground)]">
+              {players.find((p) => p.id === board.pending_trade?.to_player_id)?.name ?? 'player'}
+            </strong>{' '}
+            to accept or decline:
+          </p>
+          <TradeExchangeReview
+            compact
+            giveLabel="You give"
+            getLabel="You get"
+            giveCash={board.pending_trade.offer_cash}
+            giveProps={board.pending_trade.offer_properties}
+            getCash={board.pending_trade.request_cash}
+            getProps={board.pending_trade.request_properties}
+          />
         </div>
       )}
 
-      {board.pending_trade?.to_player_id === myPlayerId && (
-        <div className="rounded-xl border border-[color-mix(in_srgb,var(--marry)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--marry)_8%,transparent)] px-3 py-2.5 text-sm text-muted">
-          You have a trade offer — use the popup to <strong className="text-[var(--foreground)]">accept or decline</strong>.
+      {board.pending_trade?.to_player_id === myPlayerId && board.pending_trade && (
+        <div className="rounded-xl border border-[color-mix(in_srgb,var(--marry)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--marry)_8%,transparent)] p-3 space-y-2">
+          <p className="text-sm text-muted">
+            Trade from{' '}
+            <strong className="text-[var(--foreground)]">
+              {players.find((p) => p.id === board.pending_trade?.from_player_id)?.name ?? 'player'}
+            </strong>{' '}
+            — accept or decline in the popup:
+          </p>
+          <TradeExchangeReview
+            compact
+            giveLabel="You pay"
+            getLabel="You receive"
+            giveCash={board.pending_trade.request_cash}
+            giveProps={board.pending_trade.request_properties}
+            getCash={board.pending_trade.offer_cash}
+            getProps={board.pending_trade.offer_properties}
+            getJailCards={board.pending_trade.offer_get_out_cards}
+          />
         </div>
       )}
 
       {!board.pending_trade && (
-        <div className="pt-2 border-t border-[var(--border-strong)] space-y-2">
-          <p className="text-xs font-semibold text-muted">Propose a trade</p>
+        <div className="pt-2 border-t border-[var(--border-strong)] space-y-3">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-[var(--foreground)]">Propose a trade</p>
+            <p className="text-xs text-muted leading-relaxed">
+              Pick what <strong className="text-body">you give</strong> and what{' '}
+              <strong className="text-body">you get back</strong>. Both sides must be filled in for a normal swap.
+            </p>
+          </div>
           <select
             value={tradeTarget}
             onChange={(e) => {
               setTradeTarget(e.target.value)
               setRequestProps([])
+              setTradeConfirmOpen(false)
+              setConfirmOneWayGift(false)
             }}
             className="input-field w-full text-sm"
           >
-            <option value="">Select player</option>
+            <option value="">Trade with…</option>
             {players.filter((p) => p.id !== myPlayerId).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="number"
-              min={0}
-              value={offerCash}
-              onChange={(e) => setOfferCash(e.target.value)}
-              placeholder="Offer £"
-              className="input-field text-sm"
-            />
-            <input
-              type="number"
-              min={0}
-              value={requestCash}
-              onChange={(e) => setRequestCash(e.target.value)}
-              placeholder="Request £"
-              className="input-field text-sm"
-            />
-          </div>
-          {mine.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] uppercase text-faint font-semibold">Offer properties</p>
-              {mine.map((s) => (
-                <label key={s.index} className="flex items-center gap-2 text-xs">
+
+          {tradeTarget && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-3 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/90">You give</p>
+                  <input
+                    type="number"
+                    min={0}
+                    value={offerCash}
+                    onChange={(e) => {
+                      setOfferCash(e.target.value)
+                      setTradeConfirmOpen(false)
+                    }}
+                    placeholder="Cash amount"
+                    className="input-field text-sm w-full"
+                  />
+                  {mine.length > 0 && (
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      <p className="text-[10px] uppercase text-faint font-semibold">Your properties</p>
+                      {mine.map((s) => (
+                        <label key={s.index} className="flex items-center gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={offerProps.includes(s.index)}
+                            onChange={() => toggleProp(offerProps, setOfferProps, s.index)}
+                          />
+                          {s.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    You get from {targetName}
+                  </p>
+                  <input
+                    type="number"
+                    min={0}
+                    value={requestCash}
+                    onChange={(e) => {
+                      setRequestCash(e.target.value)
+                      setTradeConfirmOpen(false)
+                    }}
+                    placeholder="Cash amount"
+                    className="input-field text-sm w-full"
+                  />
+                  {theirs.length > 0 ? (
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      <p className="text-[10px] uppercase text-faint font-semibold">Their properties</p>
+                      {theirs.map((s) => (
+                        <label key={s.index} className="flex items-center gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={requestProps.includes(s.index)}
+                            onChange={() => toggleProp(requestProps, setRequestProps, s.index)}
+                          />
+                          {s.name}
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted">They don&apos;t own any properties yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <TradeExchangeReview
+                compact
+                giveLabel="You give"
+                getLabel={`You get from ${targetName}`}
+                giveCash={parsedOfferCash}
+                giveProps={offerProps}
+                getCash={parsedRequestCash}
+                getProps={requestProps}
+              />
+
+              {(isOneWayGift || isOneWayReceive) && (
+                <label className="flex items-start gap-2 text-xs text-muted leading-relaxed">
                   <input
                     type="checkbox"
-                    checked={offerProps.includes(s.index)}
-                    onChange={() => toggleProp(offerProps, setOfferProps, s.index)}
+                    className="mt-0.5"
+                    checked={confirmOneWayGift}
+                    onChange={(e) => {
+                      setConfirmOneWayGift(e.target.checked)
+                      setTradeConfirmOpen(false)
+                    }}
                   />
-                  {s.name}
+                  <span>
+                    I understand this is one-way —{' '}
+                    {isOneWayGift
+                      ? 'I am giving items away without receiving anything.'
+                      : 'I am asking for items without giving anything.'}
+                  </span>
                 </label>
-              ))}
-            </div>
-          )}
-          {theirs.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] uppercase text-faint font-semibold">Request properties</p>
-              {theirs.map((s) => (
-                <label key={s.index} className="flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={requestProps.includes(s.index)}
-                    onChange={() => toggleProp(requestProps, setRequestProps, s.index)}
+              )}
+
+              {!tradeConfirmOpen ? (
+                <button
+                  type="button"
+                  disabled={acting || !canOpenConfirm}
+                  className="btn-secondary w-full py-2.5 text-sm"
+                  onClick={() => setTradeConfirmOpen(true)}
+                >
+                  Review trade offer
+                </button>
+              ) : (
+                <div className="rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] p-3 space-y-3">
+                  <p className="text-sm font-semibold text-[var(--foreground)]">Send this offer to {targetName}?</p>
+                  <TradeExchangeReview
+                    giveLabel="You give"
+                    getLabel={`You get from ${targetName}`}
+                    giveCash={parsedOfferCash}
+                    giveProps={offerProps}
+                    getCash={parsedRequestCash}
+                    getProps={requestProps}
                   />
-                  {s.name}
-                </label>
-              ))}
-            </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={acting}
+                      className="btn-primary w-full py-2.5 text-sm"
+                      onClick={sendTradeOffer}
+                    >
+                      Yes, send offer
+                    </button>
+                    <button
+                      type="button"
+                      disabled={acting}
+                      className="btn-secondary w-full py-2.5 text-sm"
+                      onClick={() => setTradeConfirmOpen(false)}
+                    >
+                      Go back
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
-          <button
-            type="button"
-            disabled={acting || !tradeTarget}
-            className="btn-secondary w-full py-2.5 text-sm"
-            onClick={() =>
-              postAction('/api/monopoly/trade', {
-                toPlayerId: tradeTarget,
-                offerCash: Number(offerCash) || 0,
-                requestCash: Number(requestCash) || 0,
-                offerProperties: offerProps,
-                requestProperties: requestProps,
-              })
-            }
-          >
-            Send trade offer
-          </button>
         </div>
       )}
     </div>
