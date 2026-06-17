@@ -19,7 +19,7 @@ import {
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import { formatCashMessageForPlayer } from '@/lib/monopoly-cash-messages'
 import { formatTradeMessageForPlayer } from '@/lib/monopoly-trade-messages'
-import { currentPlayerId, parsePropertyOwners, type MonopolyColorGroup } from '@/lib/monopoly'
+import { currentPlayerId, parsePropertyOwners, effectivePropertyOwners, type MonopolyColorGroup } from '@/lib/monopoly'
 import { useMonopolyTurnTimer } from '@/hooks/useMonopolyTurnTimer'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 
@@ -65,7 +65,7 @@ export function MonopolyActiveLayout({
     if (incomingTrade) setPanel('build')
   }, [incomingTrade?.from_player_id, incomingTrade?.to_player_id])
 
-  const owners = parsePropertyOwners(board.property_owners)
+  const owners = effectivePropertyOwners(parsePropertyOwners(board.property_owners), states)
   const turnPlayerId = currentPlayerId(board)
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const isMyTurn = turnPlayerId === myPlayerId && !myState?.bankrupt

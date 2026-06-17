@@ -7,6 +7,7 @@ import {
   mortgageValue,
   parsePropertyOwners,
   playerProperties,
+  effectivePropertyOwners,
   spaceAt,
   unmortgageCost,
   type MonopolyColorGroup,
@@ -309,7 +310,7 @@ export function MonopolyClassicBoard({
   highlightIndex?: number | null
   center?: React.ReactNode
 }) {
-  const owners = parsePropertyOwners(propertyOwners)
+  const owners = effectivePropertyOwners(parsePropertyOwners(propertyOwners), states)
   const buildings = parseBuildings(propertyBuildings)
   const mortgaged = parseMortgaged(mortgagedProperties)
   const cellProps = { states, players, owners, buildings, mortgaged, diceTotal: lastDiceTotal, highlightIndex }

@@ -589,7 +589,12 @@ function resolveSpaceLanding(
   }
 
   if (landed.type === 'property' || landed.type === 'station' || landed.type === 'utility') {
-    const ownerId = ctx.owners[String(landed.index)]
+    const recordedOwnerId = ctx.owners[String(landed.index)]
+    const ownerState = recordedOwnerId
+      ? ctx.states.find((s) => s.player_id === recordedOwnerId)
+      : undefined
+    const ownerId =
+      recordedOwnerId && ownerState && !ownerState.bankrupt ? recordedOwnerId : undefined
     if (!ownerId) {
       if (!ctx.passedGoOnce) {
         statusSuffix = ' Pass GO once before you can buy property.'
@@ -610,10 +615,7 @@ function resolveSpaceLanding(
         statusSuffix = ' Property is mortgaged — no rent due.'
       } else {
         const rent = computeRent(landed, ctx.owners, ownerId, ctx.diceTotal, ctx.buildings, ctx.mortgaged)
-        const ownerState = ctx.states.find((s) => s.player_id === ownerId)
-        if (!ownerState || ownerState.bankrupt) {
-          // no rent
-        } else if (rent > 0 && cash < rent) {
+        if (rent > 0 && cash < rent) {
           return {
             cash,
             position,
@@ -899,9 +901,39 @@ export async function processMonopolyRoll(
 
   const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
 
-  const owners = parsePropertyOwners(board.property_owners)
-  const buildings = parseBuildings(board.property_buildings)
-  const mortgaged = parseMortgaged(board.mortgaged_properties)
+  let owners = parsePropertyOwners(board.property_owners)
+  let buildings = parseBuildings(board.property_buildings)
+  let mortgaged = parseMortgaged(board.mortgaged_properties)
+  let housesInBank = board.houses_in_bank ?? MONOPOLY_HOUSES_IN_BANK
+  let hotelsInBank = board.hotels_in_bank ?? MONOPOLY_HOTELS_IN_BANK
+
+  const repaired = repairStaleBankruptOwnership(
+    states,
+    owners,
+    buildings,
+    mortgaged,
+    housesInBank,
+    hotelsInBank
+  )
+  if (repaired.repaired) {
+    owners = repaired.owners
+    buildings = repaired.buildings
+    mortgaged = repaired.mortgaged
+    housesInBank = repaired.housesInBank
+    hotelsInBank = repaired.hotelsInBank
+    await supabase
+      .from('monopoly_boards')
+      .update({
+        property_owners: owners,
+        property_buildings: buildings,
+        mortgaged_properties: mortgaged,
+        houses_in_bank: housesInBank,
+        hotels_in_bank: hotelsInBank,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('game_id', gameId)
+  }
+
   let chanceDeck = parseDeck(board.chance_deck)
   let communityDeck = parseDeck(board.community_deck)
   let chanceDiscard = parseDeck(board.chance_discard)
@@ -1889,6 +1921,22 @@ function returnPlayerAssetsToBank(
   housesReturned: number
   hotelsReturned: number
 } {
+  return releasePropertiesToBank([playerId], owners, buildings, mortgaged)
+}
+
+function releasePropertiesToBank(
+  playerIds: string[],
+  owners: Record<string, string>,
+  buildings: Record<string, number>,
+  mortgaged: Record<string, boolean>
+): {
+  owners: Record<string, string>
+  buildings: Record<string, number>
+  mortgaged: Record<string, boolean>
+  housesReturned: number
+  hotelsReturned: number
+} {
+  const releaseIds = new Set(playerIds)
   let housesReturned = 0
   let hotelsReturned = 0
   const nextOwners = { ...owners }
@@ -1896,7 +1944,7 @@ function returnPlayerAssetsToBank(
   const nextMortgaged = { ...mortgaged }
 
   for (const [idx, owner] of Object.entries(owners)) {
-    if (owner !== playerId) continue
+    if (!releaseIds.has(owner)) continue
     delete nextOwners[idx]
     const level = nextBuildings[idx] ?? 0
     if (level === 5) {
@@ -1916,6 +1964,58 @@ function returnPlayerAssetsToBank(
     housesReturned,
     hotelsReturned,
   }
+}
+
+/** Fix boards where bankrupt players still appear in property_owners (legacy assign bug). */
+function repairStaleBankruptOwnership(
+  states: MonopolyPlayerState[],
+  owners: Record<string, string>,
+  buildings: Record<string, number>,
+  mortgaged: Record<string, boolean>,
+  housesInBank: number,
+  hotelsInBank: number
+): {
+  owners: Record<string, string>
+  buildings: Record<string, number>
+  mortgaged: Record<string, boolean>
+  housesInBank: number
+  hotelsInBank: number
+  repaired: boolean
+} {
+  const bankruptIds = states.filter((s) => s.bankrupt).map((s) => s.player_id)
+  if (bankruptIds.length === 0) {
+    return { owners, buildings, mortgaged, housesInBank, hotelsInBank, repaired: false }
+  }
+
+  const hasStaleOwnership = Object.values(owners).some((ownerId) => bankruptIds.includes(ownerId))
+  if (!hasStaleOwnership) {
+    return { owners, buildings, mortgaged, housesInBank, hotelsInBank, repaired: false }
+  }
+
+  const released = releasePropertiesToBank(bankruptIds, owners, buildings, mortgaged)
+  return {
+    owners: released.owners,
+    buildings: released.buildings,
+    mortgaged: released.mortgaged,
+    housesInBank: housesInBank + released.housesReturned,
+    hotelsInBank: hotelsInBank + released.hotelsReturned,
+    repaired: true,
+  }
+}
+
+/** Property owners map with bankrupt players' titles returned to the Bank (for display). */
+export function effectivePropertyOwners(
+  owners: Record<string, string>,
+  states: MonopolyPlayerState[]
+): Record<string, string> {
+  const bankruptIds = new Set(states.filter((s) => s.bankrupt).map((s) => s.player_id))
+  if (bankruptIds.size === 0) return owners
+
+  const next: Record<string, string> = {}
+  for (const [idx, ownerId] of Object.entries(owners)) {
+    if (!bankruptIds.has(ownerId)) next[idx] = ownerId
+  }
+  return next
 }
 
 async function enterRaiseFundsPhase(
@@ -2109,13 +2209,6 @@ async function bankruptPlayer(
   }
 
   const returned = returnPlayerAssetsToBank(playerId, owners, buildings, mortgaged)
-  Object.assign(owners, returned.owners)
-  Object.assign(buildings, returned.buildings)
-  Object.assign(mortgaged, returned.mortgaged)
-
-  for (const [idx] of Object.entries(mortgaged)) {
-    if (!owners[idx]) delete mortgaged[idx]
-  }
 
   await supabase
     .from('monopoly_player_state')
@@ -2132,9 +2225,9 @@ async function bankruptPlayer(
   await supabase
     .from('monopoly_boards')
     .update({
-      property_owners: owners,
-      property_buildings: buildings,
-      mortgaged_properties: mortgaged,
+      property_owners: returned.owners,
+      property_buildings: returned.buildings,
+      mortgaged_properties: returned.mortgaged,
       houses_in_bank: (board.houses_in_bank ?? MONOPOLY_HOUSES_IN_BANK) + returned.housesReturned,
       hotels_in_bank: (board.hotels_in_bank ?? MONOPOLY_HOTELS_IN_BANK) + returned.hotelsReturned,
       phase: winner ? 'finished' : phaseForTurn(board, updatedStates, turnIndex),
