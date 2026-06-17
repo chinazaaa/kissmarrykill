@@ -409,6 +409,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
 
         <MonopolyActiveLayout
           gameCode={gameCode}
+          game={game}
           board={board}
           states={states}
           players={players}

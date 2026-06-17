@@ -166,9 +166,14 @@ export function MonopolyBoardCenter({
       {myState && (
         <div className="mb-1 sm:mb-1.5 shrink-0">
           <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-emerald-200/70 leading-none">
-            Your cash
+            {myState.bankrupt ? 'Bankrupt' : 'Your cash'}
           </p>
-          <p className="text-base sm:text-xl font-black tabular-nums text-amber-300 leading-tight mt-0.5">
+          <p
+            className={[
+              'text-base sm:text-xl font-black tabular-nums leading-tight mt-0.5',
+              myState.bankrupt ? 'text-red-300' : 'text-amber-300',
+            ].join(' ')}
+          >
             {formatMonopolyMoney(myState.cash)}
           </p>
         </div>

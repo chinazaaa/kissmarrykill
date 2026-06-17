@@ -123,7 +123,7 @@ import {
   TTL_DEFAULT_TIMER,
   TTL_TIMER_OPTIONS,
 } from '@/lib/two-truths'
-import { MONOPOLY_DEFAULT_MAX_PLAYERS } from '@/lib/monopoly'
+import { MONOPOLY_DEFAULT_MAX_PLAYERS, MONOPOLY_GAME_DURATION_OPTIONS, formatMonopolyGameDuration } from '@/lib/monopoly'
 import { MONOPOLY_DEFAULT_TURN_TIMER } from '@/lib/supabase-selects'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
 import {
@@ -213,6 +213,7 @@ function CreateGameInner() {
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
   const [ttlMaxPlayers, setTtlMaxPlayers] = useState(TTL_DEFAULT_MAX_PLAYERS)
   const [monopolyMaxPlayers, setMonopolyMaxPlayers] = useState(MONOPOLY_DEFAULT_MAX_PLAYERS)
+  const [monopolyGameDuration, setMonopolyGameDuration] = useState(0)
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
@@ -812,6 +813,7 @@ function CreateGameInner() {
           late_join_policy: gameSupportsViewerSetting(settings.game_type) ? lateJoinPolicy : undefined,
           bingo_call_mode: isBingo ? bingoCallMode : undefined,
           bingo_call_interval_seconds: isBingo ? bingoCallInterval : undefined,
+          game_duration_seconds: isMonopoly ? monopolyGameDuration : undefined,
         }),
       })
       const data = await res.json()
@@ -1049,9 +1051,23 @@ function CreateGameInner() {
                     <option value={120}>2 minutes</option>
                   </select>
                 </Field>
+                <Field label="Game length">
+                  <select
+                    value={monopolyGameDuration}
+                    onChange={(e) => setMonopolyGameDuration(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {MONOPOLY_GAME_DURATION_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {formatMonopolyGameDuration(s)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with their name and start on GO with $1,500. Take turns rolling dice, buying properties,
                   paying rent, and drawing cards. Last player standing wins! If someone stalls, their turn auto-resolves.
+                  Set a game length to end automatically — the richest player wins when time runs out.
                 </p>
               </SettingsGroup>
             ) : isYahtzee ? (

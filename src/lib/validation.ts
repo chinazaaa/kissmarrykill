@@ -114,6 +114,7 @@ export const createGameSchema = z.object({
   trivia_category: triviaCategoryEnum.optional(),
   bingo_call_mode: z.enum(['manual', 'auto']).optional(),
   bingo_call_interval_seconds: z.coerce.number().optional(),
+  game_duration_seconds: z.coerce.number().optional(),
   custom_slots: z
     .object({
       slots: z

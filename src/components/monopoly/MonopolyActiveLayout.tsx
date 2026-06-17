@@ -7,6 +7,7 @@ import {
   MonopolyPlayerList,
 } from '@/components/monopoly/MonopolyBoard'
 import { MonopolyBoardCenter } from '@/components/monopoly/MonopolyBoardCenter'
+import { MonopolyGameTimerBar } from '@/components/monopoly/MonopolyGameTimerBar'
 import { MonopolyManagePanel, MonopolyTurnModals, MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels'
 import { getMonopolyBuildActionCount } from '@/components/monopoly/monopoly-manage-utils'
 import {
@@ -15,9 +16,10 @@ import {
   MonopolyTurnStrip,
 } from '@/components/monopoly/MonopolyChrome'
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
+import { formatCashMessageForPlayer } from '@/lib/monopoly-cash-messages'
 import { currentPlayerId, parsePropertyOwners, type MonopolyColorGroup } from '@/lib/monopoly'
 import { useMonopolyTurnTimer } from '@/hooks/useMonopolyTurnTimer'
-import type { MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
+import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 
 type SidePanel = 'build' | 'players'
 
@@ -25,6 +27,7 @@ type PostAction = (url: string, body?: Record<string, unknown>) => Promise<void>
 
 export function MonopolyActiveLayout({
   gameCode,
+  game,
   board,
   states,
   players,
@@ -36,6 +39,7 @@ export function MonopolyActiveLayout({
   colorBarClass,
 }: {
   gameCode: string
+  game: Pick<Game, 'status' | 'session_started_at' | 'game_duration_seconds'> | null
   board: MonopolyBoard
   states: MonopolyPlayerState[]
   players: Player[]
@@ -64,15 +68,21 @@ export function MonopolyActiveLayout({
 
   const { secondsLeft, hasTimer, urgent } = useMonopolyTurnTimer(gameCode, board, true)
 
-  const bannerMessage = board.last_rent_event
-    ? formatRentMessageForPlayer(board.last_rent_event, myPlayerId, players)
-    : board.status_message
+  const personalCashMessage =
+    board.last_cash_event && board.last_cash_event.player_id === myPlayerId
+      ? formatCashMessageForPlayer(board.last_cash_event)
+      : null
+
+  const bannerMessage = personalCashMessage
+    ? personalCashMessage
+    : board.last_rent_event
+      ? formatRentMessageForPlayer(board.last_rent_event, myPlayerId, players)
+      : board.status_message
 
   const showStatusBanner =
     bannerMessage &&
-    board.phase !== 'buy' &&
-    board.phase !== 'pay_rent' &&
-    board.phase !== 'auction' &&
+    (personalCashMessage ||
+      (board.phase !== 'buy' && board.phase !== 'pay_rent' && board.phase !== 'auction')) &&
     !board.last_card_event
 
   const panelTabs = (
@@ -115,6 +125,9 @@ export function MonopolyActiveLayout({
 
   return (
     <>
+      <div className="space-y-2 sm:space-y-3">
+      <MonopolyGameTimerBar gameCode={gameCode} game={game} />
+
       <div className="grid grid-cols-3 gap-2 sm:gap-3 items-stretch">
         <MonopolyTurnStrip
           compact
@@ -140,7 +153,7 @@ export function MonopolyActiveLayout({
           <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
         )}
         {myState ? (
-          <MonopolyCashBadge compact amount={myState.cash} label="Cash" />
+          <MonopolyCashBadge compact amount={myState.cash} label="Cash" bankrupt={myState.bankrupt} />
         ) : (
           <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
         )}
@@ -214,6 +227,7 @@ export function MonopolyActiveLayout({
             )}
           </div>
         </div>
+      </div>
       </div>
 
       <MonopolyCardAlertModal board={board} myPlayerId={myPlayerId} players={players} />

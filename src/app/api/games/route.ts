@@ -58,6 +58,7 @@ import {
   lobbyDefaultMaxPlayers,
   type LobbyLimitGameType,
 } from '@/lib/game-limits'
+import { clampMonopolyGameDuration, clampMonopolyTurnTimer } from '@/lib/monopoly'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -161,6 +162,7 @@ export async function POST(req: NextRequest) {
     trivia_category: rawTriviaCategory,
     bingo_call_mode: rawBingoCallMode,
     bingo_call_interval_seconds: rawBingoCallInterval,
+    game_duration_seconds: rawGameDurationSeconds,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -299,9 +301,11 @@ export async function POST(req: NextRequest) {
         ? clampTriviaTimer(timer_seconds)
         : isTwoTruthsGame(game_type)
           ? clampTtlTimer(timer_seconds)
-          : [15, 30, 60].includes(Number(timer_seconds))
-            ? Number(timer_seconds)
-            : 30,
+          : isMonopolyGame(game_type)
+            ? clampMonopolyTurnTimer(timer_seconds)
+            : [15, 30, 60].includes(Number(timer_seconds))
+              ? Number(timer_seconds)
+              : 30,
     ...(isCodewordsGame(game_type)
       ? {
           operative_timer_seconds: clampCodewordsTimer(
@@ -366,6 +370,9 @@ export async function POST(req: NextRequest) {
           bingo_call_mode: parseBingoCallMode(rawBingoCallMode),
           bingo_call_interval_seconds: clampBingoCallInterval(rawBingoCallInterval),
         }
+      : {}),
+    ...(isMonopolyGame(game_type)
+      ? { game_duration_seconds: clampMonopolyGameDuration(rawGameDurationSeconds) }
       : {}),
     ...(isCustomGame(game_type) && parsed.data.custom_slots
       ? {

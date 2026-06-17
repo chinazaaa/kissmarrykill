@@ -170,31 +170,45 @@ export function MonopolyCashBadge({
   label = 'Your cash',
   compact = false,
   className = '',
+  bankrupt = false,
 }: {
   amount: number
   label?: string
   compact?: boolean
   className?: string
+  bankrupt?: boolean
 }) {
+  const displayLabel = bankrupt ? 'Bankrupt' : label
+  const amountClass = bankrupt ? 'text-red-500' : 'text-[var(--primary)]'
+  const barClass = bankrupt
+    ? 'bg-gradient-to-r from-red-500 to-red-400'
+    : 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-strong)]'
+
   if (compact) {
     return (
       <div
         className={[
-          'overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--card-strong)] shadow-[var(--card-shadow)] min-w-0 h-full flex flex-col',
+          'overflow-hidden rounded-2xl border bg-[var(--card-strong)] shadow-[var(--card-shadow)] min-w-0 h-full flex flex-col',
+          bankrupt ? 'border-red-500/35' : 'border-[var(--border-strong)]',
           className,
         ].join(' ')}
       >
-        <div className="h-1.5 w-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-strong)]" />
+        <div className={['h-1.5 w-full', barClass].join(' ')} />
         <div className="flex flex-1 items-center gap-2 px-2 sm:px-3 py-2 min-h-[3.25rem]">
           <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--primary)_14%,var(--surface-inset-bg))] text-sm font-black text-[var(--primary)]"
+            className={[
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-black',
+              bankrupt
+                ? 'bg-red-500/15 text-red-500'
+                : 'bg-[color-mix(in_srgb,var(--primary)_14%,var(--surface-inset-bg))] text-[var(--primary)]',
+            ].join(' ')}
             aria-hidden
           >
             £
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">{label}</p>
-            <p className="text-sm sm:text-base font-black tabular-nums text-[var(--primary)] truncate leading-tight mt-0.5">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">{displayLabel}</p>
+            <p className={['text-sm sm:text-base font-black tabular-nums truncate leading-tight mt-0.5', amountClass].join(' ')}>
               £{amount.toLocaleString('en-GB')}
             </p>
           </div>
@@ -204,9 +218,18 @@ export function MonopolyCashBadge({
   }
 
   return (
-    <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_12%,var(--card))] px-4 py-2.5 text-right shadow-[var(--card-shadow)]">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">{label}</p>
-      <p className="text-2xl font-black tabular-nums text-[var(--primary)]">£{amount.toLocaleString('en-GB')}</p>
+    <div
+      className={[
+        'rounded-2xl border px-4 py-2.5 text-right shadow-[var(--card-shadow)]',
+        bankrupt
+          ? 'border-red-500/35 bg-[color-mix(in_srgb,red_8%,var(--card))]'
+          : 'border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_12%,var(--card))]',
+      ].join(' ')}
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">{displayLabel}</p>
+      <p className={['text-2xl font-black tabular-nums', amountClass].join(' ')}>
+        £{amount.toLocaleString('en-GB')}
+      </p>
     </div>
   )
 }

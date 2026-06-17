@@ -1,7 +1,7 @@
 /** Slim column lists for hot-path Supabase queries (avoids select('*') egress). */
 
 export const GAME_SELECT =
-  'id,title,host_token,rounds_count,timer_seconds,operative_timer_seconds,anonymous,auto_reveal,auto_submit_behavior,participant_mode,participant_filter,pair_vote_mode,question_source,custom_questions,player_questions_enabled,player_questions_order,game_type,theme,status,current_round_number,created_at,session_started_at,allow_viewers,allow_late_players,max_players,anonymous_messages_trimmed_at,wst_quote_source,custom_slots,gender_based,codewords_player_picks,codewords_late_join,codewords_randomize_teams,pool_usage,trivia_category,bingo_call_mode,bingo_call_interval_seconds'
+  'id,title,host_token,rounds_count,timer_seconds,operative_timer_seconds,anonymous,auto_reveal,auto_submit_behavior,participant_mode,participant_filter,pair_vote_mode,question_source,custom_questions,player_questions_enabled,player_questions_order,game_type,theme,status,current_round_number,created_at,session_started_at,allow_viewers,allow_late_players,max_players,anonymous_messages_trimmed_at,wst_quote_source,custom_slots,gender_based,codewords_player_picks,codewords_late_join,codewords_randomize_teams,pool_usage,trivia_category,bingo_call_mode,bingo_call_interval_seconds,game_duration_seconds'
 
 export const PLAYER_SELECT =
   'id,game_id,name,gender,identity_gender,participant_id,joined_at,spectator'
@@ -18,7 +18,7 @@ export const VOTE_SELECT =
 export const CONFESSION_SELECT = 'id,game_id,round_id,text,created_at'
 
 export const MONOPOLY_BOARD_SELECT =
-  'id,game_id,turn_order,current_turn_index,phase,last_dice,consecutive_doubles,property_owners,property_buildings,mortgaged_properties,houses_in_bank,hotels_in_bank,chance_deck,community_deck,chance_discard,community_discard,auction_state,pending_trade,pending_space,status_message,last_card_event,last_rent_event,turn_deadline_at,winner_player_id,created_at,updated_at'
+  'id,game_id,turn_order,current_turn_index,phase,last_dice,consecutive_doubles,property_owners,property_buildings,mortgaged_properties,houses_in_bank,hotels_in_bank,chance_deck,community_deck,chance_discard,community_discard,auction_state,pending_trade,pending_space,status_message,last_card_event,last_rent_event,last_cash_event,turn_deadline_at,winner_player_id,created_at,updated_at'
 
 /** Default per-turn timer when host enables timing (seconds). 0 = off. */
 export const MONOPOLY_DEFAULT_TURN_TIMER = 90

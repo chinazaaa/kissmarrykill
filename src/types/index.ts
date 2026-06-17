@@ -164,6 +164,8 @@ export interface Game {
   bingo_call_mode?: BingoCallMode | null
   /** Bingo — seconds between automatic number calls. */
   bingo_call_interval_seconds?: number | null
+  /** Monopoly — max active session length in seconds; 0 = unlimited. */
+  game_duration_seconds?: number | null
 }
 
 export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'auction' | 'finished'
@@ -206,6 +208,15 @@ export interface MonopolyLastCardEvent {
   other_player_count?: number
 }
 
+export interface MonopolyLastCashEvent {
+  seq: number
+  player_id: string
+  change: number
+  balance_after: number
+  label: string
+  bankrupt?: boolean
+}
+
 export interface MonopolyBoard {
   id: string
   game_id: string
@@ -229,6 +240,7 @@ export interface MonopolyBoard {
   status_message: string | null
   last_card_event: MonopolyLastCardEvent | null
   last_rent_event: MonopolyLastRentEvent | null
+  last_cash_event: MonopolyLastCashEvent | null
   turn_deadline_at: string | null
   winner_player_id: string | null
   created_at: string

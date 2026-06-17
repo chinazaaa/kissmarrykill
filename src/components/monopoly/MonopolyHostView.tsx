@@ -8,6 +8,7 @@ import {
   MonopolyPlayerList,
 } from '@/components/monopoly/MonopolyBoard'
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
+import { MonopolyGameTimerBar } from '@/components/monopoly/MonopolyGameTimerBar'
 import { MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels'
 import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -382,6 +383,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
           board ? (
             <MonopolyActiveLayout
               gameCode={gameCode}
+              game={game}
               board={board}
               states={states}
               players={players}
@@ -435,6 +437,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
             {game.status === 'active' && board && (
               <>
                 {playerManageBlock}
+                <MonopolyGameTimerBar gameCode={gameCode} game={game} />
                 <div className="glass-card p-4 space-y-3">
                   <p className="label-caps">Live board (host view)</p>
                   <p className="text-sm text-muted text-center">
