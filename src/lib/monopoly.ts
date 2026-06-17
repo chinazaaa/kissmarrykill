@@ -70,6 +70,11 @@ export const MONOPOLY_TURN_TIMER_OPTIONS = [0, 30, 60, 90, 120] as const
 /** Whole-game session length options (seconds). 0 = no limit. */
 export const MONOPOLY_GAME_DURATION_OPTIONS = [0, 900, 1800, 2700, 3600, 5400, 7200] as const
 
+/** Host can add this much time mid-game (seconds). */
+export const MONOPOLY_GAME_TIME_EXTENSION_OPTIONS = [600, 900, 1800] as const
+
+export const MONOPOLY_MAX_GAME_DURATION_SECONDS = 14_400
+
 export function clampMonopolyTurnTimer(raw: unknown): number {
   const n = Number(raw ?? 0)
   return (MONOPOLY_TURN_TIMER_OPTIONS as readonly number[]).includes(n) ? n : MONOPOLY_DEFAULT_TURN_TIMER
@@ -78,6 +83,11 @@ export function clampMonopolyTurnTimer(raw: unknown): number {
 export function clampMonopolyGameDuration(raw: unknown): number {
   const n = Number(raw ?? 0)
   return (MONOPOLY_GAME_DURATION_OPTIONS as readonly number[]).includes(n) ? n : 0
+}
+
+export function clampMonopolyTimeExtension(raw: unknown): number {
+  const n = Number(raw ?? 0)
+  return (MONOPOLY_GAME_TIME_EXTENSION_OPTIONS as readonly number[]).includes(n) ? n : 0
 }
 
 export function formatMonopolyGameDuration(seconds: number): string {
@@ -357,6 +367,49 @@ export async function finishExpiredMonopolyGame(
   if (!monopolyGameSessionExpired(game.session_started_at, game.game_duration_seconds)) return false
   const { error } = await finishMonopolyGameEarly(supabase, game.id, { reason: 'time_limit' })
   return !error
+}
+
+export async function extendMonopolyGameDuration(
+  supabase: SupabaseClient,
+  gameId: string,
+  extensionSeconds: number
+): Promise<{ error?: string; newDurationSeconds?: number }> {
+  const seconds = clampMonopolyTimeExtension(extensionSeconds)
+  if (seconds <= 0) return { error: 'Invalid extension' }
+
+  const { data: game } = await supabase
+    .from('games')
+    .select('id, status, game_duration_seconds')
+    .eq('id', gameId)
+    .maybeSingle()
+  if (!game) return { error: 'Game not found' }
+  if (game.status !== 'active') return { error: 'Game not active' }
+
+  const current = game.game_duration_seconds ?? 0
+  if (current <= 0) return { error: 'This game has no time limit to extend' }
+
+  const next = current + seconds
+  if (next > MONOPOLY_MAX_GAME_DURATION_SECONDS) {
+    return {
+      error: `Total game time cannot exceed ${formatMonopolyGameDuration(MONOPOLY_MAX_GAME_DURATION_SECONDS)}`,
+    }
+  }
+
+  const { error: gameError } = await supabase
+    .from('games')
+    .update({ game_duration_seconds: next })
+    .eq('id', gameId)
+  if (gameError) return { error: gameError.message }
+
+  await supabase
+    .from('monopoly_boards')
+    .update({
+      status_message: `Host added ${formatMonopolyGameDuration(seconds)} — game continues.`,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+
+  return { newDurationSeconds: next }
 }
 
 function parseDeck(raw: unknown): number[] {
