@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   MonopolyClassicBoard,
   MonopolyCurrentSpace,
+  MonopolyDiceRoll,
   MonopolyPlayerList,
 } from '@/components/monopoly/MonopolyBoard'
 import { MonopolyBoardCenter } from '@/components/monopoly/MonopolyBoardCenter'
@@ -38,6 +39,7 @@ export function MonopolyActiveLayout({
   acting,
   postAction,
   colorBarClass,
+  spectator = false,
 }: {
   gameCode: string
   game: Pick<Game, 'status' | 'session_started_at' | 'game_duration_seconds'> | null
@@ -50,8 +52,9 @@ export function MonopolyActiveLayout({
   acting: boolean
   postAction: PostAction
   colorBarClass: (color?: MonopolyColorGroup) => string
+  spectator?: boolean
 }) {
-  const [panel, setPanel] = useState<SidePanel>('build')
+  const [panel, setPanel] = useState<SidePanel>(spectator ? 'players' : 'build')
 
   const incomingTrade =
     board.pending_trade && board.pending_trade.to_player_id === myPlayerId
@@ -116,7 +119,7 @@ export function MonopolyActiveLayout({
         board.phase !== 'raise_funds')) &&
     !board.last_card_event
 
-  const panelTabs = (
+  const panelTabs = spectator ? null : (
     <div
       className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]"
       role="tablist"
@@ -159,18 +162,18 @@ export function MonopolyActiveLayout({
       <div className="space-y-2 sm:space-y-3">
       <MonopolyGameTimerBar gameCode={gameCode} game={game} />
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 items-stretch">
+      <div className={`grid gap-2 sm:gap-3 items-stretch ${spectator ? 'grid-cols-1' : 'grid-cols-3'}`}>
         <MonopolyTurnStrip
           compact
           turnName={turnPlayer?.name ?? '—'}
-          isMyTurn={isMyTurn}
-          isMyAuctionTurn={isMyAuctionTurn}
+          isMyTurn={spectator ? false : isMyTurn}
+          isMyAuctionTurn={spectator ? false : isMyAuctionTurn}
           phase={board.phase}
           secondsLeft={secondsLeft}
-          hasTimer={hasTimer && amActor}
+          hasTimer={hasTimer && !spectator && amActor}
           urgent={urgent}
         />
-        {myState ? (
+        {!spectator && myState ? (
           <MonopolyCurrentSpace
             compact
             index={myState.position}
@@ -180,17 +183,17 @@ export function MonopolyActiveLayout({
             mortgagedProperties={board.mortgaged_properties}
             lastDiceTotal={board.last_dice?.total ?? 2}
           />
-        ) : (
+        ) : !spectator ? (
           <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
-        )}
-        {myState ? (
+        ) : null}
+        {!spectator && myState ? (
           <MonopolyCashBadge compact amount={myState.cash} label="Cash" bankrupt={myState.bankrupt} />
-        ) : (
+        ) : !spectator ? (
           <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
-        )}
+        ) : null}
       </div>
 
-      {incomingTrade && panel !== 'build' && (
+      {!spectator && incomingTrade && panel !== 'build' && (
         <button
           type="button"
           onClick={() => setPanel('build')}
@@ -200,7 +203,7 @@ export function MonopolyActiveLayout({
         </button>
       )}
 
-      {buildActions > 0 && panel !== 'build' && (
+      {!spectator && buildActions > 0 && panel !== 'build' && (
         <button
           type="button"
           onClick={() => setPanel('build')}
@@ -210,7 +213,7 @@ export function MonopolyActiveLayout({
         </button>
       )}
 
-      {board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId && panel !== 'build' && (
+      {!spectator && board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId && panel !== 'build' && (
         <button
           type="button"
           onClick={() => setPanel('build')}
@@ -236,15 +239,25 @@ export function MonopolyActiveLayout({
             lastDiceTotal={board.last_dice?.total ?? 2}
             highlightIndex={myState?.position}
             center={
-              <MonopolyBoardCenter
-                board={board}
-                myPlayerId={myPlayerId}
-                myState={myState}
-                players={players}
-                acting={acting}
-                postAction={postAction}
-                colorBarClass={colorBarClass}
-              />
+              spectator ? (
+                <div className="flex flex-col items-center justify-center h-full gap-2 px-2 text-center">
+                  <MonopolyDiceRoll dice={board.last_dice} />
+                  <p className="text-[10px] uppercase tracking-widest text-faint">Watching live</p>
+                  {board.status_message ? (
+                    <p className="text-[11px] text-muted leading-snug line-clamp-4">{board.status_message}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <MonopolyBoardCenter
+                  board={board}
+                  myPlayerId={myPlayerId}
+                  myState={myState}
+                  players={players}
+                  acting={acting}
+                  postAction={postAction}
+                  colorBarClass={colorBarClass}
+                />
+              )
             }
           />
         </div>
@@ -256,7 +269,8 @@ export function MonopolyActiveLayout({
             role="tabpanel"
             className="max-h-[min(52vh,28rem)] overflow-y-auto rounded-2xl"
           >
-            {panel === 'build' ? (
+            {spectator && <p className="label-caps mb-3 px-1">Players</p>}
+            {panel === 'build' && !spectator ? (
               <MonopolyManagePanel
                 board={board}
                 myPlayerId={myPlayerId}
@@ -282,8 +296,11 @@ export function MonopolyActiveLayout({
       </div>
       </div>
 
-      <MonopolyCardAlertModal board={board} myPlayerId={myPlayerId} players={players} />
+      {!spectator && (
+        <MonopolyCardAlertModal board={board} myPlayerId={myPlayerId} players={players} />
+      )}
 
+      {!spectator && (
       <MonopolyTurnModals
         board={board}
         myPlayerId={myPlayerId}
@@ -293,6 +310,7 @@ export function MonopolyActiveLayout({
         postAction={postAction}
         colorBarClass={colorBarClass}
       />
+      )}
     </>
   )
 }

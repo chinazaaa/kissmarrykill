@@ -32,7 +32,8 @@ import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
-import { preJoinScreen } from '@/lib/viewers'
+import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
+import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 
 type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
 
@@ -157,12 +158,14 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     if (!joinName.trim()) return
     setJoining(true)
     try {
+      const joiningAsViewer = game?.status === 'active'
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameCode,
           playerName: joinName.trim(),
+          ...(joiningAsViewer ? { joinAsViewer: true } : {}),
         }),
       })
       const data = await res.json()
@@ -247,6 +250,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'join') {
+    const joiningAsViewer = game?.status === 'active'
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="glass-card p-6 w-full max-w-md space-y-5">
@@ -268,8 +272,9 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
             />
           </div>
           <p className="text-faint text-xs leading-relaxed">
-            {MONOPOLY_MIN_PLAYERS}–6 players · £{MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} starting cash. Roll, buy
-            properties, build houses, and trade your way to victory.
+            {joiningAsViewer
+              ? 'This game is in progress — you will join as a viewer and watch live (read-only).'
+              : `${MONOPOLY_MIN_PLAYERS}–6 players · £${MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} starting cash. Roll, buy properties, build houses, and trade your way to victory.`}
           </p>
           <button
             type="button"
@@ -277,7 +282,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
             disabled={!joinName.trim() || joining}
             className="btn-primary w-full"
           >
-            {joining ? 'Joining…' : 'Join Monopoly'}
+            {joining ? 'Joining…' : joiningAsViewer ? 'Join as viewer' : 'Join Monopoly'}
           </button>
           <ShareGameLinkCard gameCode={gameCode} />
         </div>
@@ -379,6 +384,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   const sessionName = myPlayerName ?? players.find((p) => p.id === myPlayerId)?.name ?? ''
+  const myPlayer = players.find((p) => p.id === myPlayerId)
+  const isViewer = !!(game && myPlayer && playerIsViewer(myPlayer, game))
 
   if (!board) {
     return (
@@ -407,6 +414,15 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
           ) : null}
         </MonopolyPageHeader>
 
+        {isViewer && myPlayer && (
+          <ViewerModeBanner
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            game={game}
+            player={myPlayer}
+          />
+        )}
+
         <MonopolyActiveLayout
           gameCode={gameCode}
           game={game}
@@ -414,11 +430,12 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
           states={states}
           players={players}
           myPlayerId={myPlayerId}
-          myState={myState}
+          myState={isViewer ? undefined : myState}
           myName={sessionName}
           acting={acting}
           postAction={postAction}
           colorBarClass={colorBarClass}
+          spectator={isViewer}
         />
       </div>
     </div>

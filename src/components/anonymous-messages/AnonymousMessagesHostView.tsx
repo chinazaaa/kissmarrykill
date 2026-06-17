@@ -28,7 +28,7 @@ import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
-import { HostAllowViewersField } from '@/components/HostAllowViewersField'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 
@@ -338,11 +338,7 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
         />
       </div>
 
-      {game.status === 'waiting' && (
-        <div className="glass-card p-4">
-          <HostAllowViewersField gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-        </div>
-      )}
+      <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
 
       {game.status === 'waiting' && (
         <button type="button" onClick={startSession} disabled={!canStart || starting} className="btn-primary w-full">

@@ -41,6 +41,23 @@ export async function assertHostGameSettings(supabase: SupabaseClient, gameCode:
   return { error: null, status: 200 as const, game, id }
 }
 
+/** Host may change who can join after start — including while a game is live. */
+export async function assertHostLateJoinSettings(supabase: SupabaseClient, gameCode: string, hostToken: string) {
+  const id = gameCode.toUpperCase()
+  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
+  if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
+  if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
+  if (game.status !== 'waiting' && game.status !== 'active' && game.status !== 'finished') {
+    return {
+      error: 'Late join settings cannot be changed for this game',
+      status: 400 as const,
+      game: null,
+      id,
+    }
+  }
+  return { error: null, status: 200 as const, game, id }
+}
+
 export async function findJoinerParticipant(supabase: SupabaseClient, gameId: string, playerName: string) {
   const { data } = await supabase
     .from('participants')

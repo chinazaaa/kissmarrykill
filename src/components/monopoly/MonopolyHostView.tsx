@@ -9,6 +9,7 @@ import {
 } from '@/components/monopoly/MonopolyBoard'
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
 import { MonopolyHostTimeExtension } from '@/components/monopoly/MonopolyHostTimeExtension'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels'
 import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -249,7 +250,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
 
   const cfg = gameTypeConfig('monopoly')
   const joinUrl = `${appOrigin()}/game/${gameCode}`
-  const canStart = players.length >= MONOPOLY_MIN_PLAYERS
+  const canStart = players.filter((p) => p.spectator !== true).length >= MONOPOLY_MIN_PLAYERS
   const turnPlayerId = board ? currentPlayerId(board) : null
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const winner = players.find((p) => p.id === board?.winner_player_id)
@@ -354,6 +355,8 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
             )}
           </div>
         )}
+
+        <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
 
         {showPlayTab && (
           <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">

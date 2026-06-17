@@ -533,6 +533,7 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                     </select>
                   </label>
                   <HostAllowViewersField
+                    embedded
                     gameCode={gameCode}
                     hostToken={hostToken}
                     game={game}

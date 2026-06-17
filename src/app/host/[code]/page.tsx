@@ -1786,6 +1786,7 @@ export default function HostPage() {
               value={lateJoinPolicyFromGame(game)}
               onChange={hostUpdateLateJoinPolicy}
               disabled={updatingViewers}
+              gameType={gameType}
             />
           </div>
         )}

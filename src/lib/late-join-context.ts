@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   isBingoGame,
   isCodewordsGame,
+  isMonopolyGame,
+  isYahtzeeGame,
   isMostLikelyTo,
   isNeverHaveIEver,
   isThisOrThat,
@@ -102,6 +104,22 @@ export async function fetchLateJoinContext(
       playerDetail:
         'You\'ll be randomly assigned to a team as an operative and jump into the current round.',
       viewerDetail: 'Watch the board and teams live — you can\'t play.',
+    }
+  }
+
+  if (isMonopolyGame(type)) {
+    return {
+      statusLine: 'Game in progress',
+      playerDetail: 'Monopoly does not allow late players — watch only.',
+      viewerDetail: 'Watch the board, trades, and standings live — you can\'t play.',
+    }
+  }
+
+  if (isYahtzeeGame(type)) {
+    return {
+      statusLine: 'Game in progress',
+      playerDetail: 'Yahtzee does not allow late players — watch only.',
+      viewerDetail: 'Watch scores and dice rolls live — you can\'t play.',
     }
   }
 

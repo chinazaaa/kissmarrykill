@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { assertHostGameSettings } from '@/lib/game-admin'
+import { assertHostGameSettings, assertHostLateJoinSettings } from '@/lib/game-admin'
 import { questionPoolCap } from '@/lib/custom-questions'
 import { parseTimerSeconds, updateGameSchema } from '@/lib/validation'
 import {
@@ -16,7 +16,7 @@ import { isCustomTwoSlotGame } from '@/lib/custom-game'
 import { clampHotSeatMaxCap, hotSeatJoinedPlayers, hotSeatMaxCapUpperBound } from '@/lib/hot-seat'
 import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/player-question-pool'
 import { supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
-import { gameSupportsViewerSetting, lateJoinPolicyToFields } from '@/lib/viewers'
+import { gameSupportsViewerSetting, lateJoinPolicyToFields, gameAllowsLatePlayerJoin } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -30,7 +30,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
 
   const { hostToken, rounds_count: rawRoundsCount, timer_seconds: rawTimerSeconds, participant_filter } = parsed.data
 
-  const auth = await assertHostGameSettings(supabase, code, hostToken)
+  const lateJoinOnly =
+    (parsed.data.late_join_policy !== undefined ||
+      parsed.data.allow_viewers !== undefined ||
+      parsed.data.allow_late_players !== undefined) &&
+    rawRoundsCount === undefined &&
+    rawTimerSeconds === undefined &&
+    participant_filter === undefined &&
+    parsed.data.pair_vote_mode === undefined &&
+    parsed.data.player_questions_enabled === undefined &&
+    parsed.data.player_questions_order === undefined &&
+    parsed.data.gender_based === undefined
+
+  const auth = lateJoinOnly
+    ? await assertHostLateJoinSettings(supabase, code, hostToken)
+    : await assertHostGameSettings(supabase, code, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const updatePayload: Record<string, unknown> = {}
@@ -119,7 +133,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     if (!gameSupportsViewerSetting(gameType)) {
       return NextResponse.json({ error: 'This game type does not support late join settings' }, { status: 400 })
     }
-    const fields = lateJoinPolicyToFields(parsed.data.late_join_policy)
+    let policy = parsed.data.late_join_policy
+    if (!gameAllowsLatePlayerJoin(gameType) && policy === 'viewers_and_players') {
+      policy = 'viewers_only'
+    }
+    const fields = lateJoinPolicyToFields(policy)
     updatePayload.allow_viewers = fields.allow_viewers
     updatePayload.allow_late_players = fields.allow_late_players
     if (isCodewordsGame(gameType)) {

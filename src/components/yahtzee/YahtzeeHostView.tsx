@@ -26,6 +26,7 @@ import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 
 type HostTab = 'play' | 'manage'
 
@@ -265,7 +266,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
 
   const cfg = gameTypeConfig('yahtzee')
   const joinUrl = `${appOrigin()}/game/${gameCode}`
-  const canStart = players.length >= YAHTZEE_MIN_PLAYERS
+  const canStart = players.filter((p) => p.spectator !== true).length >= YAHTZEE_MIN_PLAYERS
   const turnPlayerId = session ? currentPlayerId(session) : null
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const winner = players.find((p) => p.id === session?.winner_player_id)
@@ -355,6 +356,8 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
             )}
           </div>
         )}
+
+        <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
 
       {/* Play / Manage tab switcher */}
       {showPlayTab && (

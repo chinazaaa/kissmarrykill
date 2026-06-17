@@ -38,10 +38,14 @@ export function lateJoinPolicyToFields(policy: LateJoinPolicy): {
   }
 }
 
-/** Host can toggle late join policy (excludes secret message and monopoly). */
+/** Host can toggle late join policy (excludes secret message). */
 export function gameSupportsViewerSetting(gameType: GameType): boolean {
-  if (isSecretMessageGame(gameType) || isMonopolyGame(gameType) || isYahtzeeGame(gameType)) return false
-  return true
+  return !isSecretMessageGame(gameType)
+}
+
+/** Board games allow watch-only late join — not mid-game players. */
+export function gameAllowsLatePlayerJoin(gameType: GameType): boolean {
+  return !isMonopolyGame(gameType) && !isYahtzeeGame(gameType)
 }
 
 /** Round/lobby games: late joiners pick viewer vs player. */
@@ -72,6 +76,7 @@ export function allowLatePlayers(
 ): boolean {
   if (!allowLateJoin(game)) return false
   const gameType = parseGameType(game.game_type)
+  if (!gameAllowsLatePlayerJoin(gameType)) return false
   if (isCodewordsGame(gameType) && game.codewords_late_join === false) return false
   return game.allow_late_players !== false
 }
@@ -142,9 +147,6 @@ export function canJoinGame(
   }
   if (game.status === 'waiting') return { ok: true }
   if (game.status === 'active') {
-    if (isMonopolyGame(gameType) || isYahtzeeGame(gameType)) {
-      return { ok: false, error: lateJoinBlockedMessage(gameType) }
-    }
     if (allowLateJoin(game)) return { ok: true }
     return { ok: false, error: lateJoinBlockedMessage(gameType) }
   }
@@ -159,6 +161,7 @@ export function spectatorForActiveJoin(
   if (game.status !== 'active') return false
   const gameType = parseGameType(game.game_type)
   if (isAnonymousMessagesGame(gameType)) return true
+  if (isMonopolyGame(gameType) || isYahtzeeGame(gameType)) return true
   if (!allowLatePlayers(game)) return true
   if (gameOffersLateJoinChoice(gameType)) return joinAsViewer === true
   return joinAsViewer === true

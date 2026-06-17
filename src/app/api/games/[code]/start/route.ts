@@ -151,7 +151,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: playersData } = await supabase
     .from('players')
-    .select('id, gender, identity_gender, participant_id, name')
+    .select('id, gender, identity_gender, participant_id, name, spectator')
     .eq('game_id', code.toUpperCase())
 
   if (!playersData?.length) {
@@ -275,7 +275,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isMonopolyGame(gameType)) {
-    if (playersData.length < MONOPOLY_MIN_PLAYERS) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < MONOPOLY_MIN_PLAYERS) {
       return NextResponse.json(
         { error: `Need at least ${MONOPOLY_MIN_PLAYERS} players to start` },
         { status: 400 }
@@ -285,7 +286,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: initError } = await initializeMonopolyGame(
       supabase,
       code.toUpperCase(),
-      playersData.map((p) => p.id),
+      playingPlayers.map((p) => p.id),
       (game.timer_seconds ?? 0) as number
     )
     if (initError) return NextResponse.json({ error: initError }, { status: 500 })
@@ -305,7 +306,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isYahtzeeGame(gameType)) {
-    if (playersData.length < YAHTZEE_MIN_PLAYERS) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < YAHTZEE_MIN_PLAYERS) {
       return NextResponse.json(
         { error: `Need at least ${YAHTZEE_MIN_PLAYERS} players to start` },
         { status: 400 }
@@ -315,7 +317,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: initError } = await initializeYahtzeeGame(
       supabase,
       code.toUpperCase(),
-      playersData.map((p) => p.id)
+      playingPlayers.map((p) => p.id)
     )
     if (initError) return NextResponse.json({ error: initError }, { status: 500 })
 

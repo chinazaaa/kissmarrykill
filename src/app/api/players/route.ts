@@ -311,6 +311,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
+    const isSpectator =
+      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+
     const { data: player, error } = await supabase
       .from('players')
       .insert({
@@ -319,7 +322,7 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
-        spectator: false,
+        spectator: isSpectator,
       })
       .select()
       .single()
@@ -353,6 +356,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
+    const isSpectator =
+      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+
     const { data: player, error } = await supabase
       .from('players')
       .insert({
@@ -361,7 +367,7 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
-        spectator: false,
+        spectator: isSpectator,
       })
       .select()
       .single()

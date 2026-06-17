@@ -12,12 +12,15 @@ export function HostAllowViewersField({
   game,
   onGameUpdate,
   className = '',
+  embedded = false,
 }: {
   gameCode: string
   hostToken: string
   game: Game
   onGameUpdate: (game: Game) => void
   className?: string
+  /** Set when already inside a glass-card (avoids double nesting). */
+  embedded?: boolean
 }) {
   const toast = useToast()
   const [saving, setSaving] = useState(false)
@@ -57,10 +60,19 @@ export function HostAllowViewersField({
     }
   }
 
-  return (
+  const body = (
     <div className={`space-y-3 ${className}`}>
-      <p className="text-muted text-xs uppercase tracking-wider">Late joiners</p>
-      <LateJoinPolicyToggle value={value} onChange={onChange} disabled={saving} />
+      <div className="space-y-1">
+        <p className="label-caps">Late joiners</p>
+        <p className="text-xs text-muted leading-relaxed">
+          Choose whether people can join after the game starts. Viewers watch live without playing.
+        </p>
+      </div>
+      <LateJoinPolicyToggle value={value} onChange={onChange} disabled={saving} gameType={game.game_type} />
     </div>
   )
+
+  if (embedded) return body
+
+  return <div className="glass-card p-4 sm:p-5">{body}</div>
 }

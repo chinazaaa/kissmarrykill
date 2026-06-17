@@ -1074,6 +1074,9 @@ function CreateGameInner() {
                     ))}
                   </select>
                 </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="monopoly" />
+                </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with their name and start on GO with $1,500. Take turns rolling dice, buying properties,
                   paying rent, and drawing cards. Last player standing wins! If someone stalls, their turn auto-resolves.
@@ -1107,6 +1110,9 @@ function CreateGameInner() {
                     <option value={90}>90 seconds</option>
                     <option value={120}>2 minutes</option>
                   </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="yahtzee" />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Play solo or with up to six friends. Take turns rolling 5 dice, holding what you want, and

@@ -6,6 +6,7 @@ import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
@@ -172,6 +173,7 @@ export function TwoTruthsHostManagePanel({
           </div>
 
           <HostAllowViewersField
+            embedded
             gameCode={gameCode}
             hostToken={hostToken}
             game={game}
@@ -190,7 +192,14 @@ export function TwoTruthsHostManagePanel({
       )}
 
       {game.status === 'active' && (
-        <div className="glass-card p-5 space-y-3">
+        <>
+          <HostLateJoinSettingsCard
+            gameCode={gameCode}
+            hostToken={hostToken}
+            game={game}
+            onGameUpdate={onGameUpdate}
+          />
+          <div className="glass-card p-5 space-y-3">
           <p className="label-caps">Players — {players.length}</p>
           {onRemovePlayer ? (
             <HostPlayerManageList
@@ -208,7 +217,8 @@ export function TwoTruthsHostManagePanel({
               ))}
             </ul>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       {(showActiveRoundPanel || showRevealPanel) && (
