@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { LOBBY_LIMIT_GAME_TYPES } from '@/lib/game-limits'
 import { MONOPOLY_TOKEN_ID_LIST } from '@/lib/monopoly-tokens'
 
 // ---------------------------------------------------------------------------
@@ -427,15 +428,7 @@ export const patchGamePlayerLimitsSchema = z.object({
   limits: z
     .array(
       z.object({
-        game_type: z.enum([
-          'anonymous_messages',
-          'bingo',
-          'codewords',
-          'trivia',
-          'two_truths',
-          'monopoly',
-          'yahtzee',
-        ]),
+        game_type: z.enum(LOBBY_LIMIT_GAME_TYPES),
         max_players: z.coerce.number().int().min(2).max(100),
       })
     )
