@@ -13,6 +13,8 @@ export type GameType =
   | 'red_flag_green_flag'
   | 'smash_or_pass'
   | 'would_you_rather'
+  | 'never_have_i_ever'
+  | 'pick_a_number'
   | 'this_or_that'
   | 'most_likely_to'
   | 'who_said_this'
@@ -27,6 +29,8 @@ export type GameType =
   | 'parent_approval'
   | 'monopoly'
   | 'yahtzee'
+  | 'whot'
+  | 'ludo'
 
 export type YahtzeeCategory =
   | 'ones'
@@ -136,6 +140,8 @@ export interface Game {
   status: GameStatus
   current_round_number: number
   created_at: string
+  /** When the game session ended (status set to finished). */
+  finished_at?: string | null
   /** Anonymous room — when the live session started (15 min cap). */
   session_started_at?: string | null
   /** Lobby cap for joiner modes (anonymous 2–20, bingo 2–30, codewords 4–20). */
@@ -164,9 +170,20 @@ export interface Game {
   bingo_call_mode?: BingoCallMode | null
   /** Bingo — seconds between automatic number calls. */
   bingo_call_interval_seconds?: number | null
+  /** Monopoly — max active session length in seconds; 0 = unlimited. */
+  game_duration_seconds?: number | null
 }
 
-export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'auction' | 'finished'
+export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'auction' | 'raise_funds' | 'finished'
+
+export interface MonopolyPendingDebt {
+  player_id: string
+  creditor_player_id: string | null
+  amount: number
+  reason: string
+  debt_type: 'rent' | 'tax' | 'card' | 'jail' | 'other'
+  space_index?: number | null
+}
 
 export interface MonopolyAuctionState {
   space_index: number
@@ -188,6 +205,14 @@ export interface MonopolyPendingTrade {
   request_properties: number[]
 }
 
+export interface MonopolyLastRentEvent {
+  seq: number
+  payer_player_id: string
+  owner_player_id: string
+  amount: number
+  space_name: string
+}
+
 export interface MonopolyLastCardEvent {
   seq: number
   kind: 'chance' | 'community'
@@ -196,6 +221,22 @@ export interface MonopolyLastCardEvent {
   effect: string
   amount?: number
   other_player_count?: number
+}
+
+export interface MonopolyLastCashEvent {
+  seq: number
+  player_id: string
+  change: number
+  balance_after: number
+  label: string
+  bankrupt?: boolean
+}
+
+export interface MonopolyLastTradeEvent {
+  seq: number
+  from_player_id: string
+  to_player_id: string
+  outcome: 'proposed' | 'declined' | 'accepted'
 }
 
 export interface MonopolyBoard {
@@ -217,9 +258,14 @@ export interface MonopolyBoard {
   community_discard: number[]
   auction_state: MonopolyAuctionState | null
   pending_trade: MonopolyPendingTrade | null
+  pending_debt: MonopolyPendingDebt | null
   pending_space: number | null
   status_message: string | null
   last_card_event: MonopolyLastCardEvent | null
+  last_rent_event: MonopolyLastRentEvent | null
+  last_cash_event: MonopolyLastCashEvent | null
+  last_trade_event: MonopolyLastTradeEvent | null
+  turn_deadline_at: string | null
   winner_player_id: string | null
   created_at: string
   updated_at: string
@@ -235,6 +281,7 @@ export interface MonopolyPlayerState {
   jail_turns: number
   get_out_of_jail_free: number
   bankrupt: boolean
+  passed_go_once: boolean
   player_order: number
   created_at: string
 }
@@ -267,6 +314,82 @@ export interface YahtzeePlayerScore {
   scores: {
     categories: YahtzeeCategoryPoints
   }
+  player_order: number
+  created_at: string
+}
+
+export type WhotShape = 'circle' | 'cross' | 'triangle' | 'square' | 'star' | 'whot'
+
+export type WhotPhase = 'playing' | 'choose_whot' | 'finished'
+
+export interface WhotCard {
+  id: string
+  shape: WhotShape
+  number: number
+}
+
+export interface WhotSession {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: WhotPhase
+  draw_pile: WhotCard[]
+  discard_pile: WhotCard[]
+  top_card: WhotCard | null
+  required_shape: WhotShape | null
+  required_number: number | null
+  pick_two_stack: number
+  pick_five_stack: number
+  status_message: string | null
+  winner_player_id: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WhotPlayerHand {
+  id: string
+  game_id: string
+  player_id: string
+  cards: WhotCard[]
+  player_order: number
+  created_at: string
+}
+
+export type LudoColor = 'red' | 'green' | 'yellow' | 'blue'
+export type LudoPieceZone = 'base' | 'track' | 'home' | 'finished'
+export type LudoPhase = 'roll' | 'move' | 'finished'
+
+export interface LudoPiece {
+  id: number
+  zone: LudoPieceZone
+  /** Track: 0–51. Home: 0–4 before finish. */
+  pos: number
+}
+
+export interface LudoSession {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: LudoPhase
+  last_dice: number | null
+  consecutive_sixes: number
+  extra_turn: boolean
+  status_message: string | null
+  winner_player_id: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LudoPlayerState {
+  id: string
+  game_id: string
+  player_id: string
+  color: LudoColor
+  pieces: LudoPiece[]
   player_order: number
   created_at: string
 }
@@ -352,6 +475,8 @@ export interface Player {
   joined_at: string
   /** Read-only spectator (explicit choice or inferred for poll-game late join). */
   spectator?: boolean
+  /** Monopoly board token id (car, hat, dog, …). */
+  monopoly_token?: string | null
 }
 
 export interface Round {
@@ -390,6 +515,7 @@ export interface Vote {
   target_player_id: string | null
   target_participant_id: string | null
   anime_choice?: string | null
+  picked_number?: number | null
   created_at: string
 }
 

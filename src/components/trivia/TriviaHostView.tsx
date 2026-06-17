@@ -15,7 +15,7 @@ import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/ut
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
-import { HostAllowViewersField } from '@/components/HostAllowViewersField'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 
 type HostTab = 'play' | 'manage'
 
@@ -348,9 +348,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
         )}
 
         {game.status === 'waiting' && (
-          <div className="glass-card-strong p-5 sm:p-6">
-            <HostAllowViewersField gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-          </div>
+          <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
         )}
 
         {showPlayTab && (
@@ -409,6 +407,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
             onPlayAgain={() => setSettingsModal('play-again')}
             onEditSettings={() => setSettingsModal('lobby')}
             onReload={load}
+            onGameUpdate={setGame}
             onRemovePlayer={removePlayer}
             removingPlayerId={removingPlayerId}
             highlightPlayerId={hostPlayerId}

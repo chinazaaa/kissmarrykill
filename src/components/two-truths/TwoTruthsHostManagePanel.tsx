@@ -2,13 +2,13 @@
 
 import { useMemo } from 'react'
 import { TwoTruthsSubmitterBadge } from '@/components/two-truths/TwoTruthsSubmitterBadge'
-import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { PlayerInviteCard } from '@/components/PlayerInviteCard'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { TwoTruthsShareBlock } from '@/components/two-truths/TwoTruthsShareBlock'
 import {
   formatTtlChoiceLabel,
@@ -91,10 +91,7 @@ export function TwoTruthsHostManagePanel({
 
   return (
     <div className="space-y-5">
-      <div className="glass-card p-5 space-y-3">
-        <p className="label-caps">Share link</p>
-        <CopyLinkButton value={playerLink} label="Copy player link" />
-      </div>
+      <PlayerInviteCard url={playerLink} gameCode={gameCode} title="Share link" />
 
       {inLobby && (
         <div className="glass-card p-5 space-y-4">
@@ -172,6 +169,7 @@ export function TwoTruthsHostManagePanel({
           </div>
 
           <HostAllowViewersField
+            embedded
             gameCode={gameCode}
             hostToken={hostToken}
             game={game}
@@ -190,7 +188,14 @@ export function TwoTruthsHostManagePanel({
       )}
 
       {game.status === 'active' && (
-        <div className="glass-card p-5 space-y-3">
+        <>
+          <HostLateJoinSettingsCard
+            gameCode={gameCode}
+            hostToken={hostToken}
+            game={game}
+            onGameUpdate={onGameUpdate}
+          />
+          <div className="glass-card p-5 space-y-3">
           <p className="label-caps">Players — {players.length}</p>
           {onRemovePlayer ? (
             <HostPlayerManageList
@@ -208,7 +213,8 @@ export function TwoTruthsHostManagePanel({
               ))}
             </ul>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       {(showActiveRoundPanel || showRevealPanel) && (
@@ -287,7 +293,6 @@ export function TwoTruthsHostManagePanel({
           <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-secondary w-full">
             {playingAgain ? 'Resetting…' : 'Return to lobby'}
           </button>
-          <CreateNewGameButton />
         </div>
       )}
 

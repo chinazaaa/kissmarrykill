@@ -32,6 +32,8 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   smash_or_pass: 'smash-or-pass',
   parent_approval: 'date-my-kid',
   would_you_rather: 'would-you-rather',
+  never_have_i_ever: 'never-have-i-ever',
+  pick_a_number: 'pick-a-number',
   this_or_that: 'this-or-that',
   most_likely_to: 'most-likely-to',
   who_said_this: 'who-said-this',
@@ -45,6 +47,8 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   two_truths: 'two-truths-and-a-lie',
   monopoly: 'monopoly',
   yahtzee: 'yahtzee',
+  whot: 'whot',
+  ludo: 'ludo',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -280,6 +284,84 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
         question: 'Can I add my own Would You Rather questions?',
         answer:
           'Yes. Fate Round includes a built-in question pool, and you can upload your own prompts when creating a room. Pick round count, set a timer, and share the link — no participant list required.',
+      },
+    ],
+  }),
+
+  never_have_i_ever: landing('never_have_i_ever', {
+    seoTitle: 'Never Have I Ever Online — Free Party Game',
+    seoDescription:
+      'Play Never Have I Ever online with friends for free. Anonymous I have / I haven\'t votes, instant reveals, built-in or custom prompts.',
+    keywords: ['never have i ever online', 'never have i ever game', 'nhie party game', 'never have i ever with friends'],
+    heroSubtitle:
+      'Classic confession game, online. Each prompt asks who\'s done it — anonymous votes reveal how spicy the group really is.',
+    bodyParagraph:
+      'Never Have I Ever on Fate Round reads each prompt aloud on every screen while players tap I have or I haven\'t anonymously. Use built-in prompts or upload your own — perfect for parties, pregames, or friend groups who want honest confessions without the awkward eye contact. Unlike playing in a circle where people hesitate, anonymous votes get real answers.',
+    highlights: ['Anonymous voting', 'Platform or custom prompts', '2+ players, zero setup'],
+    features: [
+      {
+        title: 'Built-in prompt pool',
+        description: 'Jump in with curated Never Have I Ever statements — or upload your own.',
+        emoji: '🙈',
+      },
+      {
+        title: 'Fully anonymous',
+        description: 'See how many have done it — not who raised their hand.',
+        emoji: '🎭',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Start a lobby', description: 'Choose round count and timer — no participant list needed.' },
+      { title: 'Friends join', description: 'Share the link. Everyone enters a display name and waits.' },
+      { title: 'Confess & reveal', description: 'Tap I have or I haven\'t each round and see the group split.' },
+    ],
+    perfectFor: ['Pregames', 'Friend reunions', 'Icebreakers', 'Spicy confession nights'],
+    extraFaqs: [
+      {
+        question: 'Can I add my own Never Have I Ever prompts?',
+        answer:
+          'Yes. Fate Round includes a built-in prompt pool, and you can upload your own statements when creating a room. The "Never have I ever" prefix is added automatically — just upload the action (e.g. "been skydiving").',
+      },
+    ],
+  }),
+
+  pick_a_number: landing('pick_a_number', {
+    seoTitle: 'Pick a Number Game Online — Free Party Question Game',
+    seoDescription:
+      'Play Pick a Number online with friends. Choose a number from a hidden list — answer the question it reveals. Built-in or custom questions, free, no sign-up.',
+    keywords: ['pick a number game', 'pick a number questions', 'party question game', 'number question game'],
+    heroSubtitle:
+      'Pick a number between 1 and X — you won\'t know the question until after you choose. Then answer whatever gets revealed.',
+    bodyParagraph:
+      'Pick a Number is a classic party game: one person chooses a number from a hidden list, and that number maps to a question they have to answer out loud. Fate Round runs it online — upload your own numbered questions or use our built-in pool, rotate who picks each round, and reveal the question on every screen the moment they lock in their number.',
+    highlights: ['Hidden numbered list', 'Platform or custom questions', '2+ players, zero setup'],
+    features: [
+      {
+        title: 'Mystery until you pick',
+        description: 'The question list stays hidden — pickers only see numbers until they commit.',
+        emoji: '🔢',
+      },
+      {
+        title: 'Your questions or ours',
+        description: 'Upload a numbered CSV or use built-in party prompts.',
+        emoji: '❓',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Start a lobby', description: 'Choose your question source and max picking rounds.' },
+      { title: 'Friends join', description: 'Share the link. Everyone enters a display name.' },
+      { title: 'Pick & answer', description: 'Each round one player picks a number — then answers the revealed question.' },
+    ],
+    perfectFor: ['Pregames', 'Road trips', 'Icebreakers', 'Spicy question nights'],
+    extraFaqs: [
+      {
+        question: 'Can I use my own questions?',
+        answer:
+          'Yes. Upload one question per row in our CSV format — row 1 is question #1, row 2 is #2, and so on. Or use the built-in question pool.',
       },
     ],
   }),
@@ -762,8 +844,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['yahtzee game online', 'dice game multiplayer', 'roll hold scorecard', 'play yahtzee friends'],
     heroSubtitle: 'The classic dice puzzle — score straights, full houses, and Yahtzees together.',
     bodyParagraph:
-      'Yahtzee on Fate Round brings roll-and-hold dice scoring to your group online. Up to three rolls per turn, hold the dice you want, and fill your scorecard category by category — straights, full houses, chance, and the coveted Yahtzee. Turn-based play with 2–8 players means no one needs a physical scorecard or dice cup.',
-    highlights: ['5 dice', '2–8 players', 'Turn-based scoring'],
+      'Yahtzee on Fate Round brings roll-and-hold dice scoring to your group online. Up to three rolls per turn, hold the dice you want, and fill your scorecard category by category — straights, full houses, chance, and the coveted Yahtzee. Play solo or with up to six friends — no physical scorecard or dice cup needed.',
+    highlights: ['5 dice', '1–6 players', 'Turn-based scoring'],
     features: [
       {
         title: 'Roll & hold',
@@ -789,6 +871,84 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
         question: 'How does scoring work in online Yahtzee?',
         answer:
           'Each turn you roll up to three times, holding dice between rolls. Pick an unused scorecard category to fill — upper section, lower section combos, or chance. Highest total when the board is full wins.',
+      },
+    ],
+  }),
+
+  whot: landing('whot', {
+    seoTitle: 'Whot Online — Nigerian Card Game with Friends',
+    seoDescription:
+      'Play Whot online with friends. Match shape or number, stack Pick 2 and Pick 3, call WHOT — classic Naija house rules.',
+    keywords: ['whot card game online', 'naija whot multiplayer', 'nigerian whot game', 'play whot friends'],
+    heroSubtitle: 'The Nigerian card classic — match, stack, and call WHOT on your crew.',
+    bodyParagraph:
+      'Whot on Fate Round follows common Nigerian house rules: match the top card by shape or number, play WHOT to call the next match, and keep Pick 2 and Pick 3 stacks separate. Special cards — Hold On, Suspension, General Market — keep the table lively. First to empty their hand wins.',
+    highlights: ['54-card deck', '2–6 players', 'Naija house rules'],
+    features: [
+      {
+        title: 'Match or WHOT',
+        description: 'Play a card matching shape or number — or drop WHOT and call what comes next.',
+        emoji: '🃏',
+      },
+      {
+        title: 'Pick stacks',
+        description: '2 stacks Pick 2, 5 stacks Pick 3 — separate penalties, defended only with the same number.',
+        emoji: '2️⃣',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: 'Enter your name and wait for the host to deal.' },
+      { title: 'Play your turn', description: 'Match the top card, defend pick stacks, or draw.' },
+      { title: 'Empty your hand', description: 'First player out of cards wins the game.' },
+    ],
+    perfectFor: ['Game nights', 'Nigerian diaspora hangouts', 'Card game lovers'],
+    extraFaqs: [
+      {
+        question: 'What are the special cards in Whot?',
+        answer:
+          '1 = Hold On (extra turn), 2 = Pick 2, 5 = Pick 3, 8 = Suspension (skip next player), 14 = General Market (others draw), 20 = WHOT (call shape or number). Pick 2 and Pick 3 stacks cannot be mixed.',
+      },
+    ],
+  }),
+  ludo: landing('ludo', {
+    seoTitle: 'Ludo Online — Play Classic Board Game with Friends',
+    seoDescription:
+      'Play Ludo online with friends. Roll the die, race your pieces home, capture opponents, and block with pairs — classic rules.',
+    keywords: ['ludo online', 'play ludo friends', 'ludo board game multiplayer', 'ludo game online free'],
+    heroSubtitle: 'The classic board game — roll, race, capture, and be first to get all four pieces home.',
+    bodyParagraph:
+      'Ludo on Fate Round follows classic rules: roll a 6 to enter the board, move pieces clockwise around the track, send opponents back to base on capture, and form blockades with pairs. Exact rolls are needed to enter the home triangle. First player to finish all four pieces wins.',
+    highlights: ['2–4 players', 'Classic rules', 'Real-time board'],
+    features: [
+      {
+        title: 'Roll & move',
+        description: 'Roll the die on your turn — a 6 lets you bring a piece out or move one in play, plus an extra roll.',
+        emoji: '🎲',
+      },
+      {
+        title: 'Captures & blockades',
+        description: 'Land on an opponent to send them home. Stack two of your pieces to block the square.',
+        emoji: '🎯',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: 'Enter your name and pick your color when the host starts.' },
+      { title: 'Roll the die', description: 'Roll a 6 to enter the board, then move pieces around the track.' },
+      { title: 'Race home', description: 'Get all four pieces into the center home triangle to win.' },
+    ],
+    perfectFor: ['Family game night', 'Friend groups', 'Board game fans'],
+    extraFaqs: [
+      {
+        question: 'What happens when I roll three 6s in a row?',
+        answer: 'Your turn ends immediately — no move and no extra roll. Play passes to the next player.',
+      },
+      {
+        question: 'Do I need an exact roll to finish?',
+        answer: 'Yes. A piece can only enter the home triangle with an exact roll — overshooting is not allowed.',
       },
     ],
   }),

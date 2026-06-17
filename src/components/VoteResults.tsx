@@ -281,15 +281,20 @@ export function WyrRoundResults({
   countB: number
   voterCount: number
   myChoice?: 'a' | 'b' | null
-  mode?: 'wyr' | 'tot'
+  mode?: 'wyr' | 'tot' | 'nhie'
 }) {
   const max = Math.max(countA, countB, 1)
   const aWins = countA > countB
   const bWins = countB > countA
   const borderCls = myChoice === 'a' ? 'border-violet-500/40' : myChoice === 'b' ? 'border-sky-500/40' : 'border-theme'
   const isTot = mode === 'tot'
-  const colorA = isTot ? '#f472b6' : '#a78bfa'
-  const labelAClass = isTot ? 'text-pink-600 dark:text-pink-300 font-medium' : 'label-violet font-medium'
+  const isNhie = mode === 'nhie'
+  const colorA = isNhie ? '#e879f9' : isTot ? '#f472b6' : '#a78bfa'
+  const labelAClass = isNhie
+    ? 'text-fuchsia-600 dark:text-fuchsia-300 font-medium'
+    : isTot
+      ? 'text-pink-600 dark:text-pink-300 font-medium'
+      : 'label-violet font-medium'
 
   return (
     <div className="space-y-4">
@@ -298,7 +303,11 @@ export function WyrRoundResults({
       </p>
       <div className={`glass-card border-2 ${borderCls} rounded-2xl p-4 space-y-4`}>
         <p className="text-body-muted text-sm text-center leading-relaxed">
-          {isTot ? (
+          {isNhie ? (
+            <>
+              Never have I ever <span className={labelAClass}>{optionA}</span>
+            </>
+          ) : isTot ? (
             <>
               <span className={labelAClass}>{optionA}</span> or <span className="label-sky font-medium">{optionB}</span>
               ?
@@ -311,10 +320,28 @@ export function WyrRoundResults({
           )}
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <WyrOptionStat label="Option A" text={optionA} count={countA} max={max} color={colorA} isWinner={aWins} />
-          <WyrOptionStat label="Option B" text={optionB} count={countB} max={max} color="#38bdf8" isWinner={bWins} />
+          <WyrOptionStat
+            label={isNhie ? 'I have' : 'Option A'}
+            text={isNhie ? 'I have' : optionA}
+            count={countA}
+            max={max}
+            color={colorA}
+            isWinner={aWins}
+          />
+          <WyrOptionStat
+            label={isNhie ? "I haven't" : 'Option B'}
+            text={isNhie ? "I haven't" : optionB}
+            count={countB}
+            max={max}
+            color="#38bdf8"
+            isWinner={bWins}
+          />
         </div>
-        {myChoice && <p className="text-faint text-xs text-center">You picked Option {myChoice.toUpperCase()}</p>}
+        {myChoice && (
+          <p className="text-faint text-xs text-center">
+            You picked {isNhie ? (myChoice === 'a' ? 'I have' : "I haven't") : `Option ${myChoice.toUpperCase()}`}
+          </p>
+        )}
       </div>
     </div>
   )

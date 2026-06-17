@@ -13,6 +13,7 @@ export function PlayerSessionControls({
   changeNameLabel = 'Change name',
   inLobby = false,
   leaveOnly = false,
+  align = 'start',
   className = '',
 }: {
   gameCode: string
@@ -24,10 +25,17 @@ export function PlayerSessionControls({
   changeNameLabel?: string
   inLobby?: boolean
   leaveOnly?: boolean
+  align?: 'start' | 'center'
   className?: string
 }) {
   return (
-    <div className={`flex flex-col gap-2 ${className}`}>
+    <div
+      className={[
+        'flex flex-col gap-2',
+        align === 'center' ? 'items-center text-center' : '',
+        className,
+      ].join(' ')}
+    >
       {!leaveOnly &&
         (onChangeName ? (
           <button type="button" onClick={onChangeName} className="btn-secondary text-sm py-2.5">

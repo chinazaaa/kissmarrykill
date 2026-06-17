@@ -2,12 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame } from '@/lib/game-types'
+import { removeMonopolyPlayer } from '@/lib/monopoly'
+import { isMonopolyTokenId } from '@/lib/monopoly-tokens'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { anonymousPlayerCanChat } from '@/lib/anonymous-messages'
 import { createBingoCardForPlayer } from '@/lib/bingo'
 import { assignCodewordsLateJoinOperative, codewordsAllowsPlayerChanges, removeCodewordsPlayer } from '@/lib/codewords'
-import { isTwoTruthsGame } from '@/lib/game-types'
+import {
+  parseGameType,
+  isNameOnlyPlayerJoin,
+  isHotSeat,
+  isAnonymousMessagesGame,
+  isSecretMessageGame,
+  isBingoGame,
+  isCodewordsGame,
+  isMonopolyGame,
+  isYahtzeeGame,
+  isWhotGame,
+  isLudoGame,
+  isTwoTruthsGame,
+} from '@/lib/game-types'
 import { fetchGamePlayerLimits, isLobbyLimitGameType, lobbyMaxPlayersFromGame } from '@/lib/game-limits'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
@@ -141,6 +155,7 @@ export async function POST(req: NextRequest) {
     identityGender: rawIdentityGender,
     participantId: rawParticipantId,
     joinAsViewer: rawJoinAsViewer,
+    monopolyToken: rawMonopolyToken,
   } = parsed.data
 
   const name = playerName?.trim() ?? ''
@@ -311,6 +326,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
+    const isSpectator =
+      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+
+    if (!isSpectator) {
+      if (!rawMonopolyToken || !isMonopolyTokenId(rawMonopolyToken)) {
+        return NextResponse.json({ error: 'Pick a player token to join' }, { status: 400 })
+      }
+      const { data: tokenTaken } = await supabase
+        .from('players')
+        .select('id')
+        .eq('game_id', gameId)
+        .eq('monopoly_token', rawMonopolyToken)
+        .maybeSingle()
+      if (tokenTaken) {
+        return NextResponse.json({ error: 'That token is already taken — pick another' }, { status: 400 })
+      }
+    }
+
     const { data: player, error } = await supabase
       .from('players')
       .insert({
@@ -319,12 +352,18 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
-        spectator: false,
+        spectator: isSpectator,
+        monopoly_token: isSpectator ? null : rawMonopolyToken,
       })
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'That token is already taken — pick another' }, { status: 400 })
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
     return NextResponse.json(playerJoinResponse(player, gameRow as Game))
   }
@@ -353,6 +392,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
+    const isSpectator =
+      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+
     const { data: player, error } = await supabase
       .from('players')
       .insert({
@@ -361,7 +403,97 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
-        spectator: false,
+        spectator: isSpectator,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json(playerJoinResponse(player, gameRow as Game))
+  }
+
+  if (isWhotGame(rowGameType)) {
+    const joinCheck = canJoinGame(gameRow as Game)
+    if (!joinCheck.ok) {
+      return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = lobbyMaxPlayersFromGame('whot', gameRow, lobbyLimits)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const isSpectator =
+      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: isSpectator,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json(playerJoinResponse(player, gameRow as Game))
+  }
+
+  if (isLudoGame(rowGameType)) {
+    const joinCheck = canJoinGame(gameRow as Game)
+    if (!joinCheck.ok) {
+      return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = lobbyMaxPlayersFromGame('ludo', gameRow, lobbyLimits)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const isSpectator =
+      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: isSpectator,
       })
       .select()
       .single()
@@ -1127,6 +1259,12 @@ export async function DELETE(req: NextRequest) {
 
   if (isCodewordsGame(gameType)) {
     const { error } = await removeCodewordsPlayer(supabase, id, playerId)
+    if (error) return NextResponse.json({ error }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isMonopolyGame(gameType)) {
+    const { error } = await removeMonopolyPlayer(supabase, id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }

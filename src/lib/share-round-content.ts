@@ -4,6 +4,7 @@ import {
   gameTypeConfig,
   isBinaryPeoplePollGame,
   isBinaryChoiceGame,
+  isNeverHaveIEver,
   isMostLikelyTo,
   isWhoSaidThis,
   isCustomGame,
@@ -59,7 +60,16 @@ export function buildRoundShareCardContent({
     rows: [],
   }
 
-  if (isBinaryChoiceGame(gameType)) {
+  if (isNeverHaveIEver(gameType)) {
+    const { countA, countB } = tallyWyrVotes(votes)
+    const statement = round.mlt_question ?? '?'
+    const total = countA + countB
+    const havePct = total > 0 ? Math.round((countA / total) * 100) : 0
+
+    content.subtitle = `Never have I ever ${statement}`
+    content.rows.push({ emoji: '✋', label: 'I have', value: `${countA} (${havePct}%)` })
+    content.rows.push({ emoji: '🙅', label: "I haven't", value: `${countB}` })
+  } else if (isBinaryChoiceGame(gameType)) {
     const { countA, countB } = tallyWyrVotes(votes)
     const optA = round.wyr_option_a ?? 'Option A'
     const optB = round.wyr_option_b ?? 'Option B'

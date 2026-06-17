@@ -129,6 +129,32 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     },
   ],
 
+  pick_a_number: [
+    {
+      title: 'Objective',
+      points: [
+        'Each round one player picks a number from a hidden list (1 to N). That number reveals a question they must answer out loud.',
+        'The picker does not know what any number means until after they choose.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        'No participant list required — players join with a display name.',
+        'Use built-in questions or upload your own numbered list when creating the room.',
+        'Set how many picking turns you want — not limited by how many people join.',
+      ],
+    },
+    {
+      title: 'How a round works',
+      points: [
+        'The designated picker sees numbers only — the question list stays hidden.',
+        'They lock in a number and the question is revealed to everyone.',
+        'They answer out loud; the host advances when ready.',
+      ],
+    },
+  ],
+
   this_or_that: [
     {
       title: 'Objective',
@@ -149,6 +175,31 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       points: [
         'One prompt appears with two choices. Pick A or B anonymously.',
         'Reveal the split and move to the next question.',
+      ],
+    },
+  ],
+
+  never_have_i_ever: [
+    {
+      title: 'Objective',
+      points: [
+        'Each round reads a "Never have I ever…" prompt. Tap I have if you\'ve done it, or I haven\'t if you haven\'t.',
+        'See how many in the group confess — votes stay anonymous until reveal.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        'No participant list required — players join with a display name.',
+        'Use built-in prompts or upload your own statements when creating the room.',
+      ],
+    },
+    {
+      title: 'How a round works',
+      points: [
+        'Read the prompt and tap I have or I haven\'t before the timer ends.',
+        'The host reveals how many people have done it — nobody knows who picked what.',
+        'Play through all rounds and compare confessions.',
       ],
     },
   ],
@@ -427,7 +478,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Setup',
       points: [
-        '2–6 players join a room. Each player selects a token and starts on GO with £1,500.',
+        '2–6 players join a room and pick a board token (car, hat, dog, etc.). Each player starts on GO with £1,500.',
         'The Bank holds all Title Deeds until purchased. The host starts when everyone is ready; turn order is set at game start.',
       ],
     },
@@ -435,7 +486,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       title: 'Moving & GO',
       points: [
         'On your turn, roll two dice and move clockwise around the 40-space board.',
-        'Collect £200 from the Bank every time you land on or pass GO while moving forward.',
+        'Collect £200 from the Bank every time you land on or pass GO while moving forward — but not on your first lap around the board.',
         'Two or more tokens may occupy the same space.',
       ],
     },
@@ -449,7 +500,8 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Buying property',
       points: [
-        'Landing on an unowned Property, Station, or Utility lets you buy it from the Bank at the listed price.',
+        'You cannot buy from the Bank, pay Income Tax or Super Tax, or draw Chance / Community Chest cards until you have passed GO at least once on your first lap.',
+        'Landing on an unowned Property, Station, or Utility after that lets you buy it at the listed price.',
         'If you decline to buy, the property is auctioned to the highest bidder — including you.',
         'Own all Sites in a colour-group (a monopoly) to charge double rent on unimproved properties in that group.',
       ],
@@ -466,24 +518,25 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Chance & Community Chest',
       points: [
+        'You must pass GO once before drawing cards on your first lap — landing on Chance or Community Chest before that ends your turn without drawing.',
         'Draw from the full UK 16-card Chance and 16-card Community Chest decks.',
         'Cards may move you, pay or collect money, charge per house/hotel, or collect from every player.',
-        'If a card moves you forward past GO, collect £200. You do not collect GO salary when sent to Jail.',
+        'If a card moves you forward past GO, collect £200 (after your first lap). You do not collect GO salary when sent to Jail.',
         'Get Out of Jail Free cards are kept until used or traded.',
       ],
     },
     {
       title: 'Taxes & Free Parking',
       points: [
-        'Income Tax (space 4): pay £200 to the Bank.',
-        'Super Tax (space 38): pay £100 to the Bank.',
+        'Income Tax (space 4) and Super Tax (space 38) do not apply until you have passed GO once on your first lap.',
+        'After that: Income Tax is £200 and Super Tax is £100, paid to the Bank.',
         'Free Parking has no penalty — simply rest there until your next turn.',
       ],
     },
     {
       title: 'Houses, hotels & mortgages',
       points: [
-        'Own all sites in a colour-group to build houses (evenly across the group) and then hotels.',
+        'Own all sites in a colour-group to build up to three houses (evenly across the group), then upgrade to a hotel.',
         'Sell buildings back to the Bank at half price. Mortgaged properties cannot collect rent.',
         'Mortgage a property for half its price; unmortgage by paying the mortgage value plus 10% interest.',
       ],
@@ -528,7 +581,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Setup',
       points: [
-        '2–8 players join a room. Each player gets an empty scorecard with 13 categories.',
+        '1–6 players join a room — or play solo. Each player gets an empty scorecard with 13 categories.',
         'Players take turns in order. Five dice are shared on each turn.',
       ],
     },
@@ -545,6 +598,99 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       points: [
         'Score 63+ in the upper section (Ones through Sixes) to earn a 35-point bonus.',
         'Each category can only be scored once per game.',
+      ],
+    },
+  ],
+
+  whot: [
+    {
+      title: 'Objective',
+      points: [
+        'Be the first player to play all your cards.',
+        'Match the top card by shape or number — or play WHOT to set what opponents must match next.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        '2–6 players join a room. Each player receives 5 cards (6 for a 2-player game).',
+        'One card is turned face-up to start the discard pile. The host starts when everyone is ready.',
+      ],
+    },
+    {
+      title: 'How to play',
+      points: [
+        'On your turn, play a card that matches the top card\'s shape or number.',
+        'If you cannot play, draw from the pile — or draw the full Pick 2 / Pick 3 penalty when those stacks are active.',
+        'When the draw pile runs out, played cards (except the current top card) are shuffled back in as a new draw pile.',
+        'If no cards can be drawn and nobody can play, the game ends — lowest hand total wins.',
+        'WHOT (20) can always be played — even during Pick 2 or Pick 3. The penalty stays on the next player.',
+      ],
+    },
+    {
+      title: 'Special cards',
+      points: [
+        '1 — Hold On: take another turn immediately.',
+        '2 — Pick 2: next player must play another 2, play WHOT, or draw the full stack (stacks +2 if they play a 2).',
+        '5 — Pick 3: next player must play another 5, play WHOT, or draw the full stack (stacks +3 if they play a 5). Pick 2 and Pick 3 cannot be mixed — only one penalty applies at a time.',
+        '8 — Suspension: skip the next player.',
+        '14 — General Market: every other player draws 1 card.',
+      ],
+    },
+    {
+      title: 'Game length',
+      points: [
+        'The host can set a game length (10, 15, 30 minutes, etc.) or play with no limit.',
+        'First to empty their hand wins during normal play (no game clock).',
+        'With a game clock, players who go out keep watching until time runs out — lowest hand total wins (WHOT counts as 20).',
+      ],
+    },
+  ],
+
+  ludo: [
+    {
+      title: 'Objective',
+      points: [
+        'Move all four of your colored pieces clockwise around the board, up your home column, and into the center home triangle.',
+        'The first player to finish all four pieces wins. Remaining players continue for runner-up places.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        '2–4 players join a room. Each player is assigned a color (red, green, yellow, or blue) with four pieces in their corner base.',
+        'Turn order is set when the host starts. Optional per-turn timer keeps the game moving.',
+      ],
+    },
+    {
+      title: 'Getting pieces into play',
+      points: [
+        'You must roll a 6 to move a piece from your base onto your start position.',
+        'Until at least one piece is in play, you cannot make other moves.',
+        'When you roll a 6, you may bring a piece out of base or move a piece already in play.',
+      ],
+    },
+    {
+      title: 'Rolling a six',
+      points: [
+        'Any time you roll a 6, you get an extra roll after completing your move.',
+        'If you roll three 6s in a row, your turn ends immediately — play passes to the next player.',
+      ],
+    },
+    {
+      title: 'Captures & blockades',
+      points: [
+        'Landing on a single opponent piece sends it back to their base — they need another 6 to re-enter.',
+        'If two of your pieces share a square, that space is blocked. Opponents cannot land on or pass through it.',
+        'Your own pieces can still land on and pass your blockades.',
+      ],
+    },
+    {
+      title: 'Home column & winning',
+      points: [
+        'After completing the main track, pieces enter your colored home column toward the center.',
+        'You need an exact roll to enter the home triangle — overshooting is not allowed.',
+        'The first player with all four pieces in the center wins.',
       ],
     },
   ],

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { YahtzeeDiceTray } from '@/components/yahtzee/YahtzeeChrome'
 import { YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { YahtzeeFinalResultsShareBlock } from '@/components/yahtzee/YahtzeeFinalResultsShareBlock'
-import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { InviteLinkActions } from '@/components/InviteLinkActions'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   currentPlayerId,
@@ -26,6 +26,7 @@ import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 
 type HostTab = 'play' | 'manage'
 
@@ -94,6 +95,12 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
   useEffect(() => {
     if (game?.status === 'finished') setTab('manage')
   }, [game?.status])
+
+  useEffect(() => {
+    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
+      setTab('play')
+    }
+  }, [hostMode, hostPlayerId, game?.status])
 
   useEffect(() => {
     const channel = supabase
@@ -218,7 +225,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
       if (!res.ok) throw new Error(data.error ?? 'Failed to start')
       success('Game started!')
       await load()
-      // Stay on Manage so the board is visible immediately; host can switch to Play.
+      if (hostMode === 'player' && hostPlayerId) setTab('play')
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to start')
     } finally {
@@ -265,7 +272,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
 
   const cfg = gameTypeConfig('yahtzee')
   const joinUrl = `${appOrigin()}/game/${gameCode}`
-  const canStart = players.length >= YAHTZEE_MIN_PLAYERS
+  const canStart = players.filter((p) => p.spectator !== true).length >= YAHTZEE_MIN_PLAYERS
   const turnPlayerId = session ? currentPlayerId(session) : null
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const winner = players.find((p) => p.id === session?.winner_player_id)
@@ -356,6 +363,10 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
           </div>
         )}
 
+        {game.status === 'waiting' && (
+          <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+        )}
+
       {/* Play / Manage tab switcher */}
       {showPlayTab && (
         <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
@@ -422,12 +433,16 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
         {/* Manage tab (or default when no Play tab) */}
         {(tab === 'manage' || !showPlayTab) && (
           <>
+            {game.status === 'active' && (
+              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+            )}
+
             <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
                 <p className="font-mono font-bold text-lg">{gameCode}</p>
               </div>
-              <CopyLinkButton value={joinUrl} label="Copy player link" />
+              <InviteLinkActions url={joinUrl} copyLabel="Copy player link" successMessage="Player link copied" />
             </div>
 
             {game.status === 'waiting' && (
@@ -435,7 +450,9 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                 {playerManageBlock}
                 <div className="glass-card p-5 space-y-4">
                 {!canStart && (
-                  <p className="text-sm text-[var(--marry)]">Need at least {YAHTZEE_MIN_PLAYERS} players to start.</p>
+                  <p className="text-sm text-[var(--marry)]">
+                    Join as a player above to start solo, or wait for others to join.
+                  </p>
                 )}
                 <button
                   type="button"
@@ -443,7 +460,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                   disabled={!canStart || starting}
                   className="btn-primary w-full"
                 >
-                  {starting ? 'Starting…' : `Start Yahtzee (${YAHTZEE_MIN_PLAYERS}+ players)`}
+                  {starting ? 'Starting…' : 'Start Yahtzee'}
                 </button>
               </div>
               </>

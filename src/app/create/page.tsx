@@ -41,6 +41,8 @@ import {
   isTwoTruthsGame,
   isMonopolyGame,
   isWouldYouRather,
+  isNeverHaveIEver,
+  isPickANumber,
   isThisOrThat,
   isMostLikelyTo,
   isWhoSaidThis,
@@ -52,10 +54,15 @@ import {
   pairVoteModeOptions,
   gameHowItWorks,
   isYahtzeeGame,
+  isWhotGame,
+  isLudoGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
+import { NHIE_QUESTION_COUNT } from '@/lib/never-have-i-ever-questions'
+import { PAN_MIN_POOL, PAN_QUESTION_COUNT } from '@/lib/pick-a-number-questions'
+import { clampPanRounds, PAN_MAX_ROUNDS, panRoundPickerOptions } from '@/lib/pick-a-number'
 import {
   parseWyrQuestionRows,
   parseThisOrThatQuestionRows,
@@ -123,8 +130,17 @@ import {
   TTL_DEFAULT_TIMER,
   TTL_TIMER_OPTIONS,
 } from '@/lib/two-truths'
-import { MONOPOLY_DEFAULT_MAX_PLAYERS } from '@/lib/monopoly'
+import { MONOPOLY_DEFAULT_MAX_PLAYERS, MONOPOLY_GAME_DURATION_OPTIONS, formatMonopolyGameDuration } from '@/lib/monopoly'
+import { MONOPOLY_DEFAULT_TURN_TIMER } from '@/lib/supabase-selects'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
+import {
+  WHOT_DEFAULT_MAX_PLAYERS,
+  WHOT_GAME_DURATION_OPTIONS,
+  formatWhotGameDuration,
+} from '@/lib/whot'
+import {
+  LUDO_DEFAULT_MAX_PLAYERS,
+} from '@/lib/ludo'
 import {
   getCodeDefaultLimits,
   playerCountOptions,
@@ -132,6 +148,7 @@ import {
 } from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
+import { PlayerInviteCard } from '@/components/PlayerInviteCard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { useToast } from '@/components/ui/Toast'
 
@@ -196,6 +213,7 @@ function CreateGameInner() {
   const [wyrOptionA, setWyrOptionA] = useState('')
   const [wyrOptionB, setWyrOptionB] = useState('')
   const [mltQuestionInput, setMltQuestionInput] = useState('')
+  const [panRoundsInput, setPanRoundsInput] = useState('5')
   const [questionsBulkPaste, setQuestionsBulkPaste] = useState('')
   const [wstQuoteSource, setWstQuoteSource] = useState<WstQuoteSource>('player')
   const [customSlots, setCustomSlots] = useState<CustomSlotsConfig | null>(null)
@@ -212,7 +230,11 @@ function CreateGameInner() {
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
   const [ttlMaxPlayers, setTtlMaxPlayers] = useState(TTL_DEFAULT_MAX_PLAYERS)
   const [monopolyMaxPlayers, setMonopolyMaxPlayers] = useState(MONOPOLY_DEFAULT_MAX_PLAYERS)
+  const [monopolyGameDuration, setMonopolyGameDuration] = useState(0)
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
+  const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
+  const [whotGameDuration, setWhotGameDuration] = useState(0)
+  const [ludoMaxPlayers, setLudoMaxPlayers] = useState(LUDO_DEFAULT_MAX_PLAYERS)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
@@ -237,6 +259,8 @@ function CreateGameInner() {
     setTtlMaxPlayers((v) => clamp('two_truths', v))
     setMonopolyMaxPlayers((v) => clamp('monopoly', v))
     setYahtzeeMaxPlayers((v) => clamp('yahtzee', v))
+    setWhotMaxPlayers((v) => clamp('whot', v))
+    setLudoMaxPlayers((v) => clamp('ludo', v))
   }, [lobbyLimits])
 
   useEffect(() => {
@@ -285,9 +309,24 @@ function CreateGameInner() {
               participant_mode: 'joiners' as const,
               anonymous: true,
               rounds_count: 1,
+              timer_seconds: MONOPOLY_DEFAULT_TURN_TIMER,
             }
           : {}),
         ...(isYahtzeeGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
+        ...(isWhotGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
+        ...(isLudoGame(type)
           ? {
               participant_mode: 'joiners' as const,
               anonymous: true,
@@ -317,17 +356,27 @@ function CreateGameInner() {
   const genderCounts = countByGender(participants)
   const isJoinersMode = settings.participant_mode === 'joiners'
   const isWyr = isWouldYouRather(settings.game_type)
+  const isNhie = isNeverHaveIEver(settings.game_type)
+  const isPan = isPickANumber(settings.game_type)
+
+  useEffect(() => {
+    if (isPan) setPanRoundsInput(String(settings.rounds_count))
+  }, [settings.game_type]) // eslint-disable-line react-hooks/exhaustive-deps -- sync draft when switching game type
   const isTot = isThisOrThat(settings.game_type)
-  const isBinaryLobby = isWyr || isTot
+  const isBinaryLobby = isWyr || isTot || isNhie
   const isMlt = isMostLikelyTo(settings.game_type)
   const isTrivia = isTriviaGame(settings.game_type)
   const isTwoTruths = isTwoTruthsGame(settings.game_type)
   const isMonopoly = isMonopolyGame(settings.game_type)
   const isYahtzee = isYahtzeeGame(settings.game_type)
+  const isWhot = isWhotGame(settings.game_type)
+  const isLudo = isLudoGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
+  const isPanGame = isPan
   const hotSeatCreateCapUpper = isHotSeatGame ? hotSeatMaxCapUpperBound(0, participants.length) : 20
+  const panRoundOptions = panRoundPickerOptions(PAN_MAX_ROUNDS)
   const isPair = isPairGame(settings.game_type)
   const isCustom = isCustomGame(settings.game_type)
   const isCustomTwoSlot = isCustom && (customSlots?.slots.length ?? 0) === 2
@@ -343,15 +392,17 @@ function CreateGameInner() {
   const canCreateImport =
     participants.length >= minPool && hasEnoughForRounds(participants, settings.game_type, participantOpts)
   const canCreateJoiners = !!settings.title.trim()
-  const isLobbyQuestions = isBinaryLobby || isMlt || isTrivia
+  const isLobbyQuestions = isBinaryLobby || isMlt || isTrivia || isPan
   const isPeoplePoll = isPeoplePollGame(settings.game_type)
   const isPeoplePollVoters = isPeoplePoll && settings.participant_mode === 'voters'
   const isPlayerSubmissions = (isLobbyQuestions && !isTrivia) || isPeoplePollVoters
   const customQuestionCount = isTrivia
     ? customTriviaQuestions.length
-    : isBinaryLobby
+    : isWyr || isTot
       ? customWyrQuestions.length
-      : customMltQuestions.length
+      : isMlt || isNhie || isPan
+        ? customMltQuestions.length
+        : 0
   const questionCap =
     questionSource === 'custom' && customQuestionCount > 0
       ? customQuestionCount
@@ -361,13 +412,19 @@ function CreateGameInner() {
           ? TRIVIA_QUESTION_COUNT
           : isWyr
             ? WYR_QUESTION_COUNT
+            : isNhie
+              ? NHIE_QUESTION_COUNT
+              : isPan
+                ? PAN_QUESTION_COUNT
             : isMlt
               ? MLT_QUESTION_COUNT
               : 10
   const mltRoundOptions = questionRoundPickerOptions(questionCap)
   const wyrRoundOptions = questionRoundPickerOptions(questionCap)
   const wstRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= Math.max(participants.length, 2))
-  const roundOptions = isBinaryLobby
+  const roundOptions = isPan
+    ? panRoundOptions
+    : isBinaryLobby
     ? wyrRoundOptions
     : isMlt
       ? mltRoundOptions
@@ -378,8 +435,10 @@ function CreateGameInner() {
           : [2, 3, 4, 5, 6, 8, 10]
   const hasEnoughCustomQuestions =
     (isTot && customQuestionCount >= settings.rounds_count && customQuestionCount > 0) ||
-    (questionSource === 'platform' && !isTot) ||
-    (isLobbyQuestions && !isTot && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
+    (questionSource === 'platform' && !isTot && !isPan) ||
+    (isPan && questionSource === 'platform') ||
+    (isPan && questionSource === 'custom' && customQuestionCount >= PAN_MIN_POOL && customQuestionCount > 0) ||
+    (isLobbyQuestions && !isTot && !isPan && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
   const canCreateQuickLobby = !!settings.title.trim() && hasEnoughCustomQuestions
 
   const customSlotsValid =
@@ -390,17 +449,18 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
 
   useEffect(() => {
+    if (isPan) return
     if (questionSource === 'custom' && customQuestionCount > 0 && settings.rounds_count > customQuestionCount) {
       setSettings((prev) => ({ ...prev, rounds_count: customQuestionCount }))
     }
-  }, [customQuestionCount, questionSource, settings.rounds_count])
+  }, [customQuestionCount, questionSource, settings.rounds_count, isPan])
 
   const selectGameType = (type: GameType) => {
     setCustomSlots(null)
@@ -455,6 +515,7 @@ function CreateGameInner() {
             participant_mode: 'joiners' as const,
             anonymous: true,
             rounds_count: 1,
+            timer_seconds: MONOPOLY_DEFAULT_TURN_TIMER,
           }
         : {}),
         ...(isYahtzeeGame(type)
@@ -465,13 +526,35 @@ function CreateGameInner() {
               timer_seconds: 0,
             }
           : {}),
+      ...(isWhotGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: 0,
+          }
+        : {}),
+      ...(isLudoGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: 60,
+          }
+        : {}),
       ...(isWhoSaidThis(type)
         ? {
             participant_mode: 'import' as const,
             anonymous: true,
             participant_filter: 'joined' as const,
           }
-        : isHotSeat(type)
+        : isPickANumber(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 5,
+            }
+          : isHotSeat(type)
           ? {
               participant_mode: 'joiners' as const,
               anonymous: true,
@@ -590,6 +673,9 @@ function CreateGameInner() {
     if (isMlt && mltRows.length > 0) {
       setCustomMltQuestions((prev) => mergeMltQuestions(prev, mltRows))
     }
+    if ((isNhie || isPan) && mltRows.length > 0) {
+      setCustomMltQuestions((prev) => mergeMltQuestions(prev, mltRows))
+    }
     if (isTrivia && triviaRows.length > 0) {
       setCustomTriviaQuestions((prev) => mergeTriviaQuestions(prev, triviaRows))
     }
@@ -616,7 +702,7 @@ function CreateGameInner() {
       setMltQuestionInput('')
       return
     }
-    if (isMlt) {
+    if (isMlt || isNhie || isPan) {
       const question = mltQuestionInput.trim()
       if (!question) return
       addCustomQuestionsFromRows([], [question])
@@ -641,7 +727,7 @@ function CreateGameInner() {
         return
       }
       addCustomQuestionsFromRows(rows, [])
-    } else if (isMlt) {
+    } else if (isMlt || isNhie || isPan) {
       const rows = parseMltQuestionRows(questionsBulkPaste)
       if (rows.length === 0) {
         setQuestionsUploadError('Add one question per line')
@@ -684,7 +770,7 @@ function CreateGameInner() {
             return
           }
           addCustomQuestionsFromRows(rows, [])
-        } else if (isMlt) {
+        } else if (isMlt || isNhie || isPan) {
           const rows = parseMltQuestionRows(text)
           if (rows.length === 0) {
             setQuestionsUploadError('No valid rows. Add one question per line.')
@@ -719,7 +805,7 @@ function CreateGameInner() {
             return
           }
           addCustomQuestionsFromRows(rows, [])
-        } else if (isMlt) {
+        } else if (isMlt || isNhie || isPan) {
           const rows = await parseExcelMltQuestions(buffer)
           if (rows.length === 0) {
             setQuestionsUploadError('No valid rows. Add one question per line.')
@@ -746,7 +832,7 @@ function CreateGameInner() {
 
   const removeCustomQuestion = (index: number) => {
     if (isWyr || isTot) setCustomWyrQuestions((prev) => prev.filter((_, i) => i !== index))
-    if (isMlt) setCustomMltQuestions((prev) => prev.filter((_, i) => i !== index))
+    if (isMlt || isNhie || isPan) setCustomMltQuestions((prev) => prev.filter((_, i) => i !== index))
     if (isTrivia) setCustomTriviaQuestions((prev) => prev.filter((_, i) => i !== index))
   }
 
@@ -768,7 +854,7 @@ function CreateGameInner() {
           question_source: isTot ? 'custom' : isLobbyQuestions ? questionSource : 'platform',
           custom_questions:
             isLobbyQuestions && (isTot || questionSource === 'custom')
-              ? isBinaryLobby
+              ? isWyr || isTot
                 ? customWyrQuestions
                 : isTrivia
                   ? customTriviaQuestions
@@ -795,6 +881,10 @@ function CreateGameInner() {
                         ? monopolyMaxPlayers
                         : isYahtzee
                           ? yahtzeeMaxPlayers
+                          : isWhot
+                            ? whotMaxPlayers
+                            : isLudo
+                              ? ludoMaxPlayers
                           : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
@@ -809,6 +899,11 @@ function CreateGameInner() {
           late_join_policy: gameSupportsViewerSetting(settings.game_type) ? lateJoinPolicy : undefined,
           bingo_call_mode: isBingo ? bingoCallMode : undefined,
           bingo_call_interval_seconds: isBingo ? bingoCallInterval : undefined,
+          game_duration_seconds: isMonopoly
+            ? monopolyGameDuration
+            : isWhot
+              ? whotGameDuration
+              : undefined,
         }),
       })
       const data = await res.json()
@@ -1033,9 +1128,39 @@ function CreateGameInner() {
                     ))}
                   </select>
                 </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                    <option value={120}>2 minutes</option>
+                  </select>
+                </Field>
+                <Field label="Game length">
+                  <select
+                    value={monopolyGameDuration}
+                    onChange={(e) => setMonopolyGameDuration(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {MONOPOLY_GAME_DURATION_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {formatMonopolyGameDuration(s)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="monopoly" />
+                </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with their name and start on GO with $1,500. Take turns rolling dice, buying properties,
-                  paying rent, and drawing cards. Last player standing wins!
+                  paying rent, and drawing cards. Last player standing wins! If someone stalls, their turn auto-resolves.
+                  Set a game length to end automatically — the richest player wins when time runs out.
                 </p>
               </SettingsGroup>
             ) : isYahtzee ? (
@@ -1066,9 +1191,97 @@ function CreateGameInner() {
                     <option value={120}>2 minutes</option>
                   </select>
                 </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="yahtzee" />
+                </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Players take turns rolling 5 dice, holding what they want, and scoring an unused category on
-                  their sheet. Highest total score at the end wins!
+                  Play solo or with up to six friends. Take turns rolling 5 dice, holding what you want, and
+                  scoring an unused category on your sheet. Highest total score at the end wins!
+                </p>
+              </SettingsGroup>
+            ) : isWhot ? (
+              <SettingsGroup title="Whot room">
+                <Field label={`Max players (${effectiveLimits.whot.min}–${effectiveLimits.whot.max})`}>
+                  <select
+                    value={whotMaxPlayers}
+                    onChange={(e) => setWhotMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.whot.min, effectiveLimits.whot.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                    <option value={120}>2 minutes</option>
+                  </select>
+                </Field>
+                <Field label="Game length">
+                  <select
+                    value={whotGameDuration}
+                    onChange={(e) => setWhotGameDuration(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {WHOT_GAME_DURATION_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {formatWhotGameDuration(s)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="whot" />
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Nigerian card classic — match shape or number, play WHOT to call the next match. Pick 2 and Pick 3
+                  stacks are separate. First to empty their hand wins! With a game length set, time running out ends
+                  the game — whoever has the lowest total on the cards left in their hand wins.
+                </p>
+              </SettingsGroup>
+            ) : isLudo ? (
+              <SettingsGroup title="Ludo room">
+                <Field label={`Max players (${effectiveLimits.ludo.min}–${effectiveLimits.ludo.max})`}>
+                  <select
+                    value={ludoMaxPlayers}
+                    onChange={(e) => setLudoMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.ludo.min, effectiveLimits.ludo.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                  </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="ludo" />
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Classic Ludo — roll a 6 to enter, race around the board, capture opponents, and block with pairs.
+                  Exact rolls needed to finish. First to get all four pieces home wins!
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (
@@ -1205,6 +1418,40 @@ function CreateGameInner() {
                             : 'Rounds are automatic — one turn per player who joins and claims their name. The count updates in the host lobby as people join.'}
                       </p>
                     </div>
+                  ) : isPanGame ? (
+                    <Field label="Rounds">
+                      <p className="text-faint text-xs mb-2">
+                        How many picking turns to play — pickers rotate through players (not capped by headcount).
+                      </p>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={panRoundsInput}
+                        onChange={(e) => setPanRoundsInput(e.target.value.replace(/\D/g, ''))}
+                        onBlur={() => {
+                          const n = clampPanRounds(panRoundsInput)
+                          setPanRoundsInput(String(n))
+                          setSettings((prev) => ({ ...prev, rounds_count: n }))
+                        }}
+                        className="input-field w-28 mb-2"
+                      />
+                      <ChipGrid>
+                        {roundOptions.map((n) => (
+                          <Chip
+                            key={n}
+                            active={settings.rounds_count === n}
+                            onClick={() => {
+                              setPanRoundsInput(String(n))
+                              setSettings((prev) => ({ ...prev, rounds_count: n }))
+                            }}
+                            className="!px-0 w-full"
+                          >
+                            {n}
+                          </Chip>
+                        ))}
+                      </ChipGrid>
+                    </Field>
                   ) : isHotSeatGame ? (
                     <Field label="Max rounds">
                       <p className="text-faint text-xs mb-2">
@@ -1481,7 +1728,9 @@ function CreateGameInner() {
                                 value={mltQuestionInput}
                                 onChange={(e) => setMltQuestionInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && addManualQuestion()}
-                                placeholder={isTot ? 'Coffee or Tea?' : 'Who is most likely to…'}
+                                placeholder={
+                                  isTot ? 'Coffee or Tea?' : isNhie ? 'been skydiving' : 'Who is most likely to…'
+                                }
                                 className="input-field py-2.5 text-sm"
                               />
                             )}
@@ -1500,7 +1749,9 @@ function CreateGameInner() {
                                   ? 'Paste from Excel:\nNever have pizza,Never have tacos\nLive without music,Live without movies'
                                   : isTot
                                     ? 'Paste questions:\nCoffee or Tea?\nBeach vacation or Mountain getaway?'
-                                    : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
+                                    : isNhie
+                                      ? 'Paste prompts:\nbeen skydiving\nkissed a stranger\nsung karaoke sober'
+                                      : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
                               }
                               rows={4}
                               className="input-field resize-none font-medium text-sm"
@@ -1524,7 +1775,7 @@ function CreateGameInner() {
                             <p className="text-muted text-xs uppercase tracking-wider">
                               Loaded ({customQuestionCount})
                             </p>
-                            {isBinaryLobby
+                            {isWyr || isTot
                               ? customWyrQuestions.map((q, i) => (
                                   <div key={i} className="flex items-start gap-2 text-sm">
                                     <p className="text-body flex-1 min-w-0">
@@ -1582,7 +1833,7 @@ function CreateGameInner() {
                 )}
 
                 {!isAnonymousRoom &&
-                  ((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type) && !isTrivia) || isHotSeatGame ? (
+                  ((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type) && !isTrivia && !isPan) || isHotSeatGame ? (
                     <SettingsGroup title={isHotSeatGame ? "Who's in the game" : "Who's in the poll"}>
                       <SegmentedControl
                         value={settings.participant_mode}
@@ -1638,6 +1889,7 @@ function CreateGameInner() {
                   !isBinaryLobby &&
                   !isWst &&
                   !isHotSeatGame &&
+                  !isPan &&
                   !isTrivia && (
                     <SettingsGroup title="Who appears in rounds">
                       <SegmentedControl
@@ -1951,7 +2203,7 @@ function CreateGameInner() {
         />
       </div>
 
-      <CopyCard label="Player link" value={gameUrl} />
+      <PlayerInviteCard url={gameUrl} gameCode={result?.gameCode ?? ''} title="Player link" />
       <CopyCard label="Host link — save this" value={hostUrl} accent />
 
       <PrimaryBtn onClick={() => router.push(`/host/${result?.gameCode}?token=${result?.hostToken}`)}>

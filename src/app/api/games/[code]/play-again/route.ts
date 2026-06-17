@@ -11,12 +11,16 @@ import {
   isTwoTruthsGame,
   isMonopolyGame,
   isYahtzeeGame,
+  isWhotGame,
+  isLudoGame,
 } from '@/lib/game-types'
 import { clearAnonymousRoomSessionData, reopenSecretMessageBoard } from '@/lib/anonymous-messages'
 import { clearBingoSessionData } from '@/lib/bingo'
 import { clearCodewordsRoundData } from '@/lib/codewords'
 import { clearMonopolySessionData } from '@/lib/monopoly'
 import { clearYahtzeeSessionData } from '@/lib/yahtzee'
+import { clearWhotSessionData } from '@/lib/whot'
+import { clearLudoSessionData } from '@/lib/ludo'
 import { clearTriviaSessionData } from '@/lib/trivia'
 import { clearTwoTruthsSessionData } from '@/lib/two-truths'
 import {
@@ -227,6 +231,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isYahtzeeGame(gameType)) {
     const { error: clearError } = await clearYahtzeeSessionData(supabase, gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isWhotGame(gameType)) {
+    const { error: clearError } = await clearWhotSessionData(supabase, gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isLudoGame(gameType)) {
+    const { error: clearError } = await clearLudoSessionData(supabase, gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 

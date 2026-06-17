@@ -15,7 +15,7 @@ import {
 import { YahtzeeLeaderboard, YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { YahtzeeFinalResultsShareBlock } from '@/components/yahtzee/YahtzeeFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentPlayerId, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
+import { currentPlayerId } from '@/lib/yahtzee'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -27,7 +27,8 @@ import { GameStartedWaiting } from '@/components/GameStartedWaiting'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
-import { preJoinScreen } from '@/lib/viewers'
+import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
+import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
 import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 
@@ -145,10 +146,15 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     if (!joinName.trim()) return
     setJoining(true)
     try {
+      const joiningAsViewer = game?.status === 'active'
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerName: joinName.trim() }),
+        body: JSON.stringify({
+          gameCode,
+          playerName: joinName.trim(),
+          ...(joiningAsViewer ? { joinAsViewer: true } : {}),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
@@ -241,12 +247,17 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'join') {
+    const joiningAsViewer = game?.status === 'active'
     return (
       <YahtzeeShell title={game?.title ?? cfg.label} subtitle="Enter your name to join">
         <YahtzeeCard className="p-6 space-y-5 max-w-md mx-auto">
           <div className="text-center">
             <div className="text-5xl mb-3">🎲</div>
-            <p className="text-sm text-muted">2–8 players · roll, hold, score</p>
+            <p className="text-sm text-muted">
+              {joiningAsViewer
+                ? 'Game in progress — join as a viewer and watch live (read-only).'
+                : '1–6 players · roll, hold, score'}
+            </p>
           </div>
           <input
             value={joinName}
@@ -257,7 +268,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
             onKeyDown={(e) => e.key === 'Enter' && join()}
           />
           <YahtzeePrimaryButton onClick={() => void join()} disabled={!joinName.trim()} loading={joining}>
-            Join game
+            {joiningAsViewer ? 'Join as viewer' : 'Join game'}
           </YahtzeePrimaryButton>
         </YahtzeeCard>
         <ShareGameLinkCard gameCode={gameCode} className="max-w-md mx-auto" />
@@ -272,7 +283,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
         <YahtzeeCard className="p-4 text-center">
           <p className="text-3xl font-black text-[var(--primary)]">{players.length}</p>
           <p className="text-sm text-muted">
-            player{players.length === 1 ? '' : 's'} joined · need {YAHTZEE_MIN_PLAYERS}+
+            {players.length} player{players.length === 1 ? '' : 's'} in the lobby
           </p>
         </YahtzeeCard>
         {myPlayerId && myName && (
@@ -312,9 +323,9 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
               {winner && <p className="text-2xl font-black text-[var(--marry)]">{winner.name}</p>}
             </YahtzeeCard>
             <YahtzeeLeaderboard rows={scores} players={players} highlightPlayerId={myPlayerId} />
+            <YahtzeeSecondaryButton onClick={() => router.push('/games')}>Create a new game</YahtzeeSecondaryButton>
           </>
         )}
-        <YahtzeeSecondaryButton onClick={() => router.push('/games')}>Create a new game</YahtzeeSecondaryButton>
       </YahtzeeShell>
     )
   }
@@ -323,7 +334,46 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     return <YahtzeeLoadingScreen />
   }
 
-  const myName = players.find((p) => p.id === myPlayerId)?.name ?? ''
+  const myPlayer = players.find((p) => p.id === myPlayerId)
+  const isViewer = !!(game && myPlayer && playerIsViewer(myPlayer, game))
+  const myName = myPlayer?.name ?? ''
+
+  if (isViewer) {
+    return (
+      <YahtzeeShell title={game?.title} wide compact>
+        <ViewerModeBanner gameCode={gameCode} playerId={myPlayerId} game={game} player={myPlayer} />
+        {myPlayerId && myName && (
+          <PlayerSessionControls
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            currentName={myName}
+            onRenamed={() => void load()}
+            onLeft={handlePlayerLeft}
+          />
+        )}
+        <div className="space-y-2">
+          <YahtzeeScorecard
+            players={players}
+            scores={scores}
+            activePlayerId={turnPlayerId}
+            dice={session.dice}
+            scoringEnabled={false}
+          />
+          <YahtzeeDiceTray
+            dice={session.dice}
+            held={session.held}
+            rollsThisTurn={session.rolls_this_turn}
+            rollsRemaining={session.rolls_remaining}
+            turnName={turnPlayer?.name}
+            secondsLeft={secondsLeft}
+            hasTimer={hasTimer}
+            urgent={urgent}
+            spectator
+          />
+        </div>
+      </YahtzeeShell>
+    )
+  }
 
   return (
     <YahtzeeShell title={game?.title} wide compact>

@@ -2,7 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   isBingoGame,
   isCodewordsGame,
+  isMonopolyGame,
+  isYahtzeeGame,
+  isWhotGame,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isThisOrThat,
   isTriviaGame,
   isBinaryChoiceGame,
@@ -54,6 +58,14 @@ export async function fetchLateJoinContext(
     }
   }
 
+  if (isNeverHaveIEver(type)) {
+    return {
+      statusLine: `Round ${roundLabel(current)}`,
+      playerDetail: 'You\'ll vote on the current prompt only. Past rounds can\'t be voted on.',
+      viewerDetail: 'Watch the current round and results live — you can\'t vote.',
+    }
+  }
+
   if (isMostLikelyTo(type)) {
     return {
       statusLine: `Round ${roundLabel(current)}`,
@@ -93,6 +105,30 @@ export async function fetchLateJoinContext(
       playerDetail:
         'You\'ll be randomly assigned to a team as an operative and jump into the current round.',
       viewerDetail: 'Watch the board and teams live — you can\'t play.',
+    }
+  }
+
+  if (isMonopolyGame(type)) {
+    return {
+      statusLine: 'Game in progress',
+      playerDetail: 'Monopoly does not allow late players — watch only.',
+      viewerDetail: 'Watch the board, trades, and standings live — you can\'t play.',
+    }
+  }
+
+  if (isYahtzeeGame(type)) {
+    return {
+      statusLine: 'Game in progress',
+      playerDetail: 'Yahtzee does not allow late players — watch only.',
+      viewerDetail: 'Watch scores and dice rolls live — you can\'t play.',
+    }
+  }
+
+  if (isWhotGame(type)) {
+    return {
+      statusLine: 'Game in progress',
+      playerDetail: 'Whot does not allow late players — watch only.',
+      viewerDetail: 'Watch the table and hands live — you can\'t play.',
     }
   }
 

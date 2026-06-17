@@ -21,6 +21,7 @@ import {
   isBinaryChoiceGame,
   isThisOrThat,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isWhoSaidThis,
   isHotSeat,
   isAnonymousMessagesGame,
@@ -440,6 +441,20 @@ export default function GameHistoryPage() {
                         countB={wyrTally.countB}
                         voterCount={wyrTally.voterCount}
                         mode={isThisOrThat(gameType) ? 'tot' : 'wyr'}
+                      />
+                    )
+                  })()
+                ) : isNeverHaveIEver(gameType) ? (
+                  (() => {
+                    const wyrTally = tallyWyrVotes(roundVotes)
+                    return (
+                      <WyrRoundResults
+                        optionA={round.mlt_question ?? ''}
+                        optionB=""
+                        countA={wyrTally.countA}
+                        countB={wyrTally.countB}
+                        voterCount={wyrTally.voterCount}
+                        mode="nhie"
                       />
                     )
                   })()

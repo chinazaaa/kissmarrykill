@@ -2,6 +2,8 @@ import {
   MONOPOLY_BOARD_SIZE,
   MONOPOLY_GO_SALARY,
   MONOPOLY_JAIL_POSITION,
+  MONOPOLY_HOTEL_LEVEL,
+  MONOPOLY_MAX_HOUSES_PER_PROPERTY,
   nearestSpaceFrom,
 } from '@/lib/monopoly-board'
 
@@ -178,8 +180,8 @@ export function computeRepairCost(
   let total = 0
   for (const [idx, level] of Object.entries(buildings)) {
     if (owners[idx] !== ownerId || level <= 0) continue
-    if (level === 5) total += perHotel
-    else total += perHouse * level
+    if (level === MONOPOLY_HOTEL_LEVEL) total += perHotel
+    else total += perHouse * Math.min(level, MONOPOLY_MAX_HOUSES_PER_PROPERTY)
   }
   return total
 }
@@ -232,7 +234,12 @@ export function applyCardEffect(
   }
 }
 
-export function goSalaryForCard(card: MonopolyCardDef, passedGo: boolean): number {
+export function goSalaryForCard(
+  card: MonopolyCardDef,
+  passedGo: boolean,
+  alreadyPassedGoOnce: boolean
+): number {
+  if (!alreadyPassedGoOnce) return 0
   if (card.effect === 'advance_go') return MONOPOLY_GO_SALARY
   if (passedGo) return MONOPOLY_GO_SALARY
   return 0

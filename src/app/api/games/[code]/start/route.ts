@@ -8,6 +8,8 @@ import {
   isWouldYouRather,
   isThisOrThat,
   isMostLikelyTo,
+  isNeverHaveIEver,
+  isPickANumber,
   isWhoSaidThis,
   isHotSeat,
   isCustomGame,
@@ -18,14 +20,19 @@ import {
   isTwoTruthsGame,
   isMonopolyGame,
   isYahtzeeGame,
+  isWhotGame,
+  isLudoGame,
 } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { getCustomSlotCount } from '@/lib/custom-game'
 import { buildHotSeatRoundRows } from '@/lib/hot-seat'
+import { buildPickANumberRoundRows } from '@/lib/pick-a-number'
 import { buildRoundsFromQuotePool, buildRoundsFromAnimePool, wstAutoRoundCount } from '@/lib/who-said-this'
 import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
-import { fetchMltQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
+import { pickNhieQuestions } from '@/lib/never-have-i-ever-questions'
+import { pickPanQuestions, PAN_DEFAULT_POOL_SIZE, PAN_MIN_POOL } from '@/lib/pick-a-number-questions'
+import { fetchMltQuestionUsage, fetchNhieQuestionUsage, fetchPanQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
 import {
   parseQuestionSource,
   parseStoredWyrQuestions,
@@ -75,6 +82,8 @@ import {
 } from '@/lib/two-truths'
 import { initializeMonopolyGame, MONOPOLY_MIN_PLAYERS } from '@/lib/monopoly'
 import { initializeYahtzeeGame, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
+import { initializeWhotGame, WHOT_MIN_PLAYERS } from '@/lib/whot'
+import { initializeLudoGame, LUDO_MIN_PLAYERS } from '@/lib/ludo'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -149,7 +158,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: playersData } = await supabase
     .from('players')
-    .select('id, gender, identity_gender, participant_id, name')
+    .select('id, gender, identity_gender, participant_id, name, spectator')
     .eq('game_id', code.toUpperCase())
 
   if (!playersData?.length) {
@@ -273,7 +282,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isMonopolyGame(gameType)) {
-    if (playersData.length < MONOPOLY_MIN_PLAYERS) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < MONOPOLY_MIN_PLAYERS) {
       return NextResponse.json(
         { error: `Need at least ${MONOPOLY_MIN_PLAYERS} players to start` },
         { status: 400 }
@@ -283,7 +293,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: initError } = await initializeMonopolyGame(
       supabase,
       code.toUpperCase(),
-      playersData.map((p) => p.id)
+      playingPlayers.map((p) => p.id),
+      (game.timer_seconds ?? 0) as number
     )
     if (initError) return NextResponse.json({ error: initError }, { status: 500 })
 
@@ -302,7 +313,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isYahtzeeGame(gameType)) {
-    if (playersData.length < YAHTZEE_MIN_PLAYERS) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < YAHTZEE_MIN_PLAYERS) {
       return NextResponse.json(
         { error: `Need at least ${YAHTZEE_MIN_PLAYERS} players to start` },
         { status: 400 }
@@ -312,7 +324,67 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: initError } = await initializeYahtzeeGame(
       supabase,
       code.toUpperCase(),
-      playersData.map((p) => p.id)
+      playingPlayers.map((p) => p.id)
+    )
+    if (initError) return NextResponse.json({ error: initError }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({
+        status: 'active',
+        session_started_at: sessionStartedAt,
+        current_round_number: 1,
+        rounds_count: 1,
+      })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isWhotGame(gameType)) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < WHOT_MIN_PLAYERS) {
+      return NextResponse.json(
+        { error: `Need at least ${WHOT_MIN_PLAYERS} players to start` },
+        { status: 400 }
+      )
+    }
+
+    const { error: initError } = await initializeWhotGame(
+      supabase,
+      code.toUpperCase(),
+      playingPlayers.map((p) => p.id)
+    )
+    if (initError) return NextResponse.json({ error: initError }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({
+        status: 'active',
+        session_started_at: sessionStartedAt,
+        current_round_number: 1,
+        rounds_count: 1,
+      })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isLudoGame(gameType)) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < LUDO_MIN_PLAYERS) {
+      return NextResponse.json(
+        { error: `Need at least ${LUDO_MIN_PLAYERS} players to start` },
+        { status: 400 }
+      )
+    }
+
+    const { error: initError } = await initializeLudoGame(
+      supabase,
+      code.toUpperCase(),
+      playingPlayers.map((p) => p.id)
     )
     if (initError) return NextResponse.json({ error: initError }, { status: 500 })
 
@@ -706,6 +778,167 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: gameError } = await supabase
       .from('games')
       .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  }
+
+  if (isNeverHaveIEver(gameType)) {
+    if (playersData.length < 2) {
+      return NextResponse.json({ error: 'Need at least 2 players to start' }, { status: 400 })
+    }
+
+    const { data: playerNhieRows } = await supabase
+      .from('player_questions')
+      .select('question_text')
+      .eq('game_id', code.toUpperCase())
+      .eq('question_type', 'mlt')
+    const playerNhieQuestions = (playerNhieRows ?? [])
+      .map((q) => q.question_text)
+      .filter((t): t is string => !!t?.trim())
+      .sort(() => Math.random() - 0.5)
+
+    const playerQuestionsEnabled = lobbyAllowsPlayerQuestions(game)
+    const questionOrder = parsePlayerQuestionsOrder(game.player_questions_order)
+    const effectivePlayerCount = playerQuestionsEnabled ? playerNhieQuestions.length : 0
+    const basePoolCap = questionPoolCap(game, effectivePlayerCount)
+    const totalAvailable = basePoolCap
+    if (game.rounds_count > totalAvailable) {
+      return NextResponse.json(
+        { error: `Too many rounds — lower to ${totalAvailable} or fewer before starting` },
+        { status: 400 }
+      )
+    }
+
+    const useCustom = parseQuestionSource(game.question_source, gameType) === 'custom'
+    const customPool = useCustom ? parseStoredMltQuestions(game.custom_questions) : []
+    const poolNeeded = poolPickCountForLobby(
+      game.rounds_count,
+      effectivePlayerCount,
+      questionOrder,
+      playerQuestionsEnabled
+    )
+    const platformQuestions = useCustom
+      ? pickCustomMltQuestions(customPool, poolNeeded, customMltUsage)
+      : pickNhieQuestions(poolNeeded, mergeUsageMaps(await fetchNhieQuestionUsage(supabase), customMltUsage))
+    const questions = combineLobbyQuestions(
+      playerQuestionsEnabled ? playerNhieQuestions : [],
+      platformQuestions,
+      game.rounds_count,
+      playerQuestionsEnabled ? questionOrder : 'uploaded_first'
+    )
+    if (questions.length === 0) {
+      return NextResponse.json(
+        { error: useCustom ? 'No custom prompts available' : 'No prompts available' },
+        { status: 400 }
+      )
+    }
+
+    const roundRows = questions.map((question, index) => ({
+      game_id: code.toUpperCase(),
+      round_number: index + 1,
+      participant_ids: [],
+      mlt_question: question,
+      status: index === 0 ? 'active' : 'pending',
+      started_at: index === 0 ? now : null,
+      ended_at: null,
+    }))
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  }
+
+  if (isPickANumber(gameType)) {
+    if (playersData.length < 2) {
+      return NextResponse.json({ error: 'Need at least 2 players to start' }, { status: 400 })
+    }
+
+    const { data: playerPanRows } = await supabase
+      .from('player_questions')
+      .select('question_text')
+      .eq('game_id', code.toUpperCase())
+      .eq('question_type', 'mlt')
+    const playerPanQuestions = (playerPanRows ?? [])
+      .map((q) => q.question_text)
+      .filter((t): t is string => !!t?.trim())
+      .sort(() => Math.random() - 0.5)
+
+    const playerQuestionsEnabled = lobbyAllowsPlayerQuestions(game)
+    const questionOrder = parsePlayerQuestionsOrder(game.player_questions_order)
+    const effectivePlayerCount = playerQuestionsEnabled ? playerPanQuestions.length : 0
+    const useCustom = parseQuestionSource(game.question_source, gameType) === 'custom'
+    const customPool = useCustom ? parseStoredMltQuestions(game.custom_questions) : []
+    const poolNeeded = Math.min(
+      PAN_DEFAULT_POOL_SIZE,
+      useCustom && customPool.length > 0
+        ? customPool.length + (playerQuestionsEnabled ? effectivePlayerCount : 0)
+        : PAN_DEFAULT_POOL_SIZE + (playerQuestionsEnabled ? effectivePlayerCount : 0)
+    )
+    const platformQuestions = useCustom
+      ? pickCustomMltQuestions(customPool, poolNeeded, customMltUsage)
+      : pickPanQuestions(poolNeeded, mergeUsageMaps(await fetchPanQuestionUsage(supabase), customMltUsage))
+    const questionPool = combineLobbyQuestions(
+      playerQuestionsEnabled ? playerPanQuestions : [],
+      platformQuestions,
+      poolNeeded,
+      playerQuestionsEnabled ? questionOrder : 'uploaded_first'
+    )
+    if (questionPool.length < PAN_MIN_POOL) {
+      return NextResponse.json(
+        { error: useCustom ? `Need at least ${PAN_MIN_POOL} custom questions` : 'Not enough prompts available' },
+        { status: 400 }
+      )
+    }
+
+    const { data: participantsData } = await supabase
+      .from('participants')
+      .select('id, name')
+      .eq('game_id', code.toUpperCase())
+      .order('display_order')
+
+    const built = buildPickANumberRoundRows({
+      gameId: code.toUpperCase(),
+      players: playersData,
+      participants: participantsData ?? [],
+      participantMode: game.participant_mode,
+      roundsCount: game.rounds_count,
+      now,
+    })
+
+    if (!built.ok) {
+      return NextResponse.json({ error: built.error }, { status: 400 })
+    }
+
+    const { roundRows, roundsCount } = built
+
+    const { error: poolError } = await supabase
+      .from('games')
+      .update({ custom_questions: questionPool })
+      .eq('id', code.toUpperCase())
+    if (poolError) return NextResponse.json({ error: poolError.message }, { status: 500 })
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRows)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({
+        status: 'active',
+        session_started_at: sessionStartedAt,
+        current_round_number: 1,
+        rounds_count: roundsCount,
+      })
       .eq('id', code.toUpperCase())
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })

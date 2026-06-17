@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
-import { isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame, parseGameType } from '@/lib/game-types'
+import { markGameFinished } from '@/lib/game-finish'
+import { isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame, isWhotGame, parseGameType } from '@/lib/game-types'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -41,30 +42,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isBingoGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    const { error } = await markGameFinished(supabase, gameId, now)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isCodewordsGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    const { error } = await markGameFinished(supabase, gameId, now)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isMonopolyGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    const { error } = await markGameFinished(supabase, gameId, now)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isYahtzeeGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    const { error } = await markGameFinished(supabase, gameId, now)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
-  const { error: gameError } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+  if (isWhotGame(parseGameType(game.game_type))) {
+    const { error } = await markGameFinished(supabase, gameId, now)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  const { error: gameError } = await markGameFinished(supabase, gameId, now)
   if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
 
   return NextResponse.json({ success: true })

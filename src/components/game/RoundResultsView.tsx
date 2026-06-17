@@ -33,6 +33,7 @@ import {
   isBinaryPeoplePollGame,
   isWouldYouRather,
   isMostLikelyTo,
+  isNeverHaveIEver,
   isWhoSaidThis,
   isHotSeat,
   isCustomGame,
@@ -126,6 +127,52 @@ export function RoundResultsView({
           <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
         </RoundResultsShareBlock>
 
+        <ReactionBar className="pt-1" />
+        <p className="text-faint text-sm text-center">
+          {roundResultsWaitMessage({
+            isLastRound,
+            autoReveal: !!game?.auto_reveal,
+            nextRoundSecondsLeft: nextRoundCountdown ?? 0,
+            finalRevealSecondsLeft: finalRevealCountdown ?? 0,
+          })}
+        </p>
+      </div>
+    )
+  }
+
+  if (isNeverHaveIEver(gameType)) {
+    const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
+    const { countA, countB, voterCount } = tallyWyrVotes(lastRoundVotes)
+    const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
+
+    return (
+      <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+        <PlayerNameBar name={myPlayerName} />
+        <div className="text-center">
+          <p className="text-muted text-xs uppercase tracking-wider">
+            Round {lastFinishedRound.round_number} of {game?.rounds_count}
+          </p>
+          <GameTypeBadge gameType={gameType} className="mt-2" />
+          <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🙈</h2>
+        </div>
+        <RoundResultsShareBlock
+          game={game!}
+          round={lastFinishedRound}
+          votes={lastRoundVotes}
+          participants={participants}
+          players={players}
+        >
+          <WyrRoundResults
+            optionA={lastFinishedRound.mlt_question ?? ''}
+            optionB=""
+            countA={countA}
+            countB={countB}
+            voterCount={voterCount}
+            myChoice={myVote?.wyr_choice ?? null}
+            mode="nhie"
+          />
+        </RoundResultsShareBlock>
+        <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
         <ReactionBar className="pt-1" />
         <p className="text-faint text-sm text-center">
           {roundResultsWaitMessage({

@@ -3,11 +3,19 @@
 import {
   MONOPOLY_BOARD,
   MONOPOLY_COLOR_CLASSES,
+  formatMonopolyMoney,
+  mortgageValue,
   parsePropertyOwners,
   playerProperties,
+  effectivePropertyOwners,
   spaceAt,
+  unmortgageCost,
   type MonopolyColorGroup,
+  type MonopolySpace,
 } from '@/lib/monopoly'
+import { computeRent, parseBuildings, parseMortgaged, buildingLevel } from '@/lib/monopoly-rent'
+import { MONOPOLY_HOTEL_LEVEL } from '@/lib/monopoly-board'
+import { monopolyTokenById, monopolyTokenEmoji } from '@/lib/monopoly-tokens'
 import type { MonopolyPlayerState, Player } from '@/types'
 import {
   DICE_PIPS,
@@ -22,6 +30,14 @@ function colorBar(color?: MonopolyColorGroup): string {
   return MONOPOLY_COLOR_CLASSES[color] ?? 'bg-neutral-400'
 }
 
+function playerPosition(state: MonopolyPlayerState): number {
+  return Number(state.position)
+}
+
+function playersOnSpace(states: MonopolyPlayerState[], spaceIndex: number): MonopolyPlayerState[] {
+  return states.filter((s) => !s.bankrupt && playerPosition(s) === spaceIndex)
+}
+
 function playerOrderMap(states: MonopolyPlayerState[]): Map<string, number> {
   return new Map(states.map((s) => [s.player_id, s.player_order]))
 }
@@ -30,8 +46,111 @@ function playerName(players: Player[], id: string): string {
   return players.find((p) => p.id === id)?.name ?? '?'
 }
 
-function playerInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || '?'
+function playerTokenEmoji(players: Player[], playerId: string, playerOrder: number): string {
+  const player = players.find((p) => p.id === playerId)
+  return monopolyTokenEmoji(player?.monopoly_token, playerOrder)
+}
+
+/** Shows the player's chosen board token — helps them spot themselves on the green board. */
+export function MonopolyYourTokenChip({
+  players,
+  playerId,
+  playerOrder,
+  compact = false,
+}: {
+  players: Player[]
+  playerId: string
+  playerOrder: number
+  compact?: boolean
+}) {
+  const player = players.find((p) => p.id === playerId)
+  const emoji = monopolyTokenEmoji(player?.monopoly_token, playerOrder)
+  const label = monopolyTokenById(player?.monopoly_token)?.label ?? 'Token'
+  const colors = tokenColorForOrder(playerOrder)
+
+  if (compact) {
+    return (
+      <span
+        className={[
+          'inline-flex h-8 w-8 items-center justify-center rounded-full text-lg ring-2 shadow-md',
+          colors.bg,
+          colors.ring,
+        ].join(' ')}
+        title={`Your token: ${label}`}
+      >
+        {emoji}
+      </span>
+    )
+  }
+
+  return (
+    <div
+      className={[
+        'inline-flex items-center gap-2 rounded-xl border border-amber-400/40 bg-emerald-950/55 px-2.5 py-1.5 shadow-lg',
+      ].join(' ')}
+      title={`Your token on the board: ${label}`}
+    >
+      <span
+        className={[
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl ring-2',
+          colors.bg,
+          colors.ring,
+        ].join(' ')}
+      >
+        {emoji}
+      </span>
+      <div className="text-left min-w-0">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-200/75 leading-none">Your token</p>
+        <p className="text-xs font-bold text-white truncate">{label}</p>
+      </div>
+    </div>
+  )
+}
+
+function BoardBuildingBadge({
+  spaceIndex,
+  buildings,
+  edge,
+}: {
+  spaceIndex: number
+  buildings: Record<string, number>
+  edge: ReturnType<typeof boardEdgeForSpace>
+}) {
+  const space = spaceAt(spaceIndex)
+  if (space.type !== 'property') return null
+  const level = buildingLevel(buildings, spaceIndex)
+  if (level <= 0) return null
+
+  const positionClass =
+    edge === 'left'
+      ? 'top-0.5 left-1'
+      : edge === 'right'
+        ? 'top-0.5 right-1'
+        : 'top-0.5 left-0.5'
+
+  if (level === MONOPOLY_HOTEL_LEVEL) {
+    return (
+      <span
+        className={['absolute z-[1] text-[9px] sm:text-[10px] leading-none drop-shadow-sm', positionClass].join(' ')}
+        title="Hotel"
+      >
+        🏨
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className={[
+        'absolute z-[1] flex items-center gap-px text-[7px] sm:text-[8px] font-bold leading-none text-amber-900 drop-shadow-sm',
+        positionClass,
+      ].join(' ')}
+      title={`${level} house${level === 1 ? '' : 's'}`}
+    >
+      <span>{level}</span>
+      <span className="text-[8px] sm:text-[9px]">🏠</span>
+    </span>
+  )
 }
 
 export function MonopolyDiceFace({ value, rolling }: { value: number; rolling?: boolean }) {
@@ -90,29 +209,60 @@ export function MonopolyDiceRoll({
   )
 }
 
+function boardTileRentLabel(
+  space: MonopolySpace,
+  ownerId: string | undefined,
+  owners: Record<string, string>,
+  buildings: Record<string, number>,
+  mortgaged: Record<string, boolean>,
+  diceTotal: number
+): string | null {
+  if (space.type !== 'property' && space.type !== 'station' && space.type !== 'utility') {
+    return null
+  }
+  if (ownerId) {
+    if (mortgaged[String(space.index)]) return 'Mortgaged'
+    return formatMonopolyMoney(computeRent(space, owners, ownerId, diceTotal, buildings, mortgaged))
+  }
+  if (space.type === 'utility') return '4×/10×'
+  if (space.type === 'station') return formatMonopolyMoney(space.rent ?? 25)
+  if (space.rent != null) return formatMonopolyMoney(space.rent)
+  return null
+}
+
 function BoardSpaceCell({
   spaceIndex,
   states,
   players,
   owners,
+  buildings,
+  mortgaged,
+  diceTotal,
   highlightIndex,
   edge,
+  myPlayerId,
 }: {
   spaceIndex: number
   states: MonopolyPlayerState[]
   players: Player[]
   owners: Record<string, string>
+  buildings: Record<string, number>
+  mortgaged: Record<string, boolean>
+  diceTotal: number
   highlightIndex?: number | null
   edge: ReturnType<typeof boardEdgeForSpace>
+  myPlayerId?: string | null
 }) {
   const space = spaceAt(spaceIndex)
   const ownerId = owners[String(spaceIndex)]
+  const ownerLabel = ownerId ? playerName(players, ownerId) : null
   const orderMap = playerOrderMap(states)
-  const tokens = states.filter((s) => !s.bankrupt && s.position === spaceIndex)
+  const tokens = playersOnSpace(states, spaceIndex)
   const highlighted = highlightIndex === spaceIndex
   const isCorner = edge === 'corner'
   const icon = spaceIcon(space.type)
   const lines = boardSpaceLines(space.name, space.type)
+  const rentLabel = boardTileRentLabel(space, ownerId, owners, buildings, mortgaged, diceTotal)
 
   return (
     <div
@@ -134,8 +284,22 @@ function BoardSpaceCell({
 
       <div className="flex flex-1 min-w-0 min-h-0 flex-col items-center justify-center gap-px p-0.5">
         {isCorner && icon && <span className="text-base sm:text-lg leading-none">{icon}</span>}
-        {!isCorner && space.price != null && !ownerId && (
-          <span className="text-[7px] sm:text-[8px] font-bold text-neutral-500 leading-none">£{space.price}</span>
+        {!isCorner && (space.price != null || rentLabel) && (
+          <div className="flex flex-col items-center gap-px leading-none">
+            {space.price != null && !ownerId && (
+              <span className="text-[7px] sm:text-[8px] font-bold text-neutral-500">£{space.price}</span>
+            )}
+            {rentLabel && (
+              <span
+                className={[
+                  'text-[6px] sm:text-[7px] font-bold tabular-nums',
+                  rentLabel === 'Mortgaged' ? 'text-red-600' : 'text-emerald-800',
+                ].join(' ')}
+              >
+                {rentLabel === 'Mortgaged' ? 'Mtg' : rentLabel}
+              </span>
+            )}
+          </div>
         )}
         <div className="flex flex-col items-center justify-center leading-[1.08] gap-px">
           {lines.map((line, i) => (
@@ -152,8 +316,9 @@ function BoardSpaceCell({
         </div>
       </div>
 
-      {ownerId && (
+      {ownerId && ownerLabel && (
         <div
+          title={`Owned by ${ownerLabel}`}
           className={[
             'absolute z-[1] rounded-sm px-0.5 py-px text-[6px] font-bold text-white leading-none max-w-[90%] truncate',
             tokenColorForOrder(orderMap.get(ownerId) ?? 0).bg,
@@ -164,9 +329,11 @@ function BoardSpaceCell({
             isCorner ? 'bottom-0.5 left-0.5 right-0.5' : '',
           ].join(' ')}
         >
-          {playerName(players, ownerId).slice(0, 6)}
+          {ownerLabel.slice(0, 6)}
         </div>
       )}
+
+      <BoardBuildingBadge spaceIndex={spaceIndex} buildings={buildings} edge={edge} />
 
       {tokens.length > 0 && (
         <div
@@ -181,18 +348,22 @@ function BoardSpaceCell({
         >
           {tokens.map((t) => {
             const c = tokenColorForOrder(t.player_order)
+            const emoji = playerTokenEmoji(players, t.player_id, t.player_order)
+            const isMe = myPlayerId != null && t.player_id === myPlayerId
             return (
               <span
                 key={t.player_id}
                 className={[
-                  'flex h-4 w-4 items-center justify-center rounded-full text-[7px] font-black ring-1',
+                  'flex items-center justify-center rounded-full shadow-md',
+                  isMe
+                    ? 'h-5 w-5 sm:h-6 sm:w-6 text-xs sm:text-sm ring-2 ring-amber-300 ring-offset-1 ring-offset-emerald-900 z-10 scale-110'
+                    : 'h-4 w-4 sm:h-5 sm:w-5 text-[10px] sm:text-xs ring-1',
                   c.bg,
                   c.ring,
-                  'text-white shadow-md',
                 ].join(' ')}
-                title={playerName(players, t.player_id)}
+                title={isMe ? `You (${playerName(players, t.player_id)})` : playerName(players, t.player_id)}
               >
-                {playerInitial(playerName(players, t.player_id))}
+                {emoji}
               </span>
             )
           })}
@@ -212,13 +383,21 @@ function BoardCellWrapper({
   states,
   players,
   owners,
+  buildings,
+  mortgaged,
+  diceTotal,
   highlightIndex,
+  myPlayerId,
 }: {
   spaceIndex: number
   states: MonopolyPlayerState[]
   players: Player[]
   owners: Record<string, string>
+  buildings: Record<string, number>
+  mortgaged: Record<string, boolean>
+  diceTotal: number
   highlightIndex?: number | null
+  myPlayerId?: string | null
 }) {
   return (
     <BoardSpaceCell
@@ -226,7 +405,11 @@ function BoardCellWrapper({
       states={states}
       players={players}
       owners={owners}
+      buildings={buildings}
+      mortgaged={mortgaged}
+      diceTotal={diceTotal}
       highlightIndex={highlightIndex}
+      myPlayerId={myPlayerId}
       edge={boardEdgeForSpace(spaceIndex)}
     />
   )
@@ -236,16 +419,36 @@ export function MonopolyClassicBoard({
   states,
   players,
   propertyOwners,
+  propertyBuildings,
+  mortgagedProperties,
+  lastDiceTotal = 2,
   highlightIndex,
+  myPlayerId,
   center,
 }: {
   states: MonopolyPlayerState[]
   players: Player[]
   propertyOwners: Record<string, string> | unknown
+  propertyBuildings?: unknown
+  mortgagedProperties?: unknown
+  lastDiceTotal?: number
   highlightIndex?: number | null
+  myPlayerId?: string | null
   center?: React.ReactNode
 }) {
-  const owners = parsePropertyOwners(propertyOwners)
+  const owners = effectivePropertyOwners(parsePropertyOwners(propertyOwners), states)
+  const buildings = parseBuildings(propertyBuildings)
+  const mortgaged = parseMortgaged(mortgagedProperties)
+  const cellProps = {
+    states,
+    players,
+    owners,
+    buildings,
+    mortgaged,
+    diceTotal: lastDiceTotal,
+    highlightIndex,
+    myPlayerId,
+  }
 
   return (
     <div className="mx-auto w-full max-w-[min(100vw-1rem,580px)]">
@@ -260,17 +463,17 @@ export function MonopolyClassicBoard({
           {/* Top row: Free Parking — properties — Go To Jail */}
           <div className="flex h-[13%] min-h-[44px] gap-0.5 sm:gap-1">
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={20} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={20} {...cellProps} />
             </div>
             <div className="flex flex-1 gap-0.5 sm:gap-1">
               {TOP_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-w-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={30} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={30} {...cellProps} />
             </div>
           </div>
 
@@ -279,7 +482,7 @@ export function MonopolyClassicBoard({
             <div className="flex w-[13%] min-w-[36px] shrink-0 flex-col gap-0.5 sm:gap-1">
               {LEFT_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-h-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
@@ -306,7 +509,7 @@ export function MonopolyClassicBoard({
             <div className="flex w-[13%] min-w-[36px] shrink-0 flex-col gap-0.5 sm:gap-1">
               {RIGHT_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-h-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
@@ -315,17 +518,17 @@ export function MonopolyClassicBoard({
           {/* Bottom row: Jail — properties — GO */}
           <div className="flex h-[13%] min-h-[44px] gap-0.5 sm:gap-1">
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={10} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={10} {...cellProps} />
             </div>
             <div className="flex flex-1 gap-0.5 sm:gap-1">
               {BOTTOM_SPACES.map((idx) => (
                 <div key={idx} className="flex-1 min-w-0">
-                  <BoardCellWrapper spaceIndex={idx} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+                  <BoardCellWrapper spaceIndex={idx} {...cellProps} />
                 </div>
               ))}
             </div>
             <div className="aspect-square h-full shrink-0">
-              <BoardCellWrapper spaceIndex={0} states={states} players={players} owners={owners} highlightIndex={highlightIndex} />
+              <BoardCellWrapper spaceIndex={0} {...cellProps} />
             </div>
           </div>
         </div>
@@ -337,12 +540,71 @@ export function MonopolyClassicBoard({
 export function MonopolyCurrentSpace({
   index,
   ownerName,
+  propertyOwners,
+  propertyBuildings,
+  mortgagedProperties,
+  lastDiceTotal = 2,
+  compact = false,
 }: {
   index: number
   ownerName?: string | null
+  propertyOwners?: unknown
+  propertyBuildings?: unknown
+  mortgagedProperties?: unknown
+  lastDiceTotal?: number
+  compact?: boolean
 }) {
   const space = spaceAt(index)
   const icon = spaceIcon(space.type)
+  const owners = parsePropertyOwners(propertyOwners)
+  const buildings = parseBuildings(propertyBuildings)
+  const mortgaged = parseMortgaged(mortgagedProperties)
+  const ownerId = owners[String(index)]
+  const rentLabel = boardTileRentLabel(space, ownerId, owners, buildings, mortgaged, lastDiceTotal)
+
+  const detailLine = (() => {
+    if (space.price != null) {
+      if (ownerName) {
+        if (rentLabel === 'Mortgaged') return `${ownerName} · Mortgaged`
+        if (rentLabel) return `${ownerName} · Rent ${rentLabel}`
+        return `Owned by ${ownerName}`
+      }
+      if (rentLabel) return `For sale · £${space.price} · Rent ${rentLabel}`
+      return `For sale · £${space.price}`
+    }
+    if (ownerName && rentLabel && rentLabel !== 'Mortgaged') return `${ownerName} · Rent ${rentLabel}`
+    if (ownerName) return `Owned by ${ownerName}`
+    if (rentLabel) return `Rent ${rentLabel}`
+    return null
+  })()
+
+  if (compact) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--card-strong)] shadow-[var(--card-shadow)] min-w-0 h-full flex flex-col">
+        {space.color ? (
+          <div className={['h-1.5 w-full', colorBar(space.color)].join(' ')} />
+        ) : (
+          <div className="h-1 w-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-strong)]" />
+        )}
+        <div className="flex flex-1 items-center gap-2.5 px-3 py-2 min-h-[3.25rem]">
+          {icon && (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-inset-bg)] text-lg">
+              {icon}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">
+              You landed on
+            </p>
+            <p className="text-sm font-black text-[var(--foreground)] truncate leading-tight mt-0.5">{space.name}</p>
+            {detailLine && (
+              <p className="text-[11px] text-muted truncate leading-snug mt-0.5">{detailLine}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--card-strong)] shadow-[var(--card-shadow)]">
@@ -368,13 +630,36 @@ export function MonopolyCurrentSpace({
                 {ownerName ? (
                   <>
                     Owned by <span className="font-bold text-[var(--foreground)]">{ownerName}</span>
-                    {space.rent != null ? ` · Rent £${space.rent}` : ''}
+                    {rentLabel && rentLabel !== 'Mortgaged' ? (
+                      <> · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                    ) : null}
+                    {rentLabel === 'Mortgaged' ? (
+                      <> · <span className="font-bold text-red-500">Mortgaged — no rent</span></>
+                    ) : null}
                   </>
                 ) : (
                   <>
                     For sale · <span className="font-bold text-[var(--marry)]">£{space.price}</span>
-                    {space.rent != null ? ` · Rent £${space.rent}` : ''}
+                    {rentLabel ? (
+                      <> · Site rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                    ) : null}
                   </>
+                )}
+              </p>
+            )}
+            {space.price == null && rentLabel && (
+              <p className="mt-2 text-sm text-muted">
+                {ownerName ? (
+                  <>
+                    Owned by <span className="font-bold text-[var(--foreground)]">{ownerName}</span>
+                    {rentLabel !== 'Mortgaged' ? (
+                      <> · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                    ) : (
+                      <> · <span className="font-bold text-red-500">Mortgaged</span></>
+                    )}
+                  </>
+                ) : (
+                  <>Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
                 )}
               </p>
             )}
@@ -418,7 +703,7 @@ export function MonopolyMyProperties({
                 <p className="text-sm font-bold text-[var(--foreground)] truncate">{space.name}</p>
                 <p className="text-[10px] text-faint">
                   £{space.price}
-                  {space.rent != null ? ` · Rent $${space.rent}` : ''}
+                  {space.rent != null ? ` · Rent ${formatMonopolyMoney(space.rent)}` : ''}
                 </p>
               </div>
             </div>
@@ -472,13 +757,12 @@ export function MonopolyPlayerList({
             >
               <span
                 className={[
-                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ring-2 shadow-lg',
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl ring-2 shadow-lg',
                   token.bg,
                   token.ring,
-                  'text-white',
                 ].join(' ')}
               >
-                {playerInitial(name)}
+                {playerTokenEmoji(players, state.player_id, state.player_order)}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">

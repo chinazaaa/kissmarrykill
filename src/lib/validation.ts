@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { LOBBY_LIMIT_GAME_TYPES } from '@/lib/game-limits'
+import { MONOPOLY_TOKEN_ID_LIST } from '@/lib/monopoly-tokens'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -43,6 +45,8 @@ const gameTypeEnum = z.enum([
   'smash_or_pass',
   'parent_approval',
   'would_you_rather',
+  'never_have_i_ever',
+  'pick_a_number',
   'this_or_that',
   'most_likely_to',
   'who_said_this',
@@ -56,6 +60,8 @@ const gameTypeEnum = z.enum([
   'two_truths',
   'monopoly',
   'yahtzee',
+  'whot',
+  'ludo',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -104,7 +110,7 @@ export const createGameSchema = z.object({
   wst_quote_source: wstQuoteSourceEnum.optional(),
   participant_filter: participantFilterEnum.optional(),
   gender_based: z.boolean().optional(),
-  max_players: z.coerce.number().int().min(2).max(100).optional(),
+  max_players: z.coerce.number().int().min(1).max(100).optional(),
   codewords_player_picks: z.boolean().optional(),
   codewords_late_join: z.boolean().optional(),
   allow_viewers: z.boolean().optional(),
@@ -114,6 +120,7 @@ export const createGameSchema = z.object({
   trivia_category: triviaCategoryEnum.optional(),
   bingo_call_mode: z.enum(['manual', 'auto']).optional(),
   bingo_call_interval_seconds: z.coerce.number().optional(),
+  game_duration_seconds: z.coerce.number().optional(),
   custom_slots: z
     .object({
       slots: z
@@ -174,6 +181,10 @@ export const hostActionSchema = z.object({
 })
 
 export type HostActionInput = z.infer<typeof hostActionSchema>
+
+export const monopolyExtendTimeSchema = hostActionSchema.extend({
+  extensionSeconds: z.coerce.number().int().positive(),
+})
 
 export const playAgainSchema = hostActionSchema.extend({
   custom_questions: z.array(z.unknown()).optional(),
@@ -244,10 +255,6 @@ export const deleteParticipantSchema = z.object({
 
 export type DeleteParticipantInput = z.infer<typeof deleteParticipantSchema>
 
-// ---------------------------------------------------------------------------
-// Players (POST /api/players)
-// ---------------------------------------------------------------------------
-
 export const createPlayerSchema = z.object({
   gameCode: gameCodeString(),
   playerName: sanitizedString(1, 50).nullish(),
@@ -256,6 +263,7 @@ export const createPlayerSchema = z.object({
   identityGender: participantGenderEnum.or(z.string()).nullish(),
   participantId: uuidString('participantId').nullish(),
   joinAsViewer: z.boolean().optional(),
+  monopolyToken: z.enum(MONOPOLY_TOKEN_ID_LIST as [string, ...string[]]).optional(),
 })
 
 export type CreatePlayerInput = z.infer<typeof createPlayerSchema>
@@ -317,6 +325,7 @@ export const createVoteSchema = z.object({
   targetParticipantId: z.string().optional().nullable(),
   animeChoice: z.string().max(200).optional().nullable(),
   customAssignments: z.record(z.string(), z.string()).optional().nullable(),
+  pickedNumber: z.number().int().min(1).max(100).optional().nullable(),
 })
 
 export type CreateVoteInput = z.infer<typeof createVoteSchema>
@@ -421,15 +430,7 @@ export const patchGamePlayerLimitsSchema = z.object({
   limits: z
     .array(
       z.object({
-        game_type: z.enum([
-          'anonymous_messages',
-          'bingo',
-          'codewords',
-          'trivia',
-          'two_truths',
-          'monopoly',
-          'yahtzee',
-        ]),
+        game_type: z.enum(LOBBY_LIMIT_GAME_TYPES),
         max_players: z.coerce.number().int().min(2).max(100),
       })
     )
@@ -513,18 +514,29 @@ export const monopolyMortgageSchema = monopolyActionSchema.extend({
   action: z.enum(['mortgage', 'unmortgage']),
 })
 
+import { normalizeTradePropertyList } from '@/lib/monopoly-trade-messages'
+
+const monopolyTradePropertyListSchema = z.preprocess(
+  (raw) => normalizeTradePropertyList(raw),
+  z.array(z.number().int().min(0).max(39))
+)
+
 export const monopolyTradeProposeSchema = monopolyActionSchema.extend({
   toPlayerId: uuidString('toPlayerId'),
   offerCash: z.number().int().min(0).default(0),
-  offerProperties: z.array(z.number().int().min(0).max(39)).default([]),
+  offerProperties: monopolyTradePropertyListSchema.default([]),
   offerGetOutCards: z.number().int().min(0).max(2).default(0),
   requestCash: z.number().int().min(0).default(0),
-  requestProperties: z.array(z.number().int().min(0).max(39)).default([]),
+  requestProperties: monopolyTradePropertyListSchema.default([]),
 })
 
 export const monopolyTradeRespondSchema = monopolyActionSchema.extend({
   accept: z.boolean(),
 })
+
+export const monopolyTradeCancelSchema = monopolyActionSchema
+
+export const monopolyTradeRepairSchema = monopolyActionSchema
 
 export type MonopolyActionInput = z.infer<typeof monopolyActionSchema>
 export type MonopolyBuyInput = z.infer<typeof monopolyBuySchema>
@@ -566,6 +578,47 @@ export const yahtzeeScoreSchema = yahtzeeRollSchema.extend({
 export type YahtzeeRollInput = z.infer<typeof yahtzeeRollSchema>
 export type YahtzeeHoldInput = z.infer<typeof yahtzeeHoldSchema>
 export type YahtzeeScoreInput = z.infer<typeof yahtzeeScoreSchema>
+
+// Whot (POST /api/whot/*)
+
+const whotShapeEnum = z.enum(['circle', 'cross', 'triangle', 'square', 'star', 'whot'])
+
+export const whotActionSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const whotPlaySchema = whotActionSchema.extend({
+  cardId: z.string().min(1),
+})
+
+export const whotDrawSchema = whotActionSchema
+
+export const whotChooseSchema = whotActionSchema.extend({
+  shape: whotShapeEnum.optional(),
+  number: z.coerce.number().int().min(1).max(14).optional(),
+})
+
+export type WhotPlayInput = z.infer<typeof whotPlaySchema>
+export type WhotDrawInput = z.infer<typeof whotDrawSchema>
+export type WhotChooseInput = z.infer<typeof whotChooseSchema>
+
+// Ludo (POST /api/ludo/*)
+
+export const ludoActionSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const ludoMoveSchema = ludoActionSchema.extend({
+  pieceId: z.coerce.number().int().min(0).max(3),
+})
+
+export const ludoExpireSchema = z.object({
+  gameId: gameCodeString(),
+})
+
+export type LudoMoveInput = z.infer<typeof ludoMoveSchema>
 
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
@@ -660,6 +713,7 @@ const feedbackGameTypeEnum = z.enum([
   'smash_or_pass',
   'parent_approval',
   'would_you_rather',
+  'never_have_i_ever',
   'this_or_that',
   'most_likely_to',
   'who_said_this',
@@ -673,6 +727,8 @@ const feedbackGameTypeEnum = z.enum([
   'two_truths',
   'monopoly',
   'yahtzee',
+  'whot',
+  'ludo',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])

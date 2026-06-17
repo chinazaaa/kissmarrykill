@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { hostActionSchema } from '@/lib/validation'
+import { finishMonopolyGameEarly } from '@/lib/monopoly'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
-import { parseGameType, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame } from '@/lib/game-types'
+import { markGameFinished } from '@/lib/game-finish'
+import { parseGameType, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame, isWhotGame, isLudoGame } from '@/lib/game-types'
+import { hostActionSchema } from '@/lib/validation'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -35,25 +37,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isBingoGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    const { error } = await markGameFinished(supabase, gameId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isCodewordsGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    const { error } = await markGameFinished(supabase, gameId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isMonopolyGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const { error } = await finishMonopolyGameEarly(supabase, gameId)
+    if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isYahtzeeGame(parseGameType(game.game_type))) {
-    const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+    const { error } = await markGameFinished(supabase, gameId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isWhotGame(parseGameType(game.game_type))) {
+    const { error } = await markGameFinished(supabase, gameId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isLudoGame(parseGameType(game.game_type))) {
+    const { error } = await markGameFinished(supabase, gameId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
@@ -84,7 +98,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Final round results are not ready yet' }, { status: 400 })
   }
 
-  const { error } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+  const { error } = await markGameFinished(supabase, gameId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ success: true })

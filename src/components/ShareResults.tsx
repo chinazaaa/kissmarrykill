@@ -13,6 +13,8 @@ import {
   isTriviaGame,
   isBingoGame,
   isYahtzeeGame,
+  isMonopolyGame,
+  isWhotGame,
 } from '@/lib/game-types'
 import { tallyTriviaPlayerScores } from '@/lib/trivia'
 import { totalScore } from '@/lib/yahtzee'
@@ -25,6 +27,9 @@ import { filterParticipantsInRounds } from '@/lib/utils'
 import { appDomain } from '@/lib/site'
 import { captureElementAsImage } from '@/lib/capture-element-image'
 import { shareImageBlob } from '@/lib/share-image'
+import type { MonopolyStanding } from '@/lib/monopoly'
+import { formatMonopolyMoney } from '@/lib/monopoly'
+import type { WhotStanding } from '@/lib/whot'
 
 function buildShareText({
   game,
@@ -36,6 +41,10 @@ function buildShareText({
   bingoWinnerName,
   yahtzeeScores,
   yahtzeeWinnerName,
+  monopolyStandings,
+  monopolyWinnerName,
+  whotStandings,
+  whotWinnerName,
 }: {
   game: Game
   participants: Participant[]
@@ -46,9 +55,48 @@ function buildShareText({
   bingoWinnerName?: string
   yahtzeeScores?: YahtzeePlayerScore[]
   yahtzeeWinnerName?: string
+  monopolyStandings?: MonopolyStanding[]
+  monopolyWinnerName?: string
+  whotStandings?: WhotStanding[]
+  whotWinnerName?: string
 }): string {
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
+
+  if (isWhotGame(gameType) && whotStandings && whotStandings.length > 0) {
+    const lines = [
+      config.headerEmoji,
+      game.title,
+      '',
+      whotWinnerName ? `🏆 ${whotWinnerName} wins!` : '🏆 Game over',
+      '',
+      'Final standings:',
+      ...whotStandings.slice(0, 8).map((row) => {
+        if (row.cardCount === 0) return `  ${row.rank}. ${row.name} — out of cards`
+        return `  ${row.rank}. ${row.name} — ${row.cardCount} cards (${row.handSum} pts)`
+      }),
+      '',
+      `Play at ${appDomain()}`,
+    ]
+    return lines.join('\n')
+  }
+
+  if (isMonopolyGame(gameType) && monopolyStandings && monopolyStandings.length > 0) {
+    const lines = [
+      config.headerEmoji,
+      game.title,
+      '',
+      monopolyWinnerName ? `🏆 ${monopolyWinnerName} wins!` : '🏆 Game over',
+      '',
+      'Final standings (total assets):',
+      ...monopolyStandings.slice(0, 8).map(
+        (row) => `  ${row.rank}. ${row.name} — ${formatMonopolyMoney(row.netWorth)}`
+      ),
+      '',
+      `Play at ${appDomain()}`,
+    ]
+    return lines.join('\n')
+  }
 
   if (isBingoGame(gameType) && bingoWinnerName) {
     return [
@@ -211,6 +259,10 @@ export function ShareResults({
   bingoWinnerName,
   yahtzeeScores,
   yahtzeeWinnerName,
+  monopolyStandings,
+  monopolyWinnerName,
+  whotStandings,
+  whotWinnerName,
 }: {
   captureRef?: RefObject<HTMLElement | null>
   game: Game
@@ -222,6 +274,10 @@ export function ShareResults({
   bingoWinnerName?: string
   yahtzeeScores?: YahtzeePlayerScore[]
   yahtzeeWinnerName?: string
+  monopolyStandings?: MonopolyStanding[]
+  monopolyWinnerName?: string
+  whotStandings?: WhotStanding[]
+  whotWinnerName?: string
 }) {
   const { success, error } = useToast()
   const [sharing, setSharing] = useState(false)
@@ -265,6 +321,10 @@ export function ShareResults({
         bingoWinnerName,
         yahtzeeScores,
         yahtzeeWinnerName,
+        monopolyStandings,
+        monopolyWinnerName,
+        whotStandings,
+        whotWinnerName,
       })
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
@@ -287,16 +347,20 @@ export function ShareResults({
 
       try {
         const text = buildShareText({
-        game,
-        participants,
-        votes,
-        rounds,
-        players,
-        triviaAnswers,
-        bingoWinnerName,
-        yahtzeeScores,
-        yahtzeeWinnerName,
-      })
+          game,
+          participants,
+          votes,
+          rounds,
+          players,
+          triviaAnswers,
+          bingoWinnerName,
+          yahtzeeScores,
+          yahtzeeWinnerName,
+          monopolyStandings,
+          monopolyWinnerName,
+          whotStandings,
+          whotWinnerName,
+        })
         await navigator.clipboard.writeText(text)
         success('Results copied to clipboard!')
       } catch {
@@ -306,7 +370,7 @@ export function ShareResults({
       sharingLock.current = false
       setSharing(false)
     }
-  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName, yahtzeeScores, yahtzeeWinnerName, success, error])
+  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName, yahtzeeScores, yahtzeeWinnerName, monopolyStandings, monopolyWinnerName, whotStandings, whotWinnerName, success, error])
 
   return (
     <button

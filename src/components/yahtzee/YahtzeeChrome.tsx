@@ -5,6 +5,7 @@ import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import { YahtzeeDiceRow } from '@/components/yahtzee/YahtzeeDice'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
+import { unlockAudio } from '@/lib/sounds'
 
 export function YahtzeeShell({
   children,
@@ -238,7 +239,10 @@ export function YahtzeeDiceTray({
 
         {canRoll && onRoll && (
           <YahtzeePrimaryButton
-            onClick={onRoll}
+            onClick={() => {
+              unlockAudio()
+              onRoll()
+            }}
             loading={rolling}
             compact
             className="shrink-0 !w-auto min-w-[5.5rem]"

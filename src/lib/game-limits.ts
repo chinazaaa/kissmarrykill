@@ -14,6 +14,8 @@ import {
   MONOPOLY_MIN_PLAYERS,
 } from '@/lib/monopoly'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS, YAHTZEE_MAX_PLAYERS, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
+import { WHOT_DEFAULT_MAX_PLAYERS, WHOT_MAX_PLAYERS, WHOT_MIN_PLAYERS } from '@/lib/whot'
+import { LUDO_DEFAULT_MAX_PLAYERS, LUDO_MAX_PLAYERS, LUDO_MIN_PLAYERS } from '@/lib/ludo'
 
 export const LOBBY_LIMIT_GAME_TYPES = [
   'anonymous_messages',
@@ -23,6 +25,8 @@ export const LOBBY_LIMIT_GAME_TYPES = [
   'two_truths',
   'monopoly',
   'yahtzee',
+  'whot',
+  'ludo',
 ] as const
 
 export type LobbyLimitGameType = (typeof LOBBY_LIMIT_GAME_TYPES)[number]
@@ -74,6 +78,16 @@ export const GAME_LIMIT_CODE_DEFAULTS: GamePlayerLimitsMap = {
     max: YAHTZEE_MAX_PLAYERS,
     default: YAHTZEE_DEFAULT_MAX_PLAYERS,
   },
+  whot: {
+    min: WHOT_MIN_PLAYERS,
+    max: WHOT_MAX_PLAYERS,
+    default: WHOT_DEFAULT_MAX_PLAYERS,
+  },
+  ludo: {
+    min: LUDO_MIN_PLAYERS,
+    max: LUDO_MAX_PLAYERS,
+    default: LUDO_DEFAULT_MAX_PLAYERS,
+  },
 }
 
 export function isLobbyLimitGameType(value: string): value is LobbyLimitGameType {
@@ -89,6 +103,8 @@ export function getCodeDefaultLimits(): GamePlayerLimitsMap {
     two_truths: { ...GAME_LIMIT_CODE_DEFAULTS.two_truths },
     monopoly: { ...GAME_LIMIT_CODE_DEFAULTS.monopoly },
     yahtzee: { ...GAME_LIMIT_CODE_DEFAULTS.yahtzee },
+    whot: { ...GAME_LIMIT_CODE_DEFAULTS.whot },
+    ludo: { ...GAME_LIMIT_CODE_DEFAULTS.ludo },
   }
 }
 

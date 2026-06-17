@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, type ReactNode } from 'react'
 import type { Game, Player } from '@/types'
 import { gameTypeConfig } from '@/lib/game-types'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
@@ -10,10 +10,12 @@ export function BingoFinalResultsShareBlock({
   game,
   players,
   winnerName,
+  playAgainButton,
 }: {
   game: Game
   players: Player[]
   winnerName: string
+  playAgainButton?: ReactNode
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
   const cfg = gameTypeConfig('bingo')
@@ -36,6 +38,7 @@ export function BingoFinalResultsShareBlock({
         players={players}
         bingoWinnerName={winnerName}
       />
+      {playAgainButton}
       <CreateNewGameButton />
     </div>
   )

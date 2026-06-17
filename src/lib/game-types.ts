@@ -211,6 +211,90 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  never_have_i_ever: {
+    id: 'never_have_i_ever',
+    label: 'Never Have I Ever',
+    tagline: 'Confess if you have — see who else has too',
+    headerEmoji: '🙈🍷',
+    card: {
+      accent: '#e879f9',
+      accentSoft: 'rgba(232, 121, 249, 0.15)',
+      emoji: '🙈',
+      players: '2+ players',
+      vibe: 'Spicy confessions',
+    },
+    slots: {
+      kiss: {
+        emoji: '✋',
+        label: 'I have',
+        color: '#e879f9',
+        leaderboardLabel: 'I have',
+        activeClass: 'bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-400',
+        borderClass: 'border-fuchsia-500/50 bg-fuchsia-500/10',
+        textColor: '#f0abfc',
+      },
+      marry: {
+        emoji: '🙅',
+        label: "I haven't",
+        color: '#94a3b8',
+        leaderboardLabel: "I haven't",
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+      kill: {
+        emoji: '🙅',
+        label: "I haven't",
+        color: '#94a3b8',
+        leaderboardLabel: "I haven't",
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+    },
+  },
+  pick_a_number: {
+    id: 'pick_a_number',
+    label: 'Pick a Number',
+    tagline: 'Pick a number — answer the hidden question it reveals',
+    headerEmoji: '🔢❓',
+    card: {
+      accent: '#8b5cf6',
+      accentSoft: 'rgba(139, 92, 246, 0.15)',
+      emoji: '🔢',
+      players: '2+ players',
+      vibe: 'Mystery questions',
+    },
+    slots: {
+      kiss: {
+        emoji: '🔢',
+        label: 'Pick',
+        color: '#8b5cf6',
+        leaderboardLabel: 'Picks',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+      marry: {
+        emoji: '❓',
+        label: 'Question',
+        color: '#94a3b8',
+        leaderboardLabel: 'Questions',
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+      kill: {
+        emoji: '❓',
+        label: 'Question',
+        color: '#94a3b8',
+        leaderboardLabel: 'Questions',
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+    },
+  },
   would_you_rather: {
     id: 'would_you_rather',
     label: 'Would You Rather',
@@ -772,7 +856,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       accent: '#f59e0b',
       accentSoft: 'rgba(245, 158, 11, 0.15)',
       emoji: '🎲',
-      players: '2–8 players',
+      players: '1–6 players',
       vibe: 'Dice strategy',
       featured: true,
     },
@@ -806,6 +890,92 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  whot: {
+    id: 'whot',
+    label: 'Whot',
+    tagline: 'Nigerian card classic — match shape or number, stack Pick 2 & Pick 3',
+    headerEmoji: '🃏🇳🇬',
+    card: {
+      accent: '#059669',
+      accentSoft: 'rgba(5, 150, 105, 0.15)',
+      emoji: '🃏',
+      players: '2–6 players',
+      vibe: 'Naija card night',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🃏',
+        label: 'Cards left',
+        color: '#059669',
+        leaderboardLabel: 'Fewest cards',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#6ee7b7',
+      },
+      marry: {
+        emoji: '2️⃣',
+        label: 'Pick 2',
+        color: '#f97316',
+        leaderboardLabel: 'Pick 2 plays',
+        activeClass: 'bg-orange-500/20 text-orange-100 border-orange-400',
+        borderClass: 'border-orange-500/50 bg-orange-500/10',
+        textColor: '#fdba74',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Winner',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winner',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
+  ludo: {
+    id: 'ludo',
+    label: 'Ludo',
+    tagline: 'Roll the die, race your pieces home — captures, blockades & extra turns on 6',
+    headerEmoji: '🎲🔴',
+    card: {
+      accent: '#dc2626',
+      accentSoft: 'rgba(220, 38, 38, 0.12)',
+      emoji: '🎲',
+      players: '2–4 players',
+      vibe: 'Board game classic',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🏠',
+        label: 'Pieces home',
+        color: '#22c55e',
+        leaderboardLabel: 'Most pieces home',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '🎯',
+        label: 'Captures',
+        color: '#f97316',
+        leaderboardLabel: 'Captures',
+        activeClass: 'bg-orange-500/20 text-orange-100 border-orange-400',
+        borderClass: 'border-orange-500/50 bg-orange-500/10',
+        textColor: '#fdba74',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Winner',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winner',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -824,6 +994,8 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'smash_or_pass',
   'parent_approval',
   'would_you_rather',
+  'never_have_i_ever',
+  'pick_a_number',
   'this_or_that',
   'most_likely_to',
   'who_said_this',
@@ -837,6 +1009,8 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'two_truths',
   'monopoly',
   'yahtzee',
+  'whot',
+  'ludo',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -844,6 +1018,8 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'smash_or_pass') return 'smash_or_pass'
   if (raw === 'parent_approval') return 'parent_approval'
   if (raw === 'would_you_rather') return 'would_you_rather'
+  if (raw === 'never_have_i_ever') return 'never_have_i_ever'
+  if (raw === 'pick_a_number') return 'pick_a_number'
   if (raw === 'this_or_that') return 'this_or_that'
   if (raw === 'most_likely_to') return 'most_likely_to'
   if (raw === 'who_said_this') return 'who_said_this'
@@ -857,6 +1033,8 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'two_truths') return 'two_truths'
   if (raw === 'monopoly') return 'monopoly'
   if (raw === 'yahtzee') return 'yahtzee'
+  if (raw === 'whot') return 'whot'
+  if (raw === 'ludo') return 'ludo'
   return 'smash_marry_kill'
 }
 
@@ -877,6 +1055,10 @@ export function gameHowItWorks(
       return "Upload everyone's names on the next step. Players claim their name when joining, then submit quotes and who said each one in the lobby. You can add host quotes too — each quote in the pool becomes a round."
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
+    case 'never_have_i_ever':
+      return 'Players join with any name — no list to set up. Each round shows a "Never have I ever…" prompt. Tap I have or I haven\'t — votes stay anonymous until reveal.'
+    case 'pick_a_number':
+      return 'Players join with any name. Set how many picking turns you want — pickers rotate through the group, independent of headcount. Pick a number from the hidden list and answer the question it reveals.'
     case 'this_or_that':
       return 'Upload your own “Coffee or Tea?” style prompts. Players join with any name — each round shows two options and everyone picks A or B. Votes stay anonymous.'
     case 'hot_seat':
@@ -899,6 +1081,10 @@ export function gameHowItWorks(
       return 'Players join with their name. Everyone starts on GO with £1,500. UK board — roll, buy or auction, build houses, mortgage, trade, and draw full Chance & Community Chest decks. Last player standing wins!'
     case 'yahtzee':
       return 'Players roll, hold dice, and choose a score category each turn. Build the best total across all combos.'
+    case 'whot':
+      return 'Players join with their name. Match the top card by shape or number — WHOT lets you call the next match. Pick 2 and Pick 3 stacks are separate. First to empty their hand wins — or lowest hand total when the game clock runs out.'
+    case 'ludo':
+      return 'Players join with their name. Roll a 6 to bring pieces onto the board, race clockwise around the track, capture opponents, and block with pairs. Exact rolls needed to enter home — first to finish all four pieces wins!'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -1084,6 +1270,14 @@ export function isWouldYouRather(gameType: GameType | string | undefined): boole
   return parseGameType(gameType) === 'would_you_rather'
 }
 
+export function isNeverHaveIEver(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'never_have_i_ever'
+}
+
+export function isPickANumber(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'pick_a_number'
+}
+
 export function isThisOrThat(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'this_or_that'
 }
@@ -1112,12 +1306,16 @@ export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): b
   const type = parseGameType(gameType)
   return (
     type === 'would_you_rather' ||
+    type === 'never_have_i_ever' ||
+    type === 'pick_a_number' ||
     type === 'this_or_that' ||
     type === 'most_likely_to' ||
     type === 'trivia' ||
     type === 'two_truths' ||
     type === 'monopoly' ||
-    type === 'yahtzee'
+    type === 'yahtzee' ||
+    type === 'whot' ||
+    type === 'ludo'
   )
 }
 
@@ -1148,7 +1346,14 @@ export function isPlayerOnlyJoinLobby(gameType: GameType | string | undefined, o
 /** WYR + This or That — forced joiners, no gender, always anonymous. */
 export function isLobbyGame(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'anonymous_messages' || type === 'secret_message'
+  return (
+    type === 'would_you_rather' ||
+    type === 'never_have_i_ever' ||
+    type === 'pick_a_number' ||
+    type === 'this_or_that' ||
+    type === 'anonymous_messages' ||
+    type === 'secret_message'
+  )
 }
 
 export function isAnonymousGame(gameType: GameType | string | undefined): boolean {
@@ -1195,6 +1400,14 @@ export function isYahtzeeGame(gameType: GameType | string | undefined): boolean 
   return parseGameType(gameType) === 'yahtzee'
 }
 
+export function isWhotGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'whot'
+}
+
+export function isLudoGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'ludo'
+}
+
 /** Anonymous room or host-only secret message inbox — shared message storage. */
 export function isMessageInboxGame(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
@@ -1208,6 +1421,8 @@ export function isAutoNameJoinGame(gameType: GameType | string | undefined): boo
 
 export function roundPoolSize(gameType: GameType | string | undefined): 1 | 2 | 3 {
   if (isUnaryPollGame(gameType)) return 1
+  if (isNeverHaveIEver(gameType)) return 2
+  if (isPickANumber(gameType)) return 2
   if (isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType) || isWhoSaidThis(gameType)) return 2
   return isPairGame(gameType) ? 2 : 3
 }

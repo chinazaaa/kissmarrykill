@@ -1,7 +1,7 @@
 import type { Player } from '@/types'
 import { participantsWhoJoined } from '@/lib/participants'
 
-export const HOT_SEAT_MIN_PLAYERS = 3
+export const HOT_SEAT_MIN_PLAYERS = 2
 /** Hard ceiling — actual max in lobby is min(this, joined player count). */
 export const HOT_SEAT_MAX_ROUNDS_CAP = 100
 

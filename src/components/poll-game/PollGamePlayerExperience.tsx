@@ -56,6 +56,8 @@ import {
   isBinaryPeoplePollGame,
   isUnaryPollGame,
   isWouldYouRather,
+  isNeverHaveIEver,
+  isPickANumber,
   isThisOrThat,
   isBinaryChoiceGame,
   isMostLikelyTo,
@@ -78,6 +80,8 @@ import {
   isTwoTruthsGame,
   isMonopolyGame,
   isYahtzeeGame,
+  isWhotGame,
+  isLudoGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
@@ -87,6 +91,8 @@ import { TwoTruthsPlayerView } from '@/components/two-truths/TwoTruthsPlayerView
 import { CodewordsPlayerView } from '@/components/codewords/CodewordsPlayerView'
 import { MonopolyPlayerView } from '@/components/monopoly/MonopolyPlayerView'
 import { YahtzeePlayerView } from '@/components/yahtzee/YahtzeePlayerView'
+import { WhotPlayerView } from '@/components/whot/WhotPlayerView'
+import { LudoPlayerView } from '@/components/ludo/LudoPlayerView'
 import {
   ParticipantRoundResults,
   VoteCountStat,
@@ -182,6 +188,8 @@ import {
 import { useRoundTimer } from '@/hooks/useRoundTimer'
 import { useAutoSubmit } from '@/hooks/useAutoSubmit'
 import { HOT_SEAT_SUBMISSION_TYPES, hotSeatPlayerDisplayName } from '@/lib/hot-seat'
+import { pickANumberPoolSize, panRoundRevealed } from '@/lib/pick-a-number'
+import { PanRoundResults } from '@/components/game/PanRoundResults'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
 import {
   finalResultsAutoRevealSeconds,
@@ -244,6 +252,7 @@ export function PollGamePlayerExperience({
   const [assignment, setAssignment] = useState<VoteAssignment>(emptyAssignment())
   const [pairAssignment, setPairAssignment] = useState<PairAssignmentMap>({})
   const [wyrChoice, setWyrChoice] = useState<WyrChoice | null>(null)
+  const [pickedNumber, setPickedNumber] = useState<number | null>(null)
   const [mltTargetPlayerId, setMltTargetPlayerId] = useState<string | null>(null)
   const [animeChoice, setAnimeChoice] = useState<string | null>(null)
   const [quoteInput, setQuoteInput] = useState('')
@@ -348,6 +357,8 @@ export function PollGamePlayerExperience({
   const isWstGame = isWhoSaidThis(game?.game_type)
   const isWyrGame = isWouldYouRather(game?.game_type)
   const isTotGame = isThisOrThat(game?.game_type)
+  const isNhieGame = isNeverHaveIEver(game?.game_type)
+  const isPanGame = isPickANumber(game?.game_type)
   const isBinaryGame = isBinaryChoiceGame(game?.game_type)
   const { context: lateJoinContext, loading: lateJoinContextLoading } = useLateJoinContext(
     gameCode,
@@ -448,6 +459,7 @@ export function PollGamePlayerExperience({
     myPlayerIdRef,
     myPlayerGenderRef,
     submittedRef,
+    pickedNumberRef,
   } = autoSubmitRefs
 
   // Sync state → refs so auto-submit reads current values
@@ -457,6 +469,7 @@ export function PollGamePlayerExperience({
   wyrChoiceRef.current = wyrChoice
   autoMltRef.current = mltTargetPlayerId
   animeChoiceRef.current = animeChoice
+  pickedNumberRef.current = pickedNumber
   playersRef.current = players
   currentRoundRef.current = currentRound
   gameRef.current = game
@@ -520,6 +533,10 @@ export function PollGamePlayerExperience({
                 const gameType = parseGameType(gameData.game_type)
                 if (isBinaryChoiceGame(gameType)) {
                   setWyrChoice(existingVote.wyr_choice)
+                } else if (isNeverHaveIEver(gameType)) {
+                  setWyrChoice(existingVote.wyr_choice)
+                } else if (isPickANumber(gameType)) {
+                  setPickedNumber(existingVote.picked_number ?? null)
                 } else if (isMostLikelyTo(gameType)) {
                   const targetId = isMltImportGame(gameData)
                     ? existingVote.target_participant_id
@@ -646,6 +663,7 @@ export function PollGamePlayerExperience({
     setAssignment(emptyAssignment())
     setPairAssignment({})
     setWyrChoice(null)
+    setPickedNumber(null)
     setMltTargetPlayerId(null)
     setCustomAssignments({})
     setAnimeChoice(null)
@@ -743,6 +761,15 @@ export function PollGamePlayerExperience({
         if (round.status === 'active') {
           const priorId = roundFormIdRef.current
           applyActiveRound(round, { switchView: priorId !== round.id })
+          if (isPickANumber(parseGameType(gameRef.current?.game_type)) && panRoundRevealed(round) && round.submitter_player_id) {
+            const { data: pickerVote } = await supabase
+              .from('votes')
+              .select('picked_number')
+              .eq('round_id', round.id)
+              .eq('player_id', round.submitter_player_id)
+              .maybeSingle()
+            if (pickerVote?.picked_number) setPickedNumber(pickerVote.picked_number)
+          }
         }
         if (round.status === 'finished') {
           const [{ data: rv }, { data: rc }] = await Promise.all([
@@ -869,7 +896,7 @@ export function PollGamePlayerExperience({
       enabled:
         view === 'waiting' &&
         !!game &&
-        (isBinaryGame || isMostLikelyTo(game.game_type)) &&
+        (isBinaryGame || isNhieGame || isMostLikelyTo(game.game_type)) &&
         lobbyAllowsPlayerQuestions(game),
     }
   )
@@ -979,6 +1006,8 @@ export function PollGamePlayerExperience({
       const playerGender = myPlayerGenderRef.current ?? getPlayerSession(gameCode)?.playerGender ?? null
       const r = currentRoundRef.current
       const isWstRound = isWhoSaidThis(gameType)
+      const isPanRound = isPickANumber(gameType)
+      const isPanPicker = isPanRound && r?.submitter_player_id === myPlayerIdRef.current
       const isSubmitter = isWstRound && r?.submitter_player_id === myPlayerIdRef.current
       const genderFreeVoting = !!gameRef.current && isGenderFreeVoting(gameRef.current)
       const canVote = isWstRound
@@ -987,11 +1016,15 @@ export function PollGamePlayerExperience({
           ? !!myPlayerIdRef.current
           : !!roundGender && !!playerGender && canPlayerVoteInRound(playerGender, roundGender)
 
-      if (canVote) {
-        void triggerAutoSubmit().then((didSubmit) => {
-          if (didSubmit) {
+      if (canVote && (!isPanRound || isPanPicker)) {
+        void triggerAutoSubmit().then((result) => {
+          if (result.submitted) {
             submittedRef.current = true
             setSubmitted(true)
+            if (result.revealedQuestion && currentRoundRef.current) {
+              setCurrentRound({ ...currentRoundRef.current, mlt_question: result.revealedQuestion })
+            }
+            if (typeof result.pickedNumber === 'number') setPickedNumber(result.pickedNumber)
             playVoteSubmittedSound()
           }
         })
@@ -1000,6 +1033,25 @@ export function PollGamePlayerExperience({
   })
 
   useTimerTickSound(timeLeft, view === 'round')
+
+  useEffect(() => {
+    if (!isPanGame || view !== 'round' || !currentRound?.id || !panRoundRevealed(currentRound)) return
+    const pickerId = currentRound.submitter_player_id
+    if (!pickerId || pickedNumber !== null) return
+    let cancelled = false
+    void supabase
+      .from('votes')
+      .select('picked_number')
+      .eq('round_id', currentRound.id)
+      .eq('player_id', pickerId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.picked_number) setPickedNumber(data.picked_number)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isPanGame, view, currentRound?.id, currentRound?.mlt_question, currentRound?.submitter_player_id, pickedNumber])
 
   // ── Apply theme CSS variables (same as host page) ─────────────────────────
   useEffect(() => {
@@ -1130,9 +1182,11 @@ export function PollGamePlayerExperience({
       const customMode = customAssignmentMode(game, roundIds.length, slotKeys)
       if (!isCustomAssignmentValid(customAssignments, roundIds, slotKeys, customMode)) return
     }
-    const voteBody = isBinaryChoiceGame(submitGameType)
+    const voteBody = isBinaryChoiceGame(submitGameType) || isNeverHaveIEver(submitGameType)
       ? { wyrChoice }
-      : isMostLikelyTo(submitGameType)
+      : isPickANumber(submitGameType)
+        ? { pickedNumber }
+        : isMostLikelyTo(submitGameType)
         ? isMltImportGame(game!)
           ? { targetParticipantId: mltTargetPlayerId }
           : { targetPlayerId: mltTargetPlayerId }
@@ -1170,6 +1224,10 @@ export function PollGamePlayerExperience({
       if (!res.ok) {
         toast.error(typeof data.error === 'string' ? data.error : 'Failed to submit vote')
         return
+      }
+      if (isPickANumber(submitGameType) && data.revealedQuestion && currentRound) {
+        setCurrentRound({ ...currentRound, mlt_question: data.revealedQuestion })
+        if (typeof data.pickedNumber === 'number') setPickedNumber(data.pickedNumber)
       }
       submittedRef.current = true
       setSubmitted(true)
@@ -1360,6 +1418,12 @@ export function PollGamePlayerExperience({
   if (game && isYahtzeeGame(game.game_type)) {
     return <YahtzeePlayerView gameCode={gameCode} />
   }
+  if (game && isWhotGame(game.game_type)) {
+    return <WhotPlayerView gameCode={gameCode} />
+  }
+  if (game && isLudoGame(game.game_type)) {
+    return <LudoPlayerView gameCode={gameCode} />
+  }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />
   }
@@ -1440,6 +1504,7 @@ export function PollGamePlayerExperience({
             />
           )}
           {!isBinaryChoiceGame(game?.game_type) &&
+            !isNeverHaveIEver(game?.game_type) &&
             !isMostLikelyTo(game?.game_type) &&
             !isWhoSaidThis(game?.game_type) && (
               <p className="text-faint text-xs text-center leading-snug">
@@ -1527,7 +1592,7 @@ export function PollGamePlayerExperience({
       isWst && myPlayerId ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at)) : []
     const canSubmitPoolQuote = !!me?.participant_id
     const isPeopleMode =
-      !isBinaryChoiceGame(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly
+      !isBinaryChoiceGame(game?.game_type) && !isNeverHaveIEver(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly
     const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
     const canUploadPhoto = isPeopleMode && !!me?.participant_id
 
@@ -1816,7 +1881,7 @@ export function PollGamePlayerExperience({
           </div>
         </div>
         {/* Player question submission for WYR / MLT */}
-        {game && (isBinaryGame || isMostLikelyTo(game.game_type)) && lobbyAllowsPlayerQuestions(game) && myPlayerId && (
+        {game && (isBinaryGame || isNhieGame || isPanGame || isMostLikelyTo(game.game_type)) && lobbyAllowsPlayerQuestions(game) && myPlayerId && (
           <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">
             <button
               type="button"
@@ -2149,7 +2214,7 @@ export function PollGamePlayerExperience({
         )}
 
         {/* Participant gallery for games with photo cards */}
-        {participants.length > 0 && !isBinaryGame && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly && (
+        {participants.length > 0 && !isBinaryGame && !isNhieGame && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly && (
           <ParticipantGallery participants={participants} />
         )}
 
@@ -2403,6 +2468,187 @@ export function PollGamePlayerExperience({
             <p className="text-muted text-sm mt-0.5">Results will show when the round ends</p>
           </div>
         )}
+      </div>
+    )
+  }
+
+  // ROUND — Never Have I Ever
+  if (view === 'round' && currentRound && isNhieGame) {
+    const gameType = parseGameType(game?.game_type)
+    const statement = currentRound.mlt_question ?? ''
+    const canVote = !!myPlayerId && !isViewer
+    const borderCls =
+      wyrChoice === 'a'
+        ? 'border-fuchsia-500/40'
+        : wyrChoice === 'b'
+          ? 'border-sky-500/40'
+          : 'border-theme'
+
+    return (
+      <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
+        {sessionBar}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-muted text-xs uppercase tracking-wider">{game?.title}</p>
+            <GameTypeBadge gameType={gameType} className="mt-1 mb-1" />
+            <p className="font-black text-body text-2xl">
+              Round {currentRound.round_number}
+              <span className="text-faint font-normal text-base"> / {game?.rounds_count}</span>
+            </p>
+          </div>
+          {canVote ? <TimerDisplay seconds={timeLeft} total={game?.timer_seconds ?? 30} /> : null}
+        </div>
+
+        <div className={`glass-card border-2 ${borderCls} rounded-2xl p-5 mb-6 flex-1`}>
+          <p className="text-muted text-xs uppercase tracking-wider text-center mb-3">Never have I ever…</p>
+          <p className="text-xl font-semibold text-body text-center leading-snug mb-5">{statement}</p>
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={submitted || !canVote}
+              onClick={() => canVote && !submitted && setWyrChoice('a')}
+              className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
+                wyrChoice === 'a'
+                  ? 'border-fuchsia-400 bg-fuchsia-500/15 ring-2 ring-fuchsia-400/25'
+                  : 'border-theme surface-inset hover:border-theme-strong'
+              } disabled:cursor-not-allowed`}
+            >
+              <p className="text-base font-semibold text-body leading-snug">✋ I have</p>
+            </button>
+            <button
+              type="button"
+              disabled={submitted || !canVote}
+              onClick={() => canVote && !submitted && setWyrChoice('b')}
+              className={`w-full text-left rounded-2xl border p-4 transition-all active:scale-[0.99] ${
+                wyrChoice === 'b'
+                  ? 'border-sky-400 bg-sky-500/15 ring-2 ring-sky-400/25'
+                  : 'border-theme surface-inset hover:border-theme-strong'
+              } disabled:cursor-not-allowed`}
+            >
+              <p className="text-base font-semibold text-body leading-snug">🙅 I haven&apos;t</p>
+            </button>
+          </div>
+        </div>
+
+        {!submitted ? (
+          <button
+            onClick={handleSubmit}
+            disabled={!wyrChoice}
+            className={wyrChoice ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}
+          >
+            {wyrChoice ? 'Submit Vote ✓' : 'Pick one option'}
+          </button>
+        ) : (
+          <div className="w-full py-4 rounded-2xl glass-card border border-emerald-500/30 text-center">
+            <p className="text-green-400 font-semibold">✓ Vote submitted!</p>
+            <p className="text-muted text-sm mt-0.5">Results will show when the round ends</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ROUND — Pick a Number
+  if (view === 'round' && currentRound && isPanGame && game) {
+    const pickerId = currentRound.submitter_player_id
+    const isPicker = myPlayerId === pickerId
+    const pickerName = hotSeatPlayerDisplayName(pickerId, players, participants)
+    const poolSize = pickANumberPoolSize(game)
+    const revealed = panRoundRevealed(currentRound)
+    const timedOut = timeLeft === 0 && !revealed && !submitted
+    const canPick = isPicker && !isViewer && !submitted && !revealed && !timedOut
+
+    return (
+      <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
+        {sessionBar}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-muted text-xs uppercase tracking-wider">{game.title}</p>
+            <GameTypeBadge gameType={game.game_type} className="mt-1 mb-1" />
+            <p className="font-black text-body text-2xl">
+              Round {currentRound.round_number}
+              <span className="text-faint font-normal text-base"> / {game.rounds_count}</span>
+            </p>
+          </div>
+          {isPicker ? <TimerDisplay seconds={timeLeft} total={game.timer_seconds ?? 30} /> : null}
+        </div>
+
+        <div className="glass-card border-2 border-violet-500/35 rounded-2xl p-5 mb-6">
+          <div className="text-center mb-4">
+            <div className="text-4xl mb-2">🔢❓</div>
+            <p className="text-violet-600 dark:text-violet-400 text-xs uppercase tracking-wider mb-1">Picker this round</p>
+            <p className="text-2xl font-black text-body">{isPicker ? 'YOU' : pickerName}</p>
+          </div>
+
+          {revealed && currentRound.mlt_question ? (
+            <PanRoundResults
+              pickerName={isPicker ? 'You' : pickerName}
+              pickedNumber={pickedNumber}
+              question={currentRound.mlt_question}
+            />
+          ) : timedOut ? (
+            <div className="text-center py-6">
+              <p className="text-amber-600 dark:text-amber-400 font-semibold text-lg">Time&apos;s up!</p>
+              <p className="text-muted text-sm mt-2">
+                {isPicker
+                  ? poolSize > 0
+                    ? 'Locking in a random number…'
+                    : 'Could not load the question list — ask the host to advance'
+                  : `Waiting for ${pickerName} — the host will advance the round`}
+              </p>
+            </div>
+          ) : isPicker ? (
+            <>
+              <p className="text-center text-body font-medium mb-1">
+                Pick a number between 1 and {poolSize}
+              </p>
+              <p className="text-center text-faint text-sm mb-4">Questions stay hidden until you choose</p>
+              <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
+                {Array.from({ length: poolSize }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={!canPick}
+                    onClick={() => canPick && setPickedNumber(n)}
+                    className={`aspect-square rounded-xl border text-lg font-bold transition-all active:scale-95 ${
+                      pickedNumber === n
+                        ? 'border-violet-500 bg-violet-500/15 text-violet-900 dark:text-violet-100 ring-2 ring-violet-400/30'
+                        : 'border-theme surface-inset text-body hover:border-violet-400/50'
+                    } disabled:cursor-not-allowed`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-muted text-lg">Waiting for {pickerName} to pick a number…</p>
+              <p className="text-faint text-sm mt-2">The question list is hidden from everyone</p>
+            </div>
+          )}
+        </div>
+
+        {revealed ? (
+          <div className="glass-card border border-emerald-500/30 px-4 py-4 text-center mb-4">
+            <p className="text-green-400 font-semibold">
+              {isPicker ? 'Your turn — answer out loud!' : `${pickerName} — answer out loud!`}
+            </p>
+            <p className="text-faint text-sm mt-1">The host will advance when they&apos;re done</p>
+          </div>
+        ) : isPicker && submitted ? (
+          <div className="w-full py-4 rounded-2xl glass-card border border-emerald-500/30 text-center">
+            <p className="text-green-400 font-semibold">✓ Number locked in!</p>
+          </div>
+        ) : timedOut ? null : isPicker ? (
+          <button
+            onClick={handleSubmit}
+            disabled={!pickedNumber}
+            className={pickedNumber ? 'btn-primary' : 'btn-secondary opacity-60 cursor-not-allowed'}
+          >
+            {pickedNumber ? `Lock in #${pickedNumber} ✓` : 'Pick a number first'}
+          </button>
+        ) : null}
       </div>
     )
   }
@@ -2777,6 +3023,104 @@ export function PollGamePlayerExperience({
             <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
           </RoundResultsShareBlock>
 
+          <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
+          <p className="text-faint text-sm text-center">
+            {roundResultsWaitMessage({
+              isLastRound,
+              autoReveal: !!game?.auto_reveal,
+              nextRoundSecondsLeft: nextRoundCountdown,
+              finalRevealSecondsLeft: finalRevealCountdown,
+            })}
+          </p>
+        </div>
+      )
+    }
+
+    if (isNeverHaveIEver(gameType)) {
+      const myVote = lastRoundVotes.find((v) => v.player_id === myPlayerId)
+      const { countA, countB, voterCount } = tallyWyrVotes(lastRoundVotes)
+      const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
+
+      return (
+        <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+          {sessionBar}
+          <div className="text-center">
+            <p className="text-muted text-xs uppercase tracking-wider">
+              Round {lastFinishedRound.round_number} of {game?.rounds_count}
+            </p>
+            <GameTypeBadge gameType={gameType} className="mt-2" />
+            <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🙈</h2>
+          </div>
+          <RoundResultsShareBlock
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          >
+            <WyrRoundResults
+              optionA={lastFinishedRound.mlt_question ?? ''}
+              optionB=""
+              countA={countA}
+              countB={countB}
+              voterCount={voterCount}
+              myChoice={myVote?.wyr_choice ?? null}
+              mode="nhie"
+            />
+          </RoundResultsShareBlock>
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+          <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
+          <p className="text-faint text-sm text-center">
+            {roundResultsWaitMessage({
+              isLastRound,
+              autoReveal: !!game?.auto_reveal,
+              nextRoundSecondsLeft: nextRoundCountdown,
+              finalRevealSecondsLeft: finalRevealCountdown,
+            })}
+          </p>
+        </div>
+      )
+    }
+
+    if (isPickANumber(gameType)) {
+      const pickerId = lastFinishedRound.submitter_player_id
+      const pickerVote = lastRoundVotes.find((v) => v.player_id === pickerId)
+      const pickerName = hotSeatPlayerDisplayName(pickerId, players, participants)
+      const isLastRound = lastFinishedRound.round_number >= (game?.rounds_count ?? 0)
+      const revealed = panRoundRevealed(lastFinishedRound)
+
+      return (
+        <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
+          {sessionBar}
+          <div className="text-center">
+            <p className="text-muted text-xs uppercase tracking-wider">
+              Round {lastFinishedRound.round_number} of {game?.rounds_count}
+            </p>
+            <GameTypeBadge gameType={gameType} className="mt-2" />
+            <h2 className="text-2xl font-black tracking-tight mt-2">
+              {revealed ? 'Question revealed! 🔢' : 'Time ran out ⏱️'}
+            </h2>
+          </div>
+          <RoundResultsShareBlock
+            game={game!}
+            round={lastFinishedRound}
+            votes={lastRoundVotes}
+            participants={participants}
+            players={players}
+          >
+            {revealed ? (
+              <PanRoundResults
+                pickerName={pickerName}
+                pickedNumber={pickerVote?.picked_number}
+                question={lastFinishedRound.mlt_question ?? ''}
+              />
+            ) : (
+              <p className="text-muted text-center">
+                {pickerName} didn&apos;t pick a number before time ran out.
+              </p>
+            )}
+          </RoundResultsShareBlock>
+          <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
           <ReactionBar className="pt-1" gameCode={gameCode} playerId={myPlayerId} />
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
@@ -3244,11 +3588,13 @@ function FinalResultsView({
   const gameType = parseGameType(game.game_type)
   const playedParticipants = filterParticipantsInRounds(participants, rounds)
   const isBinaryGameType = isBinaryChoiceGame(gameType)
+  const isNhie = isNeverHaveIEver(gameType)
+  const isPan = isPickANumber(gameType)
   const isMlt = isMostLikelyTo(gameType)
   const isWst = isWhoSaidThis(gameType)
   const isHotSeatGame = isHotSeat(gameType)
   const isMltImport = isMltImportGame(game)
-  const showPollLeaderboards = !isBinaryGameType && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
+  const showPollLeaderboards = !isBinaryGameType && !isNhie && !isPan && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
   const genderBasedLeaderboards = showPollLeaderboards && isGameGenderBased(game)
   const namesOnlyLeaderboards = showPollLeaderboards && isGenderFreeVoting(game)
   const wstScores = isWst ? tallyWstPlayerScores(rounds, votes, players) : []
@@ -3262,7 +3608,7 @@ function FinalResultsView({
     genderBasedLeaderboards ||
     namesOnlyLeaderboards
   const showFinalShareResults =
-    !isThisOrThat(gameType) && !isWouldYouRather(gameType) && !isMlt && !isHotSeatGame
+    !isThisOrThat(gameType) && !isWouldYouRather(gameType) && !isNhie && !isPan && !isMlt && !isHotSeatGame
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
@@ -3400,6 +3746,31 @@ function FinalResultsView({
             })}
           </div>
         </div>
+      ) : isPan ? (
+        <div>
+          <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>
+          <div className="space-y-8">
+            {rounds.map((round) => {
+              const pickerName = hotSeatPlayerDisplayName(round.submitter_player_id, players, participants)
+              const roundVotes = votes.filter((v) => v.round_id === round.id)
+              const pickerVote = roundVotes.find((v) => v.player_id === round.submitter_player_id)
+              return (
+                <div key={round.id}>
+                  <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                  {pickerVote?.picked_number && panRoundRevealed(round) ? (
+                    <PanRoundResults
+                      pickerName={pickerName}
+                      pickedNumber={pickerVote.picked_number}
+                      question={round.mlt_question ?? ''}
+                    />
+                  ) : (
+                    <p className="text-muted text-center">No number picked this round</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       ) : (
         <div>
           <h2 className="text-muted text-xs uppercase tracking-wider mb-4">All round results</h2>
@@ -3418,6 +3789,24 @@ function FinalResultsView({
                   <div key={round.id}>
                     <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
                     <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
+                  </div>
+                )
+              }
+
+              if (isNhie) {
+                const { countA, countB, voterCount } = tallyWyrVotes(roundVotes)
+                return (
+                  <div key={round.id}>
+                    <h2 className="text-muted text-xs uppercase tracking-wider mb-3">Round {round.round_number}</h2>
+                    <WyrRoundResults
+                      optionA={round.mlt_question ?? ''}
+                      optionB=""
+                      countA={countA}
+                      countB={countB}
+                      voterCount={voterCount}
+                      myChoice={myVote?.wyr_choice ?? null}
+                      mode="nhie"
+                    />
                   </div>
                 )
               }
