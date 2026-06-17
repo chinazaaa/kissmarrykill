@@ -71,7 +71,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
         leaderboardLabel: 'Most Married',
         activeClass: 'bg-[var(--marry)]/20 text-amber-800 border-[var(--marry)] dark:text-amber-100',
         borderClass: 'border-[var(--marry)]/50 bg-[var(--marry)]/10',
-        textColor: '#b45309',
+        textColor: 'var(--slot-marry-text)',
       },
       kill: {
         emoji: '💀',
@@ -169,6 +169,48 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  parent_approval: {
+    id: 'parent_approval',
+    label: 'Date My Kid',
+    tagline: 'Would you let your son or daughter date or marry this person?',
+    headerEmoji: '👨‍👩‍👧💍',
+    card: {
+      accent: '#ec4899',
+      accentSoft: 'rgba(236, 72, 153, 0.15)',
+      emoji: '👨‍👩‍👧',
+      players: '3+ players',
+      vibe: 'Parental judgment',
+    },
+    slots: {
+      kiss: {
+        emoji: '✅',
+        label: 'Yes',
+        color: '#22c55e',
+        leaderboardLabel: 'Most Approved',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '⚪',
+        label: 'Pass',
+        color: '#94a3b8',
+        leaderboardLabel: 'Most Passed',
+        activeClass: 'chip-active',
+        borderClass: 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
+        textColor: '#cbd5e1',
+      },
+      kill: {
+        emoji: '❌',
+        label: 'No',
+        color: '#ef4444',
+        leaderboardLabel: 'Most Rejected',
+        activeClass: 'bg-red-500/20 text-red-200 border-red-400',
+        borderClass: 'border-red-500/50 bg-red-500/10',
+        textColor: '#fca5a5',
+      },
+    },
+  },
   would_you_rather: {
     id: 'would_you_rather',
     label: 'Would You Rather',
@@ -180,7 +222,6 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🤔',
       players: '2+ players',
       vibe: 'Anonymous fun',
-      featured: true,
     },
     slots: {
       kiss: {
@@ -223,6 +264,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '↔️',
       players: '2+ players',
       vibe: 'Quick picks',
+      featured: true,
     },
     slots: {
       kiss: {
@@ -265,7 +307,6 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🎯',
       players: '3+ players',
       vibe: 'Call out friends',
-      featured: true,
     },
     slots: {
       kiss: {
@@ -300,7 +341,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
   who_said_this: {
     id: 'who_said_this',
     label: 'Who Said This',
-    tagline: 'Submit quotes in the lobby — everyone guesses who said it',
+    tagline: 'Submit multiple quotes in the lobby — everyone guesses who said each one',
     headerEmoji: '💬🕵️',
     card: {
       accent: '#14b8a6',
@@ -434,6 +475,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🎭',
       players: '2+ players',
       vibe: 'Anonymous chat',
+      featured: true,
     },
     slots: {
       kiss: {
@@ -465,12 +507,322 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  secret_message: {
+    id: 'secret_message',
+    label: 'Secret Message',
+    tagline: 'Share a link — only you see what people send',
+    headerEmoji: '💌✨',
+    card: {
+      accent: '#ec4899',
+      accentSoft: 'rgba(236, 72, 153, 0.15)',
+      emoji: '💌',
+      players: 'Unlimited senders',
+      vibe: 'Private inbox',
+    },
+    slots: {
+      kiss: {
+        emoji: '💌',
+        label: 'Message',
+        color: '#ec4899',
+        leaderboardLabel: 'Messages',
+        activeClass: 'bg-pink-500/20 text-pink-100 border-pink-400',
+        borderClass: 'border-pink-500/50 bg-pink-500/10',
+        textColor: '#f9a8d4',
+      },
+      marry: {
+        emoji: '💌',
+        label: 'Message',
+        color: '#ec4899',
+        leaderboardLabel: 'Messages',
+        activeClass: 'bg-pink-500/20 text-pink-100 border-pink-400',
+        borderClass: 'border-pink-500/50 bg-pink-500/10',
+        textColor: '#f9a8d4',
+      },
+      kill: {
+        emoji: '💌',
+        label: 'Message',
+        color: '#ec4899',
+        leaderboardLabel: 'Messages',
+        activeClass: 'bg-pink-500/20 text-pink-100 border-pink-400',
+        borderClass: 'border-pink-500/50 bg-pink-500/10',
+        textColor: '#f9a8d4',
+      },
+    },
+  },
+  bingo: {
+    id: 'bingo',
+    label: 'Bingo',
+    tagline: 'Classic number bingo — host calls, players mark their cards',
+    headerEmoji: '🎱🔢',
+    card: {
+      accent: '#3b82f6',
+      accentSoft: 'rgba(59, 130, 246, 0.15)',
+      emoji: '🎱',
+      players: '2–30 players',
+      vibe: 'Party classic',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🎱',
+        label: 'Called',
+        color: '#3b82f6',
+        leaderboardLabel: 'Numbers Called',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      marry: {
+        emoji: '✓',
+        label: 'Marked',
+        color: '#22c55e',
+        leaderboardLabel: 'Marked',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Bingo',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winners',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
+  codewords: {
+    id: 'codewords',
+    label: 'Codewords',
+    tagline: 'Two teams — spymasters give clues, operatives guess the words',
+    headerEmoji: '🕵️🔤',
+    card: {
+      accent: '#dc2626',
+      accentSoft: 'rgba(220, 38, 38, 0.12)',
+      emoji: '🕵️',
+      players: '4–12 players',
+      vibe: 'Word spy game',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🔴',
+        label: 'Red',
+        color: '#ef4444',
+        leaderboardLabel: 'Red team',
+        activeClass: 'bg-red-500/20 text-red-100 border-red-400',
+        borderClass: 'border-red-500/50 bg-red-500/10',
+        textColor: '#fca5a5',
+      },
+      marry: {
+        emoji: '🔵',
+        label: 'Blue',
+        color: '#3b82f6',
+        leaderboardLabel: 'Blue team',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      kill: {
+        emoji: '💀',
+        label: 'Assassin',
+        color: '#171717',
+        leaderboardLabel: 'Assassin',
+        activeClass: 'bg-neutral-800/30 text-neutral-200 border-neutral-600',
+        borderClass: 'border-neutral-600/50 bg-neutral-800/20',
+        textColor: '#a3a3a3',
+      },
+    },
+  },
+  trivia: {
+    id: 'trivia',
+    label: 'Trivia',
+    tagline: 'Fast-finger quiz — tech or general knowledge, speed wins',
+    headerEmoji: '🧠⚡',
+    card: {
+      accent: '#f43f5e',
+      accentSoft: 'rgba(244, 63, 94, 0.15)',
+      emoji: '🧠',
+      players: '2–40 players',
+      vibe: 'Quiz showdown',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '✓',
+        label: 'Correct',
+        color: '#22c55e',
+        leaderboardLabel: 'Correct answers',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '⚡',
+        label: 'Speed',
+        color: '#f59e0b',
+        leaderboardLabel: 'Fastest fingers',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Points',
+        color: '#f43f5e',
+        leaderboardLabel: 'Top scorers',
+        activeClass: 'bg-rose-500/20 text-rose-900 border-rose-400 dark:text-rose-100',
+        borderClass: 'border-rose-500/50 bg-rose-500/10',
+        textColor: '#fb7185',
+      },
+    },
+  },
+  two_truths: {
+    id: 'two_truths',
+    label: 'Two Truths & a Lie',
+    tagline: 'Submit two truths and a lie — can everyone spot the fib?',
+    headerEmoji: '🎭🤥',
+    card: {
+      accent: '#8b5cf6',
+      accentSoft: 'rgba(139, 92, 246, 0.15)',
+      emoji: '🎭',
+      players: '3–40 players',
+      vibe: 'Social deduction',
+    },
+    slots: {
+      kiss: {
+        emoji: '✓',
+        label: 'Truth',
+        color: '#22c55e',
+        leaderboardLabel: 'Correct guesses',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '✓',
+        label: 'Truth',
+        color: '#3b82f6',
+        leaderboardLabel: 'Truths',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      kill: {
+        emoji: '🤥',
+        label: 'Lie',
+        color: '#a855f7',
+        leaderboardLabel: 'Lies spotted',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+    },
+  },
+  monopoly: {
+    id: 'monopoly',
+    label: 'Monopoly',
+    tagline: 'Classic board game — roll, buy properties, and bankrupt your friends',
+    headerEmoji: '🎲🏠',
+    card: {
+      accent: '#16a34a',
+      accentSoft: 'rgba(22, 163, 74, 0.15)',
+      emoji: '🎲',
+      players: '2–6 players',
+      vibe: 'Board game night',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '💵',
+        label: 'Cash',
+        color: '#22c55e',
+        leaderboardLabel: 'Most cash',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '🏠',
+        label: 'Property',
+        color: '#3b82f6',
+        leaderboardLabel: 'Most properties',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Winner',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winner',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
+  yahtzee: {
+    id: 'yahtzee',
+    label: 'Yahtzee',
+    tagline: 'Roll, hold, and score your way to a full board of combos',
+    headerEmoji: '🎲🧠',
+    card: {
+      accent: '#f59e0b',
+      accentSoft: 'rgba(245, 158, 11, 0.15)',
+      emoji: '🎲',
+      players: '2–8 players',
+      vibe: 'Dice strategy',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '6️⃣',
+        label: 'Upper total',
+        color: '#f59e0b',
+        leaderboardLabel: 'Top upper total',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+      marry: {
+        emoji: '🧩',
+        label: 'Lower total',
+        color: '#8b5cf6',
+        leaderboardLabel: 'Top lower total',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#ddd6fe',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Total score',
+        color: '#ef4444',
+        leaderboardLabel: 'Best total score',
+        activeClass: 'bg-red-500/20 text-red-100 border-red-400',
+        borderClass: 'border-red-500/50 bg-red-500/10',
+        textColor: '#fca5a5',
+      },
+    },
+  },
 }
+
+/** Home page “Popular games” grid — order is display order. */
+export const HOMEPAGE_FEATURED_GAMES: GameType[] = [
+  'smash_marry_kill',
+  'this_or_that',
+  'codewords',
+  'bingo',
+  'trivia',
+  'anonymous_messages',
+]
 
 export const GAME_TYPE_OPTIONS: GameType[] = [
   'smash_marry_kill',
   'red_flag_green_flag',
   'smash_or_pass',
+  'parent_approval',
   'would_you_rather',
   'this_or_that',
   'most_likely_to',
@@ -478,11 +830,19 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'hot_seat',
   'custom',
   'anonymous_messages',
+  'secret_message',
+  'bingo',
+  'codewords',
+  'trivia',
+  'two_truths',
+  'monopoly',
+  'yahtzee',
 ]
 
 export function parseGameType(raw: unknown): GameType {
   if (raw === 'red_flag_green_flag') return 'red_flag_green_flag'
   if (raw === 'smash_or_pass') return 'smash_or_pass'
+  if (raw === 'parent_approval') return 'parent_approval'
   if (raw === 'would_you_rather') return 'would_you_rather'
   if (raw === 'this_or_that') return 'this_or_that'
   if (raw === 'most_likely_to') return 'most_likely_to'
@@ -490,6 +850,13 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'hot_seat') return 'hot_seat'
   if (raw === 'custom') return 'custom'
   if (raw === 'anonymous_messages') return 'anonymous_messages'
+  if (raw === 'secret_message') return 'secret_message'
+  if (raw === 'bingo') return 'bingo'
+  if (raw === 'codewords') return 'codewords'
+  if (raw === 'trivia') return 'trivia'
+  if (raw === 'two_truths') return 'two_truths'
+  if (raw === 'monopoly') return 'monopoly'
+  if (raw === 'yahtzee') return 'yahtzee'
   return 'smash_marry_kill'
 }
 
@@ -507,7 +874,7 @@ export function gameHowItWorks(
 
   switch (type) {
     case 'who_said_this':
-      return "Upload everyone's names on the next step. Players claim their name when joining, then submit a quote and who said it in the lobby. Only quotes in the pool become rounds — if 5 of 10 submit, that's 5 rounds."
+      return "Upload everyone's names on the next step. Players claim their name when joining, then submit quotes and who said each one in the lobby. You can add host quotes too — each quote in the pool becomes a round."
     case 'would_you_rather':
       return 'Players join with any name — no list to set up. Each round shows two options and everyone picks A or B. Votes stay anonymous.'
     case 'this_or_that':
@@ -518,6 +885,20 @@ export function gameHowItWorks(
         : "Upload everyone's names on the next step. Players claim their name when joining. One round per player who joins — you set a max cap; the host lobby shows the final count."
     case 'anonymous_messages':
       return 'Players join with an auto-assigned name — no sign-up. When the host starts, everyone posts anonymous messages that appear live for the whole room.'
+    case 'secret_message':
+      return 'Create your link and share it anywhere. Anyone who opens it can send you a message — senders never see each other’s messages, and only you can read your inbox.'
+    case 'bingo':
+      return 'Players join with their name and get a random bingo card when you start — they do not pick their own numbers. Call numbers B1–O75; players tap called squares on their card and hit BINGO when they complete a line.'
+    case 'codewords':
+      return 'Players join, pick Red or Blue and a role (spymaster or operative). You start when each team has 1 spymaster and at least 1 operative. Spymasters see the secret key and give one-word clues; operatives guess words on the 5×5 grid. Avoid the assassin!'
+    case 'trivia':
+      return 'Players join with their name. Each round shows a multiple-choice question — fastest correct answers score the most. Pick Tech or General Knowledge, or upload your own CSV. Live leaderboard tracks who is winning.'
+    case 'two_truths':
+      return 'Everyone joins with their name and submits two truths plus one lie in the lobby. Each round features one player — everyone else guesses which statement is the lie. Spot the fib for points; fool the room for bonus points.'
+    case 'monopoly':
+      return 'Players join with their name. Everyone starts on GO with £1,500. UK board — roll, buy or auction, build houses, mortgage, trade, and draw full Chance & Community Chest decks. Last player standing wins!'
+    case 'yahtzee':
+      return 'Players roll, hold dice, and choose a score category each turn. Build the best total across all combos.'
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'
@@ -534,6 +915,12 @@ export function gameHowItWorks(
         : participantMode === 'voters'
           ? 'Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, two names appear — everyone picks smash or pass for each.'
           : "Add everyone's names on the next step. Players claim their name when joining. Each round, two names appear — everyone picks smash or pass for each."
+    case 'parent_approval':
+      return joiners
+        ? 'Players add their name to the poll when joining. Each round, one name appears — everyone votes yes or no on whether they would let their kid date or marry them.'
+        : participantMode === 'voters'
+          ? 'Add names on the next step (celebrities, characters, anyone). Players join with their own name to vote. Each round, one name appears — would you let your son or daughter date or marry them?'
+          : "Add everyone's names on the next step. Players claim their name when joining. Each round, one name appears — would you let your son or daughter date or marry them?"
     case 'smash_marry_kill':
     default:
       if (isCustomGame(gameType)) {
@@ -555,6 +942,16 @@ export function gameHowItWorks(
 export function isPairGame(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
   return type === 'red_flag_green_flag' || type === 'smash_or_pass'
+}
+
+/** One name per round — yes or no vote. */
+export function isUnaryPollGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'parent_approval'
+}
+
+/** Pair or unary people polls — binary vote per person via pair_assignments. */
+export function isBinaryPeoplePollGame(gameType: GameType | string | undefined): boolean {
+  return isPairGame(gameType) || isUnaryPollGame(gameType)
 }
 
 export function parsePairVoteMode(raw: unknown): PairVoteMode {
@@ -713,7 +1110,15 @@ type LobbyCounts = { participantMode?: string; participantCount: number }
 /** WYR + MLT + This or That player join: free name entry, no list. Hot Seat uses import + name claim (see isImportNameClaimGame). */
 export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'most_likely_to'
+  return (
+    type === 'would_you_rather' ||
+    type === 'this_or_that' ||
+    type === 'most_likely_to' ||
+    type === 'trivia' ||
+    type === 'two_truths' ||
+    type === 'monopoly' ||
+    type === 'yahtzee'
+  )
 }
 
 /** Import list + claim your name when joining (no gender) — Who Said This & Hot Seat (import mode). */
@@ -743,7 +1148,7 @@ export function isPlayerOnlyJoinLobby(gameType: GameType | string | undefined, o
 /** WYR + This or That — forced joiners, no gender, always anonymous. */
 export function isLobbyGame(gameType: GameType | string | undefined): boolean {
   const type = parseGameType(gameType)
-  return type === 'would_you_rather' || type === 'this_or_that' || type === 'anonymous_messages'
+  return type === 'would_you_rather' || type === 'this_or_that' || type === 'anonymous_messages' || type === 'secret_message'
 }
 
 export function isAnonymousGame(gameType: GameType | string | undefined): boolean {
@@ -762,26 +1167,61 @@ export function isAnonymousMessagesGame(gameType: GameType | string | undefined)
   return parseGameType(gameType) === 'anonymous_messages'
 }
 
-/** Auto-assigned display name on join — no name input. */
-export function isAutoNameJoinGame(gameType: GameType | string | undefined): boolean {
-  return isAnonymousMessagesGame(gameType)
+export function isSecretMessageGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'secret_message'
 }
 
-export function roundPoolSize(gameType: GameType | string | undefined): 2 | 3 {
+export function isBingoGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'bingo'
+}
+
+export function isCodewordsGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'codewords'
+}
+
+export function isTriviaGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'trivia'
+}
+
+export function isTwoTruthsGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'two_truths'
+}
+
+export function isMonopolyGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'monopoly'
+}
+
+export function isYahtzeeGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'yahtzee'
+}
+
+/** Anonymous room or host-only secret message inbox — shared message storage. */
+export function isMessageInboxGame(gameType: GameType | string | undefined): boolean {
+  const type = parseGameType(gameType)
+  return type === 'anonymous_messages' || type === 'secret_message'
+}
+
+/** Auto-assigned display name on join — no name input. */
+export function isAutoNameJoinGame(gameType: GameType | string | undefined): boolean {
+  return isAnonymousMessagesGame(gameType) || isSecretMessageGame(gameType)
+}
+
+export function roundPoolSize(gameType: GameType | string | undefined): 1 | 2 | 3 {
+  if (isUnaryPollGame(gameType)) return 1
   if (isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType) || isWhoSaidThis(gameType)) return 2
   return isPairGame(gameType) ? 2 : 3
 }
 
 export function voteSlots(gameType?: GameType | string): VoteSlot[] {
-  return isPairGame(gameType) ? ['kiss', 'kill'] : ['kiss', 'marry', 'kill']
+  return isBinaryPeoplePollGame(gameType) ? ['kiss', 'kill'] : ['kiss', 'marry', 'kill']
 }
 
 export function voteCategories(gameType?: GameType | string): VoteCategory[] {
-  return isPairGame(gameType) ? ['kiss', 'smash'] : ['kiss', 'marry', 'smash']
+  return isBinaryPeoplePollGame(gameType) ? ['kiss', 'smash'] : ['kiss', 'marry', 'smash']
 }
 
 export function assignmentTargetCount(gameType?: GameType | string, participantCount?: number): number {
-  if (isPairGame(gameType) && participantCount !== undefined) return participantCount
+  if (isBinaryPeoplePollGame(gameType) && participantCount !== undefined) return participantCount
   return voteSlots(gameType).length
 }
 

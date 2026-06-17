@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { GameType, ParticipantGender } from '@/types'
 import { ResultsPagination, usePagination, RESULTS_PAGE_SIZE } from '@/components/ui/ResultsPagination'
-import { isPairGame } from '@/lib/game-types'
+import { isBinaryPeoplePollGame } from '@/lib/game-types'
 import { genderLabel, parseParticipantGenderFromDb } from '@/lib/participants'
 import { Avatar } from '@/components/Avatar'
 import {
@@ -180,7 +180,7 @@ export function ParticipantRoundResults({
     smash: Math.max(1, ...tallies.map((t) => t.smash)),
   }
 
-  if (isPairGame(gameType)) {
+  if (isBinaryPeoplePollGame(gameType)) {
     const details =
       participantDetails ?? tallies.map((t) => ({ id: t.id, name: nameById.get(t.id) ?? '', gender: null }))
 

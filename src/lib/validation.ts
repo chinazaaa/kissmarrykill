@@ -41,6 +41,7 @@ const gameTypeEnum = z.enum([
   'smash_marry_kill',
   'red_flag_green_flag',
   'smash_or_pass',
+  'parent_approval',
   'would_you_rather',
   'this_or_that',
   'most_likely_to',
@@ -48,12 +49,20 @@ const gameTypeEnum = z.enum([
   'hot_seat',
   'custom',
   'anonymous_messages',
+  'secret_message',
+  'bingo',
+  'codewords',
+  'trivia',
+  'two_truths',
+  'monopoly',
+  'yahtzee',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
 const autoSubmitBehaviorEnum = z.enum(['random', 'no_answer'])
 const pairVoteModeEnum = z.enum(['any', 'one_each'])
 const questionSourceEnum = z.enum(['platform', 'custom'])
+const triviaCategoryEnum = z.enum(['tech', 'general'])
 const playerQuestionsOrderEnum = z.enum(['players_first', 'uploaded_first', 'mixed'])
 const wstQuoteSourceEnum = z.enum(['player', 'anime', 'both'])
 const wyrChoiceEnum = z.enum(['a', 'b'])
@@ -62,7 +71,7 @@ const playerGenderEnum = z.enum(['male', 'female', 'both'])
 const pairFlagEnum = z.enum(['kiss', 'kill'])
 const themeEnum = z.enum(['default', 'neon', 'retro', 'elegant', 'tropical'])
 const participantFilterEnum = z.enum(['all', 'joined'])
-const timerSecondsEnum = z.union([z.literal(15), z.literal(30), z.literal(60)])
+const timerSecondsEnum = z.union([z.literal(10), z.literal(15), z.literal(30), z.literal(60)])
 
 // ---------------------------------------------------------------------------
 // Game creation (POST /api/games)
@@ -80,6 +89,7 @@ export const createGameSchema = z.object({
   title: sanitizedString(1, 100),
   rounds_count: z.coerce.number().int().min(1).max(100).optional(),
   timer_seconds: z.coerce.number().optional(),
+  operative_timer_seconds: z.coerce.number().optional(),
   anonymous: z.boolean().optional(),
   auto_reveal: z.boolean().optional(),
   auto_submit_behavior: autoSubmitBehaviorEnum.optional(),
@@ -94,7 +104,16 @@ export const createGameSchema = z.object({
   wst_quote_source: wstQuoteSourceEnum.optional(),
   participant_filter: participantFilterEnum.optional(),
   gender_based: z.boolean().optional(),
-  max_players: z.coerce.number().int().min(2).max(15).optional(),
+  max_players: z.coerce.number().int().min(2).max(100).optional(),
+  codewords_player_picks: z.boolean().optional(),
+  codewords_late_join: z.boolean().optional(),
+  allow_viewers: z.boolean().optional(),
+  allow_late_players: z.boolean().optional(),
+  late_join_policy: z.enum(['lobby_only', 'viewers_only', 'viewers_and_players']).optional(),
+  codewords_randomize_teams: z.boolean().optional(),
+  trivia_category: triviaCategoryEnum.optional(),
+  bingo_call_mode: z.enum(['manual', 'auto']).optional(),
+  bingo_call_interval_seconds: z.coerce.number().optional(),
   custom_slots: z
     .object({
       slots: z
@@ -139,6 +158,9 @@ export const updateGameSchema = z.object({
   pair_vote_mode: pairVoteModeEnum.optional(),
   player_questions_enabled: z.boolean().optional(),
   player_questions_order: playerQuestionsOrderEnum.optional(),
+  allow_viewers: z.boolean().optional(),
+  allow_late_players: z.boolean().optional(),
+  late_join_policy: z.enum(['lobby_only', 'viewers_only', 'viewers_and_players']).optional(),
 })
 
 export type UpdateGameInput = z.infer<typeof updateGameSchema>
@@ -152,6 +174,27 @@ export const hostActionSchema = z.object({
 })
 
 export type HostActionInput = z.infer<typeof hostActionSchema>
+
+export const playAgainSchema = hostActionSchema.extend({
+  custom_questions: z.array(z.unknown()).optional(),
+  participants: z
+    .array(
+      z.union([
+        sanitizedString(1, 80),
+        z.object({
+          name: sanitizedString(1, 80),
+          gender: z.string().optional(),
+        }),
+      ])
+    )
+    .optional(),
+  question_source: z.enum(['platform', 'custom']).optional(),
+  trivia_category: z.enum(['tech', 'general']).optional(),
+  timer_seconds: z.union([z.literal(10), z.literal(15), z.literal(30), z.literal(60)]).optional(),
+  rounds_count: z.number().int().min(3).max(25).optional(),
+})
+
+export type PlayAgainInput = z.infer<typeof playAgainSchema>
 
 // ---------------------------------------------------------------------------
 // Participants (POST /api/participants)
@@ -212,6 +255,7 @@ export const createPlayerSchema = z.object({
   pollGender: participantGenderEnum.or(z.string()).nullish(),
   identityGender: participantGenderEnum.or(z.string()).nullish(),
   participantId: uuidString('participantId').nullish(),
+  joinAsViewer: z.boolean().optional(),
 })
 
 export type CreatePlayerInput = z.infer<typeof createPlayerSchema>
@@ -244,6 +288,17 @@ export const deletePlayerSchema = z.object({
 })
 
 export type DeletePlayerInput = z.infer<typeof deletePlayerSchema>
+
+// ---------------------------------------------------------------------------
+// Players (POST /api/players/promote)
+// ---------------------------------------------------------------------------
+
+export const promotePlayerSchema = z.object({
+  gameCode: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export type PromotePlayerInput = z.infer<typeof promotePlayerSchema>
 
 // ---------------------------------------------------------------------------
 // Votes (POST /api/votes)
@@ -323,6 +378,224 @@ export const anonymousRoomUnbanSchema = z.object({
 export type AnonymousRoomUnbanInput = z.infer<typeof anonymousRoomUnbanSchema>
 
 // ---------------------------------------------------------------------------
+// Bingo (POST /api/bingo/*)
+// ---------------------------------------------------------------------------
+
+export const bingoCallSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+  number: z.coerce.number().int().min(1).max(75).optional(),
+  random: z.boolean().optional(),
+})
+
+export const bingoMarkSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  cellIndex: z.coerce.number().int().min(0).max(24),
+})
+
+export const bingoClaimSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export type BingoCallInput = z.infer<typeof bingoCallSchema>
+export type BingoMarkInput = z.infer<typeof bingoMarkSchema>
+export type BingoClaimInput = z.infer<typeof bingoClaimSchema>
+
+export const bingoSettingsSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+  bingo_call_mode: z.enum(['manual', 'auto']).optional(),
+  bingo_call_interval_seconds: z.coerce.number().optional(),
+  max_players: z.coerce.number().int().min(2).max(100).optional(),
+})
+
+export type BingoSettingsInput = z.infer<typeof bingoSettingsSchema>
+
+// ---------------------------------------------------------------------------
+// Admin game player limits
+// ---------------------------------------------------------------------------
+
+export const patchGamePlayerLimitsSchema = z.object({
+  limits: z
+    .array(
+      z.object({
+        game_type: z.enum([
+          'anonymous_messages',
+          'bingo',
+          'codewords',
+          'trivia',
+          'two_truths',
+          'monopoly',
+          'yahtzee',
+        ]),
+        max_players: z.coerce.number().int().min(2).max(100),
+      })
+    )
+    .min(1),
+})
+
+export type PatchGamePlayerLimitsInput = z.infer<typeof patchGamePlayerLimitsSchema>
+
+export const triviaAnswerSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  choiceIndex: z.coerce.number().int().min(0).max(3),
+})
+
+export type TriviaAnswerInput = z.infer<typeof triviaAnswerSchema>
+
+export const triviaAdvanceSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: z.string().min(1).optional(),
+  force: z.boolean().optional(),
+})
+
+export type TriviaAdvanceInput = z.infer<typeof triviaAdvanceSchema>
+
+const ttlStatementText = sanitizedString(1, 200)
+
+export const ttlStatementSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  statementA: ttlStatementText,
+  statementB: ttlStatementText,
+  statementC: ttlStatementText,
+  lieIndex: z.coerce.number().int().min(0).max(2),
+})
+
+export type TtlStatementInput = z.infer<typeof ttlStatementSchema>
+
+export const ttlGuessSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  guessedIndex: z.coerce.number().int().min(0).max(2),
+})
+
+export type TtlGuessInput = z.infer<typeof ttlGuessSchema>
+
+export const ttlAdvanceSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: z.string().min(1).optional(),
+  force: z.boolean().optional(),
+})
+
+export type TtlAdvanceInput = z.infer<typeof ttlAdvanceSchema>
+
+export const monopolyActionSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const monopolyBuySchema = monopolyActionSchema.extend({
+  buy: z.boolean(),
+})
+
+export const monopolyJailSchema = monopolyActionSchema.extend({
+  method: z.enum(['pay', 'card']),
+})
+
+export const monopolyAuctionSchema = monopolyActionSchema.extend({
+  action: z.enum(['pass', 'bid']),
+  amount: z.number().int().min(1).optional(),
+})
+
+export const monopolyBuildSchema = monopolyActionSchema.extend({
+  spaceIndex: z.number().int().min(0).max(39),
+  action: z.enum(['buy_house', 'sell_house', 'buy_hotel', 'sell_hotel']),
+})
+
+export const monopolyMortgageSchema = monopolyActionSchema.extend({
+  spaceIndex: z.number().int().min(0).max(39),
+  action: z.enum(['mortgage', 'unmortgage']),
+})
+
+export const monopolyTradeProposeSchema = monopolyActionSchema.extend({
+  toPlayerId: uuidString('toPlayerId'),
+  offerCash: z.number().int().min(0).default(0),
+  offerProperties: z.array(z.number().int().min(0).max(39)).default([]),
+  offerGetOutCards: z.number().int().min(0).max(2).default(0),
+  requestCash: z.number().int().min(0).default(0),
+  requestProperties: z.array(z.number().int().min(0).max(39)).default([]),
+})
+
+export const monopolyTradeRespondSchema = monopolyActionSchema.extend({
+  accept: z.boolean(),
+})
+
+export type MonopolyActionInput = z.infer<typeof monopolyActionSchema>
+export type MonopolyBuyInput = z.infer<typeof monopolyBuySchema>
+export type MonopolyJailInput = z.infer<typeof monopolyJailSchema>
+
+// ---------------------------------------------------------------------------
+// Yahtzee (POST /api/yahtzee/*)
+// ---------------------------------------------------------------------------
+
+export const yahtzeeRollSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const yahtzeeHoldSchema = yahtzeeRollSchema.extend({
+  held: z.array(z.boolean()).length(5),
+})
+
+export const yahtzeeScoreCategoryEnum = z.enum([
+  'ones',
+  'twos',
+  'threes',
+  'fours',
+  'fives',
+  'sixes',
+  'three_kind',
+  'four_kind',
+  'full_house',
+  'small_straight',
+  'large_straight',
+  'yahtzee',
+  'chance',
+])
+
+export const yahtzeeScoreSchema = yahtzeeRollSchema.extend({
+  category: yahtzeeScoreCategoryEnum,
+})
+
+export type YahtzeeRollInput = z.infer<typeof yahtzeeRollSchema>
+export type YahtzeeHoldInput = z.infer<typeof yahtzeeHoldSchema>
+export type YahtzeeScoreInput = z.infer<typeof yahtzeeScoreSchema>
+
+const codewordsTeamEnum = z.enum(['red', 'blue'])
+const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
+
+export const codewordsRoleSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  team: codewordsTeamEnum,
+  role: codewordsRoleEnum,
+})
+
+export const codewordsClueSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  clueWord: sanitizedString(1, 40).refine((s) => !/\s/.test(s), 'Clue must be one word (no spaces)'),
+  clueNumber: z.coerce.number().int().min(0).max(9),
+})
+
+export const codewordsGuessSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  cellIndex: z.coerce.number().int().min(0).max(24),
+})
+
+export const codewordsEndTurnSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+// ---------------------------------------------------------------------------
 // Quote (POST /api/quote)
 // ---------------------------------------------------------------------------
 
@@ -385,6 +658,7 @@ const feedbackGameTypeEnum = z.enum([
   'smash_marry_kill',
   'red_flag_green_flag',
   'smash_or_pass',
+  'parent_approval',
   'would_you_rather',
   'this_or_that',
   'most_likely_to',
@@ -392,6 +666,13 @@ const feedbackGameTypeEnum = z.enum([
   'hot_seat',
   'custom',
   'anonymous_messages',
+  'secret_message',
+  'bingo',
+  'codewords',
+  'trivia',
+  'two_truths',
+  'monopoly',
+  'yahtzee',
 ])
 
 const feedbackCategoryEnum = z.enum(['bug', 'feature', 'improvement', 'other'])
@@ -409,6 +690,36 @@ export const createAppFeedbackSchema = z.object({
 })
 
 export type CreateAppFeedbackInput = z.infer<typeof createAppFeedbackSchema>
+
+// ---------------------------------------------------------------------------
+// Product updates (admin)
+// ---------------------------------------------------------------------------
+
+const productUpdateTypeEnum = z.enum(['new', 'changed', 'upcoming'])
+
+const optionalMonth = z
+  .union([z.number().int().min(1).max(12), z.literal(''), z.null()])
+  .optional()
+  .transform((value) => (value === '' || value == null ? null : value))
+
+const optionalYear = z
+  .union([z.number().int().min(2000).max(2100), z.literal(''), z.null()])
+  .optional()
+  .transform((value) => (value === '' || value == null ? null : value))
+
+export const createProductUpdateSchema = z.object({
+  type: productUpdateTypeEnum,
+  title: sanitizedString(1, 120),
+  description: sanitizedString(1, 2000),
+  month: optionalMonth,
+  year: optionalYear,
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+})
+
+export const updateProductUpdateSchema = createProductUpdateSchema.partial()
+
+export type CreateProductUpdateInput = z.infer<typeof createProductUpdateSchema>
+export type UpdateProductUpdateInput = z.infer<typeof updateProductUpdateSchema>
 
 // ---------------------------------------------------------------------------
 // Re-exports for convenience

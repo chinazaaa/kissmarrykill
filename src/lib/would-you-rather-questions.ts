@@ -1,6 +1,7 @@
-/** Built-in Would You Rather prompts — 100 questions */
+/** Built-in Would You Rather prompts */
 
 import { pickLeastUsed } from '@/lib/question-picker'
+import { wyrQuestionKey } from '@/lib/pool-key'
 
 export interface WyrQuestion {
   optionA: string
@@ -8,415 +9,165 @@ export interface WyrQuestion {
 }
 
 export const WYR_QUESTIONS: WyrQuestion[] = [
-  {
-    optionA: 'never have an orgasm again',
-    optionB: 'orgasm every hour on the hour',
-  },
-  {
-    optionA: 'only have sex in bed for the rest of your life,',
-    optionB: 'never be able to have sex in bed again',
-  },
-  {
-    optionA: 'publish your porn search history',
-    optionB: 'read all your text messages aloud to your hometown',
-  },
-  {
-    optionA: 'have a one-night stand',
-    optionB: 'a bubble bath with a stranger',
-  },
-  {
-    optionA: 'have sex with someone you hate but the sex is amazing,',
-    optionB: 'have sex with someone you love but the sex is terrible',
-  },
-  {
-    optionA: 'always have sex with the lights on,',
-    optionB: 'in a pitch-black room',
-  },
-  {
-    optionA: 'never have a good meal again,',
-    optionB: 'never have good sex again',
-  },
-  {
-    optionA: 'never have foreplay again',
-    optionB: 'only have foreplay and no penetrative sex of any kind for the rest of your life',
-  },
-  {
-    optionA: 'cry every time you climax,',
-    optionB: 'have an orgasm every time you cry',
-  },
-  {
-    optionA: 'have a threesome with someone you know',
-    optionB: 'with complete strangers',
-  },
-  {
-    optionA: 'have sex with a co-worker',
-    optionB: 'with a high school friend',
-  },
-  {
-    optionA: 'be blindfolded',
-    optionB: 'blindfold me',
-  },
-  {
-    optionA: 'only have kinky sex',
-    optionB: 'romantic sex',
-  },
-  {
-    optionA: 'have morning sex',
-    optionB: 'late-night sex',
-  },
-  {
-    optionA: 'give up oral sex',
-    optionB: 'anal sex',
-  },
-  {
-    optionA: 'be dominant',
-    optionB: 'submissive in the bedroom',
-  },
-  {
-    optionA: 'have sex in the bathroom',
-    optionB: 'the kitchen',
-  },
-  {
-    optionA: 'go on top for the rest of your life,',
-    optionB: 'on the bottom',
-  },
-  {
-    optionA: 'be a bad kisser',
-    optionB: 'bad at giving oral sex',
-  },
-  {
-    optionA: 'only give',
-    optionB: 'only receive',
-  },
-  {
-    optionA: 'be tied up',
-    optionB: 'blindfolded',
-  },
-  {
-    optionA: 'have sex in a secluded forest',
-    optionB: 'on a secluded beach',
-  },
-  {
-    optionA: 'use whipped cream',
-    optionB: 'chocolate syrup during foreplay',
-  },
-  {
-    optionA: 'have a spontaneous quickie in a place where we might get caught,',
-    optionB: 'plan an intimate night at home',
-  },
-  {
-    optionA: 'incorporate food into our sex life',
-    optionB: 'keep food strictly for dining',
-  },
-  {
-    optionA: 'have passionate sex after a fight',
-    optionB: 'make love softly to resolve a conflict',
-  },
-  {
-    optionA: 'talk dirty to me over text all day',
-    optionB: "save it all for when we're together",
-  },
-  {
-    optionA: 'wear provocative lingerie',
-    optionB: 'nothing at all under your clothes for a date night',
-  },
-  {
-    optionA: 'get a sensual massage with oil',
-    optionB: 'a stimulating massage with a feather',
-  },
-  {
-    optionA: 'engage in a role-playing scenario where we are strangers',
-    optionB: 'one where we are historical figures',
-  },
-  {
-    optionA: 'incorporate music into our lovemaking',
-    optionB: 'prefer the sounds of nature',
-  },
-  {
-    optionA: 'have a steamy session in a hot tub',
-    optionB: 'under a waterfall',
-  },
-  {
-    optionA: 'have your hair pulled',
-    optionB: 'your back scratched',
-  },
-  {
-    optionA: 'end every date night with a sensual dance',
-    optionB: 'a striptease',
-  },
-  {
-    optionA: 'have sex while watching a steamy movie',
-    optionB: 'while listening to seductive music',
-  },
-  {
-    optionA: 'have a hushed quickie while guests are in the other room',
-    optionB: 'wait until everyone leaves',
-  },
-  {
-    optionA: 'have me speak in an accent during foreplay',
-    optionB: 'stay completely silent but very expressive',
-  },
-  {
-    optionA: 'shower together every day',
-    optionB: 'only have bubble baths together on special occasions',
-  },
-  {
-    optionA: 'explore new territories with body paint',
-    optionB: 'with blindfolds and sensation play',
-  },
-  {
-    optionA: 'make out in the rain',
-    optionB: 'in the backseat of a car',
-  },
-  {
-    optionA: 'have me tease you with a feather',
-    optionB: 'with ice cubes',
-  },
-  {
-    optionA: 'wake up to oral sex',
-    optionB: 'to a full-body massage',
-  },
-  {
-    optionA: 'skinny dip at midnight',
-    optionB: 'sunbathe nude',
-  },
-  {
-    optionA: 'playfully wrestle in bed',
-    optionB: 'have a tickle fight',
-  },
-  {
-    optionA: 'make love in front of a fireplace',
-    optionB: 'by the light of hundreds of candles',
-  },
-  {
-    optionA: 'receive a sexy voicemail',
-    optionB: 'an explicit picture message',
-  },
-  {
-    optionA: 'be gently dominated',
-    optionB: 'gently dominate me',
-  },
-  {
-    optionA: 'use body chocolate',
-    optionB: 'edible underwear',
-  },
-  {
-    optionA: 'explore Kamasutra together',
-    optionB: "take a steamy couple's yoga class",
-  },
-  {
-    optionA: 'have sex in a luxurious hotel room',
-    optionB: 'in a cozy cabin in the woods',
-  },
-  {
-    optionA: 'spend an entire day teasing each other without release',
-    optionB: 'have immediate satisfaction',
-  },
-  {
-    optionA: 'have your body worshiped',
-    optionB: 'worship my body',
-  },
-  {
-    optionA: 'explore light bondage',
-    optionB: 'sensory deprivation',
-  },
-  {
-    optionA: 'spend a day sexting',
-    optionB: 'have an hour of uninterrupted phone sex',
-  },
-  {
-    optionA: 'play naughty charades',
-    optionB: 'have a sexy scavenger hunt',
-  },
-  {
-    optionA: 'be serenaded with a love song before sex',
-    optionB: 'be read erotic poetry after',
-  },
-  {
-    optionA: 'have an exotic dancer teach us moves',
-    optionB: 'learn them together from videos',
-  },
-  {
-    optionA: 'send me a series of suggestive texts during work hours',
-    optionB: 'a single, very explicit one after hours',
-  },
-  {
-    optionA: 'have sex in a cozy tent while camping',
-    optionB: 'in the back of a luxury SUV on a road trip',
-  },
-  {
-    optionA: 'explore a fantasy involving food',
-    optionB: 'one involving costumes',
-  },
-  {
-    optionA: 'spend a cold day under the covers with me',
-    optionB: 'a hot night under the stars',
-  },
-  {
-    optionA: 'seduce me with a strip tease',
-    optionB: 'with a lap dance',
-  },
-  {
-    optionA: 'have sex in an elegant, antique chair',
-    optionB: 'on a fluffy, modern rug',
-  },
-  {
-    optionA: 'explore light BDSM',
-    optionB: 'have a romantic, rose-petal-covered bed experience',
-  },
-  {
-    optionA: 'have me leave sexy notes all over the house',
-    optionB: 'send you provocative emails throughout the day',
-  },
-  {
-    optionA: 'have me wear leather',
-    optionB: 'lace',
-  },
-  {
-    optionA: 'play a dirty question game',
-    optionB: 'act out a naughty fantasy',
-  },
-  {
-    optionA: 'have me write my desires on your body',
-    optionB: 'whisper them in your ear',
-  },
-  {
-    optionA: 'have sex with only one position allowed',
-    optionB: 'have sex with no touching allowed',
-  },
-  {
-    optionA: 'sneak a kiss in a crowded room',
-    optionB: 'sneak a touch under the table',
-  },
-  {
-    optionA: 'make love in front of a mirror',
-    optionB: 'in complete darkness',
-  },
-  {
-    optionA: 'leave a hickey where only you can see it',
-    optionB: "in a place where it's noticeable",
-  },
-  {
-    optionA: 'play a sexy truth or dare',
-    optionB: 'a game of erotic hide and seek',
-  },
-  {
-    optionA: 'watch your partner masturbate',
-    optionB: 'have your partner watch you masturbate',
-  },
-  {
-    optionA: 'switch clothes with your partner',
-    optionB: 'be naked all weekend',
-  },
-  {
-    optionA: 'play a game of truth or dare',
-    optionB: 'strip poker',
-  },
-  {
-    optionA: 'have really cheesy dirty talk',
-    optionB: 'have completely silent sex',
-  },
-  {
-    optionA: 'have sex with your celebrity crush',
-    optionB: 'your high school crush',
-  },
-  {
-    optionA: 'hear your neighbors have sex',
-    optionB: 'have your neighbors hear you have sex',
-  },
-  {
-    optionA: 'use sex toys',
-    optionB: 'handcuffs',
-  },
-  {
-    optionA: 'reveal your deepest sexual fantasy,',
-    optionB: 'share your most embarrassing sex story',
-  },
-  {
-    optionA: 'do OnlyFans together',
-    optionB: 'publish our sex tape',
-  },
-  {
-    optionA: 'have a love bite on your neck',
-    optionB: 'on your chest',
-  },
-  {
-    optionA: 'sleep with someone who is completely silent',
-    optionB: "someone who's extremely loud while they have sex",
-  },
-  {
-    optionA: 'receive a nude',
-    optionB: 'a dirty text',
-  },
-  {
-    optionA: 'try a new sex position',
-    optionB: 'a new sex toy',
-  },
-  {
-    optionA: 'watch porn',
-    optionB: 'read erotica',
-  },
-  {
-    optionA: 'have sex with your biggest celebrity crush',
-    optionB: 'your favorite porn star',
-  },
-  {
-    optionA: 'have a quickie and always orgasm',
-    optionB: 'long passionate sex but never orgasm',
-  },
-  {
-    optionA: 'have sex only in darkness',
-    optionB: 'in too bright lighting',
-  },
-  {
-    optionA: 'end a first date with sex',
-    optionB: 'with passionate sex',
-  },
-  {
-    optionA: 'have your partner only be able to use your hands',
-    optionB: 'their mouth during foreplay',
-  },
-  {
-    optionA: 'try pole dancing',
-    optionB: 'lap dancing',
-  },
-  {
-    optionA: 'have amazing foreplay',
-    optionB: 'amazing sex? But never both',
-  },
-  {
-    optionA: 'suck my toes',
-    optionB: 'have your toes sucked',
-  },
-  {
-    optionA: 'make a sex tape',
-    optionB: 'write erotica about us',
-  },
-  {
-    optionA: 'use wax play',
-    optionB: 'spanking as foreplay',
-  },
-  {
-    optionA: 'lose all sense of touch',
-    optionB: 'all sense of taste',
-  },
-  {
-    optionA: 'be bad at foreplay',
-    optionB: 'be bad at sex',
-  },
-  {
-    optionA: 'only orgasm once a year',
-    optionB: 'orgasm every time you sneeze',
-  },
+  { optionA: 'Never have pizza again', optionB: 'Never have tacos again' },
+  { optionA: 'Live without music', optionB: 'Live without movies' },
+  { optionA: 'Always be 10 minutes late', optionB: 'Always be 30 minutes early' },
+  { optionA: 'Have unlimited free flights', optionB: 'Have unlimited free meals at restaurants' },
+  { optionA: 'Be able to talk to animals', optionB: 'Be able to speak every language fluently' },
+  { optionA: 'Win the lottery tomorrow', optionB: 'Land your dream job next week' },
+  { optionA: 'Live in a big city', optionB: 'Live in the countryside' },
+  { optionA: 'Have summer year-round', optionB: 'Have winter year-round' },
+  { optionA: 'Know how you die', optionB: 'Know when you die' },
+  { optionA: 'Teleport anywhere instantly', optionB: 'Time travel to any era' },
+  { optionA: 'Never use social media again', optionB: 'Never watch TV or streaming again' },
+  { optionA: 'Always have perfect weather on vacation', optionB: 'Always get the cheapest flights' },
+  { optionA: 'Be famous for something good', optionB: 'Be rich but unknown' },
+  { optionA: 'Read minds', optionB: 'See the future' },
+  { optionA: 'Give up coffee forever', optionB: 'Give up dessert forever' },
+  { optionA: 'Work four 10-hour days per week', optionB: 'Work five 6-hour days per week' },
+  { optionA: 'Have a personal chef', optionB: 'Have a personal driver' },
+  { optionA: 'Live in a tiny house with amazing views', optionB: 'Live in a mansion in a boring suburb' },
+  { optionA: 'Always tell the truth', optionB: 'Always know when someone is lying' },
+  { optionA: 'Never wait in line again', optionB: 'Never sit in traffic again' },
+  { optionA: 'Be the funniest person in the room', optionB: 'Be the smartest person in the room' },
+  { optionA: 'Have perfect memory', optionB: 'Forget every embarrassing moment instantly' },
+  { optionA: 'Only eat breakfast foods for a year', optionB: 'Only eat dinner foods for a year' },
+  { optionA: 'Go on a road trip with no plan', optionB: 'Take a perfectly planned vacation' },
+  { optionA: 'Have super strength', optionB: 'Have super speed' },
+  { optionA: 'Be able to breathe underwater', optionB: 'Be able to fly' },
+  { optionA: 'Never do laundry again', optionB: 'Never do dishes again' },
+  { optionA: 'Always get the window seat', optionB: 'Always get the aisle seat' },
+  { optionA: 'Have Wi-Fi everywhere you go', optionB: 'Have outlets everywhere you go' },
+  { optionA: 'Only watch comedies for a year', optionB: 'Only watch documentaries for a year' },
+  { optionA: 'Be able to play every instrument', optionB: 'Be able to sing like a pro' },
+  { optionA: 'Have a rewind button for life', optionB: 'Have a pause button for life' },
+  { optionA: 'Live without air conditioning', optionB: 'Live without heating' },
+  { optionA: 'Always know the right thing to say', optionB: 'Always know the right thing to do' },
+  { optionA: 'Eat only sweet food for a month', optionB: 'Eat only savory food for a month' },
+  { optionA: 'Never lose your phone', optionB: 'Never lose your keys' },
+  { optionA: 'Be able to eat anything without gaining weight', optionB: 'Never need sleep again' },
+  { optionA: 'Always have good hair days', optionB: 'Always have good skin days' },
+  { optionA: 'Live in the past', optionB: 'Live in the future' },
+  { optionA: 'Be a great dancer', optionB: 'Be a great singer' },
+  { optionA: 'Have free concerts forever', optionB: 'Have free sports tickets forever' },
+  { optionA: 'Only text people', optionB: 'Only call people' },
+  { optionA: 'Never use GPS again', optionB: 'Never use a calendar again' },
+  { optionA: 'Always find a great parking spot', optionB: 'Always catch green lights' },
+  { optionA: 'Be able to talk to your past self', optionB: 'Be able to talk to your future self' },
+  { optionA: 'Live in a beach house', optionB: 'Live in a mountain cabin' },
+  { optionA: 'Never get sick', optionB: 'Never feel tired' },
+  { optionA: 'Be amazing at cooking', optionB: 'Be amazing at baking' },
+  { optionA: 'Only listen to one song forever', optionB: 'Only watch one movie forever' },
+  { optionA: 'Always win at board games', optionB: 'Always win at trivia' },
+  { optionA: 'Go camping every weekend', optionB: 'Stay in hotels every weekend' },
+  { optionA: 'Have unlimited phone battery', optionB: 'Have unlimited data everywhere' },
+  { optionA: 'Never step on Lego again', optionB: 'Never hit your funny bone again' },
+  { optionA: 'Have breakfast for every meal', optionB: 'Have dessert for every meal' },
+  { optionA: 'Be the main character in a comedy', optionB: 'Be the main character in an adventure movie' },
+  { optionA: 'Always have snacks in your bag', optionB: 'Always have a charger in your bag' },
+  { optionA: 'Live without spicy food', optionB: 'Live without sweet food' },
+  { optionA: 'Be able to learn any skill in one day', optionB: 'Be able to run a marathon with no training' },
+  { optionA: 'Only shop online', optionB: 'Only shop in stores' },
+  { optionA: 'Have a personal stylist', optionB: 'Have a personal trainer' },
+  { optionA: 'Never forget a birthday', optionB: 'Never forget a password' },
+  { optionA: 'Be able to nap anywhere', optionB: 'Be able to wake up refreshed every time' },
+  { optionA: 'Always get the last slice of pizza', optionB: 'Always get the best seat at the table' },
+  { optionA: 'Be great at public speaking', optionB: 'Be great at small talk' },
+  { optionA: 'Only travel by train', optionB: 'Only travel by plane' },
+  { optionA: 'Always find money in old jackets', optionB: 'Always find your favorite snack on sale' },
+  { optionA: 'Live in a world with no Mondays', optionB: 'Live in a world with no alarm clocks' },
+  { optionA: 'Have unlimited books', optionB: 'Have unlimited video games' },
+  { optionA: 'Be able to fix any broken thing', optionB: 'Be able to find anything you lose' },
+  { optionA: 'Always have perfect group photos', optionB: 'Always take perfect selfies' },
+  { optionA: 'Eat at a new restaurant every week', optionB: 'Cook a new recipe every week' },
+  { optionA: 'Have a pet that can talk', optionB: 'Have a plant that gives life advice' },
+  { optionA: 'Never wait for food delivery', optionB: 'Never get the wrong order' },
+  { optionA: 'Have a job you love with low pay', optionB: 'Have a boring job with high pay' },
+  { optionA: 'Live without headphones', optionB: 'Live without sunglasses' },
+  { optionA: 'Be able to draw perfectly', optionB: 'Be able to take perfect photos' },
+  { optionA: 'Be the best at karaoke', optionB: 'Be the best at charades' },
+  { optionA: 'Have a year of free groceries', optionB: 'Have a year of free rideshares' },
+  { optionA: 'Live in a house with a slide instead of stairs', optionB: 'Live in a house with a ball pit room' },
+  { optionA: 'Have snow on Christmas every year', optionB: 'Have sunny warm holidays every year' },
+  { optionA: 'Never lose a sock in the laundry', optionB: 'Never shrink a favorite shirt' },
+  { optionA: 'Have a personal movie theater at home', optionB: 'Have a personal arcade at home' },
+  { optionA: 'Always get upgraded on flights', optionB: 'Always get free dessert at restaurants' },
+  { optionA: 'Have a phone that never autocorrects wrong', optionB: 'Have a keyboard that never typos' },
+  { optionA: 'Have a lifetime supply of your favorite snack', optionB: 'Have a lifetime supply of your favorite drink' },
+  { optionA: 'Never have to make your bed again', optionB: 'Never have to fold laundry again' },
+  { optionA: 'Be able to visit any fictional world for a day', optionB: 'Bring one fictional character to the real world for a day' },
+  { optionA: 'Always have the perfect comeback', optionB: 'Always know the perfect gift to give' },
+  { optionA: 'Live without chocolate', optionB: 'Live without cheese' },
+  { optionA: 'Be able to survive any reality TV show', optionB: 'Be able to win any game show' },
+  { optionA: 'Be able to make friends with anyone instantly', optionB: 'Keep every friend for life' },
+  { optionA: 'Have a home gym', optionB: 'Have a home spa' },
+  { optionA: 'Be able to solve any puzzle in minutes', optionB: 'Build anything from IKEA without instructions' },
+  { optionA: 'Have free coffee for life', optionB: 'Have free ice cream for life' },
+  { optionA: 'Be able to skip any awkward conversation', optionB: 'Turn any awkward conversation funny' },
+  { optionA: 'Be able to visit every country', optionB: 'Be able to visit every national park' },
+  { optionA: 'Live without mirrors for a year', optionB: 'Live without photos for a year' },
+  { optionA: 'Always pick the best Halloween costume', optionB: 'Always pick the best Secret Santa gift' },
+  { optionA: 'Have unlimited board games', optionB: 'Have unlimited puzzles' },
+  { optionA: 'Be able to host the perfect party every time', optionB: 'Be the perfect guest every time' },
+  { optionA: 'Have a lifetime pass to amusement parks', optionB: 'Have a lifetime pass to museums' },
+  { optionA: 'Have a pet otter', optionB: 'Have a pet penguin' },
+  { optionA: 'Always have clean sheets', optionB: 'Always have a warm towel after a shower' },
+  { optionA: 'Be able to visit the moon', optionB: 'Be able to visit the bottom of the ocean' },
+  { optionA: 'Live without mosquitoes', optionB: 'Live without spam texts' },
+  { optionA: 'Have a home with a fireplace', optionB: 'Have a home with a hot tub' },
+  { optionA: 'Live without email for a month', optionB: 'Live without group chats for a month' },
+  { optionA: 'Have a home with a treehouse', optionB: 'Have a home with a secret reading nook' },
+  { optionA: 'Have a kitchen that cleans itself', optionB: 'Have a bathroom that cleans itself' },
+  { optionA: 'Live without tangled headphones', optionB: 'Live without tangled Christmas lights' },
+  { optionA: 'Have a year of free movie tickets', optionB: 'Have a year of free mini golf' },
+  { optionA: 'Live without boring meetings', optionB: 'Live without boring errands' },
+  { optionA: 'Have a year of free escape rooms', optionB: 'Have a year of free bowling' },
+  { optionA: 'Be able to make the best group playlist', optionB: 'Be able to make the best charcuterie board' },
+  { optionA: 'Live without tripping in public', optionB: 'Live without waving at someone who was not waving at you' },
+  { optionA: 'Have a big couch for movie marathons', optionB: 'Have a big yard for outdoor games' },
+  { optionA: 'Be able to make anyone feel like they belong', optionB: 'Be able to make anyone feel celebrated' },
+  { optionA: 'Always have the perfect amount of popcorn at the movies', optionB: 'Always have the perfect seat at the movies' },
+  { optionA: 'Be able to keep every game night fun', optionB: 'Be able to keep every road trip fun' },
+  { optionA: 'Have a magic button that finds your phone', optionB: 'Have a magic button that finds your other sock' },
+  { optionA: 'Be able to make the best campfire story', optionB: 'Be able to make the best toast speech' },
+  { optionA: 'Live without forgetting why you walked into a room', optionB: 'Live without forgetting names at parties' },
+  { optionA: 'Be able to make anyone love board game night', optionB: 'Be able to make anyone love movie night' },
+  { optionA: 'Always have great Wi-Fi for video calls', optionB: 'Always have great lighting for video calls' },
+  { optionA: 'Be able to make the best scavenger hunt', optionB: 'Be able to make the best trivia night' },
+  { optionA: 'Have a year of free botanical garden visits', optionB: 'Have a year of free aquarium visits' },
+  { optionA: 'Be able to make anyone feel ready for a big adventure', optionB: 'Be able to make anyone feel ready for a quiet night in' },
+  { optionA: 'Always have the best luck with surprise sunny days', optionB: 'Always have the best luck with surprise snow days' },
+  { optionA: 'Be able to make the best team name', optionB: 'Be able to make the best group chat name' },
+  { optionA: 'Live without sending a text to the wrong person', optionB: 'Live without forgetting to reply to a nice text' },
+  { optionA: 'Be able to make anyone feel like the life of the party', optionB: 'Be able to make anyone feel like the heart of the friend group' },
+  { optionA: 'Have a magic button that finds the TV remote', optionB: 'Have a magic button that picks a restaurant everyone agrees on' },
+  { optionA: 'Be able to make the best opening line for game night', optionB: 'Be able to make the best recap after game night' },
+  { optionA: 'Always have the best luck with surprise compliments', optionB: 'Always have the best luck with surprise reunions' },
+  { optionA: 'Be able to keep every friend group drama-free', optionB: 'Be able to keep every family gathering drama-free' },
+  { optionA: 'Be able to make anyone feel excited to try something new', optionB: 'Be able to make anyone feel safe trying something new' },
+  { optionA: 'Have a home with a big table for board games', optionB: 'Have a home with a big screen for game nights' },
+  { optionA: 'Be able to make anyone feel proud of a small win', optionB: 'Be able to make anyone feel brave about a big risk' },
+  { optionA: 'Always pick the best meme for the group chat', optionB: 'Always pick the best GIF for the group chat' },
+  { optionA: 'Be able to make the best thank-you note', optionB: 'Be able to make the best apology note' },
+  { optionA: 'Live in a city with perfect public transit', optionB: 'Live in a city where everything is walkable' },
+  { optionA: 'Be able to make anyone feel calm before a big event', optionB: 'Be able to make anyone feel excited before a big event' },
+  { optionA: 'Have a year of free ice skating', optionB: 'Have a year of free laser tag' },
+  { optionA: 'Be able to make the best friendship playlist', optionB: 'Be able to make the best road trip playlist' },
+  { optionA: 'Always find a great local coffee shop', optionB: 'Always find a great local bookstore' },
+  { optionA: 'Be able to make anyone feel included in five minutes', optionB: 'Be able to make anyone laugh in five minutes' },
+  { optionA: 'Have a home with a porch swing', optionB: 'Have a home with a hammock' },
+  { optionA: 'Be able to make the best care package', optionB: 'Be able to make the best welcome basket' },
+  { optionA: 'Live in a world where packages never get lost', optionB: 'Live in a world where food delivery is never late' },
+  { optionA: 'Be able to make the best team cheer', optionB: 'Be able to make the best victory dance' },
+  { optionA: 'Always have the perfect hoodie weather', optionB: 'Always have the perfect sweater weather' },
+  { optionA: 'Be able to make the best intro for a new player', optionB: 'Be able to make the best recap after game night' },
+  { optionA: 'Have a year of free trampoline parks', optionB: 'Have a year of free climbing gyms' },
+  { optionA: 'Be able to make anyone feel like they nailed it', optionB: 'Be able to make anyone feel like they are enough' },
 ]
 
 export const WYR_QUESTION_COUNT = WYR_QUESTIONS.length
 
-export function wyrQuestionKey(optionA: string, optionB: string): string {
-  return `${optionA}\0${optionB}`
-}
-
-/** Pick `count` unique questions, preferring those played least often globally. */
+export { wyrQuestionKey } from '@/lib/pool-key'
 export function pickWyrQuestions(count: number, usageCounts: Map<string, number> = new Map()): WyrQuestion[] {
   return pickLeastUsed(WYR_QUESTIONS, (q) => wyrQuestionKey(q.optionA, q.optionB), usageCounts, count)
 }

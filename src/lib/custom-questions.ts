@@ -1,14 +1,42 @@
-import type { Game, GameType, QuestionSource } from '@/types'
+import type { Game, GameType, QuestionSource, TriviaCategory, TriviaQuestion } from '@/types'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
-import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
+import { WYR_QUESTION_COUNT, wyrQuestionKey } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
-import { isWouldYouRather, isMostLikelyTo, isThisOrThat, isBinaryChoiceGame, parseGameType } from '@/lib/game-types'
+import { TRIVIA_QUESTION_COUNT, triviaQuestionKey } from '@/lib/trivia-questions'
+import { isWouldYouRather, isMostLikelyTo, isThisOrThat, isBinaryChoiceGame, isTriviaGame, parseGameType } from '@/lib/game-types'
+import { pickLeastUsed } from '@/lib/question-picker'
+
+function splitCsvRow(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++
+        continue
+      }
+      inQuotes = !inQuotes
+      continue
+    }
+    if (ch === ',' && !inQuotes) {
+      result.push(current.trim().replace(/^"|"$/g, ''))
+      current = ''
+      continue
+    }
+    current += ch
+  }
+
+  result.push(current.trim().replace(/^"|"$/g, ''))
+  return result
+}
 
 function splitRow(line: string): string[] {
   if (line.includes('\t')) return line.split('\t').map((s) => s.trim())
-  if (line.includes(',')) {
-    return line.split(',').map((s) => s.trim().replace(/^"|"$/g, ''))
-  }
+  if (line.includes(',')) return splitCsvRow(line)
   return [line.trim()]
 }
 
@@ -70,10 +98,242 @@ export function parseThisOrThatQuestionRows(text: string): WyrQuestion[] {
   return rows
 }
 
+function normalizeHeaderKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, '_')
+}
+
+function isTriviaHeader(cols: string[]): boolean {
+  const normalized = cols.map(normalizeHeaderKey)
+  if (normalized.includes('question') || normalized.includes('questions')) return true
+  return normalized.includes('option_a') || normalized.includes('optiona')
+}
+
+type TriviaHeaderMap = {
+  question: number
+  choices: number[]
+  correct: number
+  category?: number
+}
+
+function buildTriviaHeaderMap(cols: string[]): TriviaHeaderMap | null {
+  const normalized = cols.map(normalizeHeaderKey)
+  const question =
+    normalized.indexOf('question') >= 0
+      ? normalized.indexOf('question')
+      : normalized.indexOf('questions')
+
+  if (question < 0) return null
+
+  const choiceKeys = ['option_a', 'option_b', 'option_c', 'option_d'] as const
+  const choices: number[] = []
+  for (const key of choiceKeys) {
+    const idx = normalized.indexOf(key)
+    if (idx >= 0) choices.push(idx)
+  }
+  if (choices.length < 2) {
+    for (const key of ['a', 'b', 'c', 'd'] as const) {
+      const idx = normalized.indexOf(key)
+      if (idx >= 0 && !choices.includes(idx)) choices.push(idx)
+    }
+  }
+
+  const correct =
+    ['correct', 'correct_answer', 'answer', 'correct_index'].map((k) => normalized.indexOf(k)).find((i) => i >= 0) ??
+    -1
+
+  if (choices.length < 2 || correct < 0) return null
+
+  const category = ['category', 'cat'].map((k) => normalized.indexOf(k)).find((i) => i >= 0)
+
+  return { question, choices, correct, category }
+}
+
+function parseCorrectIndex(raw: string, choices: string[]): number | null {
+  const v = raw.trim()
+  if (!v) return null
+  const letter = v.toUpperCase()
+  if (letter === 'A' || letter === '0') return 0
+  if (letter === 'B' || letter === '1') return 1
+  if (letter === 'C' || letter === '2') return 2
+  if (letter === 'D' || letter === '3') return 3
+  const num = Number.parseInt(v, 10)
+  if (!Number.isNaN(num) && num >= 0 && num < choices.length) return num
+  const idx = choices.findIndex((c) => c.toLowerCase() === v.toLowerCase())
+  return idx >= 0 ? idx : null
+}
+
+function parseTriviaQuestionFromCols(
+  cols: string[],
+  defaultCategory: TriviaCategory,
+  headerMap?: TriviaHeaderMap | null
+): TriviaQuestion | null {
+  if (headerMap) {
+    const question = cols[headerMap.question]?.trim()
+    if (!question) return null
+
+    const choices = headerMap.choices.map((i) => cols[i]?.trim() ?? '').filter(Boolean)
+    const correctRaw = cols[headerMap.correct]?.trim() ?? ''
+    const catRaw = headerMap.category != null ? cols[headerMap.category]?.trim().toLowerCase() : ''
+    const category: TriviaCategory = catRaw === 'tech' ? 'tech' : defaultCategory
+
+    if (choices.length < 2) return null
+    const correctIndex = parseCorrectIndex(correctRaw, choices)
+    if (correctIndex == null) return null
+
+    return { question, choices: choices.slice(0, 4), correctIndex, category }
+  }
+
+  if (cols.length < 3) return null
+
+  const question = cols[0]?.trim()
+  if (!question) return null
+
+  let choices: string[] = []
+  let correctRaw = ''
+  let category: TriviaCategory = defaultCategory
+
+  if (cols.length >= 6) {
+    choices = cols.slice(1, 5).map((c) => c.trim()).filter(Boolean)
+    correctRaw = cols[5] ?? ''
+    const cat = cols[6]?.trim().toLowerCase()
+    if (cat === 'tech' || cat === 'general') category = cat
+  } else if (cols.length === 5) {
+    choices = cols.slice(1, 4).map((c) => c.trim()).filter(Boolean)
+    correctRaw = cols[4] ?? ''
+  } else if (cols.length === 4) {
+    choices = cols.slice(1, 3).map((c) => c.trim()).filter(Boolean)
+    correctRaw = cols[3] ?? ''
+  } else {
+    choices = [cols[1], cols[2]].map((c) => c.trim()).filter(Boolean)
+    correctRaw = cols[3] ?? cols[2] ?? ''
+  }
+
+  if (choices.length < 2) return null
+  const correctIndex = parseCorrectIndex(correctRaw, choices)
+  if (correctIndex == null) return null
+
+  return { question, choices: choices.slice(0, 4), correctIndex, category }
+}
+
+export type TriviaQuestionImportResult = {
+  questions: TriviaQuestion[]
+  totalRows: number
+  skippedRows: number
+  duplicateRows: number
+}
+
+export function parseTriviaQuestionImport(
+  text: string,
+  defaultCategory: TriviaCategory = 'general'
+): TriviaQuestionImportResult {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+
+  const parsed: TriviaQuestion[] = []
+  let headerMap: TriviaHeaderMap | null = null
+  let totalRows = 0
+  let skippedRows = 0
+
+  for (const line of lines) {
+    const cols = splitRow(line)
+    if (!headerMap && isTriviaHeader(cols)) {
+      headerMap = buildTriviaHeaderMap(cols)
+      continue
+    }
+
+    totalRows++
+    const row = parseTriviaQuestionFromCols(cols, defaultCategory, headerMap)
+    if (row) parsed.push(row)
+    else skippedRows++
+  }
+
+  const seen = new Set<string>()
+  const questions: TriviaQuestion[] = []
+  let duplicateRows = 0
+  for (const q of parsed) {
+    const key = triviaQuestionKey(q)
+    if (seen.has(key)) {
+      duplicateRows++
+      continue
+    }
+    seen.add(key)
+    questions.push(q)
+  }
+
+  return { questions, totalRows, skippedRows, duplicateRows }
+}
+
+export function formatTriviaImportSummary(result: TriviaQuestionImportResult): string | null {
+  const parts: string[] = []
+  if (result.skippedRows > 0) {
+    parts.push(`${result.skippedRows} row${result.skippedRows === 1 ? '' : 's'} skipped (check format)`)
+  }
+  if (result.duplicateRows > 0) {
+    parts.push(`${result.duplicateRows} duplicate question${result.duplicateRows === 1 ? '' : 's'} removed`)
+  }
+  if (parts.length === 0) return null
+  return parts.join(' · ')
+}
+
+export function parseTriviaQuestionRows(text: string, defaultCategory: TriviaCategory = 'general'): TriviaQuestion[] {
+  return parseTriviaQuestionImport(text, defaultCategory).questions
+}
+
+export async function parseExcelTriviaQuestions(
+  buffer: ArrayBuffer,
+  defaultCategory: TriviaCategory = 'general'
+): Promise<TriviaQuestion[]> {
+  return (await parseExcelTriviaQuestionImport(buffer, defaultCategory)).questions
+}
+
+export async function parseExcelTriviaQuestionImport(
+  buffer: ArrayBuffer,
+  defaultCategory: TriviaCategory = 'general'
+): Promise<TriviaQuestionImportResult> {
+  return parseTriviaQuestionImport(await sheetBufferToText(buffer), defaultCategory)
+}
+
+export function mergeTriviaQuestions(existing: TriviaQuestion[], incoming: TriviaQuestion[]): TriviaQuestion[] {
+  const seen = new Set(existing.map((q) => triviaQuestionKey(q)))
+  const merged = [...existing]
+  for (const q of incoming) {
+    const key = triviaQuestionKey(q)
+    if (!seen.has(key)) {
+      seen.add(key)
+      merged.push(q)
+    }
+  }
+  return merged
+}
+
+export function parseStoredTriviaQuestions(raw: unknown): TriviaQuestion[] {
+  if (!Array.isArray(raw)) return []
+  const out: TriviaQuestion[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const question = String((item as { question?: unknown }).question ?? '').trim()
+    const choicesRaw = (item as { choices?: unknown }).choices
+    const correctIndex = Number((item as { correctIndex?: unknown }).correctIndex)
+    const categoryRaw = (item as { category?: unknown }).category
+    const choices = Array.isArray(choicesRaw)
+      ? choicesRaw.filter((c): c is string => typeof c === 'string').map((c) => c.trim()).filter(Boolean)
+      : []
+    const category: TriviaCategory = categoryRaw === 'tech' ? 'tech' : 'general'
+    if (!question || choices.length < 2 || Number.isNaN(correctIndex)) continue
+    if (correctIndex < 0 || correctIndex >= choices.length) continue
+    out.push({ question, choices: choices.slice(0, 4), correctIndex, category })
+  }
+  return out
+}
+
 export function parseQuestionSource(raw: unknown, gameType?: GameType | string): QuestionSource {
   if (isThisOrThat(gameType)) return 'custom'
-  if (!isWouldYouRather(gameType) && !isMostLikelyTo(gameType)) return 'platform'
-  return raw === 'custom' ? 'custom' : 'platform'
+  if (isTriviaGame(gameType) || isWouldYouRather(gameType) || isMostLikelyTo(gameType)) {
+    return raw === 'custom' ? 'custom' : 'platform'
+  }
+  return 'platform'
 }
 
 export function isLobbyQuestionGame(gameType?: GameType | string): boolean {
@@ -128,13 +388,8 @@ async function sheetBufferToText(buffer: ArrayBuffer): Promise<string> {
 
   const grid = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' }) as string[][]
   return grid
-    .map((row) =>
-      row
-        .map((cell) => String(cell ?? '').trim())
-        .filter(Boolean)
-        .join('\t')
-    )
-    .filter(Boolean)
+    .map((row) => row.map((cell) => String(cell ?? '').trim()).join('\t'))
+    .filter((line) => line.replace(/\t/g, '').length > 0)
     .join('\n')
 }
 
@@ -177,6 +432,9 @@ export function mergeMltQuestions(existing: string[], incoming: string[]): strin
 }
 
 export function questionSampleFile(gameType?: GameType | string): { href: string; download: string } {
+  if (isTriviaGame(gameType)) {
+    return { href: '/trivia-questions-sample.csv', download: 'trivia-questions-sample.csv' }
+  }
   if (isThisOrThat(gameType)) {
     return { href: '/this-or-that-questions-sample.csv', download: 'this-or-that-questions-sample.csv' }
   }
@@ -187,6 +445,9 @@ export function questionSampleFile(gameType?: GameType | string): { href: string
 }
 
 export function questionUploadHint(gameType?: GameType | string): string {
+  if (isTriviaGame(gameType)) {
+    return '.csv or .xlsx — question, option_a–option_d, correct (A–D). Quote questions that contain commas.'
+  }
   if (isThisOrThat(gameType)) {
     return '.csv or .xlsx — one question per row (e.g. Coffee or Tea?)'
   }
@@ -228,6 +489,7 @@ export function customQuestionCount(game: Pick<Game, 'game_type' | 'question_sou
   if (parseQuestionSource(game.question_source, game.game_type) !== 'custom') return 0
   if (isBinaryChoiceGame(game.game_type)) return parseStoredWyrQuestions(game.custom_questions).length
   if (isMostLikelyTo(game.game_type)) return parseStoredMltQuestions(game.custom_questions).length
+  if (isTriviaGame(game.game_type)) return parseStoredTriviaQuestions(game.custom_questions).length
   return 0
 }
 
@@ -252,6 +514,10 @@ export function questionPoolCap(
     const base = custom > 0 ? custom : MLT_QUESTION_COUNT
     return capAt(base + playerCount)
   }
+  if (isTriviaGame(type)) {
+    const custom = customQuestionCount(game)
+    return capAt(custom > 0 ? custom : TRIVIA_QUESTION_COUNT)
+  }
   return 20
 }
 
@@ -271,23 +537,28 @@ export function clampLobbyQuestionRounds(value: number | string, upper: number):
   return Math.min(Math.max(n, 1), max)
 }
 
-function shuffleCopy<T>(items: T[]): T[] {
-  const arr = [...items]
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr
+export function pickCustomWyrQuestions(
+  pool: WyrQuestion[],
+  count: number,
+  usageCounts: Map<string, number> = new Map()
+): WyrQuestion[] {
+  return pickLeastUsed(pool, (q) => wyrQuestionKey(q.optionA, q.optionB), usageCounts, count)
 }
 
-export function pickCustomWyrQuestions(pool: WyrQuestion[], count: number): WyrQuestion[] {
-  if (count <= 0 || pool.length === 0) return []
-  return shuffleCopy(pool).slice(0, Math.min(count, pool.length))
+export function pickCustomMltQuestions(
+  pool: string[],
+  count: number,
+  usageCounts: Map<string, number> = new Map()
+): string[] {
+  return pickLeastUsed(pool, (question) => question, usageCounts, count)
 }
 
-export function pickCustomMltQuestions(pool: string[], count: number): string[] {
-  if (count <= 0 || pool.length === 0) return []
-  return shuffleCopy(pool).slice(0, Math.min(count, pool.length))
+export function pickCustomTriviaQuestions(
+  pool: TriviaQuestion[],
+  count: number,
+  usageCounts: Map<string, number> = new Map()
+): TriviaQuestion[] {
+  return pickLeastUsed(pool, triviaQuestionKey, usageCounts, count)
 }
 
 export function questionSourceOptions(gameType: GameType | string): {
@@ -304,7 +575,11 @@ export function questionSourceOptions(gameType: GameType | string): {
       },
     ]
   }
-  const platformCount = isMostLikelyTo(gameType) ? MLT_QUESTION_COUNT : WYR_QUESTION_COUNT
+  const platformCount = isTriviaGame(gameType)
+    ? TRIVIA_QUESTION_COUNT
+    : isMostLikelyTo(gameType)
+      ? MLT_QUESTION_COUNT
+      : WYR_QUESTION_COUNT
   return [
     {
       value: 'platform',
@@ -314,7 +589,7 @@ export function questionSourceOptions(gameType: GameType | string): {
     {
       value: 'custom',
       label: 'Your own',
-      hint: 'Upload a CSV with your questions — download the sample format first.',
+      hint: 'Upload a CSV or Excel file with your questions.',
     },
   ]
 }

@@ -7,6 +7,7 @@ import {
   isMostLikelyTo,
   isWhoSaidThis,
   isPairGame,
+  isBinaryPeoplePollGame,
   isCustomGame,
   isThreeChoiceGame,
   isAssignmentComplete,
@@ -132,7 +133,7 @@ export function useAutoSubmit(
           ? !!mltTarget
           : isCustomGame(gameType)
             ? Object.keys(customCa).length > 0
-            : isPairGame(gameType)
+            : isBinaryPeoplePollGame(gameType)
               ? Object.values(pa).some(Boolean)
               : Object.values(a).some(Boolean)
 
@@ -161,7 +162,7 @@ export function useAutoSubmit(
         customCa = { ...customCa, ...filled }
         customAssignmentsRef.current = customCa
         onCustomAssignmentsChangeRef.current?.(customCa)
-      } else if (isPairGame(gameType)) {
+      } else if (isBinaryPeoplePollGame(gameType)) {
         const pairMode = parsePairVoteMode(g.pair_vote_mode)
         if (pairMode === 'one_each' && roundIds.length === 2) {
           Object.assign(pa, completeRandomPairAssignment(pa, roundIds, pairMode))
@@ -202,7 +203,7 @@ export function useAutoSubmit(
       const customMode = customAssignmentMode(g, roundIds.length, slotKeys)
       if (!isCustomAssignmentValid(customCa, roundIds, slotKeys, customMode)) return false
       voteBody = { customAssignments: customCa }
-    } else if (isPairGame(gameType)) {
+    } else if (isBinaryPeoplePollGame(gameType)) {
       const pairMode = parsePairVoteMode(g.pair_vote_mode)
       if (!isPairAssignmentValid(pa, roundIds, pairMode)) return false
       voteBody = {

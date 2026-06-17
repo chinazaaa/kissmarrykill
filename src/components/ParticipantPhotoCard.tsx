@@ -90,6 +90,7 @@ export function ParticipantPhotoCard({
                   ? slot.activeClass
                   : `surface-inset border-theme text-muted ${!slotDisabled ? 'hover:border-theme-strong hover:text-body-muted' : ''}`
               } disabled:cursor-not-allowed disabled:opacity-40`}
+              style={action === a ? { color: slot.textColor } : undefined}
             >
               {slot.emoji} {slot.label}
             </button>

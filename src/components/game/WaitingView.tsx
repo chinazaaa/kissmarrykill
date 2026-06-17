@@ -27,10 +27,11 @@ interface WaitingViewProps {
   setQuoteInput: (v: string) => void
   quoteAuthorParticipantId: string | null
   setQuoteAuthorParticipantId: (v: string | null) => void
+  editingQuoteId: string | null
+  setEditingQuoteId: (v: string | null) => void
   quoteSubmitting: boolean
-  poolQuoteSaved: boolean
-  setPoolQuoteSaved: (v: boolean) => void
   handleSubmitPoolQuote: () => void
+  handleDeletePoolQuote: (quoteId: string) => void
   pqList: PlayerQuestion[]
   pqWyrA: string
   setPqWyrA: (v: string) => void
@@ -69,10 +70,11 @@ export function WaitingView({
   setQuoteInput,
   quoteAuthorParticipantId,
   setQuoteAuthorParticipantId,
+  editingQuoteId,
+  setEditingQuoteId,
   quoteSubmitting,
-  poolQuoteSaved,
-  setPoolQuoteSaved,
   handleSubmitPoolQuote,
+  handleDeletePoolQuote,
   pqList,
   pqWyrA,
   setPqWyrA,
@@ -98,7 +100,10 @@ export function WaitingView({
   const isWst = isWhoSaidThis(game?.game_type)
   const wstTargets = isWst ? wstVoteTargets(participants) : []
   const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
-  const myPoolEntry = isWst && myPlayerId ? wstPool.find((e) => e.player_id === myPlayerId) : null
+  const myQuotes =
+    isWst && myPlayerId
+      ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at))
+      : []
   const canSubmitPoolQuote = !!me?.participant_id
   const isPeopleMode = !isWouldYouRather(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst
   const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
@@ -187,27 +192,62 @@ export function WaitingView({
                 <span className="text-sm font-bold text-body">{wstPool.length} submitted</span>
               </div>
               <p className="text-faint text-xs">
-                Submit your quote and the correct answer now. Only people in the pool get a round — if 5 of 10 submit,
-                that&apos;s 5 rounds.
+                Add as many quotes as you like — each one becomes a round. Pick who said each quote before the host
+                starts.
               </p>
             </div>
 
             {canSubmitPoolQuote ? (
               <div className="glass-card p-5 space-y-4">
-                {myPoolEntry && poolQuoteSaved ? (
-                  <div className="text-center space-y-1">
-                    <p className="text-green-400 text-sm font-semibold">✓ Your quote is in the pool</p>
-                    <p className="text-faint text-xs">You can edit it below until the host starts.</p>
+                {myQuotes.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-faint text-[10px] uppercase tracking-wider">Your quotes ({myQuotes.length})</p>
+                    {myQuotes.map((entry) => {
+                      const authorName =
+                        participants.find((p) => p.id === entry.author_participant_id)?.name ?? 'Unknown'
+                      return (
+                        <div key={entry.id} className="flex items-start gap-2 rounded-xl border border-theme px-3 py-2">
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <p className="text-sm text-body-muted line-clamp-2">&ldquo;{entry.quote_text}&rdquo;</p>
+                            <p className="text-faint text-[10px]">— {authorName}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              type="button"
+                              className="text-faint hover:text-body text-xs px-1"
+                              disabled={quoteSubmitting}
+                              onClick={() => {
+                                setEditingQuoteId(entry.id)
+                                setQuoteInput(entry.quote_text)
+                                setQuoteAuthorParticipantId(entry.author_participant_id)
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="text-faint hover:text-red-400 text-xs px-1"
+                              disabled={quoteSubmitting}
+                              onClick={() => handleDeletePoolQuote(entry.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                ) : (
-                  <p className="font-semibold text-body text-center">Add your quote to the pool</p>
                 )}
+                <p className="font-semibold text-body text-center">
+                  {editingQuoteId
+                    ? 'Edit quote'
+                    : myQuotes.length > 0
+                      ? 'Add another quote'
+                      : 'Add your quote to the pool'}
+                </p>
                 <textarea
                   value={quoteInput}
-                  onChange={(e) => {
-                    setQuoteInput(e.target.value)
-                    setPoolQuoteSaved(false)
-                  }}
+                  onChange={(e) => setQuoteInput(e.target.value)}
                   placeholder="e.g. Roses are red"
                   maxLength={500}
                   rows={3}
@@ -219,26 +259,39 @@ export function WaitingView({
                   <NameSearchPicker
                     options={wstTargets.map((p) => ({ id: p.id, name: p.name }))}
                     valueId={quoteAuthorParticipantId}
-                    onChange={(id) => {
-                      setQuoteAuthorParticipantId(id)
-                      setPoolQuoteSaved(false)
-                    }}
+                    onChange={setQuoteAuthorParticipantId}
                     searchPlaceholder="Search names…"
                     emptyMessage="No names match"
                     disabled={quoteSubmitting}
                   />
                 </div>
-                <button
-                  onClick={handleSubmitPoolQuote}
-                  disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
-                  className={
-                    quoteInput.trim() && quoteAuthorParticipantId
-                      ? 'btn-primary w-full'
-                      : 'btn-secondary w-full opacity-60 cursor-not-allowed'
-                  }
-                >
-                  {quoteSubmitting ? 'Saving…' : myPoolEntry ? 'Update Quote' : 'Add to Pool →'}
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleSubmitPoolQuote}
+                    disabled={!quoteInput.trim() || !quoteAuthorParticipantId || quoteSubmitting}
+                    className={
+                      quoteInput.trim() && quoteAuthorParticipantId
+                        ? 'btn-primary w-full'
+                        : 'btn-secondary w-full opacity-60 cursor-not-allowed'
+                    }
+                  >
+                    {quoteSubmitting ? 'Saving…' : editingQuoteId ? 'Save changes' : 'Add to Pool →'}
+                  </button>
+                  {editingQuoteId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingQuoteId(null)
+                        setQuoteInput('')
+                        setQuoteAuthorParticipantId(null)
+                      }}
+                      className="btn-secondary text-sm w-full"
+                      disabled={quoteSubmitting}
+                    >
+                      Cancel edit
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <p className="text-faint text-xs text-center">Claim your name when joining to submit a quote.</p>

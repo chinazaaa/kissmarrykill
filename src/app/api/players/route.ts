@@ -2,18 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame } from '@/lib/game-types'
+import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame } from '@/lib/game-types'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
-import { anonymousPlayerCanChat, anonymousRoomMaxPlayers } from '@/lib/anonymous-messages'
+import { anonymousPlayerCanChat } from '@/lib/anonymous-messages'
+import { createBingoCardForPlayer } from '@/lib/bingo'
+import { assignCodewordsLateJoinOperative, codewordsAllowsPlayerChanges, removeCodewordsPlayer } from '@/lib/codewords'
+import { isTwoTruthsGame } from '@/lib/game-types'
+import { fetchGamePlayerLimits, isLobbyLimitGameType, lobbyMaxPlayersFromGame } from '@/lib/game-limits'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import {
   assertHostGame,
+  assertHostPlayerRemove,
   deleteJoinerPair,
   findJoinerParticipant,
   pollGenderForPlayer,
   syncImportParticipantBallot,
 } from '@/lib/game-admin'
+import { canJoinGame, playerIsViewer, spectatorForActiveJoin, gameOffersLateJoinChoice, allowLateJoin, allowLatePlayers } from '@/lib/viewers'
+import type { Game } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -21,7 +28,7 @@ async function assertWaitingGame(gameCode: string) {
   const id = gameCode.toUpperCase()
   const { data: game } = await supabase
     .from('games')
-    .select('status, participant_mode, game_type, custom_slots, gender_based')
+    .select('status, participant_mode, game_type, custom_slots, gender_based, max_players')
     .eq('id', id)
     .maybeSingle()
 
@@ -30,6 +37,68 @@ async function assertWaitingGame(gameCode: string) {
     return { error: 'Game has already started', status: 400 as const, game: null, id }
   }
   return { error: null, status: 200 as const, game, id }
+}
+
+async function assertPlayerSessionGame(gameCode: string) {
+  const id = gameCode.toUpperCase()
+  const { data: game } = await supabase
+    .from('games')
+    .select('status, participant_mode, game_type, custom_slots, gender_based, max_players')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
+
+  const gameType = parseGameType(game.game_type)
+  if (isCodewordsGame(gameType)) {
+    if (!codewordsAllowsPlayerChanges(game.status)) {
+      return { error: 'This round has ended', status: 400 as const, game: null, id }
+    }
+  } else if (game.status !== 'waiting' && game.status !== 'active' && game.status !== 'finished') {
+    return { error: 'Game is not open', status: 400 as const, game: null, id }
+  }
+
+  return { error: null, status: 200 as const, game, id }
+}
+
+function playerJoinResponse(
+  player: {
+    id: string
+    name: string
+    gender: string
+    identity_gender: string | null
+    joined_at: string
+    spectator?: boolean
+  },
+  game: Pick<Game, 'status' | 'session_started_at'>,
+  extra: Record<string, unknown> = {}
+) {
+  return {
+    playerId: player.id,
+    playerName: player.name,
+    playerGender: player.gender,
+    playerIdentityGender: player.identity_gender,
+    isViewer: playerIsViewer(player, game),
+    ...extra,
+  }
+}
+
+function lateJoinChoiceError(
+  game: Pick<Game, 'status' | 'game_type' | 'allow_viewers' | 'allow_late_players' | 'codewords_late_join'>,
+  joinAsViewer: boolean | undefined
+): string | null {
+  if (game.status !== 'active') return null
+  if (!gameOffersLateJoinChoice(parseGameType(game.game_type))) return null
+  if (!allowLatePlayers(game)) {
+    if (joinAsViewer === false) return 'This game only allows late joiners to watch'
+    return null
+  }
+  if (joinAsViewer === undefined) return 'Choose to join as a viewer or player'
+  return null
+}
+
+function spectatorOnJoin(game: Game, joinAsViewer: boolean | undefined): boolean {
+  return spectatorForActiveJoin(game, joinAsViewer)
 }
 
 async function nameTaken(gameId: string, name: string, excludePlayerId?: string) {
@@ -71,6 +140,7 @@ export async function POST(req: NextRequest) {
     pollGender: rawPollGender,
     identityGender: rawIdentityGender,
     participantId: rawParticipantId,
+    joinAsViewer: rawJoinAsViewer,
   } = parsed.data
 
   const name = playerName?.trim() ?? ''
@@ -79,16 +149,23 @@ export async function POST(req: NextRequest) {
   if (!gameRow) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
   const rowGameType = parseGameType(gameRow.game_type)
+  const lobbyLimits = await fetchGamePlayerLimits(supabase)
 
   if (isAnonymousMessagesGame(rowGameType)) {
     if (gameRow.status === 'finished') {
       return NextResponse.json({ error: 'This session has ended' }, { status: 400 })
     }
+    if (gameRow.status === 'active' && !allowLateJoin(gameRow as Game)) {
+      return NextResponse.json(
+        { error: 'This session has started — wait for the host to open the lobby again' },
+        { status: 400 }
+      )
+    }
     if (gameRow.status !== 'waiting' && gameRow.status !== 'active') {
       return NextResponse.json({ error: 'Cannot join this session' }, { status: 400 })
     }
 
-    const maxPlayers = anonymousRoomMaxPlayers(gameRow)
+    const maxPlayers = lobbyMaxPlayersFromGame('anonymous_messages', gameRow, lobbyLimits)
     const { count: playerCount } = await supabase
       .from('players')
       .select('id', { count: 'exact', head: true })
@@ -109,6 +186,7 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
+        spectator: spectatorOnJoin(gameRow as Game, true),
       })
       .select()
       .single()
@@ -126,15 +204,262 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const waiting = await assertWaitingGame(gameCode)
-  if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })
-  const { game, id } = waiting
-  const gameType = parseGameType(game!.game_type)
+  if (isSecretMessageGame(rowGameType)) {
+    if (gameRow.status !== 'active') {
+      return NextResponse.json({ error: 'This board is closed' }, { status: 400 })
+    }
+
+    const { data: existingPlayers } = await supabase.from('players').select('name').eq('game_id', gameId)
+    const generatedName = generateAnonymousDisplayName((existingPlayers ?? []).map((p) => p.name))
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name: generatedName,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: false,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({
+      playerId: player.id,
+      playerName: player.name,
+      playerGender: player.gender,
+      playerIdentityGender: player.identity_gender,
+      canChat: true,
+    })
+  }
+
+  if (isBingoGame(rowGameType)) {
+    const joinCheck = canJoinGame(gameRow as Game)
+    if (!joinCheck.ok) {
+      return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+    }
+    const choiceError = lateJoinChoiceError(gameRow as Game, rawJoinAsViewer)
+    if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 })
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = lobbyMaxPlayersFromGame('bingo', gameRow, lobbyLimits)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This bingo room is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const isSpectator = spectatorOnJoin(gameRow as Game, rawJoinAsViewer)
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: isSpectator,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    if (gameRow.status === 'waiting' || (gameRow.status === 'active' && !isSpectator)) {
+      const { error: cardError } = await createBingoCardForPlayer(supabase, gameId, player.id)
+      if (cardError) return NextResponse.json({ error: cardError }, { status: 500 })
+    }
+
+    return NextResponse.json(playerJoinResponse(player, gameRow as Game))
+  }
+
+  if (isMonopolyGame(rowGameType)) {
+    const joinCheck = canJoinGame(gameRow as Game)
+    if (!joinCheck.ok) {
+      return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = lobbyMaxPlayersFromGame('monopoly', gameRow, lobbyLimits)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: false,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json(playerJoinResponse(player, gameRow as Game))
+  }
+
+  if (isYahtzeeGame(rowGameType)) {
+    const joinCheck = canJoinGame(gameRow as Game)
+    if (!joinCheck.ok) {
+      return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = lobbyMaxPlayersFromGame('yahtzee', gameRow, lobbyLimits)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: false,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json(playerJoinResponse(player, gameRow as Game))
+  }
+
+  if (isCodewordsGame(rowGameType)) {
+    const joinCheck = canJoinGame(gameRow as Game)
+    if (!joinCheck.ok) {
+      return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+    }
+    const choiceError = lateJoinChoiceError(gameRow as Game, rawJoinAsViewer)
+    if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 })
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = lobbyMaxPlayersFromGame('codewords', gameRow, lobbyLimits)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (gameRow.status === 'active' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const isSpectator = spectatorOnJoin(gameRow as Game, rawJoinAsViewer)
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: isSpectator,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    if (gameRow.status === 'active' && !isSpectator) {
+      const { role, error: assignError } = await assignCodewordsLateJoinOperative(supabase, gameId, player.id)
+      if (assignError) {
+        await supabase.from('players').delete().eq('id', player.id)
+        return NextResponse.json({ error: assignError }, { status: 500 })
+      }
+      return NextResponse.json(
+        playerJoinResponse(player, gameRow as Game, role ? { codewordsRole: role } : {})
+      )
+    }
+
+    return NextResponse.json(playerJoinResponse(player, gameRow as Game))
+  }
+
+  const joinCheck = canJoinGame(gameRow as Game)
+  if (!joinCheck.ok) {
+    return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+  }
+  const game = gameRow
+  const id = gameId
+  const gameType = parseGameType(game.game_type)
+  const choiceError = lateJoinChoiceError(game as Game, rawJoinAsViewer)
+  if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 })
+  const joinSpectator = spectatorOnJoin(game as Game, rawJoinAsViewer)
 
   if (isNameOnlyPlayerJoin(gameType) || (isHotSeat(gameType) && isJoinersPollMode(game as import('@/types').Game))) {
     if (!name) {
       return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
     }
+
+    if (isLobbyLimitGameType(gameType)) {
+      const maxPlayers = lobbyMaxPlayersFromGame(gameType, game!, lobbyLimits)
+      const { count: playerCount } = await supabase
+        .from('players')
+        .select('id', { count: 'exact', head: true })
+        .eq('game_id', id)
+
+      if (game.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+        return NextResponse.json({ error: 'This room is full' }, { status: 400 })
+      }
+    }
+
     if (await nameTaken(id, name)) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
@@ -147,18 +472,14 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
+        spectator: joinSpectator,
       })
       .select()
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({
-      playerId: player.id,
-      playerName: player.name,
-      playerGender: player.gender,
-      playerIdentityGender: player.identity_gender,
-    })
+    return NextResponse.json(playerJoinResponse(player, game as Game))
   }
 
   if (isGenderFreeJoinersJoin(game as import('@/types').Game)) {
@@ -193,6 +514,7 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: participant.id,
+        spectator: joinSpectator,
       })
       .select()
       .single()
@@ -202,12 +524,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: playerError.message }, { status: 500 })
     }
 
-    return NextResponse.json({
-      playerId: player.id,
-      playerName: player.name,
-      playerGender: player.gender,
-      playerIdentityGender: player.identity_gender,
-    })
+    return NextResponse.json(playerJoinResponse(player, game as Game))
   }
 
   if (isGenderFreeVotersJoin(game as import('@/types').Game)) {
@@ -226,18 +543,14 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: null,
+        spectator: joinSpectator,
       })
       .select()
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({
-      playerId: player.id,
-      playerName: player.name,
-      playerGender: player.gender,
-      playerIdentityGender: player.identity_gender,
-    })
+    return NextResponse.json(playerJoinResponse(player, game as Game))
   }
 
   if (isGenderFreeImportJoin(game as import('@/types').Game) && isImportClaimMode(game as import('@/types').Game)) {
@@ -276,18 +589,14 @@ export async function POST(req: NextRequest) {
         gender: 'both',
         identity_gender: null,
         participant_id: participantId,
+        spectator: joinSpectator,
       })
       .select()
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({
-      playerId: player.id,
-      playerName: player.name,
-      playerGender: player.gender,
-      playerIdentityGender: player.identity_gender,
-    })
+    return NextResponse.json(playerJoinResponse(player, game as Game))
   }
 
   const gender = normalizePlayerGender(String(rawGender ?? ''))
@@ -340,6 +649,7 @@ export async function POST(req: NextRequest) {
         gender,
         identity_gender: identityGender,
         participant_id: participantId,
+        spectator: joinSpectator,
       })
       .select()
       .single()
@@ -348,12 +658,7 @@ export async function POST(req: NextRequest) {
 
     await syncImportParticipantBallot(supabase, id, participantId, gender, identityGender, rawPollGender ?? undefined)
 
-    return NextResponse.json({
-      playerId: player.id,
-      playerName: player.name,
-      playerGender: player.gender,
-      playerIdentityGender: player.identity_gender,
-    })
+    return NextResponse.json(playerJoinResponse(player, game as Game))
   }
 
   if (!name) {
@@ -380,18 +685,14 @@ export async function POST(req: NextRequest) {
         gender,
         identity_gender: identityGender,
         participant_id: null,
+        spectator: joinSpectator,
       })
       .select()
       .single()
 
     if (playerError) return NextResponse.json({ error: playerError.message }, { status: 500 })
 
-    return NextResponse.json({
-      playerId: player.id,
-      playerName: player.name,
-      playerGender: player.gender,
-      playerIdentityGender: player.identity_gender,
-    })
+    return NextResponse.json(playerJoinResponse(player, game as Game))
   }
 
   if (isJoinersPollMode(game as import('@/types').Game)) {
@@ -426,6 +727,7 @@ export async function POST(req: NextRequest) {
         gender,
         identity_gender: identityGender,
         participant_id: participant.id,
+        spectator: joinSpectator,
       })
       .select()
       .single()
@@ -435,12 +737,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: playerError.message }, { status: 500 })
     }
 
-    return NextResponse.json({
-      playerId: player.id,
-      playerName: player.name,
-      playerGender: player.gender,
-      playerIdentityGender: player.identity_gender,
-    })
+    return NextResponse.json(playerJoinResponse(player, game as Game))
   }
 
   return NextResponse.json({ error: 'Invalid game mode' }, { status: 400 })
@@ -473,10 +770,10 @@ export async function PATCH(req: NextRequest) {
     game = auth.game
     id = auth.id
   } else {
-    const waiting = await assertWaitingGame(gameCode)
-    if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })
-    game = waiting.game
-    id = waiting.id
+    const session = await assertPlayerSessionGame(gameCode)
+    if (session.error) return NextResponse.json({ error: session.error }, { status: session.status })
+    game = session.game
+    id = session.id
   }
 
   const { data: player } = await supabase.from('players').select('*').eq('id', playerId).eq('game_id', id).maybeSingle()
@@ -792,17 +1089,29 @@ export async function DELETE(req: NextRequest) {
       }
       game = hostGame
       id = code
+    } else if (isCodewordsGame(parseGameType(hostGame.game_type))) {
+      if (!codewordsAllowsPlayerChanges(hostGame.status)) {
+        return NextResponse.json({ error: 'Players can only be removed while the lobby or game is open' }, { status: 400 })
+      }
+      game = hostGame
+      id = code
+    } else if (isTwoTruthsGame(parseGameType(hostGame.game_type))) {
+      if (hostGame.status === 'finished') {
+        return NextResponse.json({ error: 'Players can only be removed while the lobby or game is active' }, { status: 400 })
+      }
+      game = hostGame
+      id = code
     } else {
-      const auth = await assertHostGame(supabase, gameCode, hostToken)
+      const auth = await assertHostPlayerRemove(supabase, gameCode, hostToken)
       if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
       game = auth.game
       id = auth.id
     }
   } else {
-    const waiting = await assertWaitingGame(gameCode)
-    if (waiting.error) return NextResponse.json({ error: waiting.error }, { status: waiting.status })
-    game = waiting.game
-    id = waiting.id
+    const session = await assertPlayerSessionGame(gameCode)
+    if (session.error) return NextResponse.json({ error: session.error }, { status: session.status })
+    game = session.game
+    id = session.id
   }
 
   const { data: player } = await supabase
@@ -813,6 +1122,14 @@ export async function DELETE(req: NextRequest) {
     .maybeSingle()
 
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+
+  const gameType = parseGameType((game as { game_type?: string }).game_type)
+
+  if (isCodewordsGame(gameType)) {
+    const { error } = await removeCodewordsPlayer(supabase, id, playerId)
+    if (error) return NextResponse.json({ error }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
 
   if (game!.participant_mode === 'joiners') {
     await deleteJoinerPair(supabase, id, player)

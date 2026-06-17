@@ -6,11 +6,14 @@ import { gameTypeConfig } from '@/lib/game-types'
 import {
   ALL_GAME_LANDING_SLUGS,
   GAME_LANDING_CONTENT,
+  getGameBodyParagraph,
+  getGameFaqs,
   getGameLandingContent,
   type GameLandingContent,
 } from '@/lib/game-landing'
-import { SITE_NAME, OG_IMAGE } from '@/lib/seo'
-import { appOrigin } from '@/lib/site'
+import { SITE_NAME, faqPageJsonLd, gameJsonLd, gameLandingOgPath } from '@/lib/seo'
+import { getGameLandingCustomContentHints } from '@/lib/custom-content-hints'
+import { CustomContentAiTip } from '@/components/ui/CustomContentAiTip'
 import type { GameType } from '@/types'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -24,6 +27,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const content = getGameLandingContent(slug)
   if (!content) return {}
 
+  const cfg = gameTypeConfig(content.gameType)
+  const ogPath = gameLandingOgPath(slug)
+
   return {
     title: content.seoTitle,
     description: content.seoDescription,
@@ -33,28 +39,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${content.seoTitle} | ${SITE_NAME}`,
       description: content.seoDescription,
       url: `/games/${slug}`,
-      images: [OG_IMAGE],
+      images: [
+        {
+          url: ogPath,
+          width: 1200,
+          height: 630,
+          alt: `${cfg.label} — free online party game on ${SITE_NAME}`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${content.seoTitle} | ${SITE_NAME}`,
+      description: content.seoDescription,
+      images: [ogPath],
     },
   }
 }
 
 function gamePageJsonLd(content: GameLandingContent) {
-  const cfg = gameTypeConfig(content.gameType)
-  return JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: content.seoTitle,
-    description: content.seoDescription,
-    url: `${appOrigin()}/games/${content.slug}`,
-    isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: appOrigin() },
-    about: {
-      '@type': 'Game',
-      name: cfg.label,
-      description: content.heroSubtitle,
-      gamePlatform: 'Web browser',
-      numberOfPlayers: cfg.card.players,
-    },
-  })
+  return gameJsonLd(content)
 }
 
 export default async function GameLandingRoute({ params }: Props) {
@@ -64,10 +68,14 @@ export default async function GameLandingRoute({ params }: Props) {
 
   const cfg = gameTypeConfig(content.gameType)
   const otherGames = (Object.keys(GAME_LANDING_CONTENT) as GameType[]).filter((t) => t !== content.gameType)
+  const bodyParagraph = getGameBodyParagraph(content)
+  const faqs = getGameFaqs(content)
+  const customContentHints = getGameLandingCustomContentHints(content.gameType)
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: gamePageJsonLd(content) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqPageJsonLd(faqs) }} />
 
       <header className="fixed top-0 inset-x-0 z-40 flex items-center justify-between px-4 py-3 pointer-events-none">
         <Link href="/" className="pointer-events-auto">
@@ -82,28 +90,16 @@ export default async function GameLandingRoute({ params }: Props) {
       </header>
 
       <div className="page-wrap min-h-dvh pb-16">
-        {/* Hero */}
-        <section className="relative pt-28 pb-16 px-4 overflow-hidden">
+        {/* Hero — compact; CTAs + rules above the fold */}
+        <section className="relative px-4 pt-16 pb-6 overflow-hidden">
           <div
-            className="pointer-events-none absolute inset-0 opacity-50"
+            className="pointer-events-none absolute inset-0 opacity-40"
             style={{
               background: `radial-gradient(ellipse 80% 60% at 50% -10%, ${cfg.card.accentSoft} 0%, transparent 70%)`,
             }}
           />
-          <div
-            className="pointer-events-none absolute -top-8 left-[10%] text-6xl opacity-[0.07] select-none"
-            aria-hidden
-          >
-            {cfg.card.emoji}
-          </div>
-          <div
-            className="pointer-events-none absolute top-24 right-[8%] text-5xl opacity-[0.05] select-none"
-            aria-hidden
-          >
-            {cfg.headerEmoji}
-          </div>
 
-          <div className="relative z-10 mx-auto max-w-2xl text-center space-y-6">
+          <div className="relative z-10 mx-auto max-w-2xl text-center space-y-3">
             <div
               className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold"
               style={{
@@ -118,25 +114,13 @@ export default async function GameLandingRoute({ params }: Props) {
               <span className="opacity-80">{cfg.card.players}</span>
             </div>
 
-            <div className="text-5xl sm:text-6xl tracking-tight" aria-hidden>
-              {cfg.headerEmoji}
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight gradient-title leading-[1.05]">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight gradient-title leading-tight">
               {content.heroTitle}
             </h1>
 
-            <p className="text-muted text-base sm:text-lg leading-relaxed max-w-lg mx-auto">{content.heroSubtitle}</p>
+            <p className="text-muted text-sm sm:text-base leading-relaxed max-w-md mx-auto">{content.heroSubtitle}</p>
 
-            <div className="flex flex-wrap justify-center gap-2 pt-1">
-              {content.highlights.map((h) => (
-                <span key={h} className="glass-card px-3 py-1.5 text-xs font-medium text-body">
-                  {h}
-                </span>
-              ))}
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 w-fit mx-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3 pt-0.5 w-full sm:w-fit mx-auto">
               <Link href={`/create?type=${content.gameType}`} className="btn-primary btn-fit">
                 Play free →
               </Link>
@@ -145,9 +129,103 @@ export default async function GameLandingRoute({ params }: Props) {
               </Link>
             </div>
 
-            <p className="text-faint text-xs tracking-wide pt-1">
-              Free forever · No sign-up · Real-time · Phone & desktop
-            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-faint text-xs tracking-wide">
+              <span>Free forever · No sign-up · Real-time · Phone &amp; desktop</span>
+              <span className="hidden sm:inline opacity-40" aria-hidden>
+                ·
+              </span>
+              <a
+                href="#rules"
+                className="font-medium hover:opacity-80 transition-opacity"
+                style={{ color: cfg.card.accent }}
+              >
+                Read game rules ↓
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* SEO body copy — below the fold */}
+        <section className="px-4 pb-8 border-t border-theme pt-6">
+          <div className="mx-auto max-w-2xl text-center space-y-4">
+            <p className="text-muted text-sm sm:text-base leading-relaxed">{bodyParagraph}</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {content.highlights.map((h) => (
+                <span key={h} className="glass-card px-3 py-1.5 text-xs font-medium text-body">
+                  {h}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {customContentHints.length > 0 && (
+          <section className="px-4 pb-10">
+            <div className="mx-auto max-w-2xl space-y-3">
+              <h2 className="text-lg font-black text-center gradient-title-subtle">Make it your own</h2>
+              <p className="text-muted text-sm text-center leading-relaxed">
+                Use our built-in content or upload your own — any theme works.
+              </p>
+              <div className="space-y-3">
+                {customContentHints.map((hint) => (
+                  <CustomContentAiTip key={hint.headline} hint={hint} accent={cfg.card.accent} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* How it works */}
+        <section className="px-4 pb-12">
+          <div className="mx-auto max-w-2xl glass-card-strong p-6 sm:p-8 space-y-6">
+            <h2 className="text-xl font-black text-center gradient-title-subtle">How it works</h2>
+            <ol className="space-y-5">
+              {content.steps.map((step, i) => (
+                <li key={step.title} className="flex gap-4">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white"
+                    style={{ background: cfg.card.accent }}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="space-y-0.5 pt-0.5">
+                    <h3 className="font-bold text-body">{step.title}</h3>
+                    <p className="text-muted text-sm leading-relaxed">{step.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* Game rules */}
+        <section id="rules" className="px-4 pb-12 scroll-mt-24">
+          <div className="mx-auto max-w-2xl space-y-6">
+            <h2 className="text-xl font-black text-center gradient-title-subtle">Game rules &amp; how to play</h2>
+            <div className="space-y-4">
+              {content.rules.map((section) => (
+                <div key={section.title} className="glass-card p-5 sm:p-6 space-y-3">
+                  <h3
+                    className="font-bold text-body text-base border-b border-theme pb-2"
+                    style={{ borderColor: `${cfg.card.accent}30` }}
+                  >
+                    {section.title}
+                  </h3>
+                  <ul className="space-y-2">
+                    {section.points.map((point) => (
+                      <li key={point} className="flex gap-2.5 text-muted text-sm leading-relaxed">
+                        <span
+                          className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: cfg.card.accent }}
+                          aria-hidden
+                        />
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -173,29 +251,6 @@ export default async function GameLandingRoute({ params }: Props) {
           </div>
         </section>
 
-        {/* How it works */}
-        <section className="px-4 pb-12">
-          <div className="mx-auto max-w-2xl glass-card-strong p-6 sm:p-8 space-y-6">
-            <h2 className="text-xl font-black text-center gradient-title-subtle">How it works</h2>
-            <ol className="space-y-5">
-              {content.steps.map((step, i) => (
-                <li key={step.title} className="flex gap-4">
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white"
-                    style={{ background: cfg.card.accent }}
-                  >
-                    {i + 1}
-                  </span>
-                  <div className="space-y-0.5 pt-0.5">
-                    <h3 className="font-bold text-body">{step.title}</h3>
-                    <p className="text-muted text-sm leading-relaxed">{step.description}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-
         {/* Perfect for */}
         <section className="px-4 pb-12">
           <div className="mx-auto max-w-2xl text-center space-y-4">
@@ -211,6 +266,21 @@ export default async function GameLandingRoute({ params }: Props) {
                 </span>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="px-4 pb-12">
+          <div className="mx-auto max-w-2xl space-y-5">
+            <h2 className="text-xl font-black text-center gradient-title-subtle">Frequently asked questions</h2>
+            <dl className="space-y-4">
+              {faqs.map((faq) => (
+                <div key={faq.question} className="glass-card p-5 space-y-2">
+                  <dt className="font-bold text-body">{faq.question}</dt>
+                  <dd className="text-muted text-sm leading-relaxed">{faq.answer}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
 

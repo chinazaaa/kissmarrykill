@@ -11,6 +11,7 @@ import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
 import { AnonymousSessionTimerBar } from '@/components/anonymous-messages/AnonymousSessionTimerBar'
+import { AnonymousRoomHeadcount } from '@/components/anonymous-messages/AnonymousRoomHeadcount'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   anonymousPlayerCanChat,
@@ -20,12 +21,20 @@ import {
 } from '@/lib/anonymous-messages'
 import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import type { AnonymousMessage, Game, Player } from '@/types'
 import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
+import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
+import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
+import { allowLateJoin, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 
-type Screen = 'loading' | 'join' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -53,20 +62,31 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       return
     }
     if (gameData.status === 'active') {
-      setScreen(playerId ? 'active' : 'join')
+      if (!playerId) {
+        setScreen(allowLateJoin(gameData) ? 'join' : 'game_started_waiting')
+        return
+      }
+      setScreen('active')
       return
     }
     setScreen(playerId ? 'finished' : 'join')
   }, [])
 
-  const load = useCallback(async () => {
-    const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+    ])
+    if (!supabasePollOk(gameRes, plrsRes)) return false
+
+    const gameData = gameRes.data
+    const plrs = plrsRes.data
+
     if (!gameData) {
       setScreen('not_found')
-      return
+      return true
     }
 
-    const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
     setGame(gameData)
     setPlayers(plrs ?? [])
 
@@ -82,6 +102,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       setMyPlayerName(session.playerName)
     }
     syncScreen(gameData, playerId)
+    return true
   }, [gameCode, syncScreen])
 
   useEffect(() => {
@@ -125,12 +146,21 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       )
       .subscribe()
 
-    const poll = setInterval(load, 3000)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, load, myPlayerId, syncScreen])
+  }, [gameCode, myPlayerId, syncScreen, toastError])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
+
+  const openLobbyJoin = useCallback(() => {
+    setScreen('join')
+    void load()
+  }, [load])
+
+  useLobbyOpenNotification(game?.status, () => {
+    if (screen === 'game_started_waiting' || screen === 'finished') void load()
+  })
 
   const join = async () => {
     setJoining(true)
@@ -182,6 +212,13 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     }
   }
 
+  const handlePlayerLeft = () => {
+    clearPlayerSession(gameCode)
+    setMyPlayerId(null)
+    setMyPlayerName('')
+    setScreen('join')
+  }
+
   const sendGif = async (mediaUrl: string) => {
     if (!myPlayerId) return
     setSending(true)
@@ -227,6 +264,10 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     )
   }
 
+  if (screen === 'game_started_waiting') {
+    return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
+  }
+
   if (screen === 'join') {
     const sessionInProgress = game?.status === 'active'
     const roomCapacity = game ? anonymousRoomMaxPlayers(game) : null
@@ -234,16 +275,25 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     return (
       <CenteredShell>
         <Header game={game} />
+        {game && <AnonymousRoomHeadcount game={game} players={players} />}
         <p className="text-muted text-sm text-center">
-          {lobbyFull
-            ? `This room is full (${roomCapacity} players max).`
-            : sessionInProgress
-              ? 'This session is already in progress. You can join to watch live — late joiners cannot send messages.'
-              : "Join the anonymous room — you'll get a random lobby name shown on your messages."}
+          {lobbyFull ? (
+            <>
+              This room is full ({roomCapacity} players max).
+              <span className="block mt-2 text-faint">
+                Stick around — once the host starts, you can join as a viewer and watch live (read-only).
+              </span>
+            </>
+          ) : sessionInProgress ? (
+            'This session is already in progress. You can join to watch live — late joiners cannot send messages.'
+          ) : (
+            "Join the anonymous room — you'll get a random lobby name shown on your messages."
+          )}
         </p>
         <button type="button" onClick={join} disabled={joining || lobbyFull} className="btn-primary w-full">
-          {joining ? 'Joining…' : lobbyFull ? 'Room full' : sessionInProgress ? 'Join as viewer' : 'Join anonymously'}
+          {joining ? 'Joining…' : lobbyFull ? 'Lobby full — check back when live' : sessionInProgress ? 'Join as viewer' : 'Join anonymously'}
         </button>
+        <ShareGameLinkCard gameCode={gameCode} />
       </CenteredShell>
     )
   }
@@ -252,9 +302,22 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     return (
       <CenteredShell>
         <Header game={game} />
+        {game && <AnonymousRoomHeadcount game={game} players={players} />}
         <PlayerBar name={myPlayerName} />
-        <LobbyPlayers players={players} />
+        <LobbyPlayers players={players} game={game} />
         <p className="text-muted text-sm text-center">Waiting for the host to start the session…</p>
+        {myPlayerId && (
+          <PlayerSessionControls
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            currentName={myPlayerName}
+            onRenamed={() => {}}
+            onLeft={handlePlayerLeft}
+            leaveOnly
+            inLobby
+          />
+        )}
+        <ShareGameLinkCard gameCode={gameCode} />
       </CenteredShell>
     )
   }
@@ -264,9 +327,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       <PageShell>
         <Header game={game} />
         <AnonymousRoomSessionSummary game={game!} playerCount={players.length} />
-        <button type="button" onClick={() => router.push('/')} className="btn-secondary w-full">
-          Back home
-        </button>
+        <CreateNewGameButton />
       </PageShell>
     )
   }
@@ -280,6 +341,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   return (
     <PageShell>
       <Header game={game} />
+      {game && <AnonymousRoomHeadcount game={game} players={players} />}
       <AnonymousSessionTimerBar gameCode={gameCode} game={game} sticky />
       {isMuted && myBan && <AnonymousBanCountdownBar bannedUntil={myBan.banned_until} />}
       <PlayerBar
@@ -320,6 +382,16 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
           onClearReply={() => setReplyTo(null)}
         />
       )}
+      {myPlayerId && (
+        <PlayerSessionControls
+          gameCode={gameCode}
+          playerId={myPlayerId}
+          currentName={myPlayerName}
+          onRenamed={() => {}}
+          onLeft={handlePlayerLeft}
+          leaveOnly
+        />
+      )}
     </PageShell>
   )
 }
@@ -346,12 +418,16 @@ function PlayerBar({ name, subtitle }: { name: string; subtitle?: string }) {
   )
 }
 
-function LobbyPlayers({ players }: { players: Player[] }) {
+function LobbyPlayers({ players, game }: { players: Player[]; game: Game | null }) {
+  const capacity = game ? anonymousRoomMaxPlayers(game) : null
   return (
     <div className="glass-card p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-muted text-xs uppercase tracking-wider">In the lobby</p>
-        <span className="text-faint text-xs">{players.length}</span>
+        <p className="text-muted text-xs uppercase tracking-wider">Lobby names</p>
+        <span className="text-faint text-xs tabular-nums">
+          {players.length}
+          {capacity != null ? ` / ${capacity}` : ''}
+        </span>
       </div>
       <div className="flex flex-wrap gap-2">
         {players.map((player) => (

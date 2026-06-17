@@ -19,6 +19,77 @@ export type GameType =
   | 'hot_seat'
   | 'custom'
   | 'anonymous_messages'
+  | 'secret_message'
+  | 'bingo'
+  | 'codewords'
+  | 'trivia'
+  | 'two_truths'
+  | 'parent_approval'
+  | 'monopoly'
+  | 'yahtzee'
+
+export type YahtzeeCategory =
+  | 'ones'
+  | 'twos'
+  | 'threes'
+  | 'fours'
+  | 'fives'
+  | 'sixes'
+  | 'three_kind'
+  | 'four_kind'
+  | 'full_house'
+  | 'small_straight'
+  | 'large_straight'
+  | 'yahtzee'
+  | 'chance'
+export type TriviaCategory = 'tech' | 'general'
+export type BingoCallMode = 'manual' | 'auto'
+export type CodewordsCellType = 'red' | 'blue' | 'neutral' | 'assassin'
+export type CodewordsTeam = 'red' | 'blue'
+export type CodewordsRole = 'spymaster' | 'operative'
+
+export interface CodewordsBoard {
+  id: string
+  game_id: string
+  words: string[]
+  key: CodewordsCellType[]
+  starting_team: CodewordsTeam
+  revealed_indices: number[]
+  current_turn: CodewordsTeam
+  guesses_remaining: number | null
+  current_clue_word: string | null
+  current_clue_number: number | null
+  winner: CodewordsTeam | null
+  assassin_team: CodewordsTeam | null
+  spymaster_timer_seconds: number
+  operative_timer_seconds: number
+  turn_phase: 'clue' | 'guess'
+  turn_deadline_at: string | null
+  created_at: string
+}
+
+export interface CodewordsPlayerRole {
+  id: string
+  game_id: string
+  player_id: string
+  team: CodewordsTeam
+  role: CodewordsRole
+  created_at: string
+}
+
+export interface CodewordsGuess {
+  id: string
+  game_id: string
+  board_id: string
+  player_id: string
+  cell_index: number
+  word: string
+  cell_type: CodewordsCellType
+  clue_word: string | null
+  clue_number: number | null
+  team: CodewordsTeam
+  created_at: string
+}
 export type ThemeId = 'default' | 'neon' | 'retro' | 'elegant' | 'tropical'
 export type WyrChoice = 'a' | 'b'
 
@@ -46,6 +117,8 @@ export interface Game {
   host_token: string
   rounds_count: number
   timer_seconds: number
+  /** Codewords — operative guess phase timer. */
+  operative_timer_seconds?: number | null
   anonymous: boolean
   auto_reveal: boolean
   auto_submit_behavior: AutoSubmitBehavior
@@ -65,14 +138,191 @@ export interface Game {
   created_at: string
   /** Anonymous room — when the live session started (15 min cap). */
   session_started_at?: string | null
-  /** Anonymous room — max players allowed in the lobby (2–15). */
+  /** Lobby cap for joiner modes (anonymous 2–20, bingo 2–30, codewords 4–20). */
   max_players?: number | null
+  /** When false, players cannot join as spectators after the game starts. */
+  allow_viewers?: boolean
+  /** When allow_viewers is true: false = watch-only late join; true = late joiners may play. */
+  allow_late_players?: boolean
   /** Anonymous room — last time a batch of old messages was trimmed. */
   anonymous_messages_trimmed_at?: string | null
   wst_quote_source?: WstQuoteSource
   custom_slots?: CustomSlotsConfig | null
   /** When true, rounds use same-gender groups and opposite-gender voting. Default true for SMK/pair, false for custom. */
   gender_based?: boolean
+  /** Codewords — when false, only the host assigns teams and roles in the lobby. */
+  codewords_player_picks?: boolean
+  /** Codewords — allow new players to join after the game has started. */
+  codewords_late_join?: boolean
+  /** Codewords — host picks spymasters only; operatives are shuffled onto teams at start. */
+  codewords_randomize_teams?: boolean
+  /** Cumulative usage across play-again sessions — unused pool items are prioritized next game. */
+  pool_usage?: Record<string, unknown> | null
+  /** Trivia — platform pool category when question_source is platform. */
+  trivia_category?: TriviaCategory | null
+  /** Bingo — manual host calls vs automatic number calling. */
+  bingo_call_mode?: BingoCallMode | null
+  /** Bingo — seconds between automatic number calls. */
+  bingo_call_interval_seconds?: number | null
+}
+
+export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'auction' | 'finished'
+
+export interface MonopolyAuctionState {
+  space_index: number
+  high_bid: number
+  high_bidder_id: string | null
+  current_bidder_id: string
+  passed: string[]
+  eligible: string[]
+  initiator_id: string
+}
+
+export interface MonopolyPendingTrade {
+  from_player_id: string
+  to_player_id: string
+  offer_cash: number
+  offer_properties: number[]
+  offer_get_out_cards: number
+  request_cash: number
+  request_properties: number[]
+}
+
+export interface MonopolyLastCardEvent {
+  seq: number
+  kind: 'chance' | 'community'
+  drawn_by_player_id: string
+  card_message: string
+  effect: string
+  amount?: number
+  other_player_count?: number
+}
+
+export interface MonopolyBoard {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: MonopolyPhase
+  last_dice: { d1: number; d2: number; total: number; doubles: boolean } | null
+  consecutive_doubles: number
+  property_owners: Record<string, string>
+  property_buildings: Record<string, number>
+  mortgaged_properties: Record<string, boolean>
+  houses_in_bank: number
+  hotels_in_bank: number
+  chance_deck: number[]
+  community_deck: number[]
+  chance_discard: number[]
+  community_discard: number[]
+  auction_state: MonopolyAuctionState | null
+  pending_trade: MonopolyPendingTrade | null
+  pending_space: number | null
+  status_message: string | null
+  last_card_event: MonopolyLastCardEvent | null
+  winner_player_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MonopolyPlayerState {
+  id: string
+  game_id: string
+  player_id: string
+  position: number
+  cash: number
+  in_jail: boolean
+  jail_turns: number
+  get_out_of_jail_free: number
+  bankrupt: boolean
+  player_order: number
+  created_at: string
+}
+
+export type YahtzeePhase = 'rolling' | 'finished'
+
+export interface YahtzeeSession {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: YahtzeePhase
+  dice: number[]
+  held: boolean[]
+  rolls_remaining: number
+  rolls_this_turn: number
+  status_message: string | null
+  winner_player_id: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type YahtzeeCategoryPoints = Record<YahtzeeCategory, number | null>
+
+export interface YahtzeePlayerScore {
+  id: string
+  game_id: string
+  player_id: string
+  scores: {
+    categories: YahtzeeCategoryPoints
+  }
+  player_order: number
+  created_at: string
+}
+
+export interface TriviaQuestion {
+  question: string
+  choices: string[]
+  correctIndex: number
+  category: TriviaCategory
+}
+
+export interface TriviaMetadata {
+  question: string
+  choices: string[]
+  correct_index: number
+  category: TriviaCategory
+}
+
+export interface TriviaAnswer {
+  id: string
+  game_id: string
+  round_id: string
+  player_id: string
+  choice_index: number
+  is_correct: boolean
+  answered_at: string
+  response_ms: number
+  points: number
+}
+
+export interface TtlMetadata {
+  statements: [string, string, string]
+  lie_index: number
+}
+
+export interface TtlStatement {
+  id: string
+  game_id: string
+  player_id: string
+  statement_a: string
+  statement_b: string
+  statement_c: string
+  lie_index: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TtlGuess {
+  id: string
+  game_id: string
+  round_id: string
+  player_id: string
+  guessed_index: number
+  is_correct: boolean
+  points: number
+  guessed_at: string
 }
 
 export interface Participant {
@@ -100,6 +350,8 @@ export interface Player {
   /** Import mode: which list name was claimed. */
   participant_id: string | null
   joined_at: string
+  /** Read-only spectator (explicit choice or inferred for poll-game late join). */
+  spectator?: boolean
 }
 
 export interface Round {
@@ -118,6 +370,8 @@ export interface Round {
   started_at: string | null
   ended_at: string | null
   anime_metadata?: AnimeMetadata | null
+  trivia_metadata?: TriviaMetadata | null
+  ttl_metadata?: TtlMetadata | null
 }
 
 export type PairFlag = 'kiss' | 'kill'
@@ -174,11 +428,11 @@ export interface AnonymousRoomBan {
   created_at: string
 }
 
-/** Lobby quote submission for Who Said This — one per player before the game starts. */
+/** Lobby quote submission for Who Said This — players can add multiple quotes before the game starts. */
 export interface WstQuotePoolEntry {
   id: string
   game_id: string
-  player_id: string
+  player_id: string | null
   quote_text: string
   author_participant_id: string
   created_at: string
@@ -204,3 +458,28 @@ export interface AnimeQuotePoolEntry {
 }
 
 export type WstQuoteSource = 'player' | 'anime' | 'both'
+
+export interface BingoCard {
+  id: string
+  game_id: string
+  player_id: string
+  cells: number[]
+  marked_indices: number[]
+  created_at: string
+}
+
+export interface BingoCalledNumber {
+  id: string
+  game_id: string
+  number: number
+  called_at: string
+}
+
+export interface BingoClaim {
+  id: string
+  game_id: string
+  player_id: string
+  pattern: 'line' | 'full_house'
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+}

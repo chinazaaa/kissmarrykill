@@ -10,11 +10,15 @@ interface AnonymousMessageFeedProps {
   title?: string
   emptyLabel?: string
   readOnly?: boolean
+  hideSenderNames?: boolean
   canRemove?: boolean
   canReply?: boolean
+  canShareAsImage?: boolean
+  sharingId?: string | null
   removingId?: string | null
   onRemove?: (messageId: string) => void
   onReply?: (message: AnonymousMessage) => void
+  onShareAsImage?: (message: AnonymousMessage) => void
   highlightMessageId?: string | null
   reactionsMap?: Map<string, Map<string, Set<string>>>
   myPlayerName?: string
@@ -28,11 +32,15 @@ export function AnonymousMessageFeed({
   title = 'Anonymous messages',
   emptyLabel = 'No messages yet — be the first to post',
   readOnly = false,
+  hideSenderNames = false,
   canRemove = false,
   canReply = false,
+  canShareAsImage = false,
+  sharingId = null,
   removingId = null,
   onRemove,
   onReply,
+  onShareAsImage,
   highlightMessageId = null,
   reactionsMap,
   myPlayerName,
@@ -103,7 +111,7 @@ export function AnonymousMessageFeed({
               return (
                 <div
                   key={message.id}
-                  className={`confession-slide-in px-3 py-2.5 rounded-xl border transition-colors ${
+                  className={`group/message confession-slide-in px-3 py-2.5 rounded-xl border transition-colors ${
                     isHighlighted ? 'bg-violet-500/15 border-violet-400/40' : 'bg-white/5 border-white/5'
                   }`}
                   style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}
@@ -115,7 +123,9 @@ export function AnonymousMessageFeed({
                     </div>
                   )}
 
-                  <p className="text-violet-300/90 text-xs font-semibold mb-1">{message.player_name ?? 'Unknown'}</p>
+                  {!hideSenderNames && (
+                    <p className="text-violet-300/90 text-xs font-semibold mb-1">{message.player_name ?? 'Unknown'}</p>
+                  )}
 
                   <div className="space-y-1">
                     <div className="flex items-start justify-between gap-3">
@@ -125,6 +135,21 @@ export function AnonymousMessageFeed({
                         <div className="flex-1" />
                       )}
                       <div className="flex shrink-0 items-center gap-2">
+                        {canShareAsImage && onShareAsImage && message.text && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              onShareAsImage(message)
+                            }}
+                            disabled={sharingId === message.id}
+                            className="text-faint hover:text-violet-300 text-xs disabled:opacity-50"
+                            aria-label="Share message as image"
+                          >
+                            {sharingId === message.id ? '…' : 'Share'}
+                          </button>
+                        )}
                         {canReply && onReply && (
                           <button
                             type="button"

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AnonymousMessage, Player } from '@/types'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 
 type RawAnonymousMessage = Omit<AnonymousMessage, 'player_name'> & {
   players?: { name: string } | { name: string }[] | null
@@ -43,8 +44,8 @@ export function useAnonymousMessages(gameCode: string, enabled: boolean, players
     setMessages((prev) => prev.filter((m) => m.id !== messageId))
   }, [])
 
-  const loadMessages = useCallback(async () => {
-    const { data, error } = await supabase
+  const loadMessages = useCallback(async (): Promise<boolean> => {
+    const res = await supabase
       .from('anonymous_messages')
       .select(
         'id, game_id, player_id, text, created_at, reply_to_id, reply_to_text, message_type, media_url, players(name)'
@@ -52,11 +53,11 @@ export function useAnonymousMessages(gameCode: string, enabled: boolean, players
       .eq('game_id', gameCode)
       .order('created_at', { ascending: true })
 
-    if (!error) {
-      const names = nameById()
-      setMessages((data ?? []).map((row) => normalizeMessage(row as RawAnonymousMessage, names)))
-    }
+    if (!supabasePollOk(res)) return false
+    const names = nameById()
+    setMessages((res.data ?? []).map((row) => normalizeMessage(row as RawAnonymousMessage, names)))
     setLoading(false)
+    return true
   }, [gameCode, nameById])
 
   useEffect(() => {
@@ -84,13 +85,15 @@ export function useAnonymousMessages(gameCode: string, enabled: boolean, players
       )
       .subscribe()
 
-    const poll = setInterval(loadMessages, 3000)
-
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
-  }, [enabled, gameCode, loadMessages, mergeMessage, removeMessage])
+  }, [enabled, gameCode, mergeMessage, removeMessage])
+
+  usePolling(() => loadMessages(), [gameCode, loadMessages], {
+    intervalMs: POLL_INTERVALS.realtimeFallback,
+    enabled,
+  })
 
   useEffect(() => {
     if (!enabled || players.length === 0) return

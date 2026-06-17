@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
+import type { GameLandingContent, GameLandingFaq } from '@/lib/game-landing'
 import { appOrigin } from '@/lib/site'
 
 export const SITE_NAME = 'Fate Round'
@@ -139,4 +140,70 @@ export function organizationJsonLd(): string {
     url: origin,
     logo: `${origin}/icon.png`,
   })
+}
+
+export function websiteJsonLd(): string {
+  const origin = appOrigin()
+
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: origin,
+    description: DEFAULT_DESCRIPTION,
+    publisher: { '@type': 'Organization', name: SITE_NAME, url: origin },
+  })
+}
+
+export function gameJsonLd(content: GameLandingContent): string {
+  const cfg = gameTypeConfig(content.gameType)
+  const url = `${appOrigin()}/games/${content.slug}`
+
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Game',
+    name: cfg.label,
+    description: content.seoDescription,
+    url,
+    applicationCategory: 'Game',
+    operatingSystem: 'Web Browser',
+    gamePlatform: 'Web browser',
+    numberOfPlayers: cfg.card.players,
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: appOrigin() },
+  })
+}
+
+export function faqPageJsonLd(faqs: GameLandingFaq[]): string {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer,
+      },
+    })),
+  })
+}
+
+/** Static OG art per game landing page (1200×630 PNG in /public/og/). */
+export const GAME_LANDING_OG_BY_SLUG: Record<string, string> = {
+  'smash-marry-kill': '/og/smash-marry-kill.png',
+  'anonymous-room': '/og/anonymous-room.png',
+  bingo: '/og/bingo.png',
+  codewords: '/og/codewords.png',
+  'secret-message': '/og/secret-message.png',
+  trivia: '/og/trivia.png',
+  'two-truths-and-a-lie': '/og/two-truths-and-a-lie.png',
+}
+
+export function gameLandingOgPath(slug: string): string {
+  return GAME_LANDING_OG_BY_SLUG[slug] ?? OG_IMAGE.url
 }

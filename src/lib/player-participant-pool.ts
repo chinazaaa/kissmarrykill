@@ -1,5 +1,5 @@
 import type { Game } from '@/types'
-import { parseGameType, isPairGame, isThreeChoiceGame, isCustomGame } from '@/lib/game-types'
+import { parseGameType, isPairGame, isThreeChoiceGame, isCustomGame, isUnaryPollGame } from '@/lib/game-types'
 import { participantsWhoJoined } from '@/lib/participants'
 import { getFullHostListForRounds } from '@/lib/participant-mode'
 import {
@@ -11,7 +11,7 @@ import {
 /** SMK, pair games, and custom — rounds show names from a poll. */
 export function isPeoplePollGame(gameType?: string): boolean {
   const type = parseGameType(gameType)
-  return isPairGame(type) || isThreeChoiceGame(type) || isCustomGame(type)
+  return isPairGame(type) || isUnaryPollGame(type) || isThreeChoiceGame(type) || isCustomGame(type)
 }
 
 /** Player name submissions — voters-only (import list, vote only). */

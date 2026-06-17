@@ -33,6 +33,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <AdminNavLink href="/admin/feedback" active={pathname === '/admin/feedback'}>
                 Feedback
               </AdminNavLink>
+              <AdminNavLink href="/admin/updates" active={pathname === '/admin/updates'}>
+                What&apos;s new
+              </AdminNavLink>
+              <AdminNavLink href="/admin/settings" active={pathname === '/admin/settings'}>
+                Game limits
+              </AdminNavLink>
             </nav>
           </div>
           <div className="flex items-center gap-3">

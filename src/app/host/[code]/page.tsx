@@ -3,7 +3,18 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { filterParticipantsInRounds } from '@/lib/utils'
+import { hexToRgba } from '@/lib/color'
 import { useGameRealtime } from '@/hooks/useGameRealtime'
+import { LOAD_TIMEOUT_MS, POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import {
+  CONFESSION_SELECT,
+  GAME_SELECT,
+  PARTICIPANT_SELECT,
+  PLAYER_SELECT,
+  ROUND_SELECT,
+  VOTE_SELECT,
+  WST_QUOTE_POOL_SELECT,
+} from '@/lib/supabase-selects'
 import { Avatar } from '@/components/Avatar'
 import {
   roundGenderLabel,
@@ -26,7 +37,9 @@ import type { ParticipantGender, PairVoteMode, PlayerQuestionsOrder } from '@/ty
 import { tallyRoundVotes, getCategoryMeta, getVoteCategories, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import {
   parseGameType,
+  isBinaryPeoplePollGame,
   isPairGame,
+  isUnaryPollGame,
   isWouldYouRather,
   isThisOrThat,
   isBinaryChoiceGame,
@@ -38,10 +51,24 @@ import {
   isNameOnlyPlayerJoin,
   isCustomGame,
   isAnonymousMessagesGame,
+  isSecretMessageGame,
+  isBingoGame,
+  isCodewordsGame,
+  isTriviaGame,
+  isTwoTruthsGame,
+  isMonopolyGame,
+  isYahtzeeGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
 import { AnonymousMessagesHostView } from '@/components/anonymous-messages/AnonymousMessagesHostView'
+import { SecretMessageHostView } from '@/components/secret-message/SecretMessageHostView'
+import { BingoHostView } from '@/components/bingo/BingoHostView'
+import { TriviaHostView } from '@/components/trivia/TriviaHostView'
+import { TwoTruthsHostView } from '@/components/two-truths/TwoTruthsHostView'
+import { CodewordsHostView } from '@/components/codewords/CodewordsHostView'
+import { MonopolyHostView } from '@/components/monopoly/MonopolyHostView'
+import { YahtzeeHostView } from '@/components/yahtzee/YahtzeeHostView'
 import {
   getCustomSlots,
   tallyCustomVotes,
@@ -83,6 +110,8 @@ import {
   mergeActiveRound,
   wstQuotePoolStatus,
   dedupeWstPool,
+  mergeWstPoolEntry,
+  wstHostPoolEntries,
   isAnimeRound,
   tallyAnimeWstVotes,
 } from '@/lib/who-said-this'
@@ -102,6 +131,7 @@ import {
   FinalOverallBreakdown,
 } from '@/components/FinalLeaderboard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { PlayAgainSetup, playAgainNeedsSetup, hostPoolSetupLabels, type PlayAgainPayload, type PoolSetupVariant } from '@/components/PlayAgainSetup'
 import {
   hotSeatEffectiveRounds,
   hotSeatLobbyRoundsHint,
@@ -113,10 +143,20 @@ import {
   hotSeatPlayerDisplayName,
 } from '@/lib/hot-seat'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
-import { AchievementBadges } from '@/components/AchievementBadges'
+import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
+import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
+import { AchievementsShareBlock } from '@/components/AchievementsShareBlock'
+import { ShareResults } from '@/components/ShareResults'
+import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { GameRulesLink } from '@/components/ui/GameRulesLink'
+import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
+import { PollHostPlayShell } from '@/components/host/PollHostPlayShell'
 import { computeAchievements } from '@/lib/achievements'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { AllowViewersToggle, LateJoinPolicyToggle } from '@/components/AllowViewersToggle'
+import { gameSupportsViewerSetting, lateJoinPolicyFromGame, type LateJoinPolicy } from '@/lib/viewers'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { useRoundTimer } from '@/hooks/useRoundTimer'
@@ -134,6 +174,7 @@ import type {
 } from '@/types'
 import { parseThemeId, THEME_MAP } from '@/lib/themes'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
+import { NameSearchPicker } from '@/components/NameSearchPicker'
 import { ROUND_TIMER_OPTIONS } from '@/lib/validation'
 
 export default function HostPage() {
@@ -149,6 +190,7 @@ export default function HostPage() {
   useGameRealtime(gameCode)
 
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [authError, setAuthError] = useState(false)
   const [game, setGame] = useState<Game | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
@@ -170,6 +212,11 @@ export default function HostPage() {
   const [ending, setEnding] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
+  const [savingLobbyPool, setSavingLobbyPool] = useState(false)
+  const [poolSetup, setPoolSetup] = useState<{ open: boolean; variant: PoolSetupVariant }>({
+    open: false,
+    variant: 'play-again',
+  })
   const [adminBusy, setAdminBusy] = useState<string | null>(null)
   const [addName, setAddName] = useState('')
   const [addGender, setAddGender] = useState<ParticipantGender>('female')
@@ -177,11 +224,16 @@ export default function HostPage() {
   const [adding, setAdding] = useState(false)
   const [updatingRounds, setUpdatingRounds] = useState(false)
   const [updatingTimer, setUpdatingTimer] = useState(false)
+  const [updatingViewers, setUpdatingViewers] = useState(false)
   const [listSearch, setListSearch] = useState('')
   const [playersSearch, setPlayersSearch] = useState('')
   const [playerQuestionCount, setPlayerQuestionCount] = useState(0)
   const [playerNameSubmissionCount, setPlayerNameSubmissionCount] = useState(0)
   const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
+  const [hostQuoteInput, setHostQuoteInput] = useState('')
+  const [hostQuoteAuthorId, setHostQuoteAuthorId] = useState<string | null>(null)
+  const [hostEditingQuoteId, setHostEditingQuoteId] = useState<string | null>(null)
+  const [hostQuoteSubmitting, setHostQuoteSubmitting] = useState(false)
   const [animePool, setAnimePool] = useState<AnimeQuotePoolEntry[]>([])
   const [animeFetching, setAnimeFetching] = useState(false)
   const [animeError, setAnimeError] = useState<string | null>(null)
@@ -189,6 +241,7 @@ export default function HostPage() {
     []
   )
   const [activeHotSeatSubs, setActiveHotSeatSubs] = useState<{ id: string; player_id: string; round_id: string }[]>([])
+  const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
 
   const advancingRef = useRef(false)
   const autoFinishTriggeredRef = useRef(false)
@@ -287,89 +340,132 @@ export default function HostPage() {
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false
+
     async function load() {
-      const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
-      if (!gameData) {
-        setAuthError(true)
-        setLoading(false)
-        return
-      }
-      if (gameData.host_token !== hostToken) {
-        setAuthError(true)
-        setLoading(false)
-        return
-      }
+      setLoadError(false)
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), LOAD_TIMEOUT_MS)
+      )
 
-      setGame(gameData)
+      try {
+        await Promise.race([
+          (async () => {
+            const gameRes = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
+            if (!supabasePollOk(gameRes)) throw new Error('unavailable')
+            const gameData = gameRes.data
+            if (!gameData) {
+              if (!cancelled) setAuthError(true)
+              return
+            }
+            if (gameData.host_token !== hostToken) {
+              if (!cancelled) setAuthError(true)
+              return
+            }
 
-      const [{ data: parts }, { data: plrs }] = await Promise.all([
-        supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-      ])
-      setParticipants(parts || [])
-      setPlayers(plrs || [])
+            if (!cancelled) setGame(gameData)
 
-      if (isWhoSaidThis(parseGameType(gameData.game_type))) {
-        const { data: pool } = await supabase
-          .from('wst_quote_pool')
-          .select('*')
-          .eq('game_id', gameCode)
-          .order('created_at')
-        setWstPool(dedupeWstPool(pool || []))
+            const [partsRes, plrsRes] = await Promise.all([
+              supabase.from('participants').select(PARTICIPANT_SELECT).eq('game_id', gameCode).order('display_order'),
+              supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+            ])
+            if (!supabasePollOk(partsRes, plrsRes)) throw new Error('unavailable')
+            if (!cancelled) {
+              setParticipants(partsRes.data || [])
+              setPlayers(plrsRes.data || [])
+            }
 
-        // Also fetch anime quote pool
-        const { data: aPool } = await supabase
-          .from('anime_quote_pool')
-          .select('*')
-          .eq('game_id', gameCode)
-          .eq('removed', false)
-          .order('created_at')
-        setAnimePool(aPool ?? [])
-      }
+            if (isWhoSaidThis(parseGameType(gameData.game_type))) {
+              const [poolRes, aPoolRes] = await Promise.all([
+                supabase
+                  .from('wst_quote_pool')
+                  .select(WST_QUOTE_POOL_SELECT)
+                  .eq('game_id', gameCode)
+                  .order('created_at'),
+                supabase
+                  .from('anime_quote_pool')
+                  .select('*')
+                  .eq('game_id', gameCode)
+                  .eq('removed', false)
+                  .order('created_at'),
+              ])
+              if (!supabasePollOk(poolRes, aPoolRes)) throw new Error('unavailable')
+              if (!cancelled) {
+                setWstPool(dedupeWstPool(poolRes.data || []))
+                setAnimePool(aPoolRes.data ?? [])
+              }
+            }
 
-      if (gameData.status === 'active') {
-        const [{ data: roundData }, { data: finishedRound }, { data: votesData }, { data: confs }] = await Promise.all([
-          supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-          supabase
-            .from('rounds')
-            .select('*')
-            .eq('game_id', gameCode)
-            .eq('status', 'finished')
-            .order('round_number', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase.from('votes').select('*').eq('game_id', gameCode),
-          supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+            if (gameData.status === 'active') {
+              const [roundRes, finishedRes] = await Promise.all([
+                supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+                supabase
+                  .from('rounds')
+                  .select(ROUND_SELECT)
+                  .eq('game_id', gameCode)
+                  .eq('status', 'finished')
+                  .order('round_number', { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+              ])
+              if (!supabasePollOk(roundRes, finishedRes)) throw new Error('unavailable')
+
+              const roundData = roundRes.data
+              const finishedRound = finishedRes.data
+              const roundId = roundData?.id ?? finishedRound?.id
+
+              if (!cancelled) {
+                if (roundData) {
+                  setCurrentRound(roundData)
+                } else if (finishedRound) {
+                  setLastFinishedRound(finishedRound)
+                }
+              }
+
+              if (roundId) {
+                const [votesRes, confsRes] = await Promise.all([
+                  supabase.from('votes').select(VOTE_SELECT).eq('round_id', roundId),
+                  supabase.from('confessions').select(CONFESSION_SELECT).eq('round_id', roundId).order('created_at'),
+                ])
+                if (!supabasePollOk(votesRes, confsRes)) throw new Error('unavailable')
+                if (!cancelled) {
+                  setVotes(votesRes.data || [])
+                  setConfessions(confsRes.data || [])
+                }
+              }
+            }
+
+            if (gameData.status === 'finished') {
+              await loadResults()
+            }
+          })(),
+          timeout,
         ])
-        if (roundData) {
-          setCurrentRound(roundData)
-        } else if (finishedRound) {
-          setLastFinishedRound(finishedRound)
-        }
-        setVotes(votesData || [])
-        setConfessions(confs || [])
+      } catch {
+        if (!cancelled) setLoadError(true)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-
-      if (gameData.status === 'finished') {
-        await loadResults()
-      }
-
-      setLoading(false)
     }
+
     load()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameCode, hostToken])
 
   async function loadResults() {
-    const [{ data: rounds }, { data: vs }, { data: confs }, { data: subs }] = await Promise.all([
-      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-      supabase.from('votes').select('*').eq('game_id', gameCode),
-      supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+    const [roundsRes, vsRes, confsRes, subsRes] = await Promise.all([
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).order('round_number'),
+      supabase.from('votes').select(VOTE_SELECT).eq('game_id', gameCode),
+      supabase.from('confessions').select(CONFESSION_SELECT).eq('game_id', gameCode).order('created_at'),
       supabase.from('hot_seat_submissions').select('id, round_id, text, submission_type').eq('game_id', gameCode),
     ])
-    setAllRounds(rounds || [])
-    setVotes(vs || [])
-    setConfessions(confs || [])
-    setAllHotSeatSubmissions(subs ?? [])
+    setAllRounds(roundsRes.data || [])
+    setVotes(vsRes.data || [])
+    setConfessions(confsRes.data || [])
+    setAllHotSeatSubmissions(subsRes.data ?? [])
   }
 
   function resetHostLobbyState() {
@@ -414,46 +510,70 @@ export default function HostPage() {
     return [...prev, sub]
   }
 
-  async function syncGameState() {
-    const [{ data: gameData }, { data: activeRound }, { data: finishedRound }, { data: vs }, { data: confs }] =
-      await Promise.all([
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-        supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-        supabase
-          .from('rounds')
-          .select('*')
-          .eq('game_id', gameCode)
-          .eq('status', 'finished')
-          .order('round_number', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase.from('votes').select('*').eq('game_id', gameCode),
-        supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
+  async function syncGameState(): Promise<boolean> {
+    const [gameRes, activeRoundRes, finishedRoundRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
+      supabase
+        .from('rounds')
+        .select(ROUND_SELECT)
+        .eq('game_id', gameCode)
+        .eq('status', 'finished')
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+    if (!supabasePollOk(gameRes, activeRoundRes, finishedRoundRes)) return false
+
+    const gameData = gameRes.data
+    const activeRound = activeRoundRes.data
+    const finishedRound = finishedRoundRes.data
+    const roundId = activeRound?.id ?? finishedRound?.id
+
+    let votesRes = { data: null as Vote[] | null, error: null as unknown }
+    let confsRes = { data: null as Confession[] | null, error: null as unknown }
+    if (roundId) {
+      ;[votesRes, confsRes] = await Promise.all([
+        supabase.from('votes').select(VOTE_SELECT).eq('round_id', roundId),
+        supabase.from('confessions').select(CONFESSION_SELECT).eq('round_id', roundId).order('created_at'),
       ])
+      if (!supabasePollOk(votesRes, confsRes)) return false
+    }
 
     if (gameData) setGame(gameData)
-    if (vs) setVotes(vs)
-    if (confs) setConfessions(confs)
+    if (votesRes.data && roundId) {
+      setVotes((prev) => {
+        const other = prev.filter((v) => v.round_id !== roundId)
+        return [...other, ...votesRes.data!]
+      })
+    }
+    if (confsRes.data && roundId) {
+      setConfessions((prev) => {
+        const other = prev.filter((c) => c.round_id !== roundId)
+        return [...other, ...confsRes.data!]
+      })
+    }
 
     if (gameData?.status === 'finished') {
       await loadResults()
       advancingRef.current = false
       setEnding(false)
       setAdvancing(false)
-      return
+      return true
     }
 
     if (activeRound) {
       setCurrentRound((prev) => mergeActiveRound(prev, activeRound))
       setLastFinishedRound(null)
       if (isHotSeat(parseGameType(gameData?.game_type))) {
-        const { data: subs } = await supabase
+        const subsRes = await supabase
           .from('hot_seat_submissions')
           .select('id, player_id, round_id')
           .eq('round_id', activeRound.id)
-        if (subs) setActiveHotSeatSubs(subs)
+        if (!supabasePollOk(subsRes)) return false
+        if (subsRes.data) setActiveHotSeatSubs(subsRes.data)
       }
-      return
+      return true
     }
 
     if (finishedRound) {
@@ -464,6 +584,7 @@ export default function HostPage() {
       setEnding(false)
       setAdvancing(false)
     }
+    return true
   }
 
   // ── Realtime ──────────────────────────────────────────────────────────────
@@ -480,14 +601,14 @@ export default function HostPage() {
     {
       onGameUpdate: async (g) => {
         if (g.status === 'active') {
-          const { data: roundData } = await supabase
+          const roundRes = await supabase
             .from('rounds')
-            .select('*')
+            .select(ROUND_SELECT)
             .eq('game_id', gameCode)
             .eq('status', 'active')
             .maybeSingle()
-          if (roundData) {
-            setCurrentRound((prev) => mergeActiveRound(prev, roundData))
+          if (roundRes.data) {
+            setCurrentRound((prev) => mergeActiveRound(prev, roundRes.data!))
             advancingRef.current = false
           }
         }
@@ -519,53 +640,47 @@ export default function HostPage() {
     }
   )
 
-  // Poll lobby while waiting for players — fallback if realtime is slow or unavailable
-  useEffect(() => {
-    if (game?.status !== 'waiting') return
-
-    async function refreshLobby() {
+  // Poll lobby while waiting — slow fallback; Realtime is primary
+  usePolling(
+    async () => {
       const gameType = parseGameType(game?.game_type)
       const fetchPlayerQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
       const fetchPlayerNames = isPeoplePollGame(gameType) && game?.participant_mode === 'voters'
-      const [{ data: plrs }, { data: parts }, { data: pool }, { count: pqCount }, { count: pnCount }] =
-        await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-          isWhoSaidThis(gameType)
-            ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
-            : Promise.resolve({ data: null }),
-          fetchPlayerQuestions
-            ? supabase.from('player_questions').select('id', { count: 'exact', head: true }).eq('game_id', gameCode)
-            : Promise.resolve({ count: 0 }),
-          fetchPlayerNames
-            ? supabase
-                .from('participants')
-                .select('id', { count: 'exact', head: true })
-                .eq('game_id', gameCode)
-                .not('submitted_by_player_id', 'is', null)
-            : Promise.resolve({ count: 0 }),
-        ])
-      if (plrs) setPlayers(plrs)
-      if (parts) setParticipants(parts)
-      if (pool) setWstPool(dedupeWstPool(pool))
-      if (fetchPlayerQuestions) setPlayerQuestionCount(pqCount ?? 0)
-      if (fetchPlayerNames) setPlayerNameSubmissionCount(pnCount ?? 0)
-    }
+      const [plrsRes, partsRes, poolRes, pqRes, pnRes] = await Promise.all([
+        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
+        supabase.from('participants').select(PARTICIPANT_SELECT).eq('game_id', gameCode).order('display_order'),
+        isWhoSaidThis(gameType)
+          ? supabase.from('wst_quote_pool').select(WST_QUOTE_POOL_SELECT).eq('game_id', gameCode).order('created_at')
+          : Promise.resolve({ data: null, error: null }),
+        fetchPlayerQuestions
+          ? supabase.from('player_questions').select('id', { count: 'exact', head: true }).eq('game_id', gameCode)
+          : Promise.resolve({ count: 0, error: null }),
+        fetchPlayerNames
+          ? supabase
+              .from('participants')
+              .select('id', { count: 'exact', head: true })
+              .eq('game_id', gameCode)
+              .not('submitted_by_player_id', 'is', null)
+          : Promise.resolve({ count: 0, error: null }),
+      ])
+      if (!supabasePollOk(plrsRes, partsRes, poolRes, pqRes, pnRes)) return false
+      if (plrsRes.data) setPlayers(plrsRes.data)
+      if (partsRes.data) setParticipants(partsRes.data)
+      if (poolRes.data) setWstPool(dedupeWstPool(poolRes.data))
+      if (fetchPlayerQuestions) setPlayerQuestionCount(pqRes.count ?? 0)
+      if (fetchPlayerNames) setPlayerNameSubmissionCount(pnRes.count ?? 0)
+      return true
+    },
+    [gameCode, game?.game_type, game?.participant_mode],
+    { intervalMs: POLL_INTERVALS.lobby, enabled: game?.status === 'waiting' }
+  )
 
-    refreshLobby()
-    const id = setInterval(refreshLobby, 3000)
-    return () => clearInterval(id)
-  }, [game?.status, gameCode, game?.game_type])
-
-  // Poll during active game — fallback when realtime misses votes or round transitions
-  useEffect(() => {
-    if (game?.status !== 'active') return
-
-    syncGameState()
-    const id = setInterval(syncGameState, 2000)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.status, gameCode, currentRound?.id, lastFinishedRound?.id])
+  // Poll during active game — slow fallback when realtime misses updates
+  usePolling(
+    () => syncGameState(),
+    [gameCode, currentRound?.id, lastFinishedRound?.id],
+    { intervalMs: POLL_INTERVALS.activeGame, enabled: game?.status === 'active' }
+  )
 
   // Auto-reveal: after the final round results, show the leaderboard automatically
   useEffect(() => {
@@ -772,20 +887,21 @@ export default function HostPage() {
     }
   }
 
-  const handlePlayAgain = async () => {
+  const handlePlayAgain = async (payload: PlayAgainPayload = {}) => {
     if (playingAgain) return
     setPlayingAgain(true)
     try {
       const res = await fetch(`/api/games/${gameCode}/play-again`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
+        body: JSON.stringify({ hostToken, ...payload }),
       })
       const data = await res.json()
       if (!res.ok) {
         toast.error(data.error || 'Failed to reset for another game')
         return
       }
+      setPoolSetup((prev) => ({ ...prev, open: false }))
       resetHostLobbyState()
       if (data.game) setGame(data.game)
       await refreshLobbyLists()
@@ -794,6 +910,54 @@ export default function HostPage() {
     } finally {
       setPlayingAgain(false)
     }
+  }
+
+  const handleLobbyPoolSave = async (payload: PlayAgainPayload = {}) => {
+    if (savingLobbyPool) return
+    if (!payload.custom_questions && !payload.participants) {
+      setPoolSetup((prev) => ({ ...prev, open: false }))
+      return
+    }
+    setSavingLobbyPool(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}/lobby-pool`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken, ...payload }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to save changes')
+        return
+      }
+      setPoolSetup((prev) => ({ ...prev, open: false }))
+      if (data.game) setGame(data.game)
+      await refreshLobbyLists()
+      toast.success('List updated')
+    } catch {
+      toast.error('Failed to save changes')
+    } finally {
+      setSavingLobbyPool(false)
+    }
+  }
+
+  const openPoolSetup = (variant: PoolSetupVariant) => {
+    if (!game || (variant === 'play-again' && playingAgain) || (variant === 'lobby' && savingLobbyPool)) return
+    setPoolSetup({ open: true, variant })
+  }
+
+  const openPlayAgain = () => {
+    if (!game || playingAgain) return
+    if (playAgainNeedsSetup(game)) {
+      openPoolSetup('play-again')
+      return
+    }
+    void handlePlayAgain()
+  }
+
+  const handlePoolSetupConfirm = (payload: PlayAgainPayload) => {
+    if (poolSetup.variant === 'lobby') return handleLobbyPoolSave(payload)
+    return handlePlayAgain(payload)
   }
 
   const playerLinkUrl =
@@ -810,6 +974,68 @@ export default function HostPage() {
     if (plrs) setPlayers(plrs)
     if (parts) setParticipants(parts)
     if (pool) setWstPool(dedupeWstPool(pool))
+  }
+
+  const handleSubmitHostQuote = async () => {
+    if (hostQuoteSubmitting || !hostToken) return
+    const text = hostQuoteInput.trim()
+    if (!text || !hostQuoteAuthorId) return
+    setHostQuoteSubmitting(true)
+    try {
+      const res = await fetch('/api/wst-quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hostToken,
+          gameId: gameCode,
+          quoteText: text,
+          authorParticipantId: hostQuoteAuthorId,
+          ...(hostEditingQuoteId ? { quoteId: hostEditingQuoteId } : {}),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to add quote')
+        return
+      }
+      if (data.entry) {
+        setWstPool((prev) => mergeWstPoolEntry(prev, data.entry as WstQuotePoolEntry))
+      }
+      setHostQuoteInput('')
+      setHostQuoteAuthorId(null)
+      setHostEditingQuoteId(null)
+    } catch {
+      toast.error('Could not add quote — try again')
+    } finally {
+      setHostQuoteSubmitting(false)
+    }
+  }
+
+  const handleDeleteHostQuote = async (quoteId: string) => {
+    if (hostQuoteSubmitting || !hostToken) return
+    setHostQuoteSubmitting(true)
+    try {
+      const res = await fetch('/api/wst-quotes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken, gameId: gameCode, quoteId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to remove quote')
+        return
+      }
+      setWstPool((prev) => prev.filter((e) => e.id !== quoteId))
+      if (hostEditingQuoteId === quoteId) {
+        setHostQuoteInput('')
+        setHostQuoteAuthorId(null)
+        setHostEditingQuoteId(null)
+      }
+    } catch {
+      toast.error('Could not remove quote — try again')
+    } finally {
+      setHostQuoteSubmitting(false)
+    }
   }
 
   const fetchAnimeQuotes = async (count: number) => {
@@ -934,6 +1160,45 @@ export default function HostPage() {
       if (data.game) setGame(data.game)
     } finally {
       setUpdatingTimer(false)
+    }
+  }
+
+  async function hostUpdateLateJoinPolicy(next: LateJoinPolicy) {
+    if (updatingViewers || !game || lateJoinPolicyFromGame(game) === next) return
+    const previous = lateJoinPolicyFromGame(game)
+    setGame((g) =>
+      g
+        ? {
+            ...g,
+            allow_viewers: next !== 'lobby_only',
+            allow_late_players: next === 'viewers_and_players',
+          }
+        : g
+    )
+    setUpdatingViewers(true)
+    try {
+      const res = await fetch(`/api/games/${gameCode}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken, late_join_policy: next }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGame((g) =>
+          g
+            ? {
+                ...g,
+                allow_viewers: previous !== 'lobby_only',
+                allow_late_players: previous === 'viewers_and_players',
+              }
+            : g
+        )
+        toast.error(data.error || 'Failed to update late join setting')
+        return
+      }
+      if (data.game) setGame(data.game)
+    } finally {
+      setUpdatingViewers(false)
     }
   }
 
@@ -1088,11 +1353,42 @@ export default function HostPage() {
     }
   }
 
+  const activePlayerManagePanel =
+    game?.status === 'active' ? (
+      <div className="glass-card p-4 space-y-3">
+        <p className="text-muted text-xs uppercase tracking-wider">Manage players</p>
+        <HostPlayerManageList
+          players={players}
+          removingPlayerId={adminBusy}
+          onRemovePlayer={hostRemovePlayer}
+          compact
+          highlightPlayerId={hostPlayerId}
+        />
+      </div>
+    ) : null
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="page-wrap flex items-center justify-center">
         <div className="w-11 h-11 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="page-wrap flex items-center justify-center px-4">
+        <div className="text-center space-y-4">
+          <p className="text-6xl">⚠️</p>
+          <h1 className="text-2xl font-black text-body">Can&apos;t reach the server</h1>
+          <p className="text-muted">
+            The database is slow or temporarily unavailable. Wait a moment, then try again.
+          </p>
+          <button type="button" onClick={() => window.location.reload()} className="btn-primary px-6 py-3">
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
@@ -1110,6 +1406,34 @@ export default function HostPage() {
         </div>
       </div>
     )
+  }
+
+  if (game && isSecretMessageGame(game.game_type)) {
+    return <SecretMessageHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isBingoGame(game.game_type)) {
+    return <BingoHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isCodewordsGame(game.game_type)) {
+    return <CodewordsHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isTriviaGame(game.game_type)) {
+    return <TriviaHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isTwoTruthsGame(game.game_type)) {
+    return <TwoTruthsHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isMonopolyGame(game.game_type)) {
+    return <MonopolyHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isYahtzeeGame(game.game_type)) {
+    return <YahtzeeHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {
@@ -1144,6 +1468,8 @@ export default function HostPage() {
     const hotSeatLegacyJoiners = isHotSeatGame && isJoinersMode
     const wstSubmitters = wstEligibleSubmitters(players)
     const wstPoolStatus = isWst ? wstQuotePoolStatus(players, wstPool) : null
+    const hostPoolQuotes = isWst ? wstHostPoolEntries(wstPool) : []
+    const wstTargets = isWst ? wstVoteTargets(participants) : []
     const roundParticipants = isPeoplePoll
       ? buildPeoplePollParticipantPool(game, participants, players)
       : isHotSeatGame && !hotSeatLegacyJoiners
@@ -1258,6 +1584,12 @@ export default function HostPage() {
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         <div className="flex items-start justify-between">
           <div>
             <p className="text-muted text-xs uppercase tracking-wider">Host Panel</p>
@@ -1292,6 +1624,9 @@ export default function HostPage() {
                           : isJoinersMode
                             ? 'Join & play — joiners are the names in the poll'
                             : 'Pre-set roster — players claim their name from the list'}
+            </p>
+            <p className="mt-2">
+              <GameRulesLink gameType={gameType} />
             </p>
           </div>
           <div className="text-right">
@@ -1441,25 +1776,82 @@ export default function HostPage() {
           <div className="pt-3 border-t border-theme">{timerControl}</div>
         </div>
 
+        {gameSupportsViewerSetting(gameType) && (
+          <div className="glass-card p-4 space-y-3">
+            <p className="text-muted text-xs uppercase tracking-wider">Late joiners</p>
+            <LateJoinPolicyToggle
+              value={lateJoinPolicyFromGame(game)}
+              onChange={hostUpdateLateJoinPolicy}
+              disabled={updatingViewers}
+            />
+          </div>
+        )}
+
+        {playAgainNeedsSetup(game) && (() => {
+          const poolLabels = hostPoolSetupLabels(game)
+          const hostListCount = participants.filter((p) => !p.submitted_by_player_id).length
+          return (
+            <div className="glass-card p-4 space-y-3">
+              <p className="text-muted text-xs uppercase tracking-wider">{poolLabels.title}</p>
+              <p className="text-faint text-xs">
+                {poolLabels.hasQuestions && poolLabels.hasParticipants
+                  ? 'Keep your current lists or upload a new CSV before you start.'
+                  : poolLabels.hasQuestions
+                    ? 'Keep your loaded questions or upload a new CSV before you start.'
+                    : 'Keep your current name list or upload a new CSV before you start.'}
+              </p>
+              {poolLabels.hasQuestions && (
+                <p className="text-body text-sm">
+                  {customQuestionCount(game)} question{customQuestionCount(game) === 1 ? '' : 's'} loaded
+                </p>
+              )}
+              {poolLabels.hasParticipants && (
+                <p className="text-body text-sm">
+                  {hostListCount} name{hostListCount === 1 ? '' : 's'} on your list
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => openPoolSetup('lobby')}
+                disabled={savingLobbyPool}
+                className="btn-secondary w-full py-3"
+              >
+                {poolLabels.hasQuestions && poolLabels.hasParticipants
+                  ? 'Change list or upload CSV'
+                  : poolLabels.hasQuestions
+                    ? 'Change questions or upload CSV'
+                    : 'Change names or upload CSV'}
+              </button>
+            </div>
+          )
+        })()}
+
         {isWst && wstPoolStatus && (game?.wst_quote_source ?? 'player') !== 'anime' && (
           <div className="glass-card p-4 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <p className="text-muted text-xs uppercase tracking-wider">Quote pool</p>
               <span className="text-sm font-bold text-body">
-                {wstPoolStatus.submitted.length} / {wstPoolStatus.eligible.length} ready
+                {wstPool.length} quote{wstPool.length === 1 ? '' : 's'} · {wstPoolStatus.submitted.length} /{' '}
+                {wstPoolStatus.eligible.length} players ready
               </span>
             </div>
-            <p className="text-faint text-xs">Remind anyone still waiting — only submitted quotes become rounds.</p>
+            <p className="text-faint text-xs">
+              Remind anyone still waiting — each submitted quote becomes a round.
+            </p>
 
             {wstPoolStatus.submitted.length > 0 && (
               <div className="space-y-2">
                 <p className="text-muted text-[10px] uppercase tracking-wider">Submitted</p>
                 <div className="flex flex-wrap gap-2">
-                  {wstPoolStatus.submitted.map((p) => (
-                    <span key={p.id} className="chip text-xs py-1 px-2 border-emerald-500/40 text-emerald-300">
-                      ✓ {p.name}
-                    </span>
-                  ))}
+                  {wstPoolStatus.submitted.map((p) => {
+                    const count = wstPoolStatus.quoteCounts.get(p.id) ?? 0
+                    return (
+                      <span key={p.id} className="chip text-xs py-1 px-2 border-emerald-500/40 text-emerald-300">
+                        ✓ {p.name}
+                        {count > 1 ? ` (${count})` : ''}
+                      </span>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -1510,6 +1902,112 @@ export default function HostPage() {
                   Everyone who claimed a name has submitted — ready to start
                 </p>
               )}
+
+            {participants.length > 0 && (
+              <div className="space-y-3 pt-3 border-t border-theme">
+                <div className="space-y-1">
+                  <p className="text-muted text-[10px] uppercase tracking-wider">Host quotes ({hostPoolQuotes.length})</p>
+                  <p className="text-faint text-xs">Add quotes yourself — each one becomes a round, same as player submissions.</p>
+                </div>
+
+                {hostPoolQuotes.length > 0 && (
+                  <div className="space-y-2">
+                    {hostPoolQuotes.map((entry) => {
+                      const authorName =
+                        participants.find((p) => p.id === entry.author_participant_id)?.name ?? 'Unknown'
+                      return (
+                        <div key={entry.id} className="flex items-start gap-2 rounded-xl border border-theme px-3 py-2">
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <p className="text-sm text-body-muted line-clamp-2">&ldquo;{entry.quote_text}&rdquo;</p>
+                            <p className="text-faint text-[10px]">— {authorName}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              type="button"
+                              className="text-faint hover:text-body text-xs px-1"
+                              disabled={hostQuoteSubmitting}
+                              onClick={() => {
+                                setHostEditingQuoteId(entry.id)
+                                setHostQuoteInput(entry.quote_text)
+                                setHostQuoteAuthorId(entry.author_participant_id)
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="text-faint hover:text-red-400 text-xs px-1"
+                              disabled={hostQuoteSubmitting}
+                              onClick={() => void handleDeleteHostQuote(entry.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-body">
+                    {hostEditingQuoteId
+                      ? 'Edit host quote'
+                      : hostPoolQuotes.length > 0
+                        ? 'Add another host quote'
+                        : 'Add a host quote'}
+                  </p>
+                  <textarea
+                    value={hostQuoteInput}
+                    onChange={(e) => setHostQuoteInput(e.target.value)}
+                    placeholder="e.g. Roses are red"
+                    maxLength={500}
+                    rows={3}
+                    className="input-field resize-none w-full"
+                    disabled={hostQuoteSubmitting}
+                  />
+                  <div className="space-y-2">
+                    <p className="text-faint text-xs uppercase tracking-wider">Who said this?</p>
+                    <NameSearchPicker
+                      options={wstTargets.map((p) => ({ id: p.id, name: p.name }))}
+                      valueId={hostQuoteAuthorId}
+                      onChange={setHostQuoteAuthorId}
+                      searchPlaceholder="Search names…"
+                      emptyMessage="No names match"
+                      disabled={hostQuoteSubmitting}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSubmitHostQuote()}
+                      disabled={!hostQuoteInput.trim() || !hostQuoteAuthorId || hostQuoteSubmitting}
+                      className={
+                        hostQuoteInput.trim() && hostQuoteAuthorId
+                          ? 'btn-primary w-full'
+                          : 'btn-secondary w-full opacity-60 cursor-not-allowed'
+                      }
+                    >
+                      {hostQuoteSubmitting ? 'Saving…' : hostEditingQuoteId ? 'Save changes' : 'Add to Pool →'}
+                    </button>
+                    {hostEditingQuoteId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHostEditingQuoteId(null)
+                          setHostQuoteInput('')
+                          setHostQuoteAuthorId(null)
+                        }}
+                        className="btn-secondary text-sm w-full"
+                        disabled={hostQuoteSubmitting}
+                      >
+                        Cancel edit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2166,6 +2664,20 @@ export default function HostPage() {
                 ? `Start Game (${hotSeatEffective} round${hotSeatEffective === 1 ? '' : 's'})`
                 : `Start Game (${players.length} players)`}
         </button>
+
+        </PollHostPlayShell>
+
+        {game && (
+          <PlayAgainSetup
+            open={poolSetup.open}
+            onClose={() => setPoolSetup((prev) => ({ ...prev, open: false }))}
+            game={game}
+            participants={participants}
+            onConfirm={handlePoolSetupConfirm}
+            loading={poolSetup.variant === 'lobby' ? savingLobbyPool : playingAgain}
+            variant={poolSetup.variant}
+          />
+        )}
       </div>
     )
   }
@@ -2201,7 +2713,13 @@ export default function HostPage() {
 
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
-          <div className="flex items-center justify-between">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
+          <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
               <p className="font-black text-body text-3xl">
@@ -2210,7 +2728,9 @@ export default function HostPage() {
               </p>
               <p className="label-teal text-sm mt-1">Guess who said it</p>
             </div>
-            <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
+            <div className="flex flex-col items-end gap-2">
+              <TimerDisplay seconds={timeLeft} total={game.timer_seconds} />
+            </div>
           </div>
 
           <div className="glass-card p-5 space-y-3">
@@ -2249,6 +2769,8 @@ export default function HostPage() {
             )}
           </div>
 
+          {activePlayerManagePanel}
+
           <button
             onClick={handleEndRound}
             disabled={ending || (quote ? voterVotes.length === 0 : timeLeft > 0)}
@@ -2262,6 +2784,7 @@ export default function HostPage() {
                   ? 'Skip Round (no quote)'
                   : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
@@ -2269,6 +2792,12 @@ export default function HostPage() {
     if (isMlt) {
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
@@ -2302,9 +2831,12 @@ export default function HostPage() {
             <p className="text-faint text-xs text-center">Votes are anonymous — winner is shown after the round</p>
           </div>
 
+          {activePlayerManagePanel}
+
           <button onClick={handleEndRound} disabled={ending || eligibleVotes.length === 0} className="btn-secondary">
             {ending ? 'Ending...' : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
@@ -2312,6 +2844,12 @@ export default function HostPage() {
     if (isBinaryGame) {
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
@@ -2352,9 +2890,12 @@ export default function HostPage() {
             </p>
           </div>
 
+          {activePlayerManagePanel}
+
           <button onClick={handleEndRound} disabled={ending || eligibleVotes.length === 0} className="btn-secondary">
             {ending ? 'Ending...' : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
@@ -2372,6 +2913,12 @@ export default function HostPage() {
 
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+          <PollHostPlayShell
+            gameCode={gameCode}
+            game={game}
+            playerCount={players.length}
+            onHostPlayerId={setHostPlayerId}
+          >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-xs uppercase tracking-wider">Round</p>
@@ -2425,6 +2972,8 @@ export default function HostPage() {
             </p>
           </div>
 
+          {activePlayerManagePanel}
+
           <button
             onClick={handleEndRound}
             disabled={ending}
@@ -2438,12 +2987,19 @@ export default function HostPage() {
                   ? `End Round (${submissionCount}/${submitters.length} submitted)`
                   : 'End Round Early'}
           </button>
+          </PollHostPlayShell>
         </div>
       )
     }
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -2572,6 +3128,8 @@ export default function HostPage() {
           </div>
         )}
 
+        {activePlayerManagePanel}
+
         {/* End round button */}
         <button
           onClick={handleEndRound}
@@ -2588,6 +3146,13 @@ export default function HostPage() {
                 ? '✓ End Round & Show Results'
                 : `End Round (${eligibleVotes.length}/${eligible.length} voted)`}
         </button>
+        <HostEndGameButton
+          gameCode={gameCode}
+          hostToken={hostToken}
+          onEnded={syncGameState}
+          className="btn-secondary w-full text-muted"
+        />
+        </PollHostPlayShell>
       </div>
     )
   }
@@ -2616,6 +3181,12 @@ export default function HostPage() {
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         <div className="text-center">
           <p className="text-muted text-xs uppercase tracking-wider">
             Round {lastFinishedRound.round_number} of {game.rounds_count}
@@ -2631,9 +3202,16 @@ export default function HostPage() {
           </p>
         </div>
 
-        {isHotSeatGame ? (
-          <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
-        ) : isWst ? (
+        <RoundResultsShareBlock
+          game={game}
+          round={lastFinishedRound}
+          votes={roundVotes}
+          participants={participants}
+          players={players}
+        >
+          {isHotSeatGame ? (
+            <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
+          ) : isWst ? (
           (() => {
             if (isAnimeRound(lastFinishedRound)) {
               const meta = lastFinishedRound.anime_metadata as {
@@ -2712,7 +3290,7 @@ export default function HostPage() {
                 voterCount={roundVotes.length}
                 participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
                 renderCard={
-                  isPairGame(gameType)
+                  isBinaryPeoplePollGame(gameType)
                     ? undefined
                     : ({ tally, name, maxes, isWinner }) => (
                         <div key={tally.id} className="glass-card p-4">
@@ -2742,7 +3320,8 @@ export default function HostPage() {
               />
             )
           })()
-        )}
+          )}
+        </RoundResultsShareBlock>
 
         {roundConfessions.length > 0 && (
           <div>
@@ -2758,6 +3337,8 @@ export default function HostPage() {
             </div>
           </div>
         )}
+
+        {activePlayerManagePanel}
 
         {isLastRound ? (
           game.auto_reveal ? (
@@ -2785,8 +3366,15 @@ export default function HostPage() {
                 Auto-starting in {nextRoundCountdown}s unless you tap above
               </p>
             )}
+            <HostEndGameButton
+              gameCode={gameCode}
+              hostToken={hostToken}
+              onEnded={syncGameState}
+              className="btn-secondary w-full text-muted"
+            />
           </>
         )}
+        </PollHostPlayShell>
       </div>
     )
   }
@@ -2795,21 +3383,34 @@ export default function HostPage() {
   if (game?.status === 'finished') {
     const gameType = parseGameType(game.game_type)
     const isTot = isThisOrThat(gameType)
+    const isWyr = isWouldYouRather(gameType)
     const isBinaryGame = isBinaryChoiceGame(gameType)
     const isMlt = isMostLikelyTo(gameType)
     const isWst = isWhoSaidThis(gameType)
     const isHotSeatGame = isHotSeat(gameType)
     const isMltImport = isMltImportGame(game)
-    const showPollLeaderboards = !isBinaryGame && !isMlt && !isWst && !isHotSeatGame
+    const showPollLeaderboards = !isBinaryGame && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
     const genderBasedLeaderboards = showPollLeaderboards && isGameGenderBased(game)
     const namesOnlyLeaderboards = showPollLeaderboards && isGenderFreeVoting(game)
     const playedParticipants = filterParticipantsInRounds(participants, allRounds)
     const pollCount = mltVoteTargets(game, participants, players).length
     const wstScores = isWst ? tallyWstPlayerScores(allRounds, votes, players) : []
     const achievements = computeAchievements(game, participants, allRounds, votes, players)
+    const hasFinalLeaderboardSnapshot =
+      (isWst && wstScores.length > 0) ||
+      isCustomGame(gameType) ||
+      genderBasedLeaderboards ||
+      namesOnlyLeaderboards
+    const showFinalShareResults = !isTot && !isWyr && !isMlt && !isHotSeatGame
 
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-8">
+        <PollHostPlayShell
+          gameCode={gameCode}
+          game={game}
+          playerCount={players.length}
+          onHostPlayerId={setHostPlayerId}
+        >
         <div className="text-center">
           <div className="text-4xl mb-2">🏆</div>
           <h1 className="text-3xl font-black text-body">{game.title}</h1>
@@ -2829,7 +3430,7 @@ export default function HostPage() {
           <p className="text-muted text-xs uppercase tracking-wider text-center">What&apos;s next?</p>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={handlePlayAgain}
+              onClick={openPlayAgain}
               disabled={playingAgain}
               className="btn-primary py-3 flex flex-col items-center gap-0.5 min-h-[3.25rem]"
             >
@@ -2838,26 +3439,90 @@ export default function HostPage() {
             </button>
             <button
               type="button"
-              onClick={() => router.push(`/create?type=${gameType}`)}
+              onClick={() => router.push('/games')}
               className="btn-secondary py-3 flex flex-col items-center gap-0.5 min-h-[3.25rem]"
             >
-              <span>+ New Game</span>
-              <span className="text-[10px] font-normal text-faint leading-tight">Fresh code</span>
+              <span>Create a new game</span>
+              <span className="text-[10px] font-normal text-faint leading-tight">Browse all games</span>
             </button>
           </div>
         </div>
 
-        {isWst && wstScores.length > 0 && (
-          <PaginatedLeaderboard
-            title="Best guessers"
-            rows={wstScores.map((row, i) => ({
-              id: row.playerId,
-              name: row.name,
-              score: row.correctGuesses,
-              rank: i + 1,
-            }))}
-          />
+        {hasFinalLeaderboardSnapshot ? (
+          <FinalResultsShareBlock
+            game={game}
+            participants={participants}
+            votes={votes}
+            rounds={allRounds}
+            players={players}
+            showCreateNewGame={false}
+          >
+            {isWst && wstScores.length > 0 && (
+              <PaginatedLeaderboard
+                title="Best guessers"
+                rows={wstScores.map((row, i) => ({
+                  id: row.playerId,
+                  name: row.name,
+                  score: row.correctGuesses,
+                  rank: i + 1,
+                }))}
+              />
+            )}
+
+            {isCustomGame(gameType) && game
+              ? (() => {
+                  const slots = getCustomSlots(game)
+                  const leaderboard = buildCustomLeaderboard(votes, participants, slots)
+                  return (
+                    <div className="glass-card border border-theme-strong p-4 space-y-4">
+                      <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
+                      {leaderboard.map((entry) => (
+                        <div key={entry.slot.key} className="space-y-1">
+                          <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
+                            {entry.slot.emoji} Most {entry.slot.label}
+                          </p>
+                          {entry.entries.slice(0, 3).map((e, i) => (
+                            <p key={e.name} className="text-body text-sm pl-6">
+                              {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()
+              : null}
+
+            {genderBasedLeaderboards && (
+              <FinalGenderLeaderboards
+                gameType={gameType}
+                participants={participants}
+                rounds={allRounds}
+                votes={votes}
+                TopCard={StatCard}
+              />
+            )}
+
+            {namesOnlyLeaderboards && (
+              <FinalOverallLeaderboards
+                gameType={gameType}
+                participants={participants}
+                rounds={allRounds}
+                votes={votes}
+                TopCard={StatCard}
+              />
+            )}
+          </FinalResultsShareBlock>
+        ) : showFinalShareResults ? (
+          <>
+            <ShareResults game={game} participants={participants} votes={votes} rounds={allRounds} players={players} />
+            <CreateNewGameButton />
+          </>
+        ) : (
+          <CreateNewGameButton />
         )}
+
+        <AchievementsShareBlock achievements={achievements} gameTitle={game.title} />
 
         {isBinaryGame ? (
           <div className="space-y-8">
@@ -2971,27 +3636,7 @@ export default function HostPage() {
           </div>
         ) : isCustomGame(gameType) && game ? (
           <div className="space-y-8">
-            {(() => {
-              const slots = getCustomSlots(game)
-              const leaderboard = buildCustomLeaderboard(votes, participants, slots)
-              return (
-                <div className="glass-card border border-theme-strong p-4 space-y-4">
-                  <p className="text-muted text-xs uppercase tracking-wider text-center">Final Leaderboard</p>
-                  {leaderboard.map((entry) => (
-                    <div key={entry.slot.key} className="space-y-1">
-                      <p className="text-sm font-semibold" style={{ color: entry.slot.color }}>
-                        {entry.slot.emoji} Most {entry.slot.label}
-                      </p>
-                      {entry.entries.slice(0, 3).map((e, i) => (
-                        <p key={e.name} className="text-body text-sm pl-6">
-                          {i === 0 ? '\u{1F3C6}' : `${i + 1}.`} {e.name} ({e.count} votes)
-                        </p>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )
-            })()}
+            <h2 className="text-muted text-xs uppercase tracking-wider">All round results</h2>
             {allRounds.map((round) => {
               const roundVotesForRound = votes.filter((v) => v.round_id === round.id)
               const slots = getCustomSlots(game)
@@ -3007,30 +3652,10 @@ export default function HostPage() {
             })}
           </div>
         ) : genderBasedLeaderboards ? (
-          <>
-            <FinalGenderLeaderboards
-              gameType={gameType}
-              participants={participants}
-              rounds={allRounds}
-              votes={votes}
-              TopCard={StatCard}
-            />
-            <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
-          </>
+          <FinalGenderBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
         ) : namesOnlyLeaderboards ? (
-          <>
-            <FinalOverallLeaderboards
-              gameType={gameType}
-              participants={participants}
-              rounds={allRounds}
-              votes={votes}
-              TopCard={StatCard}
-            />
-            <FinalOverallBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
-          </>
+          <FinalOverallBreakdown gameType={gameType} participants={participants} rounds={allRounds} votes={votes} />
         ) : null}
-
-        {achievements.length > 0 && <AchievementBadges achievements={achievements} />}
 
         {/* Confessions / hot takes */}
         {confessions.length > 0 && (
@@ -3044,6 +3669,18 @@ export default function HostPage() {
               ))}
             </div>
           </div>
+        )}
+        </PollHostPlayShell>
+        {game && (
+          <PlayAgainSetup
+            open={poolSetup.open}
+            onClose={() => setPoolSetup((prev) => ({ ...prev, open: false }))}
+            game={game}
+            participants={participants}
+            onConfirm={handlePoolSetupConfirm}
+            loading={poolSetup.variant === 'lobby' ? savingLobbyPool : playingAgain}
+            variant={poolSetup.variant}
+          />
         )}
       </div>
     )
@@ -3085,7 +3722,10 @@ function StatCard({
   return (
     <div
       className="glass-card border rounded-2xl p-3 text-center"
-      style={{ borderColor: `${accentColor}55`, backgroundColor: `${accentColor}14` }}
+      style={{
+        borderColor: hexToRgba(accentColor, 0.33),
+        backgroundColor: hexToRgba(accentColor, 0.08),
+      }}
     >
       <p className="text-2xl">{emoji}</p>
       <p className="text-muted text-xs mt-1 leading-tight">{label}</p>

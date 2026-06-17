@@ -1,24 +1,30 @@
 'use client'
 
-import { useCallback } from 'react'
-import type { Game, Participant, Player, Round, Vote } from '@/types'
+import { useCallback, useRef, useState, type RefObject } from 'react'
+import type { Game, Participant, Player, Round, TriviaAnswer, Vote, YahtzeePlayerScore } from '@/types'
 import {
   parseGameType,
   gameTypeConfig,
-  isPairGame,
+  isBinaryPeoplePollGame,
   isBinaryChoiceGame,
   isMostLikelyTo,
   isWhoSaidThis,
   isCustomGame,
+  isTriviaGame,
+  isBingoGame,
+  isYahtzeeGame,
 } from '@/lib/game-types'
+import { tallyTriviaPlayerScores } from '@/lib/trivia'
+import { totalScore } from '@/lib/yahtzee'
 import { buildCustomLeaderboard } from '@/lib/custom-game'
 import { getCategoryMeta, getVoteCategories, flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstPlayerScores } from '@/lib/who-said-this'
 import { useToast } from '@/components/ui/Toast'
 import { filterParticipantsInRounds } from '@/lib/utils'
-
 import { appDomain } from '@/lib/site'
+import { captureElementAsImage } from '@/lib/capture-element-image'
+import { shareImageBlob } from '@/lib/share-image'
 
 function buildShareText({
   game,
@@ -26,15 +32,61 @@ function buildShareText({
   votes,
   rounds,
   players,
+  triviaAnswers,
+  bingoWinnerName,
+  yahtzeeScores,
+  yahtzeeWinnerName,
 }: {
   game: Game
   participants: Participant[]
   votes: Vote[]
   rounds: Round[]
   players: Player[]
+  triviaAnswers?: TriviaAnswer[]
+  bingoWinnerName?: string
+  yahtzeeScores?: YahtzeePlayerScore[]
+  yahtzeeWinnerName?: string
 }): string {
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
+
+  if (isBingoGame(gameType) && bingoWinnerName) {
+    return [
+      config.headerEmoji,
+      game.title,
+      '',
+      '🏆',
+      '',
+      'BINGO!',
+      '',
+      `${bingoWinnerName} wins!`,
+      '',
+      `Play at ${appDomain()}`,
+    ].join('\n')
+  }
+
+  if (isYahtzeeGame(gameType) && yahtzeeScores && yahtzeeScores.length > 0) {
+    const sorted = [...yahtzeeScores]
+      .map((row) => ({
+        name: players.find((p) => p.id === row.player_id)?.name ?? 'Player',
+        score: totalScore(row.scores.categories),
+      }))
+      .sort((a, b) => b.score - a.score)
+
+    const lines = [
+      config.headerEmoji,
+      game.title,
+      '',
+      yahtzeeWinnerName ? `🏆 ${yahtzeeWinnerName} wins!` : 'Game over',
+      '',
+      'Final leaderboard:',
+      ...sorted.slice(0, 8).map((entry, i) => `  ${i + 1}. ${entry.name} (${entry.score} pts)`),
+      '',
+      `Play at ${appDomain()}`,
+    ]
+    return lines.join('\n')
+  }
+
   const lines: string[] = []
 
   lines.push(`${config.headerEmoji} ${game.title}`)
@@ -44,9 +96,20 @@ function buildShareText({
   const isWyr = isBinaryChoiceGame(gameType)
   const isMlt = isMostLikelyTo(gameType)
   const isWst = isWhoSaidThis(gameType)
+  const isTrivia = isTriviaGame(gameType)
 
-  if (isWyr) {
-    // Show top WYR results
+  if (isTrivia && triviaAnswers) {
+    const scores = tallyTriviaPlayerScores(triviaAnswers, players)
+    lines.push('Final leaderboard:')
+    const medals = ['1st', '2nd', '3rd']
+    scores.slice(0, 5).forEach((s, i) => {
+      const label = i < 3 ? medals[i] : `${i + 1}.`
+      lines.push(`  ${label}: ${s.name} (${s.score} pts)`)
+    })
+    if (scores.length > 5) {
+      lines.push(`  ...and ${scores.length - 5} more players`)
+    }
+  } else if (isWyr) {
     lines.push('Top results:')
     const shownRounds = rounds.slice(0, 5)
     for (const round of shownRounds) {
@@ -62,7 +125,6 @@ function buildShareText({
       lines.push(`  ...and ${rounds.length - 5} more rounds`)
     }
   } else if (isMlt) {
-    // Show MLT winners
     lines.push('Most voted:')
     const isMltImport = isMltImportGame(game)
     const mltKind = isMltImport ? 'participant' : 'player'
@@ -79,7 +141,6 @@ function buildShareText({
       lines.push(`  ...and ${rounds.length - 5} more rounds`)
     }
   } else if (isWst) {
-    // Show WST best guessers
     const scores = tallyWstPlayerScores(rounds, votes, players)
     lines.push('Best guessers:')
     const topScores = scores.slice(0, 3)
@@ -97,10 +158,9 @@ function buildShareText({
       }
     }
   } else {
-    // Trio and pair games - show category leaders
     const playedParticipants = filterParticipantsInRounds(participants, rounds)
     const categories = getVoteCategories(gameType)
-    const pairGame = isPairGame(gameType)
+    const pairGame = isBinaryPeoplePollGame(gameType)
 
     type TallyRow = {
       id: string
@@ -141,48 +201,124 @@ function buildShareText({
 }
 
 export function ShareResults({
+  captureRef,
   game,
   participants,
   votes,
   rounds,
   players,
+  triviaAnswers,
+  bingoWinnerName,
+  yahtzeeScores,
+  yahtzeeWinnerName,
 }: {
+  captureRef?: RefObject<HTMLElement | null>
   game: Game
   participants: Participant[]
   votes: Vote[]
   rounds: Round[]
   players: Player[]
+  triviaAnswers?: TriviaAnswer[]
+  bingoWinnerName?: string
+  yahtzeeScores?: YahtzeePlayerScore[]
+  yahtzeeWinnerName?: string
 }) {
   const { success, error } = useToast()
+  const [sharing, setSharing] = useState(false)
+  const sharingLock = useRef(false)
 
   const handleShare = useCallback(async () => {
-    const text = buildShareText({ game, participants, votes, rounds, players })
+    if (sharingLock.current) return
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({ text })
-        return
-      } catch (err: unknown) {
-        // User cancelled or share failed - fall through to clipboard
-        if (err instanceof Error && err.name === 'AbortError') return
-      }
+    const wantsImage = !!captureRef
+    const target = captureRef?.current
+
+    if (wantsImage && (!target || target.offsetHeight === 0)) {
+      error('Nothing to share yet')
+      return
     }
 
-    // Fallback: copy to clipboard
+    sharingLock.current = true
+    setSharing(true)
     try {
+      if (target) {
+        const blob = await captureElementAsImage(target)
+        const result = await shareImageBlob(blob, 'final-results.png')
+
+        if (result === 'copied') {
+          success('Image copied — paste into Stories or chat')
+        } else if (result === 'shared') {
+          success('Shared!')
+        } else {
+          success('Image downloaded')
+        }
+        return
+      }
+
+      const text = buildShareText({
+        game,
+        participants,
+        votes,
+        rounds,
+        players,
+        triviaAnswers,
+        bingoWinnerName,
+        yahtzeeScores,
+        yahtzeeWinnerName,
+      })
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({ text })
+          return
+        } catch (err: unknown) {
+          if (err instanceof Error && err.name === 'AbortError') return
+        }
+      }
+
       await navigator.clipboard.writeText(text)
       success('Results copied to clipboard!')
-    } catch {
-      error('Could not copy results')
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+
+      if (wantsImage) {
+        error(err instanceof Error ? err.message : 'Could not share results image')
+        return
+      }
+
+      try {
+        const text = buildShareText({
+        game,
+        participants,
+        votes,
+        rounds,
+        players,
+        triviaAnswers,
+        bingoWinnerName,
+        yahtzeeScores,
+        yahtzeeWinnerName,
+      })
+        await navigator.clipboard.writeText(text)
+        success('Results copied to clipboard!')
+      } catch {
+        error(err instanceof Error ? err.message : 'Could not share results')
+      }
+    } finally {
+      sharingLock.current = false
+      setSharing(false)
     }
-  }, [game, participants, votes, rounds, players, success, error])
+  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName, yahtzeeScores, yahtzeeWinnerName, success, error])
 
   return (
-    <button type="button" onClick={handleShare} className="btn-secondary w-full flex items-center justify-center gap-2">
+    <button
+      type="button"
+      onClick={handleShare}
+      disabled={sharing}
+      className="btn-secondary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+    >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
         <path d="M13 4.5a2.5 2.5 0 1 1 .702 1.737L6.97 9.604a2.5 2.5 0 0 1 0 .792l6.733 3.367a2.5 2.5 0 1 1-.671 1.341l-6.733-3.367a2.5 2.5 0 1 1 0-3.474l6.733-3.367A2.5 2.5 0 0 1 13 4.5Z" />
       </svg>
-      Share Results
+      {sharing ? 'Sharing…' : 'Share Results'}
     </button>
   )
 }

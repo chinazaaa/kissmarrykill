@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* ── Light theme (default) ─────────────────────────────────────── */
 :root {
   --background: #f4f4f7;
@@ -27,6 +29,7 @@
   --marry: #d97706;
   --kill: #991b1b;
   --slot-kiss-text: #c2410c;
+  --slot-marry-text: #b45309;
   --slot-kill-text: #7f1d1d;
   --slot-pass-text: #475569;
   --primary: #f43f5e;
@@ -78,6 +81,7 @@
   --kiss: #fb923c;
   --kill: #ef4444;
   --slot-kiss-text: #fdba74;
+  --slot-marry-text: #fcd34d;
   --slot-kill-text: #fca5a5;
   --slot-pass-text: #94a3b8;
   --primary-glow: rgba(244, 63, 94, 0.45);
@@ -667,3 +671,159 @@ body {
 [data-theme='dark'] .logo-theme-dark {
   display: block;
 }
+
+/* ── Dice Roll Animation ────────────────────────────────────────── */
+@keyframes dice-roll-spin {
+  0% { transform: rotate(0deg) scale(1) translateY(0); }
+  15% { transform: rotate(-25deg) scale(0.9) translateY(-6px); }
+  35% { transform: rotate(45deg) scale(1.1) translateY(4px); }
+  55% { transform: rotate(-45deg) scale(0.95) translateY(-3px); }
+  75% { transform: rotate(25deg) scale(1.05) translateY(2px); }
+  90% { transform: rotate(-10deg) scale(0.98) translateY(-1px); }
+  100% { transform: rotate(0deg) scale(1) translateY(0); }
+}
+
+.animate-dice-roll {
+  animation: dice-roll-spin 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Yahtzee ────────────────────────────────────────────────────── */
+.yahtzee-die {
+  background: linear-gradient(150deg, #ffffff 0%, #f2f2f7 50%, #e6e6ed 100%);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .yahtzee-die {
+  background: linear-gradient(150deg, #f8f8fc 0%, #eeeeF4 50%, #e2e2ec 100%);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.07);
+}
+
+.yahtzee-die-held {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--marry) 45%, transparent),
+    0 6px 20px color-mix(in srgb, var(--marry) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.yahtzee-die-pip {
+  background: #18181f;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.yahtzee-dice-tray {
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 70%),
+    var(--card-strong);
+}
+
+.yahtzee-turn-banner {
+  border: 1px solid var(--border);
+  background: var(--card);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.yahtzee-turn-banner-active {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-strong));
+  background: color-mix(in srgb, var(--primary) 6%, var(--card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+/* ── Scorecard table ────────────────────────────────────────────── */
+.yahtzee-scorecard table {
+  font-size: 0.75rem;
+}
+
+.yahtzee-score-table td,
+.yahtzee-score-table th {
+  line-height: 1.35;
+}
+
+/* section header rows (UPPER / LOWER) */
+.yahtzee-score-section-header td {
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface-inset-bg));
+  border-top: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
+}
+
+.yahtzee-score-row td:first-child {
+  background: var(--card-strong);
+  border-bottom: 1px solid var(--border);
+}
+
+.yahtzee-score-row:hover td {
+  background: color-mix(in srgb, var(--primary) 3%, var(--surface-inset-bg));
+}
+
+.yahtzee-score-row:hover td:first-child {
+  background: color-mix(in srgb, var(--primary) 3%, var(--card-strong));
+}
+
+/* Active player column — gradient from top */
+.yahtzee-score-col-active {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 10%, transparent) 0%,
+    color-mix(in srgb, var(--primary) 4%, transparent) 100%
+  );
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.yahtzee-score-col-you {
+  background: color-mix(in srgb, var(--primary) 2%, transparent);
+}
+
+/* Filled score chips */
+.yahtzee-score-filled {
+  background: var(--card-strong);
+  border: 1.5px solid var(--border-strong);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* Scoreable (pick this category) button */
+.yahtzee-score-pick {
+  border: 2px dashed color-mix(in srgb, var(--primary) 55%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.yahtzee-score-pick:hover {
+  background: var(--primary);
+  border-style: solid;
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 3px 12px var(--primary-glow);
+  transform: scale(1.05);
+}
+
+/* Bonus subtotal row */
+.yahtzee-score-subtotal td {
+  background: color-mix(in srgb, var(--surface-inset-bg) 60%, transparent);
+  border-top: 1px solid var(--border);
+  border-bottom: 2px solid var(--border-strong);
+}
+
+.yahtzee-score-bonus {
+  color: color-mix(in srgb, var(--marry) 90%, #000);
+  background: color-mix(in srgb, var(--marry) 14%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--marry) 30%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.15rem 0.4rem;
+  font-weight: 900;
+}
+
+/* Total row */
+.yahtzee-score-total td {
+  background: color-mix(in srgb, var(--primary) 6%, var(--card-strong));
+  border-top: 2px solid color-mix(in srgb, var(--primary) 30%, var(--border-strong));
+}
+

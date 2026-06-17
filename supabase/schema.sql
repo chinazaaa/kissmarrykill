@@ -125,12 +125,11 @@ create index if not exists idx_votes_round_id on votes(round_id);
 create table if not exists wst_quote_pool (
   id uuid primary key default gen_random_uuid(),
   game_id text not null references games(id) on delete cascade,
-  player_id uuid not null references players(id) on delete cascade,
+  player_id uuid references players(id) on delete cascade,
   quote_text text not null,
   author_participant_id uuid not null references participants(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique(game_id, player_id)
+  updated_at timestamptz not null default now()
 );
 create index if not exists idx_wst_quote_pool_game_id on wst_quote_pool(game_id);
 

@@ -123,7 +123,7 @@ export function buildRoundsFromQuotePool({ gameId, participantIds, poolEntries, 
     game_id: gameId,
     round_number: index + 1,
     participant_ids: participantIds,
-    submitter_player_id: entry.player_id,
+    submitter_player_id: entry.player_id ?? null,
     quote_text: entry.quote_text,
     quote_author_participant_id: entry.author_participant_id,
     quote_submitted_at: index === 0 ? now : null,
@@ -173,34 +173,43 @@ export function buildRoundsFromAnimePool({ gameId, participantIds, animeQuotes, 
 }
 
 export function dedupeWstPool(entries: WstQuotePoolEntry[]): WstQuotePoolEntry[] {
-  const byPlayer = new Map<string, WstQuotePoolEntry>()
-  for (const entry of entries) {
-    const existing = byPlayer.get(entry.player_id)
-    if (!existing || entry.updated_at > existing.updated_at) {
-      byPlayer.set(entry.player_id, entry)
-    }
-  }
-  return [...byPlayer.values()].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+  return [...entries].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
 }
 
 export function mergeWstPoolEntry(prev: WstQuotePoolEntry[], entry: WstQuotePoolEntry): WstQuotePoolEntry[] {
-  return dedupeWstPool([...prev.filter((x) => x.player_id !== entry.player_id), entry])
+  const without = prev.filter((x) => x.id !== entry.id)
+  return dedupeWstPool([...without, entry])
+}
+
+export function isWstHostQuote(entry: WstQuotePoolEntry): boolean {
+  return entry.player_id == null
+}
+
+export function wstHostPoolEntries(pool: WstQuotePoolEntry[]): WstQuotePoolEntry[] {
+  return pool.filter(isWstHostQuote).sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+}
+
+export function wstPoolQuoteCountByPlayer(pool: WstQuotePoolEntry[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const entry of pool) {
+    if (!entry.player_id) continue
+    counts.set(entry.player_id, (counts.get(entry.player_id) ?? 0) + 1)
+  }
+  return counts
 }
 
 export function wstPoolPlayerName(entry: WstQuotePoolEntry, players: Player[]): string | null {
   return players.find((p) => p.id === entry.player_id)?.name ?? null
 }
 
-const poolPlayerIds = (pool: WstQuotePoolEntry[]) => new Set(pool.map((e) => e.player_id))
-
-/** Lobby status: who submitted a quote vs who still needs to. */
+/** Lobby status: who submitted at least one quote vs who still needs to. */
 export function wstQuotePoolStatus(players: Player[], pool: WstQuotePoolEntry[]) {
-  const ids = poolPlayerIds(pool)
+  const quoteCounts = wstPoolQuoteCountByPlayer(pool)
   const eligible = wstEligibleSubmitters(players)
-  const submitted = eligible.filter((p) => ids.has(p.id))
-  const awaitingQuote = eligible.filter((p) => !ids.has(p.id))
+  const submitted = eligible.filter((p) => (quoteCounts.get(p.id) ?? 0) > 0)
+  const awaitingQuote = eligible.filter((p) => (quoteCounts.get(p.id) ?? 0) === 0)
   const notClaimed = players.filter((p) => !p.participant_id)
-  return { submitted, awaitingQuote, notClaimed, eligible }
+  return { submitted, awaitingQuote, notClaimed, eligible, quoteCounts }
 }
 
 export function tallyWstVotes(votes: Vote[], targets: WstVoteTarget[], correctParticipantId: string | null) {

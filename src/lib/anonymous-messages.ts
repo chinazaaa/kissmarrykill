@@ -15,8 +15,8 @@ export const ANONYMOUS_ROOM_SESSION_SECONDS = 15 * 60
 
 /** Lobby size limits for anonymous rooms. */
 export const ANONYMOUS_ROOM_MIN_PLAYERS = 2
-export const ANONYMOUS_ROOM_MAX_PLAYERS = 15
-export const ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS = 15
+export const ANONYMOUS_ROOM_MAX_PLAYERS = 20
+export const ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS = 20
 
 export function clampAnonymousRoomMaxPlayers(value: number): number {
   return Math.min(ANONYMOUS_ROOM_MAX_PLAYERS, Math.max(ANONYMOUS_ROOM_MIN_PLAYERS, value))
@@ -59,16 +59,35 @@ export function formatBanCountdown(secondsLeft: number): string {
 
 /** Players who join after the session starts may watch but not post. */
 export function anonymousPlayerCanChat(
-  player: Pick<Player, 'joined_at'>,
+  player: Pick<Player, 'joined_at' | 'spectator'>,
   game: Pick<Game, 'status' | 'session_started_at'>
 ): boolean {
   if (game.status === 'waiting') return true
+  if (player.spectator) return false
   if (!game.session_started_at) return false
   return new Date(player.joined_at).getTime() < new Date(game.session_started_at).getTime()
 }
 
+export function countAnonymousRoomPresence(
+  players: Pick<Player, 'joined_at' | 'spectator'>[],
+  game: Pick<Game, 'status' | 'session_started_at'>
+): { total: number; participants: number; viewers: number } {
+  if (game.status !== 'active') {
+    return { total: players.length, participants: players.length, viewers: 0 }
+  }
+
+  let participants = 0
+  let viewers = 0
+  for (const player of players) {
+    if (anonymousPlayerCanChat(player, game)) participants++
+    else viewers++
+  }
+
+  return { total: players.length, participants, viewers }
+}
+
 export function anonymousPlayerCanPost(
-  player: Pick<Player, 'joined_at'>,
+  player: Pick<Player, 'joined_at' | 'spectator'>,
   game: Pick<Game, 'status' | 'session_started_at'>,
   bannedUntil?: string | null
 ): boolean {
@@ -161,6 +180,39 @@ export async function finishAnonymousRoomSession(
   if (gameError) return { error: gameError.message }
 
   return clearAnonymousRoomSessionData(supabase, gameId)
+}
+
+/** Close a secret message board and wipe inbox data (same retention as anonymous rooms). */
+export async function finishSecretMessageBoard(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error: gameError } = await supabase.from('games').update({ status: 'finished' }).eq('id', gameId)
+  if (gameError) return { error: gameError.message }
+
+  return clearAnonymousRoomSessionData(supabase, gameId)
+}
+
+/** Clear inbox and reopen a secret message board. */
+export async function reopenSecretMessageBoard(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error: clearError } = await clearAnonymousRoomSessionData(supabase, gameId)
+  if (clearError) return { error: clearError }
+
+  const now = new Date().toISOString()
+  const { error: gameError } = await supabase
+    .from('games')
+    .update({
+      status: 'active',
+      session_started_at: now,
+      anonymous_messages_trimmed_at: null,
+    })
+    .eq('id', gameId)
+
+  if (gameError) return { error: gameError.message }
+  return { error: null }
 }
 
 export async function finishExpiredAnonymousSession(

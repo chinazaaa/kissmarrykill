@@ -33,11 +33,17 @@ function pairKey(pair: string[]): string {
  * - Avoid back-to-back rounds for the same person when possible
  * - Avoid repeating the exact same trio when possible
  */
-export function generateRounds(participantIds: string[], roundCount: number): string[][] {
+export function generateRounds(
+  participantIds: string[],
+  roundCount: number,
+  initialAppearanceCounts?: Map<string, number>
+): string[][] {
   if (participantIds.length < 3 || roundCount <= 0) return []
 
   const ids = [...participantIds]
-  const appearanceCount = new Map<string, number>(ids.map((id) => [id, 0]))
+  const appearanceCount = new Map<string, number>(
+    ids.map((id) => [id, initialAppearanceCounts?.get(id) ?? 0])
+  )
   const lastRound = new Map<string, number>(ids.map((id) => [id, Number.NEGATIVE_INFINITY]))
   const usedTrios = new Set<string>()
   const rounds: string[][] = []
@@ -108,11 +114,17 @@ export function generateRounds(participantIds: string[], roundCount: number): st
 /**
  * Builds same-gender round pairs with fair rotation (Red Flag / Green Flag).
  */
-export function generatePairRounds(participantIds: string[], roundCount: number): string[][] {
+export function generatePairRounds(
+  participantIds: string[],
+  roundCount: number,
+  initialAppearanceCounts?: Map<string, number>
+): string[][] {
   if (participantIds.length < 2 || roundCount <= 0) return []
 
   const ids = [...participantIds]
-  const appearanceCount = new Map<string, number>(ids.map((id) => [id, 0]))
+  const appearanceCount = new Map<string, number>(
+    ids.map((id) => [id, initialAppearanceCounts?.get(id) ?? 0])
+  )
   const lastRound = new Map<string, number>(ids.map((id) => [id, Number.NEGATIVE_INFINITY]))
   const usedPairs = new Set<string>()
   const rounds: string[][] = []
@@ -177,12 +189,17 @@ export function generatePairRounds(participantIds: string[], roundCount: number)
 }
 
 /** Generate rounds with N participants each (for custom games with 2-5 slots). */
-export function generateNRounds(participantIds: string[], roundCount: number, poolSize: number): string[][] {
-  if (participantIds.length < poolSize || poolSize < 2) return []
+export function generateNRounds(
+  participantIds: string[],
+  roundCount: number,
+  poolSize: number,
+  initialAppearanceCounts?: Map<string, number>
+): string[][] {
+  if (participantIds.length < poolSize || poolSize < 1) return []
 
   const rounds: string[][] = []
   const appearances = new Map<string, number>()
-  for (const id of participantIds) appearances.set(id, 0)
+  for (const id of participantIds) appearances.set(id, initialAppearanceCounts?.get(id) ?? 0)
   const seen = new Set<string>()
 
   for (let r = 0; r < roundCount; r++) {
@@ -223,11 +240,17 @@ export type ParticipantForRounds = { id: string; gender: 'male' | 'female' }
 export function generateRoundsByGender(
   participants: ParticipantForRounds[],
   roundCount: number,
-  poolSize: 2 | 3 = 3
+  poolSize: 1 | 2 | 3 = 3,
+  initialAppearanceCounts?: Map<string, number>
 ): string[][] {
   if (roundCount <= 0) return []
 
-  const generate = poolSize === 2 ? generatePairRounds : generateRounds
+  const generate =
+    poolSize === 1
+      ? (ids: string[], rc: number, ic?: Map<string, number>) => generateNRounds(ids, rc, 1, ic)
+      : poolSize === 2
+        ? generatePairRounds
+        : generateRounds
   const minPool = poolSize
 
   const byGender: Record<'male' | 'female', string[]> = { male: [], female: [] }
@@ -239,13 +262,13 @@ export function generateRoundsByGender(
   if (eligible.length === 0) return []
 
   if (eligible.length === 1) {
-    return generate(byGender[eligible[0]], roundCount)
+    return generate(byGender[eligible[0]], roundCount, initialAppearanceCounts)
   }
 
   const maleCount = Math.ceil(roundCount / 2)
   const femaleCount = Math.floor(roundCount / 2)
-  const maleTrios = generate(byGender.male, maleCount)
-  const femaleTrios = generate(byGender.female, femaleCount)
+  const maleTrios = generate(byGender.male, maleCount, initialAppearanceCounts)
+  const femaleTrios = generate(byGender.female, femaleCount, initialAppearanceCounts)
 
   const result: string[][] = []
   let mi = 0

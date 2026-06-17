@@ -8,9 +8,10 @@ import {
   MltRoundResults,
   WstRoundResults,
   AnimeWstRoundResults,
+  HotSeatRoundResults,
 } from '@/components/VoteResults'
 import { CustomRoundResults } from '@/components/CustomRoundResults'
-import { ShareRoundResults } from '@/components/ShareRoundResults'
+import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
 import { ConfessionsTicker } from '@/components/ConfessionsTicker'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import ReactionBar from '@/components/ReactionBar'
@@ -29,7 +30,7 @@ import {
   parseGameType,
   slotMeta,
   voteSlots,
-  isPairGame,
+  isBinaryPeoplePollGame,
   isWouldYouRather,
   isMostLikelyTo,
   isWhoSaidThis,
@@ -115,44 +116,15 @@ export function RoundResultsView({
           <h2 className="text-2xl font-black tracking-tight mt-2">Hot Seat Reveal! 🪑🔥</h2>
         </div>
 
-        {/* Hot seat player spotlight */}
-        <div className="glass-card border-2 border-amber-500/40 rounded-2xl p-4 text-center">
-          <p className="text-amber-400 text-xs uppercase tracking-wider mb-1">In the hot seat</p>
-          <p className="text-2xl font-black text-body">{hotSeatPlayerName}</p>
-        </div>
-
-        {/* Submissions reveal */}
-        {hotSeatSubmissions.length === 0 ? (
-          <div className="glass-card px-4 py-6 text-center">
-            <p className="text-muted">No submissions this round</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {hotSeatSubmissions.map((sub, i) => {
-              const typeConfig = {
-                compliment: { emoji: '💛', border: 'border-amber-500/30', bg: 'bg-amber-500/10' },
-                roast: { emoji: '🔥', border: 'border-red-500/30', bg: 'bg-red-500/10' },
-                observation: { emoji: '👀', border: 'border-slate-500/30', bg: 'bg-slate-500/10' },
-              }[sub.submission_type] ?? { emoji: '💬', border: 'border-slate-500/30', bg: 'bg-slate-500/10' }
-
-              return (
-                <div
-                  key={sub.id}
-                  className={`glass-card border ${typeConfig.border} ${typeConfig.bg} rounded-xl px-4 py-3`}
-                  style={{
-                    animation: 'fade-in 0.4s ease backwards',
-                    animationDelay: `${i * 150}ms`,
-                  }}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl flex-shrink-0">{typeConfig.emoji}</span>
-                    <p className="text-body text-sm leading-relaxed">{sub.text}</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <RoundResultsShareBlock
+          game={game!}
+          round={lastFinishedRound}
+          votes={lastRoundVotes}
+          participants={participants}
+          players={players}
+        >
+          <HotSeatRoundResults hotSeatPlayerName={hotSeatPlayerName} submissions={hotSeatSubmissions} />
+        </RoundResultsShareBlock>
 
         <ReactionBar className="pt-1" />
         <p className="text-faint text-sm text-center">
@@ -182,23 +154,24 @@ export function RoundResultsView({
           <GameTypeBadge gameType={gameType} className="mt-2" />
           <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🗳️</h2>
         </div>
-        <WyrRoundResults
-          optionA={lastFinishedRound.wyr_option_a ?? ''}
-          optionB={lastFinishedRound.wyr_option_b ?? ''}
-          countA={countA}
-          countB={countB}
-          voterCount={voterCount}
-          myChoice={myVote?.wyr_choice ?? null}
-        />
-        <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
-        <ReactionBar className="pt-1" />
-        <ShareRoundResults
+        <RoundResultsShareBlock
           game={game!}
           round={lastFinishedRound}
           votes={lastRoundVotes}
           participants={participants}
           players={players}
-        />
+        >
+          <WyrRoundResults
+            optionA={lastFinishedRound.wyr_option_a ?? ''}
+            optionB={lastFinishedRound.wyr_option_b ?? ''}
+            countA={countA}
+            countB={countB}
+            voterCount={voterCount}
+            myChoice={myVote?.wyr_choice ?? null}
+          />
+        </RoundResultsShareBlock>
+        <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+        <ReactionBar className="pt-1" />
         <p className="text-faint text-sm text-center">
           {roundResultsWaitMessage({
             isLastRound,
@@ -237,24 +210,25 @@ export function RoundResultsView({
             <GameTypeBadge gameType={gameType} className="mt-2" />
             <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🕵️</h2>
           </div>
-          <AnimeWstRoundResults
-            quote={lastFinishedRound.quote_text ?? '(no quote)'}
-            animeName={meta.anime_name}
-            rows={animeTally.rows}
-            voterCount={animeTally.voterCount}
-            maxCount={animeTally.maxCount}
-            topGuesses={animeTally.topGuesses}
-            correctCharacter={meta.correct_character}
-            correctCount={animeTally.correctCount}
-            myPickName={myPickName}
-          />
-          <ShareRoundResults
+          <RoundResultsShareBlock
             game={game!}
             round={lastFinishedRound}
             votes={lastRoundVotes}
             participants={participants}
             players={players}
-          />
+          >
+            <AnimeWstRoundResults
+              quote={lastFinishedRound.quote_text ?? '(no quote)'}
+              animeName={meta.anime_name}
+              rows={animeTally.rows}
+              voterCount={animeTally.voterCount}
+              maxCount={animeTally.maxCount}
+              topGuesses={animeTally.topGuesses}
+              correctCharacter={meta.correct_character}
+              correctCount={animeTally.correctCount}
+              myPickName={myPickName}
+            />
+          </RoundResultsShareBlock>
           <p className="text-faint text-sm text-center">
             {roundResultsWaitMessage({
               isLastRound,
@@ -282,25 +256,26 @@ export function RoundResultsView({
           <GameTypeBadge gameType={gameType} className="mt-2" />
           <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🕵️</h2>
         </div>
-        <WstRoundResults
-          quote={lastFinishedRound.quote_text ?? '(no quote submitted)'}
-          rows={rows}
-          voterCount={voterCount}
-          maxCount={maxCount}
-          topGuesses={topGuesses}
-          correctName={correctName}
-          correctCount={correctCount}
-          myPickName={myPickName}
-        />
-        <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
-        <ReactionBar className="pt-1" />
-        <ShareRoundResults
+        <RoundResultsShareBlock
           game={game!}
           round={lastFinishedRound}
           votes={lastRoundVotes}
           participants={participants}
           players={players}
-        />
+        >
+          <WstRoundResults
+            quote={lastFinishedRound.quote_text ?? '(no quote submitted)'}
+            rows={rows}
+            voterCount={voterCount}
+            maxCount={maxCount}
+            topGuesses={topGuesses}
+            correctName={correctName}
+            correctCount={correctCount}
+            myPickName={myPickName}
+          />
+        </RoundResultsShareBlock>
+        <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+        <ReactionBar className="pt-1" />
         <p className="text-faint text-sm text-center">
           {roundResultsWaitMessage({
             isLastRound,
@@ -332,23 +307,24 @@ export function RoundResultsView({
           <GameTypeBadge gameType={gameType} className="mt-2" />
           <h2 className="text-2xl font-black tracking-tight mt-2">Results are in! 🗳️</h2>
         </div>
-        <MltRoundResults
-          question={lastFinishedRound.mlt_question ?? ''}
-          rows={rows}
-          voterCount={voterCount}
-          maxCount={maxCount}
-          winnerNames={winnerNames}
-          myPickName={myPickName}
-        />
-        <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
-        <ReactionBar className="pt-1" />
-        <ShareRoundResults
+        <RoundResultsShareBlock
           game={game!}
           round={lastFinishedRound}
           votes={lastRoundVotes}
           participants={participants}
           players={players}
-        />
+        >
+          <MltRoundResults
+            question={lastFinishedRound.mlt_question ?? ''}
+            rows={rows}
+            voterCount={voterCount}
+            maxCount={maxCount}
+            winnerNames={winnerNames}
+            myPickName={myPickName}
+          />
+        </RoundResultsShareBlock>
+        <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
+        <ReactionBar className="pt-1" />
         <p className="text-faint text-sm text-center">
           {roundResultsWaitMessage({
             isLastRound,
@@ -395,7 +371,7 @@ export function RoundResultsView({
         <div className="glass-card border border-[var(--primary)]/30 p-4">
           <p className="text-[var(--primary)] text-xs uppercase tracking-wider mb-2">Your vote</p>
           <div className="flex gap-4 flex-wrap">
-            {isPairGame(gameType)
+            {isBinaryPeoplePollGame(gameType)
               ? roundParts.map((p) => {
                   const flag = flagForParticipant(myVote, p.id)
                   if (!flag) return null
@@ -425,99 +401,98 @@ export function RoundResultsView({
         </div>
       )}
 
-      {/* Per-person vote counts */}
-      {isCustomGame(gameType) && game
-        ? (() => {
-            const slots = getCustomSlots(game)
-            const slotKeys = slots.map((s) => s.key)
-            const roundPartsIds = lastFinishedRound.participant_ids
-            const nameMap = new Map(participants.map((p) => [p.id, p.name]))
-            const tally = tallyCustomVotes(lastRoundVotes, roundPartsIds, nameMap, slotKeys)
-            const myAssignment = myVote?.pair_assignments as Record<string, string> | null
-            return <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
-          })()
-        : (() => {
-            const tallies = tallyRoundVotes(
-              roundParts.map((p) => p.id),
-              lastRoundVotes
-            )
-            const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
-            const voterCount = lastRoundVotes.length
-
-            return (
-              <ParticipantRoundResults
-                gameType={gameType}
-                tallies={tallies}
-                nameById={nameById}
-                voterCount={voterCount}
-                participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
-                myFlagsByParticipantId={
-                  myVote
-                    ? Object.fromEntries(roundParts.map((p) => [p.id, flagForParticipant(myVote, p.id)]))
-                    : undefined
-                }
-                renderCard={
-                  isPairGame(gameType)
-                    ? undefined
-                    : ({ tally, name, maxes, isWinner }) => {
-                        const myAction =
-                          myVote?.kiss_participant_id === tally.id
-                            ? 'kiss'
-                            : myVote?.marry_participant_id === tally.id
-                              ? 'marry'
-                              : myVote?.kill_participant_id === tally.id
-                                ? 'kill'
-                                : null
-
-                        const borderCls = myActionBorderClass(gameType, myAction)
-
-                        return (
-                          <div key={tally.id} className={`glass-card border-2 ${borderCls} rounded-2xl p-4`}>
-                            <div className="flex items-center gap-3 mb-3">
-                              <Avatar name={name} />
-                              <p className="font-bold text-body text-lg">{name}</p>
-                              {myAction && (
-                                <span className="ml-auto text-xs text-muted italic">
-                                  you: {assignmentEmojiFor(gameType, myAction)}
-                                </span>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-3 gap-3">
-                              {getVoteCategories(gameType).map((category) => {
-                                const meta = getCategoryMeta(gameType, category)
-                                return (
-                                  <VoteCountStat
-                                    key={category}
-                                    emoji={meta.emoji}
-                                    label={meta.label}
-                                    count={tally[category]}
-                                    max={maxes[category]}
-                                    color={meta.color}
-                                    isWinner={isWinner(category)}
-                                  />
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )
-                      }
-                }
-              />
-            )
-          })()}
-
-      {/* Hot takes for this round */}
-      <ConfessionsTicker confessions={roundConfessions} />
-
-      <ReactionBar className="pt-1" />
-
-      <ShareRoundResults
+      <RoundResultsShareBlock
         game={game!}
         round={lastFinishedRound}
         votes={lastRoundVotes}
         participants={participants}
         players={players}
-      />
+      >
+        {isCustomGame(gameType) && game
+          ? (() => {
+              const slots = getCustomSlots(game)
+              const slotKeys = slots.map((s) => s.key)
+              const roundPartsIds = lastFinishedRound.participant_ids
+              const nameMap = new Map(participants.map((p) => [p.id, p.name]))
+              const tally = tallyCustomVotes(lastRoundVotes, roundPartsIds, nameMap, slotKeys)
+              const myAssignment = myVote?.pair_assignments as Record<string, string> | null
+              return <CustomRoundResults tally={tally} slots={slots} myAssignment={myAssignment} />
+            })()
+          : (() => {
+              const tallies = tallyRoundVotes(
+                roundParts.map((p) => p.id),
+                lastRoundVotes
+              )
+              const nameById = new Map(roundParts.map((p) => [p.id, p.name]))
+              const voterCount = lastRoundVotes.length
+
+              return (
+                <ParticipantRoundResults
+                  gameType={gameType}
+                  tallies={tallies}
+                  nameById={nameById}
+                  voterCount={voterCount}
+                  participantDetails={roundParts.map((p) => ({ id: p.id, name: p.name, gender: p.gender }))}
+                  myFlagsByParticipantId={
+                    myVote
+                      ? Object.fromEntries(roundParts.map((p) => [p.id, flagForParticipant(myVote, p.id)]))
+                      : undefined
+                  }
+                  renderCard={
+                    isBinaryPeoplePollGame(gameType)
+                      ? undefined
+                      : ({ tally, name, maxes, isWinner }) => {
+                          const myAction =
+                            myVote?.kiss_participant_id === tally.id
+                              ? 'kiss'
+                              : myVote?.marry_participant_id === tally.id
+                                ? 'marry'
+                                : myVote?.kill_participant_id === tally.id
+                                  ? 'kill'
+                                  : null
+
+                          const borderCls = myActionBorderClass(gameType, myAction)
+
+                          return (
+                            <div key={tally.id} className={`glass-card border-2 ${borderCls} rounded-2xl p-4`}>
+                              <div className="flex items-center gap-3 mb-3">
+                                <Avatar name={name} />
+                                <p className="font-bold text-body text-lg">{name}</p>
+                                {myAction && (
+                                  <span className="ml-auto text-xs text-muted italic">
+                                    you: {assignmentEmojiFor(gameType, myAction)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-3 gap-3">
+                                {getVoteCategories(gameType).map((category) => {
+                                  const meta = getCategoryMeta(gameType, category)
+                                  return (
+                                    <VoteCountStat
+                                      key={category}
+                                      emoji={meta.emoji}
+                                      label={meta.label}
+                                      count={tally[category]}
+                                      max={maxes[category]}
+                                      color={meta.color}
+                                      isWinner={isWinner(category)}
+                                    />
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }
+                  }
+                />
+              )
+            })()}
+      </RoundResultsShareBlock>
+
+      {/* Hot takes for this round */}
+      <ConfessionsTicker confessions={roundConfessions} />
+
+      <ReactionBar className="pt-1" />
 
       <p className={`text-sm text-center animate-pulse ${isLastRound ? 'text-[var(--primary)]' : 'text-faint'}`}>
         {roundResultsWaitMessage({

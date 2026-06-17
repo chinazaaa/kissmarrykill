@@ -72,6 +72,7 @@ export function buildHotSeatRoundRows(opts: {
   participantMode?: string | null
   maxRoundsCap: number
   now: string
+  initialUsageCounts?: Map<string, number>
 }): { ok: true; roundRows: Array<Record<string, unknown>>; roundsCount: number } | { ok: false; error: string } {
   const joined = hotSeatJoinedPlayers(opts.players, opts.participants, opts.participantMode)
   if (joined.length < HOT_SEAT_MIN_PLAYERS) {
@@ -86,7 +87,7 @@ export function buildHotSeatRoundRows(opts: {
 
   const participantIds = hotSeatJoinedParticipantIds(opts.players, opts.participants, opts.participantMode)
   const roundsCount = hotSeatEffectiveRounds(joined.length, opts.maxRoundsCap)
-  const sequence = buildHotSeatSequence(joined as Player[], roundsCount)
+  const sequence = buildHotSeatSequence(joined as Player[], roundsCount, opts.initialUsageCounts)
 
   const roundRows = sequence.map((hotSeatPlayer, index) => ({
     game_id: opts.gameId,
@@ -102,14 +103,44 @@ export function buildHotSeatRoundRows(opts: {
 }
 
 /** Build a round-robin sequence of players for the hot seat. */
-export function buildHotSeatSequence(players: Player[], roundCount: number): Player[] {
+export function buildHotSeatSequence(
+  players: Player[],
+  roundCount: number,
+  initialUsageCounts?: Map<string, number>
+): Player[] {
   if (players.length === 0) return []
-  const shuffled = [...players].sort(() => Math.random() - 0.5)
-  const sequence: Player[] = []
-  for (let i = 0; i < roundCount; i++) {
-    sequence.push(shuffled[i % shuffled.length])
+
+  const picked: Player[] = []
+  const pickedIds = new Set<string>()
+
+  while (picked.length < roundCount) {
+    const remaining = players.filter((p) => !pickedIds.has(p.id) || picked.length >= players.length)
+    if (remaining.length === 0) break
+
+    let minCount = Infinity
+    for (const player of remaining) {
+      const uses = initialUsageCounts?.get(player.id) ?? 0
+      const sessionUses = picked.filter((p) => p.id === player.id).length
+      const total = uses + sessionUses
+      if (total < minCount) minCount = total
+    }
+
+    const tier = remaining
+      .filter((player) => {
+        const uses = initialUsageCounts?.get(player.id) ?? 0
+        const sessionUses = picked.filter((p) => p.id === player.id).length
+        return uses + sessionUses === minCount
+      })
+      .sort(() => Math.random() - 0.5)
+
+    const next = tier[0]
+    if (!next) break
+    picked.push(next)
+    if (picked.length % players.length === 0) pickedIds.clear()
+    else pickedIds.add(next.id)
   }
-  return sequence
+
+  return picked
 }
 
 /** Clamp admin max-rounds cap to a valid integer in range. */

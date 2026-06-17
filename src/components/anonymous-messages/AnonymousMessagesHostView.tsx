@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -15,29 +14,33 @@ import {
   ANONYMOUS_ROOM_MIN_PLAYERS,
   anonymousRoomMaxPlayers,
   banSecondsLeft,
+  countAnonymousRoomPresence,
   formatBanCountdown,
   isPlayerBanned,
 } from '@/lib/anonymous-messages'
 import { useAnonymousRoomBans } from '@/hooks/useAnonymousRoomBans'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import type { Game, Player } from '@/types'
 import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
+import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
+import { HostAllowViewersField } from '@/components/HostAllowViewersField'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 
 const LOBBY_PAGE_SIZE = 10
 
 export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
-  const router = useRouter()
   const { error: toastError, success } = useToast()
   const [game, setGame] = useState<Game | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [starting, setStarting] = useState(false)
-  const [ending, setEnding] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
-  const [removingPlayerId, setRemovingPlayerId] = useState<string | null>(null)
   const [mutingPlayerId, setMutingPlayerId] = useState<string | null>(null)
   const [muteMinutes, setMuteMinutes] = useState(ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES)
 
@@ -58,18 +61,26 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   const lobbyPagination = usePagination(players.length, LOBBY_PAGE_SIZE)
   const visibleLobbyPlayers = players.slice(lobbyPagination.start, lobbyPagination.end)
 
-  const load = useCallback(async () => {
-    const [{ data: gameData }, { data: plrs }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+  const load = useCallback(async (): Promise<boolean> => {
+    const [gameRes, plrsRes] = await Promise.all([
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
     ])
-    if (gameData) setGame(gameData)
-    setPlayers(plrs ?? [])
+    if (!supabasePollOk(gameRes, plrsRes)) return false
+    if (gameRes.data) setGame(gameRes.data)
+    setPlayers(plrsRes.data ?? [])
+    return true
   }, [gameCode])
 
   useEffect(() => {
     load()
   }, [load])
+
+  const handlePlayerRemoved = useCallback((playerId: string) => {
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+  }, [])
+
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
 
   useEffect(() => {
     const channel = supabase
@@ -97,12 +108,12 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
       )
       .subscribe()
 
-    const poll = setInterval(load, 3000)
     return () => {
-      clearInterval(poll)
       supabase.removeChannel(channel)
     }
-  }, [gameCode, load])
+  }, [gameCode])
+
+  usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
   const startSession = async () => {
     setStarting(true)
@@ -119,24 +130,6 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
       toastError(err instanceof Error ? err.message : 'Failed to start')
     } finally {
       setStarting(false)
-    }
-  }
-
-  const endSession = async () => {
-    setEnding(true)
-    try {
-      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to end session')
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to end session')
-    } finally {
-      setEnding(false)
     }
   }
 
@@ -174,25 +167,6 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
       toastError(err instanceof Error ? err.message : 'Failed to remove message')
     } finally {
       setRemovingId(null)
-    }
-  }
-
-  const removePlayerFromLobby = async (playerId: string) => {
-    setRemovingPlayerId(playerId)
-    try {
-      const res = await fetch('/api/players', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerId, hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to remove player')
-      setPlayers((prev) => prev.filter((p) => p.id !== playerId))
-      success('Player removed from lobby')
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to remove player')
-    } finally {
-      setRemovingPlayerId(null)
     }
   }
 
@@ -245,6 +219,7 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   const playerLink = `${appOrigin()}/game/${gameCode}`
   const canStart = players.length >= ANONYMOUS_ROOM_MIN_PLAYERS
   const roomCapacity = anonymousRoomMaxPlayers(game)
+  const presence = countAnonymousRoomPresence(players, game)
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -270,9 +245,20 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
 
       <div className="glass-card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-muted text-xs uppercase tracking-wider">In the lobby</p>
-          <span className="text-faint text-xs">
-            {players.length} / {roomCapacity}
+          <p className="text-muted text-xs uppercase tracking-wider">
+            {game.status === 'waiting' ? 'In the lobby' : 'In the room'}
+          </p>
+          <span className="text-faint text-xs tabular-nums">
+            {game.status === 'waiting' ? (
+              <>
+                {players.length} / {roomCapacity}
+              </>
+            ) : (
+              <>
+                {presence.participants} {presence.participants === 1 ? 'player' : 'players'}
+                {presence.viewers > 0 && ` · ${presence.viewers} viewing`}
+              </>
+            )}
           </span>
         </div>
         {lobbyActionsEnabled && players.length > 0 && (
@@ -329,7 +315,7 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
                       )}
                       <button
                         type="button"
-                        onClick={() => removePlayerFromLobby(player.id)}
+                        onClick={() => removePlayer(player.id, player.name)}
                         disabled={removingPlayerId === player.id}
                         className="text-faint hover:text-red-400 text-xs disabled:opacity-50"
                       >
@@ -351,6 +337,12 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
           noun="players"
         />
       </div>
+
+      {game.status === 'waiting' && (
+        <div className="glass-card p-4">
+          <HostAllowViewersField gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+        </div>
+      )}
 
       {game.status === 'waiting' && (
         <button type="button" onClick={startSession} disabled={!canStart || starting} className="btn-primary w-full">
@@ -375,22 +367,26 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
             myPlayerName=""
             onReact={() => {}}
           />
-          <button type="button" onClick={endSession} disabled={ending} className="btn-secondary w-full">
-            {ending ? 'Ending…' : 'End session'}
-          </button>
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={load}
+            label="End session"
+            confirmTitle="End this session?"
+            confirmMessage="Players will see the session summary. You can start a new session from the lobby afterward."
+            className="btn-secondary w-full"
+          />
         </>
       )}
 
       {game.status === 'finished' && (
         <>
           <AnonymousRoomSessionSummary game={game} playerCount={players.length} />
-          <div className="flex gap-3">
-            <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary flex-1">
+          <div className="flex flex-col gap-2">
+            <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full">
               {playingAgain ? 'Resetting…' : 'Play again'}
             </button>
-            <button type="button" onClick={() => router.push('/')} className="btn-secondary px-5">
-              Home
-            </button>
+            <CreateNewGameButton />
           </div>
         </>
       )}
