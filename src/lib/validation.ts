@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MONOPOLY_TOKEN_ID_LIST } from '@/lib/monopoly-tokens'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -250,10 +251,6 @@ export const deleteParticipantSchema = z.object({
 
 export type DeleteParticipantInput = z.infer<typeof deleteParticipantSchema>
 
-// ---------------------------------------------------------------------------
-// Players (POST /api/players)
-// ---------------------------------------------------------------------------
-
 export const createPlayerSchema = z.object({
   gameCode: gameCodeString(),
   playerName: sanitizedString(1, 50).nullish(),
@@ -262,6 +259,7 @@ export const createPlayerSchema = z.object({
   identityGender: participantGenderEnum.or(z.string()).nullish(),
   participantId: uuidString('participantId').nullish(),
   joinAsViewer: z.boolean().optional(),
+  monopolyToken: z.enum(MONOPOLY_TOKEN_ID_LIST as [string, ...string[]]).optional(),
 })
 
 export type CreatePlayerInput = z.infer<typeof createPlayerSchema>

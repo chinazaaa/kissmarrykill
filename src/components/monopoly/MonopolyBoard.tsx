@@ -13,7 +13,9 @@ import {
   type MonopolyColorGroup,
   type MonopolySpace,
 } from '@/lib/monopoly'
-import { computeRent, parseBuildings, parseMortgaged } from '@/lib/monopoly-rent'
+import { computeRent, parseBuildings, parseMortgaged, buildingLevel } from '@/lib/monopoly-rent'
+import { MONOPOLY_HOTEL_LEVEL } from '@/lib/monopoly-board'
+import { monopolyTokenById, monopolyTokenEmoji } from '@/lib/monopoly-tokens'
 import type { MonopolyPlayerState, Player } from '@/types'
 import {
   DICE_PIPS,
@@ -36,8 +38,111 @@ function playerName(players: Player[], id: string): string {
   return players.find((p) => p.id === id)?.name ?? '?'
 }
 
-function playerInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || '?'
+function playerTokenEmoji(players: Player[], playerId: string, playerOrder: number): string {
+  const player = players.find((p) => p.id === playerId)
+  return monopolyTokenEmoji(player?.monopoly_token, playerOrder)
+}
+
+/** Shows the player's chosen board token — helps them spot themselves on the green board. */
+export function MonopolyYourTokenChip({
+  players,
+  playerId,
+  playerOrder,
+  compact = false,
+}: {
+  players: Player[]
+  playerId: string
+  playerOrder: number
+  compact?: boolean
+}) {
+  const player = players.find((p) => p.id === playerId)
+  const emoji = monopolyTokenEmoji(player?.monopoly_token, playerOrder)
+  const label = monopolyTokenById(player?.monopoly_token)?.label ?? 'Token'
+  const colors = tokenColorForOrder(playerOrder)
+
+  if (compact) {
+    return (
+      <span
+        className={[
+          'inline-flex h-8 w-8 items-center justify-center rounded-full text-lg ring-2 shadow-md',
+          colors.bg,
+          colors.ring,
+        ].join(' ')}
+        title={`Your token: ${label}`}
+      >
+        {emoji}
+      </span>
+    )
+  }
+
+  return (
+    <div
+      className={[
+        'inline-flex items-center gap-2 rounded-xl border border-amber-400/40 bg-emerald-950/55 px-2.5 py-1.5 shadow-lg',
+      ].join(' ')}
+      title={`Your token on the board: ${label}`}
+    >
+      <span
+        className={[
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl ring-2',
+          colors.bg,
+          colors.ring,
+        ].join(' ')}
+      >
+        {emoji}
+      </span>
+      <div className="text-left min-w-0">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-200/75 leading-none">Your token</p>
+        <p className="text-xs font-bold text-white truncate">{label}</p>
+      </div>
+    </div>
+  )
+}
+
+function BoardBuildingBadge({
+  spaceIndex,
+  buildings,
+  edge,
+}: {
+  spaceIndex: number
+  buildings: Record<string, number>
+  edge: ReturnType<typeof boardEdgeForSpace>
+}) {
+  const space = spaceAt(spaceIndex)
+  if (space.type !== 'property') return null
+  const level = buildingLevel(buildings, spaceIndex)
+  if (level <= 0) return null
+
+  const positionClass =
+    edge === 'left'
+      ? 'top-0.5 left-1'
+      : edge === 'right'
+        ? 'top-0.5 right-1'
+        : 'top-0.5 left-0.5'
+
+  if (level === MONOPOLY_HOTEL_LEVEL) {
+    return (
+      <span
+        className={['absolute z-[1] text-[9px] sm:text-[10px] leading-none drop-shadow-sm', positionClass].join(' ')}
+        title="Hotel"
+      >
+        🏨
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className={[
+        'absolute z-[1] flex items-center gap-px text-[7px] sm:text-[8px] font-bold leading-none text-amber-900 drop-shadow-sm',
+        positionClass,
+      ].join(' ')}
+      title={`${level} house${level === 1 ? '' : 's'}`}
+    >
+      <span>{level}</span>
+      <span className="text-[8px] sm:text-[9px]">🏠</span>
+    </span>
+  )
 }
 
 export function MonopolyDiceFace({ value, rolling }: { value: number; rolling?: boolean }) {
@@ -127,6 +232,7 @@ function BoardSpaceCell({
   diceTotal,
   highlightIndex,
   edge,
+  myPlayerId,
 }: {
   spaceIndex: number
   states: MonopolyPlayerState[]
@@ -137,6 +243,7 @@ function BoardSpaceCell({
   diceTotal: number
   highlightIndex?: number | null
   edge: ReturnType<typeof boardEdgeForSpace>
+  myPlayerId?: string | null
 }) {
   const space = spaceAt(spaceIndex)
   const ownerId = owners[String(spaceIndex)]
@@ -218,6 +325,8 @@ function BoardSpaceCell({
         </div>
       )}
 
+      <BoardBuildingBadge spaceIndex={spaceIndex} buildings={buildings} edge={edge} />
+
       {tokens.length > 0 && (
         <div
           className={[
@@ -231,18 +340,22 @@ function BoardSpaceCell({
         >
           {tokens.map((t) => {
             const c = tokenColorForOrder(t.player_order)
+            const emoji = playerTokenEmoji(players, t.player_id, t.player_order)
+            const isMe = myPlayerId != null && t.player_id === myPlayerId
             return (
               <span
                 key={t.player_id}
                 className={[
-                  'flex h-4 w-4 items-center justify-center rounded-full text-[7px] font-black ring-1',
+                  'flex items-center justify-center rounded-full shadow-md',
+                  isMe
+                    ? 'h-5 w-5 sm:h-6 sm:w-6 text-xs sm:text-sm ring-2 ring-amber-300 ring-offset-1 ring-offset-emerald-900 z-10 scale-110'
+                    : 'h-4 w-4 sm:h-5 sm:w-5 text-[10px] sm:text-xs ring-1',
                   c.bg,
                   c.ring,
-                  'text-white shadow-md',
                 ].join(' ')}
-                title={playerName(players, t.player_id)}
+                title={isMe ? `You (${playerName(players, t.player_id)})` : playerName(players, t.player_id)}
               >
-                {playerInitial(playerName(players, t.player_id))}
+                {emoji}
               </span>
             )
           })}
@@ -266,6 +379,7 @@ function BoardCellWrapper({
   mortgaged,
   diceTotal,
   highlightIndex,
+  myPlayerId,
 }: {
   spaceIndex: number
   states: MonopolyPlayerState[]
@@ -275,6 +389,7 @@ function BoardCellWrapper({
   mortgaged: Record<string, boolean>
   diceTotal: number
   highlightIndex?: number | null
+  myPlayerId?: string | null
 }) {
   return (
     <BoardSpaceCell
@@ -286,6 +401,7 @@ function BoardCellWrapper({
       mortgaged={mortgaged}
       diceTotal={diceTotal}
       highlightIndex={highlightIndex}
+      myPlayerId={myPlayerId}
       edge={boardEdgeForSpace(spaceIndex)}
     />
   )
@@ -299,6 +415,7 @@ export function MonopolyClassicBoard({
   mortgagedProperties,
   lastDiceTotal = 2,
   highlightIndex,
+  myPlayerId,
   center,
 }: {
   states: MonopolyPlayerState[]
@@ -308,12 +425,23 @@ export function MonopolyClassicBoard({
   mortgagedProperties?: unknown
   lastDiceTotal?: number
   highlightIndex?: number | null
+  myPlayerId?: string | null
   center?: React.ReactNode
 }) {
   const owners = effectivePropertyOwners(parsePropertyOwners(propertyOwners), states)
   const buildings = parseBuildings(propertyBuildings)
   const mortgaged = parseMortgaged(mortgagedProperties)
-  const cellProps = { states, players, owners, buildings, mortgaged, diceTotal: lastDiceTotal, highlightIndex }
+  const myOrder = myPlayerId ? states.find((s) => s.player_id === myPlayerId)?.player_order : undefined
+  const cellProps = {
+    states,
+    players,
+    owners,
+    buildings,
+    mortgaged,
+    diceTotal: lastDiceTotal,
+    highlightIndex,
+    myPlayerId,
+  }
 
   return (
     <div className="mx-auto w-full max-w-[min(100vw-1rem,580px)]">
@@ -324,6 +452,16 @@ export function MonopolyClassicBoard({
           'border-[3px] border-amber-700/90 shadow-[0_20px_60px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.12)]',
         ].join(' ')}
       >
+        {myPlayerId != null && myOrder != null && (
+          <div className="absolute top-2 left-2 z-20 pointer-events-none">
+            <MonopolyYourTokenChip
+              players={players}
+              playerId={myPlayerId}
+              playerOrder={myOrder}
+              compact
+            />
+          </div>
+        )}
         <div className="flex h-full w-full flex-col gap-0.5 sm:gap-1">
           {/* Top row: Free Parking — properties — Go To Jail */}
           <div className="flex h-[13%] min-h-[44px] gap-0.5 sm:gap-1">
@@ -622,13 +760,12 @@ export function MonopolyPlayerList({
             >
               <span
                 className={[
-                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ring-2 shadow-lg',
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl ring-2 shadow-lg',
                   token.bg,
                   token.ring,
-                  'text-white',
                 ].join(' ')}
               >
-                {playerInitial(name)}
+                {playerTokenEmoji(players, state.player_id, state.player_order)}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">

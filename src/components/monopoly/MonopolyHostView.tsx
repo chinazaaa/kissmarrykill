@@ -42,6 +42,8 @@ import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
+import { MonopolyJoinForm } from '@/components/monopoly/MonopolyJoinForm'
+import { type MonopolyTokenId } from '@/lib/monopoly-tokens'
 
 type HostTab = 'play' | 'manage'
 
@@ -65,6 +67,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
   const [hostJoinName, setHostJoinName] = useState('')
+  const [hostJoinToken, setHostJoinToken] = useState<MonopolyTokenId | null>(null)
   const [hostJoining, setHostJoining] = useState(false)
   const [hostActing, setHostActing] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
@@ -149,13 +152,13 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
 
   const hostJoinGame = async () => {
     const name = hostJoinName.trim()
-    if (!name) return
+    if (!name || !hostJoinToken) return
     setHostJoining(true)
     try {
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerName: name }),
+        body: JSON.stringify({ gameCode, playerName: name, monopolyToken: hostJoinToken }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
@@ -168,6 +171,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
       success(`Joined as ${data.playerName}`)
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to join')
+      await load()
     } finally {
       setHostJoining(false)
     }
@@ -328,24 +332,17 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
               </button>
             </div>
             {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field flex-1"
-                  maxLength={40}
+              <div className="pt-1">
+                <MonopolyJoinForm
+                  name={hostJoinName}
+                  onNameChange={setHostJoinName}
+                  tokenId={hostJoinToken}
+                  onTokenChange={setHostJoinToken}
+                  players={players}
+                  joining={hostJoining}
+                  submitLabel="Join as player"
+                  onSubmit={() => void hostJoinGame()}
                 />
-                <button
-                  type="button"
-                  onClick={hostJoinGame}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
               </div>
             )}
             {hostMode === 'player' && hostPlayerId && (

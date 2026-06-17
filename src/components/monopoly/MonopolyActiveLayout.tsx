@@ -238,6 +238,7 @@ export function MonopolyActiveLayout({
             mortgagedProperties={board.mortgaged_properties}
             lastDiceTotal={board.last_dice?.total ?? 2}
             highlightIndex={myState?.position}
+            myPlayerId={myPlayerId}
             center={
               spectator ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2 px-2 text-center">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { MonopolyDiceRoll } from '@/components/monopoly/MonopolyBoard'
+import { MonopolyDiceRoll, MonopolyYourTokenChip } from '@/components/monopoly/MonopolyBoard'
 import { useMonopolyDeadlineTimer } from '@/hooks/useMonopolyModalTimer'
 import { computeRent, parseBuildings, parseMortgaged } from '@/lib/monopoly-rent'
 import {
@@ -189,6 +189,16 @@ export function MonopolyBoardCenter({
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full min-w-0 px-1 sm:px-2 py-1 sm:py-2 text-center overflow-y-auto">
+      {myPlayerId && myState && !myState.bankrupt && (
+        <div className="mb-1.5 sm:mb-2 shrink-0">
+          <MonopolyYourTokenChip
+            players={players}
+            playerId={myPlayerId}
+            playerOrder={myState.player_order}
+          />
+        </div>
+      )}
+
       {myState && (
         <div className="mb-1 sm:mb-1.5 shrink-0">
           <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-emerald-200/70 leading-none">

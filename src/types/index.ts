@@ -396,6 +396,8 @@ export interface Player {
   joined_at: string
   /** Read-only spectator (explicit choice or inferred for poll-game late join). */
   spectator?: boolean
+  /** Monopoly board token id (car, hat, dog, …). */
+  monopoly_token?: string | null
 }
 
 export interface Round {

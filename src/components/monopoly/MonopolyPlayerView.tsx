@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
+import { MonopolyJoinForm } from '@/components/monopoly/MonopolyJoinForm'
+import { tokenColorForOrder } from '@/components/monopoly/monopoly-ui'
+import { monopolyTokenEmoji, type MonopolyTokenId } from '@/lib/monopoly-tokens'
 import { MONOPOLY_COLOR_CLASSES } from '@/lib/monopoly'
 import type { MonopolyColorGroup } from '@/lib/monopoly'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
@@ -53,6 +56,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
   const [myPlayerName, setMyPlayerName] = useState<string | null>(null)
   const [joinName, setJoinName] = useState('')
+  const [joinToken, setJoinToken] = useState<MonopolyTokenId | null>(null)
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
 
@@ -128,6 +132,11 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'monopoly_boards', filter: `game_id=eq.${gameCode}` },
         () => void load()
       )
@@ -156,16 +165,17 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
 
   const join = async () => {
     if (!joinName.trim()) return
+    const joiningAsViewer = game?.status === 'active'
+    if (!joiningAsViewer && !joinToken) return
     setJoining(true)
     try {
-      const joiningAsViewer = game?.status === 'active'
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameCode,
           playerName: joinName.trim(),
-          ...(joiningAsViewer ? { joinAsViewer: true } : {}),
+          ...(joiningAsViewer ? { joinAsViewer: true } : { monopolyToken: joinToken }),
         }),
       })
       const data = await res.json()
@@ -176,6 +186,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       await load()
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to join')
+      await load()
     } finally {
       setJoining(false)
     }
@@ -252,38 +263,29 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   if (screen === 'join') {
     const joiningAsViewer = game?.status === 'active'
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="glass-card p-6 w-full max-w-md space-y-5">
+      <div className="min-h-screen overflow-y-auto py-6 px-4 flex justify-center">
+        <div className="glass-card p-6 w-full max-w-xl space-y-5 my-auto">
           <div className="text-center space-y-1">
             <div className="text-4xl">{cfg.headerEmoji}</div>
             <h1 className="text-2xl font-black gradient-title">{game?.title}</h1>
             <GameTypeBadge gameType="monopoly" />
           </div>
-          <div>
-            <label className="label-caps block mb-2">Your name</label>
-            <input
-              type="text"
-              value={joinName}
-              onChange={(e) => setJoinName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && join()}
-              placeholder="Enter your name"
-              className="input-field w-full"
-              maxLength={40}
-            />
-          </div>
-          <p className="text-faint text-xs leading-relaxed">
+          <MonopolyJoinForm
+            name={joinName}
+            onNameChange={setJoinName}
+            tokenId={joinToken}
+            onTokenChange={setJoinToken}
+            players={players}
+            joining={joining}
+            joiningAsViewer={joiningAsViewer}
+            submitLabel={joiningAsViewer ? 'Join as viewer' : 'Join Monopoly'}
+            onSubmit={() => void join()}
+          />
+          <p className="text-faint text-xs leading-relaxed text-center">
             {joiningAsViewer
               ? 'This game is in progress — you will join as a viewer and watch live (read-only).'
-              : `${MONOPOLY_MIN_PLAYERS}–6 players · £${MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} starting cash. Roll, buy properties, build houses, and trade your way to victory.`}
+              : `${MONOPOLY_MIN_PLAYERS}–6 players · £${MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} starting cash.`}
           </p>
-          <button
-            type="button"
-            onClick={() => void join()}
-            disabled={!joinName.trim() || joining}
-            className="btn-primary w-full"
-          >
-            {joining ? 'Joining…' : joiningAsViewer ? 'Join as viewer' : 'Join Monopoly'}
-          </button>
           <ShareGameLinkCard gameCode={gameCode} />
         </div>
       </div>
@@ -311,10 +313,16 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
           </div>
           {players.length > 0 && (
             <div className="space-y-2">
-              {players.map((p) => (
+              {players.map((p, index) => (
                 <div key={p.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[var(--surface-inset-bg)]">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--primary)_25%,transparent)] text-sm font-bold">
-                    {p.name.charAt(0).toUpperCase()}
+                  <span
+                    className={[
+                      'flex h-8 w-8 items-center justify-center rounded-full text-lg ring-2',
+                      tokenColorForOrder(index).bg,
+                      tokenColorForOrder(index).ring,
+                    ].join(' ')}
+                  >
+                    {monopolyTokenEmoji(p.monopoly_token, index)}
                   </span>
                   <span className="font-semibold text-sm">{p.name}</span>
                   {p.id === myPlayerId && (

@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
-import { parseGameType, isNameOnlyPlayerJoin, isHotSeat, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame } from '@/lib/game-types'
+import { isMonopolyTokenId } from '@/lib/monopoly-tokens'
 import { generateAnonymousDisplayName } from '@/lib/anonymous-names'
 import { anonymousPlayerCanChat } from '@/lib/anonymous-messages'
 import { createBingoCardForPlayer } from '@/lib/bingo'
 import { assignCodewordsLateJoinOperative, codewordsAllowsPlayerChanges, removeCodewordsPlayer } from '@/lib/codewords'
-import { isTwoTruthsGame } from '@/lib/game-types'
+import {
+  parseGameType,
+  isNameOnlyPlayerJoin,
+  isHotSeat,
+  isAnonymousMessagesGame,
+  isSecretMessageGame,
+  isBingoGame,
+  isCodewordsGame,
+  isMonopolyGame,
+  isYahtzeeGame,
+  isTwoTruthsGame,
+} from '@/lib/game-types'
 import { fetchGamePlayerLimits, isLobbyLimitGameType, lobbyMaxPlayersFromGame } from '@/lib/game-limits'
 import { isGenderFreeImportJoin, isGenderFreeJoinersJoin, isGenderFreeVotersJoin } from '@/lib/gender-based'
 import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/participant-mode'
@@ -141,6 +152,7 @@ export async function POST(req: NextRequest) {
     identityGender: rawIdentityGender,
     participantId: rawParticipantId,
     joinAsViewer: rawJoinAsViewer,
+    monopolyToken: rawMonopolyToken,
   } = parsed.data
 
   const name = playerName?.trim() ?? ''
@@ -314,6 +326,21 @@ export async function POST(req: NextRequest) {
     const isSpectator =
       gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
+    if (!isSpectator) {
+      if (!rawMonopolyToken || !isMonopolyTokenId(rawMonopolyToken)) {
+        return NextResponse.json({ error: 'Pick a player token to join' }, { status: 400 })
+      }
+      const { data: tokenTaken } = await supabase
+        .from('players')
+        .select('id')
+        .eq('game_id', gameId)
+        .eq('monopoly_token', rawMonopolyToken)
+        .maybeSingle()
+      if (tokenTaken) {
+        return NextResponse.json({ error: 'That token is already taken — pick another' }, { status: 400 })
+      }
+    }
+
     const { data: player, error } = await supabase
       .from('players')
       .insert({
@@ -323,11 +350,17 @@ export async function POST(req: NextRequest) {
         identity_gender: null,
         participant_id: null,
         spectator: isSpectator,
+        monopoly_token: isSpectator ? null : rawMonopolyToken,
       })
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'That token is already taken — pick another' }, { status: 400 })
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
     return NextResponse.json(playerJoinResponse(player, gameRow as Game))
   }
