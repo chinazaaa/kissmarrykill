@@ -193,6 +193,17 @@ export function faqPageJsonLd(faqs: GameLandingFaq[]): string {
   })
 }
 
+/** Static OG art per game landing page (1200×630 PNG in /public/og/). */
+export const GAME_LANDING_OG_BY_SLUG: Record<string, string> = {
+  'smash-marry-kill': '/og/smash-marry-kill.png',
+  'anonymous-room': '/og/anonymous-room.png',
+  bingo: '/og/bingo.png',
+  codewords: '/og/codewords.png',
+  'secret-message': '/og/secret-message.png',
+  trivia: '/og/trivia.png',
+  'two-truths-and-a-lie': '/og/two-truths-and-a-lie.png',
+}
+
 export function gameLandingOgPath(slug: string): string {
-  return `/games/${slug}/opengraph-image`
+  return GAME_LANDING_OG_BY_SLUG[slug] ?? OG_IMAGE.url
 }

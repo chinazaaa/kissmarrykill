@@ -12,6 +12,8 @@ import {
   type GameLandingContent,
 } from '@/lib/game-landing'
 import { SITE_NAME, faqPageJsonLd, gameJsonLd, gameLandingOgPath } from '@/lib/seo'
+import { getGameLandingCustomContentHints } from '@/lib/custom-content-hints'
+import { CustomContentAiTip } from '@/components/ui/CustomContentAiTip'
 import type { GameType } from '@/types'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -68,6 +70,7 @@ export default async function GameLandingRoute({ params }: Props) {
   const otherGames = (Object.keys(GAME_LANDING_CONTENT) as GameType[]).filter((t) => t !== content.gameType)
   const bodyParagraph = getGameBodyParagraph(content)
   const faqs = getGameFaqs(content)
+  const customContentHints = getGameLandingCustomContentHints(content.gameType)
 
   return (
     <>
@@ -155,6 +158,22 @@ export default async function GameLandingRoute({ params }: Props) {
             </div>
           </div>
         </section>
+
+        {customContentHints.length > 0 && (
+          <section className="px-4 pb-10">
+            <div className="mx-auto max-w-2xl space-y-3">
+              <h2 className="text-lg font-black text-center gradient-title-subtle">Make it your own</h2>
+              <p className="text-muted text-sm text-center leading-relaxed">
+                Use our built-in content or upload your own — any theme works.
+              </p>
+              <div className="space-y-3">
+                {customContentHints.map((hint) => (
+                  <CustomContentAiTip key={hint.headline} hint={hint} accent={cfg.card.accent} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* How it works */}
         <section className="px-4 pb-12">

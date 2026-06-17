@@ -91,6 +91,11 @@ import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGr
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { LateJoinPolicyToggle } from '@/components/AllowViewersToggle'
 import { gameSupportsViewerSetting, type LateJoinPolicy } from '@/lib/viewers'
+import {
+  getParticipantCustomContentHint,
+  getQuestionCustomContentHint,
+} from '@/lib/custom-content-hints'
+import { CustomContentAiTip } from '@/components/ui/CustomContentAiTip'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
 import {
   ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS,
@@ -331,6 +336,8 @@ function CreateGameInner() {
     genderBased: settings.gender_based,
     customSlots: customSlots,
   }
+  const questionCustomHint = getQuestionCustomContentHint(settings.game_type)
+  const participantCustomHint = getParticipantCustomContentHint(settings.game_type, participantOpts)
   const needsGender = participantsNeedGenderForGame(settings.game_type, participantOpts)
   const minPool = isCustom && customSlots ? customSlots.slots.length : roundPoolSize(settings.game_type)
   const canCreateImport =
@@ -1397,6 +1404,10 @@ function CreateGameInner() {
                       />
                     )}
 
+                    {questionCustomHint && (
+                      <CustomContentAiTip hint={questionCustomHint} />
+                    )}
+
                     {isLobbyQuestions && (isTot || questionSource === 'custom') && (
                       <div className="space-y-4 pt-1">
                         <SegmentedControl
@@ -1846,6 +1857,8 @@ function CreateGameInner() {
               </button>
             </div>
           )}
+
+          {participantCustomHint && <CustomContentAiTip hint={participantCustomHint} />}
 
           {/* Participant list */}
           {participants.length > 0 ? (
