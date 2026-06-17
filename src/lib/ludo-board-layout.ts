@@ -113,30 +113,36 @@ export const SAFE_ENTRY_CELL: Record<LudoColor, { row: number; col: number }> = 
   blue: { row: 14, col: 7 },
 }
 
+/**
+ * Visual home positions for the 4 pieces in each yard. Values are fractional
+ * grid coordinates chosen so the 2×2 cluster is symmetric about the centre of
+ * the 6×6 corner (the white yard square's centre), keeping the slots evenly
+ * centred inside the yard. Purely a rendering concern.
+ */
 export const BASE_SLOTS: Record<LudoColor, { row: number; col: number }[]> = {
   red: [
-    { row: 2, col: 2 },
-    { row: 2, col: 4 },
-    { row: 4, col: 2 },
-    { row: 4, col: 4 },
+    { row: 1.5, col: 1.5 },
+    { row: 1.5, col: 3.5 },
+    { row: 3.5, col: 1.5 },
+    { row: 3.5, col: 3.5 },
   ],
   green: [
-    { row: 2, col: 10 },
-    { row: 2, col: 12 },
-    { row: 4, col: 10 },
-    { row: 4, col: 12 },
+    { row: 1.5, col: 10.5 },
+    { row: 1.5, col: 12.5 },
+    { row: 3.5, col: 10.5 },
+    { row: 3.5, col: 12.5 },
   ],
   yellow: [
-    { row: 10, col: 10 },
-    { row: 10, col: 12 },
-    { row: 12, col: 10 },
-    { row: 12, col: 12 },
+    { row: 10.5, col: 10.5 },
+    { row: 10.5, col: 12.5 },
+    { row: 12.5, col: 10.5 },
+    { row: 12.5, col: 12.5 },
   ],
   blue: [
-    { row: 10, col: 2 },
-    { row: 10, col: 4 },
-    { row: 12, col: 2 },
-    { row: 12, col: 4 },
+    { row: 10.5, col: 1.5 },
+    { row: 10.5, col: 3.5 },
+    { row: 12.5, col: 1.5 },
+    { row: 12.5, col: 3.5 },
   ],
 }
 
