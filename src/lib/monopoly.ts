@@ -4,6 +4,7 @@ import type {
   MonopolyBoard,
   MonopolyLastCardEvent,
   MonopolyLastCashEvent,
+  MonopolyLastTradeEvent,
   MonopolyLastRentEvent,
   MonopolyPendingTrade,
   MonopolyPhase,
@@ -594,6 +595,32 @@ async function applyMultiPlayerCashDeltas(
   }
 
   return { drawerCash }
+}
+
+function nextTradeEvent(
+  board: Pick<MonopolyBoard, 'last_trade_event'>,
+  fromPlayerId: string,
+  toPlayerId: string,
+  outcome: MonopolyLastTradeEvent['outcome']
+): MonopolyLastTradeEvent {
+  return {
+    seq: (board.last_trade_event?.seq ?? 0) + 1,
+    from_player_id: fromPlayerId,
+    to_player_id: toPlayerId,
+    outcome,
+  }
+}
+
+async function playerNamesById(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerIds: string[]
+): Promise<Record<string, string>> {
+  if (playerIds.length === 0) return {}
+  const { data } = await supabase.from('players').select('id,name').eq('game_id', gameId).in('id', playerIds)
+  const names: Record<string, string> = {}
+  for (const row of data ?? []) names[row.id] = row.name
+  return names
 }
 
 function nextCashEvent(
@@ -1570,9 +1597,19 @@ export async function processMonopolyTradePropose(
     request_properties: request.properties,
   }
 
+  const names = await playerNamesById(supabase, gameId, [fromPlayerId, toPlayerId])
+  const fromName = names[fromPlayerId] ?? 'A player'
+  const toName = names[toPlayerId] ?? 'A player'
+  const lastTradeEvent = nextTradeEvent(board, fromPlayerId, toPlayerId, 'proposed')
+
   await supabase
     .from('monopoly_boards')
-    .update({ pending_trade: pending, status_message: 'Trade offer pending.' })
+    .update({
+      pending_trade: pending,
+      status_message: `${fromName} sent a trade offer to ${toName}.`,
+      last_trade_event: lastTradeEvent,
+      updated_at: new Date().toISOString(),
+    })
     .eq('game_id', gameId)
 
   return {}
@@ -1592,9 +1629,19 @@ export async function processMonopolyTradeRespond(
   if (trade.to_player_id !== playerId) return { error: 'Not your trade to accept' }
 
   if (!accept) {
+    const names = await playerNamesById(supabase, gameId, [trade.from_player_id, trade.to_player_id])
+    const fromName = names[trade.from_player_id] ?? 'A player'
+    const toName = names[trade.to_player_id] ?? 'A player'
+    const lastTradeEvent = nextTradeEvent(board, trade.from_player_id, trade.to_player_id, 'declined')
+
     await supabase
       .from('monopoly_boards')
-      .update({ pending_trade: null, status_message: 'Trade declined.' })
+      .update({
+        pending_trade: null,
+        status_message: `${toName} declined ${fromName}'s trade offer.`,
+        last_trade_event: lastTradeEvent,
+        updated_at: new Date().toISOString(),
+      })
       .eq('game_id', gameId)
     return {}
   }
@@ -1634,6 +1681,11 @@ export async function processMonopolyTradeRespond(
   for (const idx of trade.offer_properties) owners[String(idx)] = trade.to_player_id
   for (const idx of trade.request_properties) owners[String(idx)] = trade.from_player_id
 
+  const names = await playerNamesById(supabase, gameId, [trade.from_player_id, trade.to_player_id])
+  const fromName = names[trade.from_player_id] ?? 'A player'
+  const toName = names[trade.to_player_id] ?? 'A player'
+  const lastTradeEvent = nextTradeEvent(board, trade.from_player_id, trade.to_player_id, 'accepted')
+
   await supabase
     .from('monopoly_player_state')
     .update({
@@ -1657,7 +1709,8 @@ export async function processMonopolyTradeRespond(
     .update({
       property_owners: owners,
       pending_trade: null,
-      status_message: 'Trade completed.',
+      status_message: `${toName} accepted ${fromName}'s trade offer.`,
+      last_trade_event: lastTradeEvent,
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)

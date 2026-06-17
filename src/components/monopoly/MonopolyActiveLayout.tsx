@@ -17,6 +17,7 @@ import {
 } from '@/components/monopoly/MonopolyChrome'
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import { formatCashMessageForPlayer } from '@/lib/monopoly-cash-messages'
+import { formatTradeMessageForPlayer } from '@/lib/monopoly-trade-messages'
 import { currentPlayerId, parsePropertyOwners, type MonopolyColorGroup } from '@/lib/monopoly'
 import { useMonopolyTurnTimer } from '@/hooks/useMonopolyTurnTimer'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
@@ -73,16 +74,31 @@ export function MonopolyActiveLayout({
       ? formatCashMessageForPlayer(board.last_cash_event)
       : null
 
+  const personalTradeMessage =
+    board.last_trade_event &&
+    (board.last_trade_event.outcome === 'declined' ||
+      board.last_trade_event.outcome === 'accepted') &&
+    (board.last_trade_event.from_player_id === myPlayerId ||
+      board.last_trade_event.to_player_id === myPlayerId)
+      ? formatTradeMessageForPlayer(board.last_trade_event, myPlayerId, players)
+      : null
+
   const bannerMessage = personalCashMessage
     ? personalCashMessage
-    : board.last_rent_event
-      ? formatRentMessageForPlayer(board.last_rent_event, myPlayerId, players)
-      : board.status_message
+    : personalTradeMessage
+      ? personalTradeMessage
+      : board.last_rent_event
+        ? formatRentMessageForPlayer(board.last_rent_event, myPlayerId, players)
+        : board.status_message
 
   const showStatusBanner =
     bannerMessage &&
     (personalCashMessage ||
-      (board.phase !== 'buy' && board.phase !== 'pay_rent' && board.phase !== 'auction' && board.phase !== 'raise_funds')) &&
+      personalTradeMessage ||
+      (board.phase !== 'buy' &&
+        board.phase !== 'pay_rent' &&
+        board.phase !== 'auction' &&
+        board.phase !== 'raise_funds')) &&
     !board.last_card_event
 
   const panelTabs = (

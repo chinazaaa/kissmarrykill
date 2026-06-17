@@ -350,6 +350,22 @@ export function MonopolyManagePanel({
         })}
       </div>
 
+      {board.pending_trade?.from_player_id === myPlayerId && (
+        <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] px-3 py-2.5 text-sm text-muted">
+          Waiting for{' '}
+          <strong className="text-[var(--foreground)]">
+            {players.find((p) => p.id === board.pending_trade?.to_player_id)?.name ?? 'player'}
+          </strong>{' '}
+          to accept or decline your trade offer…
+        </div>
+      )}
+
+      {board.pending_trade?.to_player_id === myPlayerId && (
+        <div className="rounded-xl border border-[color-mix(in_srgb,var(--marry)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--marry)_8%,transparent)] px-3 py-2.5 text-sm text-muted">
+          You have a trade offer — use the popup to <strong className="text-[var(--foreground)]">accept or decline</strong>.
+        </div>
+      )}
+
       {!board.pending_trade && (
         <div className="pt-2 border-t border-[var(--border-strong)] space-y-2">
           <p className="text-xs font-semibold text-muted">Propose a trade</p>

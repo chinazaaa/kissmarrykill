@@ -226,6 +226,13 @@ export interface MonopolyLastCashEvent {
   bankrupt?: boolean
 }
 
+export interface MonopolyLastTradeEvent {
+  seq: number
+  from_player_id: string
+  to_player_id: string
+  outcome: 'proposed' | 'declined' | 'accepted'
+}
+
 export interface MonopolyBoard {
   id: string
   game_id: string
@@ -251,6 +258,7 @@ export interface MonopolyBoard {
   last_card_event: MonopolyLastCardEvent | null
   last_rent_event: MonopolyLastRentEvent | null
   last_cash_event: MonopolyLastCashEvent | null
+  last_trade_event: MonopolyLastTradeEvent | null
   turn_deadline_at: string | null
   winner_player_id: string | null
   created_at: string

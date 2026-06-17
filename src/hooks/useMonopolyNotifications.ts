@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { formatCardAlertForPlayer } from '@/lib/monopoly-card-messages'
 import { formatCashMessageForPlayer } from '@/lib/monopoly-cash-messages'
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
+import { formatTradeMessageForPlayer } from '@/lib/monopoly-trade-messages'
 import {
   playGameFinishedSound,
   playRoundEndSound,
@@ -39,6 +40,7 @@ export function useMonopolyNotifications({
   const prevCardSeqRef = useRef<number | null>(null)
   const prevRentSeqRef = useRef<number | null>(null)
   const prevCashSeqRef = useRef<number | null>(null)
+  const prevTradeEventSeqRef = useRef<number | null>(null)
   const prevBankruptRef = useRef<boolean | null>(null)
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export function useMonopolyNotifications({
     const cardSeq = board?.last_card_event?.seq ?? null
     const rentSeq = board?.last_rent_event?.seq ?? null
     const cashSeq = board?.last_cash_event?.seq ?? null
+    const tradeEventSeq = board?.last_trade_event?.seq ?? null
     const bankrupt = myState?.bankrupt ?? false
 
     if (!readyRef.current) {
@@ -66,6 +69,7 @@ export function useMonopolyNotifications({
       prevCardSeqRef.current = cardSeq
       prevRentSeqRef.current = rentSeq
       prevCashSeqRef.current = cashSeq
+      prevTradeEventSeqRef.current = tradeEventSeq
       prevBankruptRef.current = bankrupt
       return
     }
@@ -184,6 +188,25 @@ export function useMonopolyNotifications({
       playVoteSubmittedSound()
     }
 
+    if (
+      board?.last_trade_event &&
+      tradeEventSeq != null &&
+      tradeEventSeq !== prevTradeEventSeqRef.current &&
+      myPlayerId &&
+      (board.last_trade_event.from_player_id === myPlayerId ||
+        board.last_trade_event.to_player_id === myPlayerId)
+    ) {
+      const msg = formatTradeMessageForPlayer(board.last_trade_event, myPlayerId, players)
+      if (board.last_trade_event.outcome === 'declined') {
+        info(msg)
+      } else if (board.last_trade_event.outcome === 'accepted') {
+        success(msg)
+      } else if (board.last_trade_event.outcome === 'proposed' && board.last_trade_event.from_player_id === myPlayerId) {
+        info(msg)
+      }
+      playVoteSubmittedSound()
+    }
+
     if (bankrupt && !prevBankruptRef.current && myPlayerId) {
       info('You went bankrupt and are out of the game')
       playGameFinishedSound()
@@ -197,6 +220,7 @@ export function useMonopolyNotifications({
     prevCardSeqRef.current = cardSeq
     prevRentSeqRef.current = rentSeq
     prevCashSeqRef.current = cashSeq
+    prevTradeEventSeqRef.current = tradeEventSeq
     prevBankruptRef.current = bankrupt
   }, [board, enabled, game, info, myPlayerId, myState?.bankrupt, myState?.in_jail, players, success])
 }
