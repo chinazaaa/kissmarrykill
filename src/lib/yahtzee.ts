@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { YahtzeeCategory, YahtzeeCategoryPoints, YahtzeePlayerScore, YahtzeeSession } from '@/types'
 
-export const YAHTZEE_MIN_PLAYERS = 2
-export const YAHTZEE_MAX_PLAYERS = 8
+export const YAHTZEE_MIN_PLAYERS = 1
+export const YAHTZEE_MAX_PLAYERS = 6
 export const YAHTZEE_DEFAULT_MAX_PLAYERS = 6
 
 export const YAHTZEE_DICE_COUNT = 5

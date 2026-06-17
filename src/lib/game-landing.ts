@@ -762,8 +762,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['yahtzee game online', 'dice game multiplayer', 'roll hold scorecard', 'play yahtzee friends'],
     heroSubtitle: 'The classic dice puzzle — score straights, full houses, and Yahtzees together.',
     bodyParagraph:
-      'Yahtzee on Fate Round brings roll-and-hold dice scoring to your group online. Up to three rolls per turn, hold the dice you want, and fill your scorecard category by category — straights, full houses, chance, and the coveted Yahtzee. Turn-based play with 2–8 players means no one needs a physical scorecard or dice cup.',
-    highlights: ['5 dice', '2–8 players', 'Turn-based scoring'],
+      'Yahtzee on Fate Round brings roll-and-hold dice scoring to your group online. Up to three rolls per turn, hold the dice you want, and fill your scorecard category by category — straights, full houses, chance, and the coveted Yahtzee. Play solo or with up to six friends — no physical scorecard or dice cup needed.',
+    highlights: ['5 dice', '1–6 players', 'Turn-based scoring'],
     features: [
       {
         title: 'Roll & hold',

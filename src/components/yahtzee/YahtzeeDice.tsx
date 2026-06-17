@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { playDiceRollSound } from '@/lib/sounds'
 
 const DIE_DOTS: Record<number, number[][]> = {
   1: [[1, 1]],
@@ -135,6 +136,7 @@ export function YahtzeeDiceRow({
     const changed = dice.some((val, idx) => val !== prevDiceRef.current[idx])
     if (changed) {
       setIsRolling(true)
+      playDiceRollSound()
       prevDiceRef.current = dice
 
       let ticks = 0

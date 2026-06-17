@@ -1099,8 +1099,8 @@ function CreateGameInner() {
                   </select>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Players take turns rolling 5 dice, holding what they want, and scoring an unused category on
-                  their sheet. Highest total score at the end wins!
+                  Play solo or with up to six friends. Take turns rolling 5 dice, holding what you want, and
+                  scoring an unused category on your sheet. Highest total score at the end wins!
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (

@@ -15,7 +15,7 @@ import {
 import { YahtzeeLeaderboard, YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { YahtzeeFinalResultsShareBlock } from '@/components/yahtzee/YahtzeeFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentPlayerId, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
+import { currentPlayerId } from '@/lib/yahtzee'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -246,7 +246,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
         <YahtzeeCard className="p-6 space-y-5 max-w-md mx-auto">
           <div className="text-center">
             <div className="text-5xl mb-3">🎲</div>
-            <p className="text-sm text-muted">2–8 players · roll, hold, score</p>
+            <p className="text-sm text-muted">1–6 players · roll, hold, score</p>
           </div>
           <input
             value={joinName}
@@ -272,7 +272,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
         <YahtzeeCard className="p-4 text-center">
           <p className="text-3xl font-black text-[var(--primary)]">{players.length}</p>
           <p className="text-sm text-muted">
-            player{players.length === 1 ? '' : 's'} joined · need {YAHTZEE_MIN_PLAYERS}+
+            {players.length} player{players.length === 1 ? '' : 's'} in the lobby
           </p>
         </YahtzeeCard>
         {myPlayerId && myName && (

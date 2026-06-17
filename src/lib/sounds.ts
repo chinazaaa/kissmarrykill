@@ -216,6 +216,55 @@ export function playConfessionSound() {
   }
 }
 
+/** Quick dice rattle while dice are rolling. */
+export function playDiceRollSound() {
+  if (typeof window === 'undefined' || isSoundMuted()) return
+
+  try {
+    unlockAudio()
+    if (!audioCtx) audioCtx = new AudioContext()
+    const ctx = audioCtx
+    const now = ctx.currentTime
+
+    const burst = (start: number, duration: number, volume: number) => {
+      const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration))
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize)
+      }
+
+      const source = ctx.createBufferSource()
+      source.buffer = buffer
+
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.value = 700 + Math.random() * 1400
+      filter.Q.value = 0.9
+
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0, start)
+      gain.gain.linearRampToValueAtTime(volume, start + 0.004)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+
+      source.connect(filter)
+      filter.connect(gain)
+      gain.connect(ctx.destination)
+      source.start(start)
+      source.stop(start + duration + 0.02)
+    }
+
+    burst(now, 0.04, 0.08)
+    burst(now + 0.05, 0.04, 0.07)
+    burst(now + 0.1, 0.04, 0.08)
+    burst(now + 0.16, 0.04, 0.06)
+    burst(now + 0.24, 0.05, 0.05)
+    burst(now + 0.32, 0.06, 0.04)
+  } catch {
+    // Browser may block audio until user gesture — ignore silently
+  }
+}
+
 /** Short clock tick/tock for countdown urgency (last few seconds). */
 export function playTickTockSound(secondsRemaining: number) {
   if (typeof window === 'undefined' || isSoundMuted()) return

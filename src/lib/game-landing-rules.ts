@@ -528,7 +528,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Setup',
       points: [
-        '2–8 players join a room. Each player gets an empty scorecard with 13 categories.',
+        '1–6 players join a room — or play solo. Each player gets an empty scorecard with 13 categories.',
         'Players take turns in order. Five dice are shared on each turn.',
       ],
     },

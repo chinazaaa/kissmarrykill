@@ -435,7 +435,9 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                 {playerManageBlock}
                 <div className="glass-card p-5 space-y-4">
                 {!canStart && (
-                  <p className="text-sm text-[var(--marry)]">Need at least {YAHTZEE_MIN_PLAYERS} players to start.</p>
+                  <p className="text-sm text-[var(--marry)]">
+                    Join as a player above to start solo, or wait for others to join.
+                  </p>
                 )}
                 <button
                   type="button"
@@ -443,7 +445,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                   disabled={!canStart || starting}
                   className="btn-primary w-full"
                 >
-                  {starting ? 'Starting…' : `Start Yahtzee (${YAHTZEE_MIN_PLAYERS}+ players)`}
+                  {starting ? 'Starting…' : 'Start Yahtzee'}
                 </button>
               </div>
               </>

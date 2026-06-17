@@ -772,7 +772,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       accent: '#f59e0b',
       accentSoft: 'rgba(245, 158, 11, 0.15)',
       emoji: '🎲',
-      players: '2–8 players',
+      players: '1–6 players',
       vibe: 'Dice strategy',
       featured: true,
     },
