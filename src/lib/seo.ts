@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
 import type { GameLandingContent, GameLandingFaq } from '@/lib/game-landing'
+import { gameLandingSlug } from '@/lib/game-landing'
 import { appOrigin } from '@/lib/site'
+import type { GameType } from '@/types'
 
 export const SITE_NAME = 'Fate Round'
 
@@ -107,6 +109,71 @@ export function noIndexMetadata(title: string): Metadata {
   }
 }
 
+const JOIN_GAME_FALLBACK_DESCRIPTION =
+  "You're invited to a free party game on Fate Round. Tap to join — no sign-up needed."
+
+function joinGameRobots(): Metadata['robots'] {
+  return { index: false, follow: false, googleBot: { index: false, follow: false } }
+}
+
+/** Share-preview metadata for `/game/[code]` invite links. */
+export function gameJoinMetadata(code: string, gameType: GameType | null): Metadata {
+  const gameCode = code.trim().toUpperCase()
+  const path = `/game/${gameCode}`
+
+  if (!gameType) {
+    const title = `Join Game — ${gameCode}`
+    return {
+      title,
+      description: JOIN_GAME_FALLBACK_DESCRIPTION,
+      robots: joinGameRobots(),
+      openGraph: {
+        title: `${title} | ${SITE_NAME}`,
+        description: JOIN_GAME_FALLBACK_DESCRIPTION,
+        url: path,
+        images: [OG_IMAGE],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${title} | ${SITE_NAME}`,
+        description: JOIN_GAME_FALLBACK_DESCRIPTION,
+        images: [OG_IMAGE.url],
+      },
+    }
+  }
+
+  const cfg = gameTypeConfig(gameType)
+  const slug = gameLandingSlug(gameType)
+  const ogPath = gameLandingOgPath(slug)
+  const description = `You're invited to play ${cfg.label} on Fate Round. Tap to join with code ${gameCode} — no sign-up needed.`
+  const title = `Join ${cfg.label} — ${gameCode}`
+
+  return {
+    title,
+    description,
+    robots: joinGameRobots(),
+    openGraph: {
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      url: path,
+      images: [
+        {
+          url: ogPath,
+          width: 1200,
+          height: 630,
+          alt: `${cfg.label} — join on ${SITE_NAME}`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      images: [ogPath],
+    },
+  }
+}
+
 export function webApplicationJsonLd(): string {
   const origin = appOrigin()
   const gameNames = GAME_TYPE_OPTIONS.map((type) => gameTypeConfig(type).label)
@@ -196,12 +263,19 @@ export function faqPageJsonLd(faqs: GameLandingFaq[]): string {
 /** Static OG art per game landing page (1200×630 PNG in /public/og/). */
 export const GAME_LANDING_OG_BY_SLUG: Record<string, string> = {
   'smash-marry-kill': '/og/smash-marry-kill.png',
+  'smash-or-pass': '/og/smash-or-pass.png',
   'anonymous-room': '/og/anonymous-room.png',
   bingo: '/og/bingo.png',
   codewords: '/og/codewords.png',
   'secret-message': '/og/secret-message.png',
   trivia: '/og/trivia.png',
   'two-truths-and-a-lie': '/og/two-truths-and-a-lie.png',
+  'pick-a-number': '/og/pick-a-number.png',
+  'this-or-that': '/og/this-or-that.png',
+  monopoly: '/og/monopoly.png',
+  yahtzee: '/og/yahtzee.png',
+  whot: '/og/whot.png',
+  ludo: '/og/ludo.png',
 }
 
 export function gameLandingOgPath(slug: string): string {

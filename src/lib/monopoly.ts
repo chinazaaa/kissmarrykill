@@ -757,33 +757,125 @@ async function finalizeAuction(
   auction: MonopolyAuctionState,
   turnPlayerId: string
 ): Promise<{ error?: string }> {
-  const space = spaceAt(auction.space_index)
-  const owners = parsePropertyOwners(board.property_owners)
+  const spaceIndex = Number(auction.space_index)
+  const space = spaceAt(spaceIndex)
+  const spaceKey = String(spaceIndex)
+  const turnFinish = finishTurnAfterSpaceAction(board, states, turnPlayerId)
+  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
+
+  const { data: freshBoardRaw, error: freshBoardError } = await supabase
+    .from('monopoly_boards')
+    .select('property_owners')
+    .eq('game_id', gameId)
+    .maybeSingle()
+  if (freshBoardError || !freshBoardRaw) return { error: 'Board not found' }
+
+  const owners = parsePropertyOwners(freshBoardRaw.property_owners)
   let statusMessage = ''
   let lastCashEvent: MonopolyLastCashEvent | undefined
 
   if (auction.high_bid > 0 && auction.high_bidder_id) {
-    const winner = states.find((s) => s.player_id === auction.high_bidder_id)
-    if (!winner || winner.cash < auction.high_bid) {
-      statusMessage = `Auction for ${space.name} — winning bid invalid, property unsold.`
+    const { data: freshWinner, error: freshWinnerError } = await supabase
+      .from('monopoly_player_state')
+      .select('cash')
+      .eq('game_id', gameId)
+      .eq('player_id', auction.high_bidder_id)
+      .maybeSingle()
+
+    if (freshWinnerError || !freshWinner || freshWinner.cash < auction.high_bid) {
+      const defaulterId = auction.high_bidder_id
+      const remainingEligible = auction.eligible.filter((id) => {
+        if (id === defaulterId) return false
+        const state = states.find((s) => s.player_id === id)
+        return state && !state.bankrupt
+      })
+
+      if (remainingEligible.length > 0) {
+        const names = await playerNamesById(supabase, gameId, [defaulterId])
+        const defaulterName = names[defaulterId] ?? 'High bidder'
+        const restartAuction: MonopolyAuctionState = {
+          space_index: spaceIndex,
+          high_bid: 0,
+          high_bidder_id: null,
+          current_bidder_id: remainingEligible[0]!,
+          passed: [],
+          eligible: remainingEligible,
+          initiator_id: auction.initiator_id,
+        }
+        const { error: boardError } = await supabase
+          .from('monopoly_boards')
+          .update({
+            phase: 'auction',
+            auction_state: restartAuction,
+            pending_space: spaceIndex,
+            status_message: `${defaulterName} could not afford ${formatMonopolyMoney(auction.high_bid)} — auction reopens.`,
+            turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, 'auction'),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('game_id', gameId)
+
+        if (boardError) return { error: boardError.message }
+        return {}
+      }
+
+      statusMessage = `${space.name} — winning bid could not be paid, property remains with the Bank.`
     } else {
-      owners[String(auction.space_index)] = auction.high_bidder_id
-      const newCash = winner.cash - auction.high_bid
-      lastCashEvent = nextCashEvent(board, auction.high_bidder_id, winner.cash, newCash, `Won auction — ${space.name}`)
-      await supabase
+      owners[spaceKey] = auction.high_bidder_id
+      const newCash = freshWinner.cash - auction.high_bid
+      lastCashEvent = nextCashEvent(
+        board,
+        auction.high_bidder_id,
+        freshWinner.cash,
+        newCash,
+        `Won auction — ${space.name}`
+      )
+      statusMessage = `${space.name} sold at auction for ${formatMonopolyMoney(auction.high_bid)}.`
+
+      const { error: boardError } = await supabase
+        .from('monopoly_boards')
+        .update({
+          property_owners: owners,
+          phase: turnFinish.phase,
+          auction_state: null,
+          pending_space: null,
+          current_turn_index: turnFinish.turnIndex,
+          consecutive_doubles: turnFinish.consecutiveDoubles,
+          status_message: statusMessage,
+          last_cash_event: lastCashEvent,
+          turn_deadline_at: monopolyDeadlineForPhase(timerSeconds, turnFinish.phase),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('game_id', gameId)
+
+      if (boardError) return { error: boardError.message }
+
+      const { error: cashError } = await supabase
         .from('monopoly_player_state')
         .update({ cash: newCash })
         .eq('game_id', gameId)
         .eq('player_id', auction.high_bidder_id)
-      statusMessage = `${space.name} sold at auction for ${formatMonopolyMoney(auction.high_bid)}.`
+
+      if (cashError) {
+        const rolledBackOwners = { ...owners }
+        delete rolledBackOwners[spaceKey]
+        await supabase
+          .from('monopoly_boards')
+          .update({
+            property_owners: rolledBackOwners,
+            status_message: `Auction for ${space.name} — payment failed, property unsold.`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('game_id', gameId)
+        return { error: cashError.message }
+      }
+
+      return {}
     }
   } else {
     statusMessage = `Auction for ${space.name} — no bids, property remains with the Bank.`
   }
 
-  const turnFinish = finishTurnAfterSpaceAction(board, states, turnPlayerId)
-  const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
-  await supabase
+  const { error: boardError } = await supabase
     .from('monopoly_boards')
     .update({
       property_owners: owners,
@@ -799,6 +891,7 @@ async function finalizeAuction(
     })
     .eq('game_id', gameId)
 
+  if (boardError) return { error: boardError.message }
   return {}
 }
 
@@ -1417,6 +1510,9 @@ export async function processMonopolyAuction(
     nextAuction.high_bidder_id = playerId
     nextAuction.passed = []
     nextAuction.current_bidder_id = nextAuctionBidder(nextAuction)
+    if (auctionShouldEnd(nextAuction)) {
+      return finalizeAuction(supabase, gameId, board, states, nextAuction, currentPlayerId(board)!)
+    }
   } else {
     if (!nextAuction.passed.includes(playerId)) nextAuction.passed.push(playerId)
     if (auctionShouldEnd(nextAuction)) {
@@ -1431,7 +1527,7 @@ export async function processMonopolyAuction(
 
   const space = spaceAt(nextAuction.space_index)
   const timerSeconds = await getMonopolyTimerSeconds(supabase, gameId)
-  await supabase
+  const { data: updatedBoard, error: updateError } = await supabase
     .from('monopoly_boards')
     .update({
       auction_state: nextAuction,
@@ -1443,6 +1539,12 @@ export async function processMonopolyAuction(
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
+    .eq('phase', 'auction')
+    .select('id')
+    .maybeSingle()
+
+  if (updateError) return { error: updateError.message }
+  if (!updatedBoard) return { error: 'Auction already ended' }
 
   return {}
 }
