@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ModalProps {
   open: boolean
@@ -12,6 +13,11 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, subtitle, children, size = 'md' }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -31,9 +37,9 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md' }:
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  if (!open) return null
+  if (!open || !mounted) return null
 
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -68,6 +74,7 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md' }:
         )}
         <div className="p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
