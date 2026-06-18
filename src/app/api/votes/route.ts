@@ -160,6 +160,22 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    const { data: priorPicks } = await supabase
+      .from('votes')
+      .select('picked_number')
+      .eq('game_id', gameId.toUpperCase())
+      .neq('round_id', roundId)
+      .not('picked_number', 'is', null)
+
+    const usedNumbers = new Set(
+      (priorPicks ?? [])
+        .map((row) => row.picked_number)
+        .filter((n): n is number => typeof n === 'number' && Number.isInteger(n))
+    )
+    if (usedNumbers.has(pickedNumber)) {
+      return NextResponse.json({ error: 'That number was already picked — choose another' }, { status: 400 })
+    }
     const revealedQuestion = pickANumberQuestionAt(pool, pickedNumber)
     if (!revealedQuestion) {
       return NextResponse.json({ error: 'Invalid number for this question list' }, { status: 400 })

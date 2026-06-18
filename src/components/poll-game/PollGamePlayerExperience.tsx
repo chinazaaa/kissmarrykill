@@ -189,7 +189,7 @@ import {
 import { useRoundTimer } from '@/hooks/useRoundTimer'
 import { useAutoSubmit } from '@/hooks/useAutoSubmit'
 import { HOT_SEAT_SUBMISSION_TYPES, hotSeatPlayerDisplayName } from '@/lib/hot-seat'
-import { pickANumberPoolSize, panRoundRevealed } from '@/lib/pick-a-number'
+import { panUsedNumbersFromVotes, pickANumberPoolSize, panRoundRevealed } from '@/lib/pick-a-number'
 import { PanRoundResults } from '@/components/game/PanRoundResults'
 import { SegmentedControl } from '@/components/ui/CreateWizard'
 import {
@@ -254,6 +254,7 @@ export function PollGamePlayerExperience({
   const [pairAssignment, setPairAssignment] = useState<PairAssignmentMap>({})
   const [wyrChoice, setWyrChoice] = useState<WyrChoice | null>(null)
   const [pickedNumber, setPickedNumber] = useState<number | null>(null)
+  const [panUsedNumbers, setPanUsedNumbers] = useState<ReadonlySet<number>>(new Set())
   const [mltTargetPlayerId, setMltTargetPlayerId] = useState<string | null>(null)
   const [animeChoice, setAnimeChoice] = useState<string | null>(null)
   const [quoteInput, setQuoteInput] = useState('')
@@ -461,6 +462,7 @@ export function PollGamePlayerExperience({
     myPlayerGenderRef,
     submittedRef,
     pickedNumberRef,
+    panUsedNumbersRef,
   } = autoSubmitRefs
 
   // Sync state → refs so auto-submit reads current values
@@ -471,6 +473,7 @@ export function PollGamePlayerExperience({
   autoMltRef.current = mltTargetPlayerId
   animeChoiceRef.current = animeChoice
   pickedNumberRef.current = pickedNumber
+  panUsedNumbersRef.current = panUsedNumbers
   playersRef.current = players
   currentRoundRef.current = currentRound
   gameRef.current = game
@@ -1057,6 +1060,28 @@ export function PollGamePlayerExperience({
     }
   }, [isPanGame, view, currentRound?.id, currentRound?.mlt_question, currentRound?.submitter_player_id, pickedNumber])
 
+  useEffect(() => {
+    if (!isPanGame || view !== 'round' || !currentRound) {
+      setPanUsedNumbers(new Set())
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('votes')
+        .select('picked_number, round_id')
+        .eq('game_id', gameCode)
+        .not('picked_number', 'is', null)
+      if (cancelled) return
+      setPanUsedNumbers(panUsedNumbersFromVotes(data ?? [], currentRound.id))
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isPanGame, view, currentRound?.id, gameCode])
+
   // ── Apply theme CSS variables (same as host page) ─────────────────────────
   useEffect(() => {
     const themeId = parseThemeId(game?.theme)
@@ -1185,6 +1210,12 @@ export function PollGamePlayerExperience({
       const slotKeys = getCustomSlotKeys(game)
       const customMode = customAssignmentMode(game, roundIds.length, slotKeys)
       if (!isCustomAssignmentValid(customAssignments, roundIds, slotKeys, customMode)) return
+    }
+    if (isPickANumber(submitGameType)) {
+      if (!pickedNumber || panUsedNumbers.has(pickedNumber)) {
+        toast.error('Pick a number that has not been used yet')
+        return
+      }
     }
     const voteBody = isBinaryChoiceGame(submitGameType) || isNeverHaveIEver(submitGameType)
       ? { wyrChoice }
@@ -2561,6 +2592,7 @@ export function PollGamePlayerExperience({
     const revealed = panRoundRevealed(currentRound)
     const timedOut = timeLeft === 0 && !revealed && !submitted
     const canPick = isPicker && !isViewer && !submitted && !revealed && !timedOut
+    const availableCount = poolSize - panUsedNumbers.size
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
@@ -2606,23 +2638,33 @@ export function PollGamePlayerExperience({
               <p className="text-center text-body font-medium mb-1">
                 Pick a number between 1 and {poolSize}
               </p>
-              <p className="text-center text-faint text-sm mb-4">Questions stay hidden until you choose</p>
+              <p className="text-center text-faint text-sm mb-4">
+                {panUsedNumbers.size > 0
+                  ? `${availableCount} number${availableCount === 1 ? '' : 's'} left — taken picks are greyed out`
+                  : 'Questions stay hidden until you choose'}
+              </p>
               <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
-                {Array.from({ length: poolSize }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    disabled={!canPick}
-                    onClick={() => canPick && setPickedNumber(n)}
-                    className={`aspect-square rounded-xl border text-lg font-bold transition-all active:scale-95 ${
-                      pickedNumber === n
-                        ? 'border-violet-500 bg-violet-500/15 text-violet-900 dark:text-violet-100 ring-2 ring-violet-400/30'
-                        : 'border-theme surface-inset text-body hover:border-violet-400/50'
-                    } disabled:cursor-not-allowed`}
-                  >
-                    {n}
-                  </button>
-                ))}
+                {Array.from({ length: poolSize }, (_, i) => i + 1).map((n) => {
+                  const isTaken = panUsedNumbers.has(n)
+                  const isSelected = pickedNumber === n
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      disabled={!canPick || isTaken}
+                      onClick={() => canPick && !isTaken && setPickedNumber(n)}
+                      className={`aspect-square rounded-xl border text-lg font-bold transition-all active:scale-95 ${
+                        isTaken
+                          ? 'border-theme/40 surface-inset text-faint line-through opacity-50 cursor-not-allowed'
+                          : isSelected
+                            ? 'border-violet-500 bg-violet-500/15 text-violet-900 dark:text-violet-100 ring-2 ring-violet-400/30'
+                            : 'border-theme surface-inset text-body hover:border-violet-400/50'
+                      } disabled:cursor-not-allowed`}
+                    >
+                      {n}
+                    </button>
+                  )
+                })}
               </div>
             </>
           ) : (

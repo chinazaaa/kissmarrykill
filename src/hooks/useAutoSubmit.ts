@@ -26,7 +26,7 @@ import {
   customAssignmentMode,
 } from '@/lib/custom-game'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
-import { pickANumberPoolSize } from '@/lib/pick-a-number'
+import { panPickRandomAvailable, pickANumberPoolSize } from '@/lib/pick-a-number'
 import { wstVoteTargets } from '@/lib/who-said-this'
 import type {
   Game,
@@ -63,6 +63,7 @@ export interface AutoSubmitRefs {
   myPlayerGenderRef: React.RefObject<PlayerGender | null>
   submittedRef: React.RefObject<boolean>
   pickedNumberRef: React.RefObject<number | null>
+  panUsedNumbersRef: React.RefObject<ReadonlySet<number>>
 }
 
 export type AutoSubmitResult = {
@@ -96,6 +97,7 @@ export function useAutoSubmit(
   const myPlayerGenderRef = useRef<PlayerGender | null>(null)
   const submittedRef = useRef(false)
   const pickedNumberRef = useRef<number | null>(null)
+  const panUsedNumbersRef = useRef<ReadonlySet<number>>(new Set())
 
   const refs: AutoSubmitRefs = {
     assignmentRef,
@@ -112,6 +114,7 @@ export function useAutoSubmit(
     myPlayerGenderRef,
     submittedRef,
     pickedNumberRef,
+    panUsedNumbersRef,
   }
 
   async function triggerAutoSubmit(): Promise<AutoSubmitResult> {
@@ -133,10 +136,12 @@ export function useAutoSubmit(
     const gameType = parseGameType(g.game_type)
     const isPanPicker = isPickANumber(gameType) && r.submitter_player_id === pid
 
-    // Pick a Number: timer expiry must lock a number — random pick if the picker hasn't chosen yet.
+    // Pick a Number: timer expiry must lock a number — random unused pick if the picker hasn't chosen yet.
     if (isPanPicker && !picked) {
       const poolSize = pickANumberPoolSize(g)
-      if (poolSize > 0) picked = Math.floor(Math.random() * poolSize) + 1
+      if (poolSize > 0) {
+        picked = panPickRandomAvailable(poolSize, panUsedNumbersRef.current)
+      }
     }
     const roundParts = parts.filter((p) => r.participant_ids.includes(p.id))
     const roundIds = roundParts.map((p) => p.id)

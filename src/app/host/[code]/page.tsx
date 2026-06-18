@@ -149,7 +149,7 @@ import {
   hotSeatJoinedPlayers,
   hotSeatPlayerDisplayName,
 } from '@/lib/hot-seat'
-import { pickANumberPoolSize, PAN_MIN_PLAYERS, clampPanRounds, PAN_MAX_ROUNDS, panRoundPickerOptions, panRoundsHint, panRoundRevealed } from '@/lib/pick-a-number'
+import { panUsedNumbersFromVotes, pickANumberPoolSize, PAN_MIN_PLAYERS, clampPanRounds, PAN_MAX_ROUNDS, panRoundPickerOptions, panRoundsHint, panRoundRevealed } from '@/lib/pick-a-number'
 import { PanRoundResults } from '@/components/game/PanRoundResults'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { RoundResultsShareBlock } from '@/components/RoundResultsShareBlock'
@@ -2935,6 +2935,8 @@ export default function HostPage() {
       const poolSize = pickANumberPoolSize(game)
       const revealed = panRoundRevealed(currentRound)
       const timedOut = timeLeft === 0 && !revealed
+      const panUsedNumbers = panUsedNumbersFromVotes(votes, currentRound.id)
+      const panAvailableCount = poolSize - panUsedNumbers.size
 
       return (
         <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
@@ -2962,7 +2964,9 @@ export default function HostPage() {
                 <p className="text-muted text-sm text-center">
                   {timedOut
                     ? 'Time ran out — advance to the next picker or wait for a late lock-in'
-                    : `Waiting for a pick — list has ${poolSize} hidden questions (1–${poolSize})`}
+                    : panUsedNumbers.size > 0
+                      ? `Waiting for a pick — ${panAvailableCount} of ${poolSize} numbers still available`
+                      : `Waiting for a pick — list has ${poolSize} hidden questions (1–${poolSize})`}
                 </p>
               ) : (
                 <PanRoundResults
