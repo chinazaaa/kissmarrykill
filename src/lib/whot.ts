@@ -78,15 +78,6 @@ export const WHOT_SHAPE_LABELS: Record<WhotShape, string> = {
   whot: 'WHOT',
 }
 
-export const WHOT_SHAPE_EMOJI: Record<WhotShape, string> = {
-  circle: '⭕',
-  cross: '✖️',
-  triangle: '🔺',
-  square: '🟥',
-  star: '⭐',
-  whot: '🃏',
-}
-
 /** Standard 54-card Nigerian Whot deck composition. */
 const DECK_COMPOSITION: Record<Exclude<WhotShape, 'whot'>, number[]> = {
   circle: [1, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 14],
@@ -139,7 +130,7 @@ export function whotSecondsLeft(deadlineAt: string | null | undefined): number {
 
 export function cardLabel(card: WhotCard): string {
   if (card.number === 20) return 'WHOT'
-  return `${WHOT_SHAPE_EMOJI[card.shape]} ${card.number}`
+  return `${WHOT_SHAPE_LABELS[card.shape]} ${card.number}`
 }
 
 export function specialCardMessage(number: number): string | null {

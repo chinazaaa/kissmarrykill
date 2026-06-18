@@ -23,7 +23,7 @@ export default function HistorySearchPage() {
           📜
         </span>
         <h1 className="text-3xl font-black tracking-tight gradient-title">Game history</h1>
-        <p className="text-muted text-sm">Look up past votes by game code</p>
+        <p className="text-muted text-sm">Look up past games by game code</p>
       </div>
 
       <div className="glass-card-strong p-6 space-y-4">

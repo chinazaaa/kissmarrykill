@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -25,12 +25,40 @@ import {
   isWhoSaidThis,
   isHotSeat,
   isAnonymousMessagesGame,
+  isSecretMessageGame,
   isCodewordsGame,
   isTriviaGame,
+  isBingoGame,
+  isTwoTruthsGame,
+  isMonopolyGame,
+  isYahtzeeGame,
+  isWhotGame,
+  isLudoGame,
 } from '@/lib/game-types'
+import {
+  BINGO_CALLED_NUMBER_SELECT,
+  BINGO_CLAIM_SELECT,
+  LUDO_PLAYER_STATE_SELECT,
+  LUDO_SESSION_SELECT,
+  MONOPOLY_BOARD_SELECT,
+  MONOPOLY_PLAYER_STATE_SELECT,
+  TTL_GUESS_SELECT,
+  TTL_STATEMENT_SELECT,
+  WHOT_PLAYER_HANDS_SELECT,
+  WHOT_SESSION_SELECT,
+  YAHTZEE_PLAYER_SCORES_SELECT,
+  YAHTZEE_SESSION_SELECT,
+} from '@/lib/supabase-selects'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
+import { SecretMessageSessionSummary } from '@/components/secret-message/SecretMessageSessionSummary'
 import { CodewordsSessionSummary } from '@/components/codewords/CodewordsSessionSummary'
 import { TriviaSessionSummary } from '@/components/trivia/TriviaSessionSummary'
+import { BingoSessionSummary } from '@/components/bingo/BingoSessionSummary'
+import { TwoTruthsSessionSummary } from '@/components/two-truths/TwoTruthsSessionSummary'
+import { MonopolySessionSummary } from '@/components/monopoly/MonopolySessionSummary'
+import { YahtzeeSessionSummary } from '@/components/yahtzee/YahtzeeSessionSummary'
+import { WhotSessionSummary } from '@/components/whot/WhotSessionSummary'
+import { LudoSessionSummary } from '@/components/ludo/LudoSessionSummary'
 import { mergeCodewordsGuesses } from '@/lib/codewords'
 import { hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
@@ -47,7 +75,29 @@ import {
   WstRoundResults,
   HotSeatRoundResults,
 } from '@/components/VoteResults'
-import type { Confession, CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Participant, Player, Round, TriviaAnswer, Vote } from '@/types'
+import type {
+  BingoClaim,
+  Confession,
+  CodewordsBoard,
+  CodewordsGuess,
+  CodewordsPlayerRole,
+  Game,
+  LudoPlayerState,
+  LudoSession,
+  MonopolyBoard,
+  MonopolyPlayerState,
+  Participant,
+  Player,
+  Round,
+  TriviaAnswer,
+  TtlGuess,
+  TtlStatement,
+  Vote,
+  WhotPlayerHand,
+  WhotSession,
+  YahtzeePlayerScore,
+  YahtzeeSession,
+} from '@/types'
 
 type LoadState = 'loading' | 'not_found' | 'ready'
 
@@ -70,6 +120,49 @@ function statusLabel(status: Game['status']): string {
   return 'Finished'
 }
 
+function historyOpenHref(game: Game, gameType: ReturnType<typeof parseGameType>): string {
+  if (isTriviaGame(gameType)) return `/host/${game.id}`
+  return `/game/${game.id}`
+}
+
+function HistoryPageShell({
+  game,
+  gameType,
+  children,
+}: {
+  game: Game
+  gameType: ReturnType<typeof parseGameType>
+  children: ReactNode
+}) {
+  return (
+    <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-1">
+          <p className="label-caps">Game history</p>
+          <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
+          <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/history" className="btn-secondary text-sm py-2 px-4">
+            Search
+          </Link>
+          {game.status !== 'finished' && (
+            <Link href={historyOpenHref(game, gameType)} className="btn-primary text-sm py-2 px-4">
+              Open game
+            </Link>
+          )}
+        </div>
+      </div>
+      {children}
+      <p className="text-center pb-4">
+        <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
+          ← Back home
+        </Link>
+      </p>
+    </div>
+  )
+}
+
 export default function GameHistoryPage() {
   const params = useParams()
   const router = useRouter()
@@ -89,6 +182,18 @@ export default function GameHistoryPage() {
   const [codewordsRoles, setCodewordsRoles] = useState<CodewordsPlayerRole[]>([])
   const [codewordsGuesses, setCodewordsGuesses] = useState<CodewordsGuess[]>([])
   const [triviaAnswers, setTriviaAnswers] = useState<TriviaAnswer[]>([])
+  const [bingoClaim, setBingoClaim] = useState<BingoClaim | null>(null)
+  const [bingoCalledCount, setBingoCalledCount] = useState(0)
+  const [ttlGuesses, setTtlGuesses] = useState<TtlGuess[]>([])
+  const [ttlStatements, setTtlStatements] = useState<TtlStatement[]>([])
+  const [monopolyBoard, setMonopolyBoard] = useState<MonopolyBoard | null>(null)
+  const [monopolyStates, setMonopolyStates] = useState<MonopolyPlayerState[]>([])
+  const [yahtzeeSession, setYahtzeeSession] = useState<YahtzeeSession | null>(null)
+  const [yahtzeeScores, setYahtzeeScores] = useState<YahtzeePlayerScore[]>([])
+  const [whotSession, setWhotSession] = useState<WhotSession | null>(null)
+  const [whotHands, setWhotHands] = useState<WhotPlayerHand[]>([])
+  const [ludoSession, setLudoSession] = useState<LudoSession | null>(null)
+  const [ludoStates, setLudoStates] = useState<LudoPlayerState[]>([])
 
   useEffect(() => {
     if (!gameCode || gameCode.length < 4) {
@@ -105,11 +210,41 @@ export default function GameHistoryPage() {
         return
       }
 
-      const isAnonymousRoom = isAnonymousMessagesGame(parseGameType(gameData.game_type))
-      const isCodewords = isCodewordsGame(parseGameType(gameData.game_type))
-      const isTrivia = isTriviaGame(parseGameType(gameData.game_type))
+      const gameType = parseGameType(gameData.game_type)
 
-      if (isAnonymousRoom) {
+      const resetSpecializedState = () => {
+        setBingoClaim(null)
+        setBingoCalledCount(0)
+        setTtlGuesses([])
+        setTtlStatements([])
+        setMonopolyBoard(null)
+        setMonopolyStates([])
+        setYahtzeeSession(null)
+        setYahtzeeScores([])
+        setWhotSession(null)
+        setWhotHands([])
+        setLudoSession(null)
+        setLudoStates([])
+        setCodewordsBoard(null)
+        setCodewordsRoles([])
+        setCodewordsGuesses([])
+        setTriviaAnswers([])
+      }
+
+      if (isSecretMessageGame(gameType)) {
+        setGame(gameData)
+        setPlayers([])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        resetSpecializedState()
+        setLoadState('ready')
+        return
+      }
+
+      if (isAnonymousMessagesGame(gameType)) {
         const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
         setGame(gameData)
         setPlayers(plrs ?? [])
@@ -118,15 +253,12 @@ export default function GameHistoryPage() {
         setVotes([])
         setConfessions([])
         setHotSeatSubmissions([])
-        setCodewordsBoard(null)
-        setCodewordsRoles([])
-        setCodewordsGuesses([])
-        setTriviaAnswers([])
+        resetSpecializedState()
         setLoadState('ready')
         return
       }
 
-      if (isTrivia) {
+      if (isTriviaGame(gameType)) {
         const [{ data: plrs }, { data: rds }, { data: ans }] = await Promise.all([
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
@@ -139,15 +271,13 @@ export default function GameHistoryPage() {
         setVotes([])
         setConfessions([])
         setHotSeatSubmissions([])
-        setCodewordsBoard(null)
-        setCodewordsRoles([])
-        setCodewordsGuesses([])
+        resetSpecializedState()
         setTriviaAnswers(ans ?? [])
         setLoadState('ready')
         return
       }
 
-      if (isCodewords) {
+      if (isCodewordsGame(gameType)) {
         const [{ data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] = await Promise.all([
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
@@ -161,9 +291,137 @@ export default function GameHistoryPage() {
         setVotes([])
         setConfessions([])
         setHotSeatSubmissions([])
+        resetSpecializedState()
         setCodewordsBoard((boardData as CodewordsBoard | null) ?? null)
         setCodewordsRoles(roleRows ?? [])
         setCodewordsGuesses(mergeCodewordsGuesses([], (guessRows as CodewordsGuess[]) ?? []))
+        setLoadState('ready')
+        return
+      }
+
+      if (isMonopolyGame(gameType)) {
+        const [{ data: plrs }, { data: boardData }, { data: stateRows }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('monopoly_boards').select(MONOPOLY_BOARD_SELECT).eq('game_id', gameCode).maybeSingle(),
+          supabase.from('monopoly_player_state').select(MONOPOLY_PLAYER_STATE_SELECT).eq('game_id', gameCode).order('player_order'),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        resetSpecializedState()
+        setMonopolyBoard((boardData as MonopolyBoard | null) ?? null)
+        setMonopolyStates((stateRows as MonopolyPlayerState[]) ?? [])
+        setLoadState('ready')
+        return
+      }
+
+      if (isYahtzeeGame(gameType)) {
+        const [{ data: plrs }, { data: sessionData }, { data: scoreRows }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('yahtzee_sessions').select(YAHTZEE_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
+          supabase.from('yahtzee_player_scores').select(YAHTZEE_PLAYER_SCORES_SELECT).eq('game_id', gameCode).order('player_order'),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        resetSpecializedState()
+        setYahtzeeSession((sessionData as YahtzeeSession | null) ?? null)
+        setYahtzeeScores((scoreRows as YahtzeePlayerScore[]) ?? [])
+        setLoadState('ready')
+        return
+      }
+
+      if (isWhotGame(gameType)) {
+        const [{ data: plrs }, { data: sessionData }, { data: handRows }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('whot_sessions').select(WHOT_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
+          supabase.from('whot_player_hands').select(WHOT_PLAYER_HANDS_SELECT).eq('game_id', gameCode).order('player_order'),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        resetSpecializedState()
+        setWhotSession((sessionData as WhotSession | null) ?? null)
+        setWhotHands((handRows as WhotPlayerHand[]) ?? [])
+        setLoadState('ready')
+        return
+      }
+
+      if (isLudoGame(gameType)) {
+        const [{ data: plrs }, { data: sessionData }, { data: stateRows }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('ludo_sessions').select(LUDO_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
+          supabase.from('ludo_player_state').select(LUDO_PLAYER_STATE_SELECT).eq('game_id', gameCode).order('player_order'),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        resetSpecializedState()
+        setLudoSession((sessionData as LudoSession | null) ?? null)
+        setLudoStates((stateRows as LudoPlayerState[]) ?? [])
+        setLoadState('ready')
+        return
+      }
+
+      if (isBingoGame(gameType)) {
+        const [{ data: plrs }, { data: claimRows }, { data: calledRows }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase
+            .from('bingo_claims')
+            .select(BINGO_CLAIM_SELECT)
+            .eq('game_id', gameCode)
+            .eq('status', 'approved')
+            .order('created_at', { ascending: true })
+            .limit(1),
+          supabase.from('bingo_called_numbers').select(BINGO_CALLED_NUMBER_SELECT).eq('game_id', gameCode),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds([])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        resetSpecializedState()
+        setBingoClaim(((claimRows as BingoClaim[] | null) ?? [])[0] ?? null)
+        setBingoCalledCount(calledRows?.length ?? 0)
+        setLoadState('ready')
+        return
+      }
+
+      if (isTwoTruthsGame(gameType)) {
+        const [{ data: plrs }, { data: rds }, { data: guessRows }, { data: statementRows }] = await Promise.all([
+          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
+          supabase.from('ttl_guesses').select(TTL_GUESS_SELECT).eq('game_id', gameCode),
+          supabase.from('ttl_statements').select(TTL_STATEMENT_SELECT).eq('game_id', gameCode),
+        ])
+        setGame(gameData)
+        setPlayers(plrs ?? [])
+        setParticipants([])
+        setRounds(rds ?? [])
+        setVotes([])
+        setConfessions([])
+        setHotSeatSubmissions([])
+        resetSpecializedState()
+        setTtlGuesses((guessRows as TtlGuess[]) ?? [])
+        setTtlStatements((statementRows as TtlStatement[]) ?? [])
         setLoadState('ready')
         return
       }
@@ -185,6 +443,7 @@ export default function GameHistoryPage() {
       setVotes(vts ?? [])
       setConfessions(confs ?? [])
       setHotSeatSubmissions(subs ?? [])
+      resetSpecializedState()
       setLoadState('ready')
     }
 
@@ -219,59 +478,25 @@ export default function GameHistoryPage() {
   const playerNameById = new Map(players.map((p) => [p.id, p.name]))
   const gameType = parseGameType(game.game_type)
 
+  if (isSecretMessageGame(gameType)) {
+    return (
+      <HistoryPageShell game={game} gameType={gameType}>
+        <SecretMessageSessionSummary game={game} />
+      </HistoryPageShell>
+    )
+  }
+
   if (isAnonymousMessagesGame(gameType)) {
     return (
-      <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="label-caps">Game history</p>
-            <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
-            <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/history" className="btn-secondary text-sm py-2 px-4">
-              Search
-            </Link>
-            {game.status !== 'finished' && (
-              <Link href={`/game/${game.id}`} className="btn-primary text-sm py-2 px-4">
-                Open game
-              </Link>
-            )}
-          </div>
-        </div>
-
+      <HistoryPageShell game={game} gameType={gameType}>
         <AnonymousRoomSessionSummary game={game} playerCount={players.length} />
-
-        <p className="text-center pb-4">
-          <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
-            ← Back home
-          </Link>
-        </p>
-      </div>
+      </HistoryPageShell>
     )
   }
 
   if (isCodewordsGame(gameType)) {
     return (
-      <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="label-caps">Game history</p>
-            <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
-            <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/history" className="btn-secondary text-sm py-2 px-4">
-              Search
-            </Link>
-            {game.status !== 'finished' && (
-              <Link href={`/game/${game.id}`} className="btn-primary text-sm py-2 px-4">
-                Open game
-              </Link>
-            )}
-          </div>
-        </div>
-
+      <HistoryPageShell game={game} gameType={gameType}>
         <CodewordsSessionSummary
           game={game}
           players={players}
@@ -279,45 +504,69 @@ export default function GameHistoryPage() {
           board={codewordsBoard}
           guesses={codewordsGuesses}
         />
-
-        <p className="text-center pb-4">
-          <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
-            ← Back home
-          </Link>
-        </p>
-      </div>
+      </HistoryPageShell>
     )
   }
 
   if (isTriviaGame(gameType)) {
     return (
-      <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="label-caps">Game history</p>
-            <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
-            <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/history" className="btn-secondary text-sm py-2 px-4">
-              Search
-            </Link>
-            {game.status !== 'finished' && (
-              <Link href={`/host/${game.id}`} className="btn-primary text-sm py-2 px-4">
-                Open game
-              </Link>
-            )}
-          </div>
-        </div>
-
+      <HistoryPageShell game={game} gameType={gameType}>
         <TriviaSessionSummary game={game} players={players} rounds={rounds} answers={triviaAnswers} />
+      </HistoryPageShell>
+    )
+  }
 
-        <p className="text-center pb-4">
-          <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
-            ← Back home
-          </Link>
-        </p>
-      </div>
+  if (isMonopolyGame(gameType)) {
+    return (
+      <HistoryPageShell game={game} gameType={gameType}>
+        <MonopolySessionSummary game={game} players={players} states={monopolyStates} board={monopolyBoard} />
+      </HistoryPageShell>
+    )
+  }
+
+  if (isYahtzeeGame(gameType)) {
+    return (
+      <HistoryPageShell game={game} gameType={gameType}>
+        <YahtzeeSessionSummary game={game} players={players} scores={yahtzeeScores} session={yahtzeeSession} />
+      </HistoryPageShell>
+    )
+  }
+
+  if (isWhotGame(gameType)) {
+    return (
+      <HistoryPageShell game={game} gameType={gameType}>
+        <WhotSessionSummary game={game} players={players} hands={whotHands} session={whotSession} />
+      </HistoryPageShell>
+    )
+  }
+
+  if (isLudoGame(gameType)) {
+    return (
+      <HistoryPageShell game={game} gameType={gameType}>
+        <LudoSessionSummary game={game} players={players} states={ludoStates} session={ludoSession} />
+      </HistoryPageShell>
+    )
+  }
+
+  if (isBingoGame(gameType)) {
+    return (
+      <HistoryPageShell game={game} gameType={gameType}>
+        <BingoSessionSummary game={game} players={players} claim={bingoClaim} calledCount={bingoCalledCount} />
+      </HistoryPageShell>
+    )
+  }
+
+  if (isTwoTruthsGame(gameType)) {
+    return (
+      <HistoryPageShell game={game} gameType={gameType}>
+        <TwoTruthsSessionSummary
+          game={game}
+          players={players}
+          rounds={rounds}
+          guesses={ttlGuesses}
+          statements={ttlStatements}
+        />
+      </HistoryPageShell>
     )
   }
 
@@ -339,25 +588,7 @@ export default function GameHistoryPage() {
     : roundsWithVotes
 
   return (
-    <div className="page-wrap px-4 py-8 max-w-4xl mx-auto w-full space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-1">
-          <p className="label-caps">Game history</p>
-          <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">{game.title}</h1>
-          <p className="text-muted text-sm font-mono tracking-wider">{game.id}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/history" className="btn-secondary text-sm py-2 px-4">
-            Search
-          </Link>
-          {game.status !== 'finished' && (
-            <Link href={`/game/${game.id}`} className="btn-primary text-sm py-2 px-4">
-              Open game
-            </Link>
-          )}
-        </div>
-      </div>
-
+    <HistoryPageShell game={game} gameType={gameType}>
       <div className="glass-card p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
         <div>
           <p className="text-faint text-[10px] uppercase tracking-wider">Status</p>
@@ -672,11 +903,6 @@ export default function GameHistoryPage() {
         </section>
       )}
 
-      <p className="text-center pb-4">
-        <Link href="/" className="text-faint text-sm hover:text-body transition-colors">
-          ← Back home
-        </Link>
-      </p>
-    </div>
+    </HistoryPageShell>
   )
 }

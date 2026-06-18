@@ -2,7 +2,6 @@
 
 import type { WhotCard as WhotCardType, WhotShape } from '@/types'
 import {
-  WHOT_SHAPE_EMOJI,
   WHOT_SHAPE_LABELS,
   canPlayCard,
   getActivePickPenalty,
@@ -11,6 +10,7 @@ import {
 } from '@/lib/whot'
 import type { WhotSession } from '@/types'
 import { WhotCard as WhotCardShell, WhotTurnBar } from '@/components/whot/WhotChrome'
+import { WhotShapeIcon } from '@/components/whot/WhotShapeIcon'
 
 const SHAPE_COLORS: Record<WhotShape, string> = {
   circle: 'from-blue-500/30 to-blue-600/20 border-blue-400/60',
@@ -38,10 +38,10 @@ export function WhotPlayingCard({
   const label = specialCardShortLabel(card.number)
   const sizeStyles =
     size === 'lg'
-      ? { box: 'w-20 min-h-[7.25rem] py-2 px-1', emoji: 'text-2xl', num: 'text-lg', badge: 'text-[8px]' }
+      ? { box: 'w-20 min-h-[7.25rem] py-2 px-1', icon: 'lg' as const, num: 'text-lg', badge: 'text-[8px]' }
       : size === 'sm'
-        ? { box: 'w-12 min-h-[4rem] py-1 px-0.5', emoji: 'text-base', num: 'text-xs', badge: 'text-[6px]' }
-        : { box: 'w-[4.25rem] min-h-[6rem] py-1.5 px-1', emoji: 'text-xl', num: 'text-sm', badge: 'text-[7px]' }
+        ? { box: 'w-12 min-h-[4rem] py-1 px-0.5', icon: 'sm' as const, num: 'text-xs', badge: 'text-[6px]' }
+        : { box: 'w-[4.25rem] min-h-[6rem] py-1.5 px-1', icon: 'md' as const, num: 'text-sm', badge: 'text-[7px]' }
 
   return (
     <button
@@ -58,7 +58,7 @@ export function WhotPlayingCard({
         !onClick ? 'cursor-default' : '',
       ].join(' ')}
     >
-      <span className={`leading-none ${sizeStyles.emoji}`}>{WHOT_SHAPE_EMOJI[card.shape]}</span>
+      <WhotShapeIcon shape={card.shape} size={sizeStyles.icon} variant="on-card" />
       <span className={`font-black leading-none ${sizeStyles.num}`}>{isWhot ? 'WHOT' : card.number}</span>
       {label && size !== 'sm' && (
         <span
@@ -288,9 +288,10 @@ export function WhotChoosePanel({
               type="button"
               disabled={acting}
               onClick={() => onChooseShape(shape)}
-              className="px-4 py-2 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] hover:bg-[var(--primary)]/10 font-semibold text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] hover:bg-[var(--primary)]/10 font-semibold text-sm"
             >
-              {WHOT_SHAPE_EMOJI[shape]} {WHOT_SHAPE_LABELS[shape]}
+              <WhotShapeIcon shape={shape} size="sm" />
+              {WHOT_SHAPE_LABELS[shape]}
             </button>
           ))}
         </div>
