@@ -14,6 +14,7 @@ import {
   isWouldYouRather,
   parseGameType,
 } from '@/lib/game-types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Game, GameType, Player } from '@/types'
 
 export type LateJoinPolicy = 'lobby_only' | 'viewers_only' | 'viewers_and_players'
@@ -167,4 +168,17 @@ export function spectatorForActiveJoin(
   if (!allowLatePlayers(game)) return true
   if (gameOffersLateJoinChoice(gameType)) return joinAsViewer === true
   return joinAsViewer === true
+}
+
+/** Clear spectator flags when returning to lobby so late joiners can play the next round. */
+export async function resetSpectatorsForLobby(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('players')
+    .update({ spectator: false })
+    .eq('game_id', gameId)
+    .eq('spectator', true)
+  return { error: error?.message ?? null }
 }

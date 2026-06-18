@@ -39,6 +39,7 @@ import {
   parsePoolUsage,
 } from '@/lib/pool-usage'
 import { isGameGenderBased } from '@/lib/gender-based'
+import { resetSpectatorsForLobby } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -244,6 +245,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
+  const { error: spectatorResetError } = await resetSpectatorsForLobby(supabase, gameId)
+  if (spectatorResetError) return NextResponse.json({ error: spectatorResetError }, { status: 500 })
 
   const { data: updated, error: gameError } = await supabase
     .from('games')
