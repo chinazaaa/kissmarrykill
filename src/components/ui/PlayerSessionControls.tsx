@@ -2,6 +2,7 @@
 
 import { EditNameInline } from '@/components/ui/EditNameInline'
 import { LeaveGameButton } from '@/components/ui/LeaveGameButton'
+import { PlayerResumeCard } from '@/components/PlayerResumeCard'
 
 export function PlayerSessionControls({
   gameCode,
@@ -58,11 +59,12 @@ export function PlayerSessionControls({
         confirmTitle={inLobby ? 'Leave this lobby?' : 'Leave this game?'}
         confirmMessage={
           inLobby
-            ? 'You can rejoin with the same name if there is room.'
-            : 'You can rejoin later if the host opens the lobby again.'
+            ? 'You can rejoin with your player code if there is room.'
+            : 'You can continue later with your player code if the host opens the lobby again.'
         }
         className="text-faint text-xs hover:text-red-300 transition-colors text-center"
       />
+      <PlayerResumeCard gameCode={gameCode} compact={!inLobby} />
     </div>
   )
 }

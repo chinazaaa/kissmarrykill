@@ -477,6 +477,8 @@ export interface Player {
   spectator?: boolean
   /** Monopoly board token id (car, hat, dog, …). */
   monopoly_token?: string | null
+  /** Short code to resume this player on another device. */
+  resume_token?: string | null
 }
 
 export interface Round {

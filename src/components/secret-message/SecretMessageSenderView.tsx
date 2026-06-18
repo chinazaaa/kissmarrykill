@@ -6,6 +6,8 @@ import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
+import { PLAYER_SELECT } from '@/lib/supabase-selects'
 import type { Game } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 
@@ -38,7 +40,7 @@ export function SecretMessageSenderView({ gameCode }: { gameCode: string }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Could not connect')
 
-      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender ?? 'both')
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender ?? 'both', data.resumeToken)
       setMyPlayerId(data.playerId)
       return data.playerId as string
     } finally {
@@ -47,7 +49,10 @@ export function SecretMessageSenderView({ gameCode }: { gameCode: string }) {
   }, [gameCode])
 
   const load = useCallback(async () => {
-    const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+    const [{ data: gameData }, { data: plrs }] = await Promise.all([
+      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode),
+    ])
     if (!gameData) {
       setScreen('not_found')
       return
@@ -62,8 +67,8 @@ export function SecretMessageSenderView({ gameCode }: { gameCode: string }) {
 
     setScreen('ready')
 
-    const session = getPlayerSession(gameCode)
-    if (session?.playerId) {
+    const session = await resolvePlayerSession(gameCode, plrs ?? [])
+    if (session) {
       setMyPlayerId(session.playerId)
     }
   }, [gameCode])

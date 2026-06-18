@@ -7,6 +7,14 @@ export function generateGameCode(): string {
   return Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('')
 }
 
+export function generateResumeToken(): string {
+  return generateGameCode()
+}
+
+export function normalizeResumeToken(raw: string): string {
+  return raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
 export function generateToken(): string {
   return Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
 }
@@ -310,6 +318,7 @@ export function getPlayerSession(gameCode: string): {
   playerId: string
   playerName: string
   playerGender: PlayerGender
+  resumeToken: string | null
 } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -320,7 +329,11 @@ export function getPlayerSession(gameCode: string): {
     const g = parsed.playerGender
     const playerGender = parsePlayerGenderFromDb(g)
     if (!playerGender) return null
-    return { playerId: parsed.playerId, playerName: parsed.playerName, playerGender }
+    const resumeToken =
+      typeof parsed.resumeToken === 'string' && parsed.resumeToken.trim()
+        ? normalizeResumeToken(parsed.resumeToken)
+        : null
+    return { playerId: parsed.playerId, playerName: parsed.playerName, playerGender, resumeToken }
   } catch {
     return null
   }
@@ -330,10 +343,16 @@ export function setPlayerSession(
   gameCode: string,
   playerId: string,
   playerName: string,
-  playerGender: PlayerGender
+  playerGender: PlayerGender,
+  resumeToken?: string | null
 ): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(`kmk_player_${gameCode.toUpperCase()}`, JSON.stringify({ playerId, playerName, playerGender }))
+  const token =
+    typeof resumeToken === 'string' && resumeToken.trim() ? normalizeResumeToken(resumeToken) : null
+  localStorage.setItem(
+    `kmk_player_${gameCode.toUpperCase()}`,
+    JSON.stringify({ playerId, playerName, playerGender, resumeToken: token })
+  )
 }
 
 export function clearPlayerSession(gameCode: string): void {

@@ -1,22 +1,27 @@
 'use client'
 
 import { PlayerInviteCard } from '@/components/PlayerInviteCard'
+import { PlayerResumeEntry } from '@/components/PlayerResumeEntry'
 import { playerGameUrl } from '@/lib/site'
 
 type Props = {
   gameCode: string
   className?: string
+  onResumed?: () => void | Promise<unknown>
 }
 
-export function ShareGameLinkCard({ gameCode, className = '' }: Props) {
+export function ShareGameLinkCard({ gameCode, className = '', onResumed }: Props) {
   const url = playerGameUrl(gameCode)
+  const handleResumed = onResumed ?? (() => window.location.reload())
 
   return (
-    <PlayerInviteCard
-      url={url}
-      gameCode={gameCode}
-      title="Invite friends"
-      className={className}
-    />
+    <div className={`space-y-3 ${className}`}>
+      <PlayerInviteCard
+        url={url}
+        gameCode={gameCode}
+        title="Invite friends"
+      />
+      <PlayerResumeEntry gameCode={gameCode} onResumed={handleResumed} />
+    </div>
   )
 }

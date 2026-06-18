@@ -10,6 +10,7 @@ import { triviaCategoryLabel } from '@/lib/trivia-questions'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, TRIVIA_ANSWER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
@@ -59,16 +60,14 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
     setRounds(rdsRes.data ?? [])
     setAnswers(ansRes.data ?? [])
 
-    const session = getPlayerSession(gameCode)
-    let playerId = session?.playerId ?? null
-    if (session && plrs && !plrs.some((p) => p.id === session.playerId)) {
-      clearPlayerSession(gameCode)
-      playerId = null
-      setMyPlayerId(null)
-      setMyPlayerName('')
-    } else if (session) {
+    const session = await resolvePlayerSession(gameCode, plrs)
+    const playerId = session?.playerId ?? null
+    if (session) {
       setMyPlayerId(session.playerId)
       setMyPlayerName(session.playerName)
+    } else {
+      setMyPlayerId(null)
+      setMyPlayerName('')
     }
 
     if (!playerId) {
@@ -144,7 +143,7 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
-      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender, data.resumeToken)
       setMyPlayerId(data.playerId)
       setMyPlayerName(data.playerName)
       setScreen('playing')
@@ -238,7 +237,7 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
           >
             {joining ? 'Joining…' : 'Join game'}
           </button>
-          <ShareGameLinkCard gameCode={gameCode} />
+          <ShareGameLinkCard gameCode={gameCode} onResumed={load} />
         </div>
       </div>
     )

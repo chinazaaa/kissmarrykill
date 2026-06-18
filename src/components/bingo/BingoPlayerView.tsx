@@ -16,6 +16,7 @@ import {
   PLAYER_SELECT,
 } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type { BingoCalledNumber, BingoCard, BingoClaim, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification, useBingoStartNotification } from '@/hooks/useBingoNotifications'
@@ -117,15 +118,9 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
     setCalledNumbers(calledRes.data ?? [])
     setWinner(claimRes.data ?? null)
 
-    const session = getPlayerSession(gameCode)
-    let playerId = session?.playerId ?? null
-    if (session && plrs && !plrs.some((p) => p.id === session.playerId)) {
-      clearPlayerSession(gameCode)
-      playerId = null
-      setMyPlayerId(null)
-      setMyPlayerName('')
-      setCard(null)
-    } else if (session) {
+    const session = await resolvePlayerSession(gameCode, plrs)
+    const playerId = session?.playerId ?? null
+    if (session) {
       setMyPlayerId(session.playerId)
       setMyPlayerName(session.playerName)
       if (gameData.status === 'waiting') {
@@ -134,6 +129,8 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
         await loadCard(session.playerId)
       }
     } else {
+      setMyPlayerId(null)
+      setMyPlayerName('')
       setCard(null)
     }
     syncScreen(gameData, playerId)
@@ -246,7 +243,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
 
-      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender, data.resumeToken)
       setMyPlayerId(data.playerId)
       setMyPlayerName(data.playerName)
       await load()

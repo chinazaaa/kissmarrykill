@@ -83,6 +83,7 @@ function playerJoinResponse(
     identity_gender: string | null
     joined_at: string
     spectator?: boolean
+    resume_token?: string | null
   },
   game: Pick<Game, 'status' | 'session_started_at'>,
   extra: Record<string, unknown> = {}
@@ -92,6 +93,7 @@ function playerJoinResponse(
     playerName: player.name,
     playerGender: player.gender,
     playerIdentityGender: player.identity_gender,
+    resumeToken: player.resume_token ?? null,
     isViewer: playerIsViewer(player, game),
     ...extra,
   }
@@ -215,6 +217,7 @@ export async function POST(req: NextRequest) {
       playerName: player.name,
       playerGender: player.gender,
       playerIdentityGender: player.identity_gender,
+      resumeToken: player.resume_token ?? null,
       canChat,
     })
   }
@@ -247,6 +250,7 @@ export async function POST(req: NextRequest) {
       playerName: player.name,
       playerGender: player.gender,
       playerIdentityGender: player.identity_gender,
+      resumeToken: player.resume_token ?? null,
       canChat: true,
     })
   }

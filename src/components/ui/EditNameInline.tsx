@@ -33,7 +33,7 @@ export function EditNameInline({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to update name')
       const existing = getPlayerSession(gameCode)
-      setPlayerSession(gameCode, playerId, data.playerName, existing?.playerGender ?? 'both')
+      setPlayerSession(gameCode, playerId, data.playerName, existing?.playerGender ?? 'both', existing?.resumeToken)
       onRenamed(data.playerName)
       setName(data.playerName)
       setEditing(false)

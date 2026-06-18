@@ -57,10 +57,16 @@ create table if not exists players (
   gender text not null default 'female' check (gender in ('male', 'female', 'both')),
   identity_gender text check (identity_gender in ('male', 'female')),
   participant_id uuid references participants(id) on delete set null,
-  joined_at timestamptz not null default now()
+  joined_at timestamptz not null default now(),
+  resume_token text
 );
 create index if not exists idx_players_game_id on players(game_id);
 create unique index if not exists idx_players_participant_claim on players(game_id, participant_id) where participant_id is not null;
+create unique index if not exists idx_players_game_resume_token on players(game_id, resume_token) where resume_token is not null;
+
+-- If upgrading an existing database, run:
+-- alter table players add column if not exists resume_token text;
+-- create unique index if not exists idx_players_game_resume_token on players(game_id, resume_token) where resume_token is not null;
 
 -- If upgrading an existing database, run:
 -- alter table players drop constraint if exists players_gender_check;

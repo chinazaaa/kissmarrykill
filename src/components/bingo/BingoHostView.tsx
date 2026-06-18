@@ -201,7 +201,7 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
-      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender, data.resumeToken)
       setHostPlayerId(data.playerId)
       setHostPlayerName(data.playerName)
       setHostMode('player')

@@ -19,8 +19,8 @@ export function usePlayerSession(gameCode: string) {
   })
 
   const updateSession = useCallback(
-    (playerId: string, name: string, gender: PlayerGender) => {
-      setPlayerSession(gameCode, playerId, name, gender)
+    (playerId: string, name: string, gender: PlayerGender, resumeToken?: string | null) => {
+      setPlayerSession(gameCode, playerId, name, gender, resumeToken)
       setMyPlayerId(playerId)
       setMyPlayerName(name)
       setMyPlayerGender(gender)

@@ -139,7 +139,7 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
-      setPlayerSession(gameCode, data.playerId, data.playerName, 'both')
+      setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
       setHostPlayerId(data.playerId)
       setHostPlayerName(data.playerName)
       await load()

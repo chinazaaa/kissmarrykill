@@ -14,6 +14,7 @@ import {
   TTL_STATEMENT_SELECT,
 } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
@@ -64,16 +65,14 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
     setRounds(rdsRes.data ?? [])
     setGuesses(gssRes.data ?? [])
 
-    const session = getPlayerSession(gameCode)
-    let playerId = session?.playerId ?? null
-    if (session && plrs && !plrs.some((p) => p.id === session.playerId)) {
-      clearPlayerSession(gameCode)
-      playerId = null
-      setMyPlayerId(null)
-      setMyPlayerName('')
-    } else if (session) {
+    const session = await resolvePlayerSession(gameCode, plrs)
+    const playerId = session?.playerId ?? null
+    if (session) {
       setMyPlayerId(session.playerId)
       setMyPlayerName(session.playerName)
+    } else {
+      setMyPlayerId(null)
+      setMyPlayerName('')
     }
 
     if (!playerId) {
@@ -147,7 +146,7 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
-      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender, data.resumeToken)
       setMyPlayerId(data.playerId)
       setMyPlayerName(data.playerName)
       await load()

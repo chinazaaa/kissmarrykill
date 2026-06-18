@@ -21,6 +21,12 @@ export function playerGameUrl(gameCode: string): string {
   return `${appOrigin()}/game/${gameCode.trim().toUpperCase()}`
 }
 
+export function playerResumeUrl(gameCode: string, resumeToken: string): string {
+  const code = gameCode.trim().toUpperCase()
+  const token = resumeToken.trim().toUpperCase()
+  return `${playerGameUrl(code)}?player=${encodeURIComponent(token)}`
+}
+
 /** PayPal / Ko-fi / Buy Me a Coffee link. Override with NEXT_PUBLIC_SUPPORT_URL. */
 export function supportUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_SUPPORT_URL?.trim()

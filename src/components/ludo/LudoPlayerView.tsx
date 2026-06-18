@@ -15,6 +15,7 @@ import { currentPlayerId } from '@/lib/ludo'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, LUDO_PLAYER_STATE_SELECT, LUDO_SESSION_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, LudoPlayerState, LudoSession, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
@@ -91,14 +92,12 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
     setSession(sessionRes.data as LudoSession | null)
     setStates((statesRes.data as LudoPlayerState[]) ?? [])
 
-    const stored = getPlayerSession(gameCode)
-    let playerId = stored?.playerId ?? null
-    if (stored && plrs && !plrs.some((p) => p.id === stored.playerId)) {
-      clearPlayerSession(gameCode)
-      playerId = null
+    const session = await resolvePlayerSession(gameCode, plrs)
+    const playerId = session?.playerId ?? null
+    if (session) {
+      setMyPlayerId(session.playerId)
+    } else {
       setMyPlayerId(null)
-    } else if (stored) {
-      setMyPlayerId(stored.playerId)
     }
 
     syncScreen(gameData, playerId)
@@ -156,7 +155,7 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
         toastError(data.error ?? 'Failed to join')
         return
       }
-      setPlayerSession(gameCode, data.playerId, data.playerName, 'both')
+      setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
       setMyPlayerId(data.playerId)
       await load()
     } finally {

@@ -17,6 +17,7 @@ import { currentPlayerId, hasPlayableCard, isDrawPileDepleted } from '@/lib/whot
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, WHOT_PLAYER_HANDS_SELECT, WHOT_SESSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, Player, WhotPlayerHand, WhotSession, WhotShape } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
@@ -91,14 +92,12 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
     setSession(sessionRes.data as WhotSession | null)
     setHands((handsRes.data as WhotPlayerHand[]) ?? [])
 
-    const stored = getPlayerSession(gameCode)
-    let playerId = stored?.playerId ?? null
-    if (stored && plrs && !plrs.some((p) => p.id === stored.playerId)) {
-      clearPlayerSession(gameCode)
-      playerId = null
+    const session = await resolvePlayerSession(gameCode, plrs)
+    const playerId = session?.playerId ?? null
+    if (session) {
+      setMyPlayerId(session.playerId)
+    } else {
       setMyPlayerId(null)
-    } else if (stored) {
-      setMyPlayerId(stored.playerId)
     }
 
     syncScreen(gameData, playerId)
@@ -146,7 +145,7 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
         toastError(data.error ?? 'Failed to join')
         return
       }
-      setPlayerSession(gameCode, data.playerId, data.playerName, 'both')
+      setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
       setMyPlayerId(data.playerId)
       await load()
     } finally {

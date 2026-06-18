@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession, filterParticipantsInRounds } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import { hexToRgba } from '@/lib/color'
 import { Avatar } from '@/components/Avatar'
 import { ParticipantPhotoCard } from '@/components/ParticipantPhotoCard'
@@ -500,14 +501,16 @@ export function PollGamePlayerExperience({
         setParticipants(parts || [])
         setPlayers(plrs || [])
 
-        const session = getPlayerSession(gameCode)
+        const session = await resolvePlayerSession(gameCode, plrs || [])
         if (session) {
           setMyPlayerId(session.playerId)
           setMyPlayerName(session.playerName)
           const me = (plrs || []).find((p) => p.id === session.playerId)
           const voteGender = me ? playerVoteGenderForRound(me, parts || []) : session.playerGender
           setMyPlayerGender(voteGender)
-          if (me && voteGender) setPlayerSession(gameCode, me.id, me.name, voteGender)
+          if (me && voteGender) {
+            setPlayerSession(gameCode, me.id, me.name, voteGender, session.resumeToken ?? me.resume_token)
+          }
         }
 
         if (gameData.status === 'active') {
@@ -799,7 +802,8 @@ export function PollGamePlayerExperience({
           const voteGender = playerVoteGenderForRound(p, participantsRef.current)
           if (voteGender) {
             setMyPlayerGender(voteGender)
-            setPlayerSession(gameCode, p.id, p.name, voteGender)
+            const existing = getPlayerSession(gameCode)
+            setPlayerSession(gameCode, p.id, p.name, voteGender, existing?.resumeToken ?? p.resume_token)
           }
         }
       },
@@ -1291,7 +1295,7 @@ export function PollGamePlayerExperience({
         const me = plrs?.find((p) => p.id === data.playerId)
         const voteGender = me ? playerVoteGenderForRound(me, parts || []) : parsePlayerGenderFromDb(data.playerGender)
         if (voteGender) {
-          setPlayerSession(gameCode, data.playerId, data.playerName, voteGender)
+          setPlayerSession(gameCode, data.playerId, data.playerName, voteGender, data.resumeToken)
           setMyPlayerGender(voteGender)
         }
         setMyPlayerId(data.playerId)
@@ -1362,7 +1366,7 @@ export function PollGamePlayerExperience({
   const handlePlayerRenamed = (name: string) => {
     setMyPlayerName(name)
     const existing = getPlayerSession(gameCode)
-    if (existing) setPlayerSession(gameCode, existing.playerId, name, existing.playerGender ?? 'both')
+    if (existing) setPlayerSession(gameCode, existing.playerId, name, existing.playerGender ?? 'both', existing.resumeToken)
   }
 
   const sessionBar =

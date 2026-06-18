@@ -19,6 +19,7 @@ import { currentPlayerId } from '@/lib/yahtzee'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, Player, YahtzeeCategory, YahtzeePlayerScore, YahtzeeSession } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
@@ -95,14 +96,12 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     setSession(sessionData)
     setScores((scoresRes.data as YahtzeePlayerScore[]) ?? [])
 
-    const stored = getPlayerSession(gameCode)
-    let playerId = stored?.playerId ?? null
-    if (stored && plrs && !plrs.some((p) => p.id === stored.playerId)) {
-      clearPlayerSession(gameCode)
-      playerId = null
+    const session = await resolvePlayerSession(gameCode, plrs)
+    const playerId = session?.playerId ?? null
+    if (session) {
+      setMyPlayerId(session.playerId)
+    } else {
       setMyPlayerId(null)
-    } else if (stored) {
-      setMyPlayerId(stored.playerId)
     }
 
     if (sessionData) {
@@ -158,7 +157,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
-      setPlayerSession(gameCode, data.playerId, data.playerName, 'both')
+      setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
       setMyPlayerId(data.playerId)
       await load()
     } catch (err) {

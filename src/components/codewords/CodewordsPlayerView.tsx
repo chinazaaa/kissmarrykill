@@ -29,6 +29,7 @@ import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { allowLateJoin, allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type {
   CodewordsBoard,
   CodewordsGuess,
@@ -161,7 +162,10 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   }, [gameCode])
 
   const load = useCallback(async () => {
-    const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+    const [{ data: gameData }, { data: plrs }] = await Promise.all([
+      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+    ])
 
     if (!gameData) {
       setScreen('not_found')
@@ -170,21 +174,16 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
     setGame(gameData)
 
-    const session = getPlayerSession(gameCode)
-    let playerId = session?.playerId ?? null
+    const session = await resolvePlayerSession(gameCode, plrs ?? [])
+    const playerId = session?.playerId ?? null
     if (session) {
-      const { data: plr } = await supabase.from('players').select('id, name').eq('id', session.playerId).maybeSingle()
-      if (!plr) {
-        clearPlayerSession(gameCode)
-        playerId = null
-        setMyPlayerId(null)
-        setMyPlayerName('')
-        setMyRole(null)
-      } else {
-        setMyPlayerId(session.playerId)
-        setMyPlayerName(session.playerName)
-        await refreshMyRole(session.playerId)
-      }
+      setMyPlayerId(session.playerId)
+      setMyPlayerName(session.playerName)
+      await refreshMyRole(session.playerId)
+    } else {
+      setMyPlayerId(null)
+      setMyPlayerName('')
+      setMyRole(null)
     }
 
     if (gameData.status === 'active' || gameData.status === 'finished') {
@@ -261,7 +260,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
-      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender)
+      setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender, data.resumeToken)
       setMyPlayerId(data.playerId)
       setMyPlayerName(data.playerName)
       if (data.codewordsRole) setMyRole(data.codewordsRole)

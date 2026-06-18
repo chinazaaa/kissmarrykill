@@ -25,6 +25,7 @@ import {
   PLAYER_SELECT,
 } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
@@ -105,16 +106,14 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     setBoard(boardRes.data as MonopolyBoard | null)
     setStates((stateRes.data as MonopolyPlayerState[]) ?? [])
 
-    const session = getPlayerSession(gameCode)
-    let playerId = session?.playerId ?? null
-    if (session && plrs && !plrs.some((p) => p.id === session.playerId)) {
-      clearPlayerSession(gameCode)
-      playerId = null
-      setMyPlayerId(null)
-      setMyPlayerName(null)
-    } else if (session) {
+    const session = await resolvePlayerSession(gameCode, plrs)
+    const playerId = session?.playerId ?? null
+    if (session) {
       setMyPlayerId(session.playerId)
       setMyPlayerName(session.playerName)
+    } else {
+      setMyPlayerId(null)
+      setMyPlayerName(null)
     }
     syncScreen(gameData, playerId)
     return true
@@ -180,7 +179,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
-      setPlayerSession(gameCode, data.playerId, data.playerName, 'both')
+      setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
       setMyPlayerId(data.playerId)
       setMyPlayerName(data.playerName)
       await load()
