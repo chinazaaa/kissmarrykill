@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { GamePlayerChrome } from '@/components/GamePlayerChrome'
+import { Suspense } from 'react'
+import { GameHostChrome } from '@/components/GameHostChrome'
 import { GameRulesLoader } from '@/components/GameRulesLoader'
 import { GameRulesProvider } from '@/contexts/GameRulesContext'
 import { noIndexMetadata } from '@/lib/seo'
@@ -10,7 +11,9 @@ export default function HostLayout({ children }: { children: React.ReactNode }) 
   return (
     <GameRulesProvider>
       <GameRulesLoader />
-      <GamePlayerChrome />
+      <Suspense fallback={null}>
+        <GameHostChrome />
+      </Suspense>
       <main className="pt-[3.75rem]">{children}</main>
     </GameRulesProvider>
   )

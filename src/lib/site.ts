@@ -27,6 +27,12 @@ export function playerResumeUrl(gameCode: string, resumeToken: string): string {
   return `${playerGameUrl(code)}?player=${encodeURIComponent(token)}`
 }
 
+export function hostGameUrl(gameCode: string, hostToken: string): string {
+  const code = gameCode.trim().toUpperCase()
+  const token = hostToken.trim()
+  return `${appOrigin()}/host/${code}?token=${encodeURIComponent(token)}`
+}
+
 /** PayPal / Ko-fi / Buy Me a Coffee link. Override with NEXT_PUBLIC_SUPPORT_URL. */
 export function supportUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_SUPPORT_URL?.trim()

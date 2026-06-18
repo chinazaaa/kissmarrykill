@@ -11,12 +11,16 @@ export function GameLinkQrModal({
   url,
   title = 'Scan to join',
   subtitle = 'Point your camera at the code or share the link below.',
+  copyLabel = 'Copy invite link',
+  copySuccessMessage = 'Invite link copied',
 }: {
   open: boolean
   onClose: () => void
   url: string
   title?: string
   subtitle?: string
+  copyLabel?: string
+  copySuccessMessage?: string
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title} subtitle={subtitle} size="md">
@@ -26,7 +30,7 @@ export function GameLinkQrModal({
         </div>
         <p className="text-body font-mono text-xs sm:text-sm break-all text-center">{url}</p>
         <div className="flex justify-center">
-          <CopyLinkButton value={url} label="Copy invite link" successMessage="Invite link copied" />
+          <CopyLinkButton value={url} label={copyLabel} successMessage={copySuccessMessage} />
         </div>
       </div>
     </Modal>
