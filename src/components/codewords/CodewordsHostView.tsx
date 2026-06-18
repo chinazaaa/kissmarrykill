@@ -499,6 +499,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
           <CodewordsHostManagePanel
             game={game}
             gameCode={gameCode}
+            hostToken={hostToken}
             playerLink={playerLink}
             players={players}
             roles={roles}
@@ -521,6 +522,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
             randomizingTeams={randomizingTeams}
             onPlayAgain={playAgain}
             onEndSession={endSession}
+            onReload={load}
             onBenchPlayer={benchPlayer}
             onRemovePlayer={removePlayer}
             benchingPlayerId={benchingPlayerId}

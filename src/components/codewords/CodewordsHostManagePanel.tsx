@@ -6,6 +6,7 @@ import { CodewordsBoardGrid } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsLobbyRoster } from '@/components/codewords/CodewordsLobbyRoster'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
 import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import {
   CODEWORDS_MIN_PLAYERS,
   CODEWORDS_TIMER_OPTIONS,
@@ -24,6 +25,7 @@ import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, CodewordsTeam
 export function CodewordsHostManagePanel({
   game,
   gameCode,
+  hostToken,
   playerLink,
   players,
   roles,
@@ -45,6 +47,7 @@ export function CodewordsHostManagePanel({
   onRandomizeTeams,
   onPlayAgain,
   onEndSession,
+  onReload,
   onBenchPlayer,
   onRemovePlayer,
   benchingPlayerId,
@@ -54,6 +57,7 @@ export function CodewordsHostManagePanel({
 }: {
   game: Game
   gameCode: string
+  hostToken: string
   playerLink: string
   players: Player[]
   roles: CodewordsPlayerRole[]
@@ -75,6 +79,7 @@ export function CodewordsHostManagePanel({
   onRandomizeTeams?: () => void
   onPlayAgain: () => void
   onEndSession: () => void
+  onReload: () => void | Promise<unknown>
   onBenchPlayer?: (playerId: string) => void
   onRemovePlayer?: (playerId: string, playerName: string) => void | Promise<void | boolean>
   benchingPlayerId?: string | null
@@ -247,6 +252,15 @@ export function CodewordsHostManagePanel({
                     ? `Start game (shuffle teams)`
                     : `Start game (${CODEWORDS_MIN_PLAYERS}+ players)`}
               </button>
+              <HostEndGameButton
+                gameCode={gameCode}
+                hostToken={hostToken}
+                onEnded={onReload}
+                label="End lobby"
+                confirmTitle="Close this lobby?"
+                confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+                className="btn-secondary w-full"
+              />
             </>
           )}
         </div>

@@ -347,6 +347,18 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
         </button>
       )}
 
+      {game.status === 'waiting' && (
+        <HostEndGameButton
+          gameCode={gameCode}
+          hostToken={hostToken}
+          onEnded={load}
+          label="End lobby"
+          confirmTitle="Close this lobby?"
+          confirmMessage="Players will be disconnected. You can start a new session from Play again afterward."
+          className="btn-secondary w-full"
+        />
+      )}
+
       {game.status === 'active' && (
         <>
           <AnonymousSessionTimerBar gameCode={gameCode} game={game} sticky />

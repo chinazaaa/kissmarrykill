@@ -180,6 +180,15 @@ export function TriviaHostManagePanel({
           >
             {starting ? 'Starting…' : `Start trivia (${players.length}/${TRIVIA_MIN_PLAYERS}+ players)`}
           </button>
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={onReload}
+            label="End lobby"
+            confirmTitle="Close this lobby?"
+            confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+            className="btn-secondary w-full py-3 text-base"
+          />
         </div>
       )}
 

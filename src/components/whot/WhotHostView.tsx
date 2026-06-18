@@ -32,6 +32,7 @@ import { WhotChoosePanel, WhotHand, WhotTable } from '@/components/whot/WhotBoar
 import { WhotGameTimerBar } from '@/components/whot/WhotGameTimerBar'
 import { WhotFinalResultsShareBlock } from '@/components/whot/WhotFinalResultsShareBlock'
 import { WhotCard, WhotPrimaryButton } from '@/components/whot/WhotChrome'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 
 type HostTab = 'play' | 'manage'
 
@@ -43,7 +44,6 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const [hands, setHands] = useState<WhotPlayerHand[]>([])
   const [starting, setStarting] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
-  const [ending, setEnding] = useState(false)
   const [hostMode, setHostMode] = useState<WhotHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
@@ -181,24 +181,6 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
       toastError(err instanceof Error ? err.message : 'Failed to start')
     } finally {
       setStarting(false)
-    }
-  }
-
-  const finishGame = async () => {
-    setEnding(true)
-    try {
-      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to end game')
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to end game')
-    } finally {
-      setEnding(false)
     }
   }
 
@@ -451,20 +433,37 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {game.status === 'waiting' && (
-              <button
-                type="button"
-                onClick={() => void startGame()}
-                disabled={!canStart || starting}
-                className="btn-primary w-full py-3"
-              >
-                {starting ? 'Starting…' : canStart ? 'Start game' : `Need at least ${WHOT_MIN_PLAYERS} players`}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void startGame()}
+                  disabled={!canStart || starting}
+                  className="btn-primary w-full py-3"
+                >
+                  {starting ? 'Starting…' : canStart ? 'Start game' : `Need at least ${WHOT_MIN_PLAYERS} players`}
+                </button>
+                <HostEndGameButton
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onEnded={load}
+                  label="End lobby"
+                  confirmTitle="Close this lobby?"
+                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+                  className="btn-secondary w-full py-3"
+                />
+              </>
             )}
 
             {game.status === 'active' && (
-              <button type="button" onClick={() => void finishGame()} disabled={ending} className="btn-secondary w-full py-3">
-                {ending ? 'Ending…' : 'End game early'}
-              </button>
+              <HostEndGameButton
+                gameCode={gameCode}
+                hostToken={hostToken}
+                onEnded={load}
+                label="End game early"
+                confirmTitle="End this game early?"
+                confirmMessage="The current game will end and players will see the results screen."
+                className="btn-secondary w-full py-3"
+              />
             )}
 
             {game.status === 'finished' && (

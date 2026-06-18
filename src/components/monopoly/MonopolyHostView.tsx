@@ -10,6 +10,7 @@ import {
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
 import { MonopolyHostTimeExtension } from '@/components/monopoly/MonopolyHostTimeExtension'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels'
 import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
 import { InviteLinkActions } from '@/components/InviteLinkActions'
@@ -444,6 +445,15 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
                   >
                     {starting ? 'Starting…' : `Start Monopoly (${MONOPOLY_MIN_PLAYERS}+ players)`}
                   </button>
+                  <HostEndGameButton
+                    gameCode={gameCode}
+                    hostToken={hostToken}
+                    onEnded={load}
+                    label="End lobby"
+                    confirmTitle="Close this lobby?"
+                    confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+                    className="btn-secondary w-full"
+                  />
                 </div>
               </>
             )}

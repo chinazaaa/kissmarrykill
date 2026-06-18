@@ -2750,6 +2750,16 @@ export default function HostPage() {
                 : `Start Game (${players.length} players)`}
         </button>
 
+        <HostEndGameButton
+          gameCode={gameCode}
+          hostToken={hostToken}
+          onEnded={syncGameState}
+          label="End lobby"
+          confirmTitle="Close this lobby?"
+          confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+          className="btn-secondary w-full text-muted"
+        />
+
         </PollHostPlayShell>
 
         {game && (

@@ -27,6 +27,7 @@ import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 
 type HostTab = 'play' | 'manage'
 
@@ -462,6 +463,15 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                 >
                   {starting ? 'Starting…' : 'Start Yahtzee'}
                 </button>
+                <HostEndGameButton
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onEnded={load}
+                  label="End lobby"
+                  confirmTitle="Close this lobby?"
+                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+                  className="btn-secondary w-full"
+                />
               </div>
               </>
             )}

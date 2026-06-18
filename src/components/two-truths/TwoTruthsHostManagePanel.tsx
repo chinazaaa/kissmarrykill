@@ -184,6 +184,15 @@ export function TwoTruthsHostManagePanel({
           >
             {starting ? 'Starting…' : `Start game (${submittedIds.size} submitted)`}
           </button>
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={onReload}
+            label="End lobby"
+            confirmTitle="Close this lobby?"
+            confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+            className="btn-secondary w-full"
+          />
         </div>
       )}
 

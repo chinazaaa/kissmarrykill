@@ -21,6 +21,7 @@ import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLudoTurnTimer } from '@/hooks/useLudoTurnTimer'
 import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/hooks/useLudoNotifications'
@@ -416,9 +417,20 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {game.status === 'waiting' && (
-              <LudoPrimaryButton onClick={startGame} disabled={!canStart} loading={starting}>
-                {canStart ? 'Start game' : `Need at least ${LUDO_MIN_PLAYERS} players`}
-              </LudoPrimaryButton>
+              <>
+                <LudoPrimaryButton onClick={startGame} disabled={!canStart} loading={starting}>
+                  {canStart ? 'Start game' : `Need at least ${LUDO_MIN_PLAYERS} players`}
+                </LudoPrimaryButton>
+                <HostEndGameButton
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onEnded={load}
+                  label="End lobby"
+                  confirmTitle="Close this lobby?"
+                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+                  className="btn-secondary w-full py-3"
+                />
+              </>
             )}
 
             {game.status === 'active' && (

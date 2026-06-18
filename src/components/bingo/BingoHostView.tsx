@@ -599,6 +599,15 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                 >
                   {starting ? 'Starting…' : `Start Bingo (${BINGO_MIN_PLAYERS}+ players)`}
                 </button>
+                <HostEndGameButton
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onEnded={load}
+                  label="End lobby"
+                  confirmTitle="Close this lobby?"
+                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
+                  className="btn-secondary w-full"
+                />
               </div>
               </>
             )}
