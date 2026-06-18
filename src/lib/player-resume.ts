@@ -1,5 +1,6 @@
 import type { PlayerGender } from '@/types'
 import { parsePlayerGenderFromDb } from '@/lib/participants'
+import { setPollHostMode } from '@/lib/poll-host-mode'
 import {
   clearPlayerSession,
   getPlayerSession,
@@ -33,6 +34,8 @@ export function getResumeTokenFromUrl(): string | null {
 
 function stripResumeTokenFromUrl(): void {
   if (typeof window === 'undefined') return
+  // Keep ?player= on host URLs so the combined host+play link stays shareable.
+  if (window.location.pathname.startsWith('/host/')) return
   const url = new URL(window.location.href)
   if (!url.searchParams.has(PLAYER_RESUME_QUERY)) return
   url.searchParams.delete(PLAYER_RESUME_QUERY)
@@ -64,6 +67,9 @@ async function resumeFromApi(gameCode: string, resumeToken: string): Promise<Res
       : normalizeResumeToken(resumeToken)
 
   setPlayerSession(gameCode, data.playerId, data.playerName, playerGender, token)
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/host/')) {
+    setPollHostMode(gameCode, 'player')
+  }
   stripResumeTokenFromUrl()
 
   return {

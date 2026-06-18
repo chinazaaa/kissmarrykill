@@ -3,25 +3,26 @@
 import { useState } from 'react'
 import { GameLinkQrModal } from '@/components/GameLinkQrModal'
 import { copyToClipboard } from '@/lib/copy'
-import { playerResumeUrl, shareOrigin } from '@/lib/site'
+import { hostPlayerUrl, shareOrigin } from '@/lib/site'
 import { useToast } from '@/components/ui/Toast'
 
 type Props = {
   gameCode: string
+  hostToken: string
   resumeToken: string
   className?: string
 }
 
-export function SharePlayerResumeButton({ gameCode, resumeToken, className = '' }: Props) {
+export function ShareHostPlayerLinkButton({ gameCode, hostToken, resumeToken, className = '' }: Props) {
   const toast = useToast()
   const [copied, setCopied] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
-  const url = playerResumeUrl(gameCode, resumeToken, shareOrigin())
+  const url = hostPlayerUrl(gameCode, hostToken, resumeToken, shareOrigin())
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(url)
     if (ok) {
-      toast.success('Your play link copied')
+      toast.success('Host + play link copied')
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } else {
@@ -39,8 +40,8 @@ export function SharePlayerResumeButton({ gameCode, resumeToken, className = '' 
         >
           {copied ? 'Copied ✓' : (
             <>
-              <span className="sm:hidden">Play link</span>
-              <span className="hidden sm:inline">Copy play link</span>
+              <span className="sm:hidden">My link</span>
+              <span className="hidden sm:inline">Copy host+play link</span>
             </>
           )}
         </button>
@@ -48,19 +49,19 @@ export function SharePlayerResumeButton({ gameCode, resumeToken, className = '' 
           type="button"
           onClick={() => setQrOpen(true)}
           className="btn-secondary text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 whitespace-nowrap border-[var(--primary)]/30"
-          aria-label="Show your play link QR code"
+          aria-label="Show host and play link QR code"
         >
-          QR play
+          QR host+play
         </button>
       </div>
       <GameLinkQrModal
         open={qrOpen}
         onClose={() => setQrOpen(false)}
         url={url}
-        title="Scan to play as you"
-        subtitle="Opens your player seat — use this on your phone or another device after joining in the lobby."
-        copyLabel="Copy play link"
-        copySuccessMessage="Your play link copied"
+        title="Host + play"
+        subtitle="Manage the game and play as yourself — save this for another device."
+        copyLabel="Copy host+play link"
+        copySuccessMessage="Host + play link copied"
       />
     </>
   )

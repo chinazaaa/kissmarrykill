@@ -41,6 +41,18 @@ export function hostGameUrl(gameCode: string, hostToken: string, origin: string 
   return `${origin.replace(/\/$/, '')}/host/${code}?token=${encodeURIComponent(token)}`
 }
 
+/** Host panel + your player seat — manage and play from one link. */
+export function hostPlayerUrl(
+  gameCode: string,
+  hostToken: string,
+  resumeToken: string,
+  origin: string = appOrigin()
+): string {
+  const base = hostGameUrl(gameCode, hostToken, origin)
+  const player = resumeToken.trim().toUpperCase()
+  return `${base}&player=${encodeURIComponent(player)}`
+}
+
 /** PayPal / Ko-fi / Buy Me a Coffee link. Override with NEXT_PUBLIC_SUPPORT_URL. */
 export function supportUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_SUPPORT_URL?.trim()
