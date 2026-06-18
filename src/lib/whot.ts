@@ -183,11 +183,14 @@ export function hasActiveWhotCall(session: WhotSession): boolean {
 }
 
 export function canPlayCard(card: WhotCard, session: WhotSession): boolean {
-  if ((session.pick_two_stack ?? 0) > 0) return card.number === 2
-  if ((session.pick_five_stack ?? 0) > 0) return card.number === 5
+  const cardNumber = Number(card.number)
+  const { pickTwo, pickFive } = getNormalizedPickStacks(session)
+
+  if (pickTwo > 0) return cardNumber === 2
+  if (pickFive > 0) return cardNumber === 5
 
   // WHOT beats an opponent's WHOT call (required shape/number) or any normal match rule.
-  if (card.number === 20) return true
+  if (cardNumber === 20) return true
 
   if (session.required_shape) {
     return card.shape === session.required_shape
@@ -207,18 +210,31 @@ export function normalizePickStacks(
   pickTwo: number,
   pickFive: number
 ): { pickTwo: number; pickFive: number } {
-  const two = Math.max(0, pickTwo)
-  const five = Math.max(0, pickFive)
-  if (two > 0 && five > 0) return { pickTwo: two, pickFive: 0 }
+  const two = Math.max(0, Number(pickTwo) || 0)
+  const five = Math.max(0, Number(pickFive) || 0)
+  if (two > 0 && five > 0) return { pickTwo: 0, pickFive: five }
   return { pickTwo: two, pickFive: five }
+}
+
+export function getNormalizedPickStacks(session: WhotSession): { pickTwo: number; pickFive: number } {
+  return normalizePickStacks(session.pick_two_stack ?? 0, session.pick_five_stack ?? 0)
+}
+
+export type WhotPickPenalty = 'pick2' | 'pick3'
+
+export function getActivePickPenalty(session: WhotSession): {
+  type: WhotPickPenalty | null
+  count: number
+} {
+  const { pickTwo, pickFive } = getNormalizedPickStacks(session)
+  if (pickTwo > 0) return { type: 'pick2', count: pickTwo }
+  if (pickFive > 0) return { type: 'pick3', count: pickFive }
+  return { type: null, count: 0 }
 }
 
 /** How many cards to draw — full penalty when Pick 2 / Pick 3 is active, otherwise 1. */
 export function pickPenaltyDrawCount(session: WhotSession): number {
-  const { pickTwo, pickFive } = normalizePickStacks(
-    session.pick_two_stack ?? 0,
-    session.pick_five_stack ?? 0
-  )
+  const { pickTwo, pickFive } = getNormalizedPickStacks(session)
   if (pickTwo > 0) return pickTwo
   if (pickFive > 0) return pickFive
   return 1
@@ -231,30 +247,29 @@ export function pickPenaltyDrawCount(session: WhotSession): number {
  * - Other cards never change an active penalty (only draw clears it)
  */
 export function applyPickStacksAfterPlay(
-  cardNumber: number,
+  cardNumberRaw: number,
   pickTwo: number,
   pickFive: number
 ): { pickTwo: number; pickFive: number } {
+  const cardNumber = Number(cardNumberRaw)
   const current = normalizePickStacks(pickTwo, pickFive)
 
   if (cardNumber === 2) {
-    return normalizePickStacks(current.pickTwo > 0 ? current.pickTwo + 2 : 2, 0)
+    return { pickTwo: current.pickTwo > 0 ? current.pickTwo + 2 : 2, pickFive: 0 }
   }
   if (cardNumber === 5) {
-    return normalizePickStacks(0, current.pickFive > 0 ? current.pickFive + 3 : 3)
+    return { pickTwo: 0, pickFive: current.pickFive > 0 ? current.pickFive + 3 : 3 }
   }
   return current
 }
 
 export function pickStackPlayError(card: WhotCard, session: WhotSession): string | null {
-  const { pickTwo, pickFive } = normalizePickStacks(
-    session.pick_two_stack ?? 0,
-    session.pick_five_stack ?? 0
-  )
-  if (pickTwo > 0 && card.number !== 2) {
+  const cardNumber = Number(card.number)
+  const { pickTwo, pickFive } = getNormalizedPickStacks(session)
+  if (pickTwo > 0 && cardNumber !== 2) {
     return 'Pick 2 active — play a 2 or draw the penalty'
   }
-  if (pickFive > 0 && card.number !== 5) {
+  if (pickFive > 0 && cardNumber !== 5) {
     return 'Pick 3 active — play a 5 or draw the penalty'
   }
   return null
@@ -745,8 +760,8 @@ export async function processWhotPlay(
     session.pick_two_stack ?? 0,
     session.pick_five_stack ?? 0
   )
-  let pickTwo = stacks.pickTwo
-  let pickFive = stacks.pickFive
+  const pickTwo = stacks.pickTwo
+  const pickFive = stacks.pickFive
 
   if (card.number === 20) {
     const whotStatus = `${playerName(playerNames, playerId)} played WHOT — choose shape or number`
@@ -811,7 +826,7 @@ export async function processWhotPlay(
     status = `${special}. ${status}`
   }
   if (pickTwo > 0) status = `Pick 2 active (${pickTwo} cards). ${status}`
-  if (pickFive > 0) status = `Pick 3 active (${pickFive} cards). ${status}`
+  else if (pickFive > 0) status = `Pick 3 active (${pickFive} cards). ${status}`
 
   await persistSession(
     supabase,
@@ -863,10 +878,7 @@ export async function processWhotDraw(
 
   let drawPile = (session.draw_pile as WhotCard[]) ?? []
   let discardPile = (session.discard_pile as WhotCard[]) ?? []
-  const { pickTwo, pickFive } = normalizePickStacks(
-    session.pick_two_stack ?? 0,
-    session.pick_five_stack ?? 0
-  )
+  const { pickTwo, pickFive } = getNormalizedPickStacks(session)
   const drawCount = pickPenaltyDrawCount(session)
 
   const { drawn, drawPile: nextDrawPile, discardPile: nextDiscardPile, reshuffled } = drawCardsWithRefill(
@@ -984,11 +996,10 @@ export async function processWhotChoose(
 
   const pickTwo = session.pick_two_stack ?? 0
   const pickFive = session.pick_five_stack ?? 0
-  let status = `${playerName(playerNames, nextPlayerId)}'s turn — ${requirement}`
-  if (pickTwo > 0) status = `Pick 2 active (${pickTwo} cards). ${status}`
-  if (pickFive > 0) status = `Pick 3 active (${pickFive} cards). ${status}`
-
   const stacks = normalizePickStacks(pickTwo, pickFive)
+  let status = `${playerName(playerNames, nextPlayerId)}'s turn — ${requirement}`
+  if (stacks.pickTwo > 0) status = `Pick 2 active (${stacks.pickTwo} cards). ${status}`
+  else if (stacks.pickFive > 0) status = `Pick 3 active (${stacks.pickFive} cards). ${status}`
 
   await persistSession(
     supabase,

@@ -5,6 +5,7 @@ import {
   WHOT_SHAPE_EMOJI,
   WHOT_SHAPE_LABELS,
   canPlayCard,
+  getActivePickPenalty,
   isWhotPlayerOut,
   specialCardShortLabel,
 } from '@/lib/whot'
@@ -102,6 +103,7 @@ export function WhotTable({
 
   const activePlayers = players.filter((p) => !isWhotPlayerOut(handCounts[p.id] ?? 0, p.spectator))
   const watchingPlayers = players.filter((p) => isWhotPlayerOut(handCounts[p.id] ?? 0, p.spectator))
+  const pickPenalty = getActivePickPenalty(session)
 
   function renderPlayerRow(p: { id: string; name: string; spectator?: boolean | null }, watching: boolean) {
     const count = handCounts[p.id] ?? 0
@@ -159,11 +161,11 @@ export function WhotTable({
           Draw pile: {drawCount}
           {drawCount === 0 && discardCount > 0 ? ' (reshuffles from played cards)' : ''}
         </span>
-        {(session.pick_two_stack ?? 0) > 0 && (
-          <span className="font-bold text-orange-400">Pick 2 ×{session.pick_two_stack}</span>
+        {pickPenalty.type === 'pick2' && (
+          <span className="font-bold text-orange-400">Pick 2 — draw {pickPenalty.count}</span>
         )}
-        {(session.pick_five_stack ?? 0) > 0 && (
-          <span className="font-bold text-red-400">Pick 3 ×{session.pick_five_stack}</span>
+        {pickPenalty.type === 'pick3' && (
+          <span className="font-bold text-red-400">Pick 3 — draw {pickPenalty.count}</span>
         )}
       </div>
 

@@ -13,7 +13,7 @@ import { WhotChoosePanel, WhotHand, WhotTable } from '@/components/whot/WhotBoar
 import { WhotGameTimerBar } from '@/components/whot/WhotGameTimerBar'
 import { WhotFinalResultsShareBlock } from '@/components/whot/WhotFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentPlayerId, hasActiveWhotCall, hasPlayableCard, isDrawPileDepleted } from '@/lib/whot'
+import { currentPlayerId, getActivePickPenalty, hasActiveWhotCall, hasPlayableCard, isDrawPileDepleted } from '@/lib/whot'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, WHOT_PLAYER_HANDS_SELECT, WHOT_SESSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -227,6 +227,7 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const drawDepleted = session ? isDrawPileDepleted(session) : false
   const myCanPlay = session ? hasPlayableCard(myHand, session) : false
   const whotCallActive = session ? hasActiveWhotCall(session) : false
+  const pickPenalty = session ? getActivePickPenalty(session) : { type: null, count: 0 }
 
   if (screen === 'loading') return <WhotLoadingScreen />
 
@@ -404,9 +405,9 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
                 ? 'Draw pile empty — play a highlighted card.'
                 : drawDepleted && !myCanPlay
                   ? 'Draw pile empty — pass your turn if you cannot play.'
-                  : (session.pick_two_stack ?? 0) > 0
+                  : pickPenalty.type === 'pick2'
                     ? 'Pick 2 active — play a 2 or draw the penalty.'
-                    : (session.pick_five_stack ?? 0) > 0
+                    : pickPenalty.type === 'pick3'
                       ? 'Pick 3 active — play a 5 or draw the penalty.'
                       : whotCallActive
                         ? 'Match the WHOT call, play WHOT to override it, or draw from the pile.'
@@ -426,10 +427,10 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
             >
               {drawDepleted
                 ? 'Pass turn'
-                : (session.pick_two_stack ?? 0) > 0
-                  ? `Draw ${session.pick_two_stack} (Pick 2)`
-                  : (session.pick_five_stack ?? 0) > 0
-                    ? `Draw ${session.pick_five_stack} (Pick 3)`
+                : pickPenalty.type === 'pick2'
+                  ? `Draw ${pickPenalty.count} (Pick 2)`
+                  : pickPenalty.type === 'pick3'
+                    ? `Draw ${pickPenalty.count} (Pick 3)`
                     : 'Draw 1 card'}
             </WhotPrimaryButton>
           )}

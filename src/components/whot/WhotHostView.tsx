@@ -7,6 +7,7 @@ import {
   currentPlayerId,
   getWhotHostMode,
   hasPlayableCard,
+  getActivePickPenalty,
   isDrawPileDepleted,
   setWhotHostMode,
   WHOT_MIN_PLAYERS,
@@ -266,6 +267,7 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
   const drawDepleted = session ? isDrawPileDepleted(session) : false
   const hostCanPlay = session ? hasPlayableCard(myHand, session) : false
+  const pickPenalty = session ? getActivePickPenalty(session) : { type: null, count: 0 }
 
   if (!game) {
     return (
@@ -390,10 +392,10 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
                   >
                     {drawDepleted
                       ? 'Pass turn'
-                      : (session.pick_two_stack ?? 0) > 0
-                        ? `Draw ${session.pick_two_stack} (Pick 2)`
-                        : (session.pick_five_stack ?? 0) > 0
-                          ? `Draw ${session.pick_five_stack} (Pick 3)`
+                      : pickPenalty.type === 'pick2'
+                        ? `Draw ${pickPenalty.count} (Pick 2)`
+                        : pickPenalty.type === 'pick3'
+                          ? `Draw ${pickPenalty.count} (Pick 3)`
                           : 'Draw 1 card'}
                   </WhotPrimaryButton>
                 )}
