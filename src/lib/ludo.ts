@@ -365,6 +365,13 @@ export async function clearLudoSessionData(
   const { error: statesError } = await supabase.from('ludo_player_state').delete().eq('game_id', gameId)
   if (statesError) return { error: statesError.message }
 
+  const { error: spectatorError } = await supabase
+    .from('players')
+    .update({ spectator: false })
+    .eq('game_id', gameId)
+    .eq('spectator', true)
+  if (spectatorError) return { error: spectatorError.message }
+
   return {}
 }
 

@@ -973,6 +973,12 @@ export async function clearMonopolySessionData(
     const { error } = await supabase.from(table).delete().eq('game_id', gameId)
     if (error) return { error: error.message }
   }
+  const { error: spectatorError } = await supabase
+    .from('players')
+    .update({ spectator: false })
+    .eq('game_id', gameId)
+    .eq('spectator', true)
+  if (spectatorError) return { error: spectatorError.message }
   return { error: null }
 }
 

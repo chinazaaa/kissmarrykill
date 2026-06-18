@@ -266,6 +266,13 @@ export async function clearYahtzeeSessionData(
   const { error: scoresError } = await supabase.from('yahtzee_player_scores').delete().eq('game_id', gameId)
   if (scoresError) return { error: scoresError.message }
 
+  const { error: spectatorError } = await supabase
+    .from('players')
+    .update({ spectator: false })
+    .eq('game_id', gameId)
+    .eq('spectator', true)
+  if (spectatorError) return { error: spectatorError.message }
+
   return {}
 }
 
