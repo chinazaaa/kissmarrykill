@@ -1,0 +1,102 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
+import { useCodewordsChat } from '@/hooks/useCodewordsChat'
+import type { CodewordsTeam, Player } from '@/types'
+import { useToast } from '@/components/ui/Toast'
+
+export function CodewordsTeamChat({
+  gameCode,
+  playerId,
+  team,
+  players,
+  enabled,
+}: {
+  gameCode: string
+  playerId: string
+  team: CodewordsTeam
+  players: Player[]
+  enabled: boolean
+}) {
+  const { error: toastError } = useToast()
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const feedRef = useRef<HTMLDivElement>(null)
+  const { messages, loading } = useCodewordsChat(gameCode, team, enabled, players)
+
+  useEffect(() => {
+    const feed = feedRef.current
+    if (!feed) return
+    feed.scrollTop = feed.scrollHeight
+  }, [messages])
+
+  const sendMessage = async () => {
+    const text = draft.trim()
+    if (!text || sending) return
+    setSending(true)
+    try {
+      const res = await fetch('/api/codewords/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId, text }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to send message')
+      setDraft('')
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to send message')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="glass-card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="label-caps">Team chat</p>
+        <CodewordsTeamBadge team={team} />
+      </div>
+      <p className="text-faint text-xs leading-relaxed">Only your team&apos;s operatives can see this chat.</p>
+
+      <div
+        ref={feedRef}
+        className="max-h-48 overflow-y-auto rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] p-3 space-y-2"
+      >
+        {loading ? (
+          <p className="text-faint text-xs text-center py-4">Loading chat…</p>
+        ) : messages.length === 0 ? (
+          <p className="text-faint text-xs text-center py-4">Coordinate with your operatives here.</p>
+        ) : (
+          messages.map((message) => (
+            <div key={message.id} className="text-sm leading-snug">
+              <span className="font-semibold text-[var(--foreground)]">{message.player_name}</span>
+              <span className="text-muted">: </span>
+              <span className="text-body-muted">{message.text}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              void sendMessage()
+            }
+          }}
+          placeholder="Message your team…"
+          maxLength={200}
+          className="input-field flex-1 min-w-0"
+        />
+        <button type="button" onClick={() => void sendMessage()} disabled={sending || !draft.trim()} className="btn-primary shrink-0">
+          {sending ? '…' : 'Send'}
+        </button>
+      </div>
+    </div>
+  )
+}

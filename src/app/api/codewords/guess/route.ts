@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { codewordsGuessSchema } from '@/lib/validation'
 import { parseGameType, isCodewordsGame } from '@/lib/game-types'
-import { cluePhaseUpdate, effectiveTurnPhase, otherTeam, teamWon } from '@/lib/codewords'
-import { markGameFinished } from '@/lib/game-finish'
+import { cluePhaseUpdate, effectiveTurnPhase, finishCodewordsGame, otherTeam, teamWon } from '@/lib/codewords'
 import type { CodewordsBoard, CodewordsCellType, CodewordsTeam } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -120,7 +119,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (gameStatus === 'finished') {
-    await markGameFinished(supabase, code)
+    await finishCodewordsGame(supabase, code)
   }
 
   return NextResponse.json({ success: true, board: updated, cellType })

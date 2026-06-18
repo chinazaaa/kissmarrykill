@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { markGameFinished } from '@/lib/game-finish'
 import { CODEWORDS_WORD_POOL } from '@/lib/codewords-words'
 import type {
   CodewordsBoard,
@@ -513,11 +514,33 @@ export function setCodewordsHostMode(gameCode: string, mode: CodewordsHostMode) 
   localStorage.setItem(codewordsHostModeKey(gameCode), mode)
 }
 
+export async function clearCodewordsChat(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('codewords_messages').delete().eq('game_id', gameId)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+export async function finishCodewordsGame(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  const { error: gameError } = await markGameFinished(supabase, gameId)
+  if (gameError) return { error: gameError.message }
+
+  const { error: chatError } = await clearCodewordsChat(supabase, gameId)
+  if (chatError) return { error: chatError }
+
+  return { error: null }
+}
+
 export async function clearCodewordsRoundData(
   supabase: SupabaseClient,
   gameId: string
 ): Promise<{ error: string | null }> {
-  const tables = ['codewords_guesses', 'codewords_boards'] as const
+  const tables = ['codewords_messages', 'codewords_guesses', 'codewords_boards'] as const
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('game_id', gameId)
     if (error) return { error: error.message }

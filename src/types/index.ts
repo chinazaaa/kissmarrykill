@@ -94,6 +94,16 @@ export interface CodewordsGuess {
   team: CodewordsTeam
   created_at: string
 }
+
+export interface CodewordsMessage {
+  id: string
+  game_id: string
+  player_id: string
+  team: CodewordsTeam
+  text: string
+  created_at: string
+  player_name?: string
+}
 export type ThemeId = 'default' | 'neon' | 'retro' | 'elegant' | 'tropical'
 export type WyrChoice = 'a' | 'b'
 

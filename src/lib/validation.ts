@@ -648,6 +648,12 @@ export const codewordsEndTurnSchema = z.object({
   playerId: uuidString('playerId'),
 })
 
+export const codewordsChatSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  text: sanitizedString(1, 200),
+})
+
 // ---------------------------------------------------------------------------
 // Quote (POST /api/quote)
 // ---------------------------------------------------------------------------

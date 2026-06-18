@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords/CodewordsGuessLog'
+import { CodewordsTeamChat } from '@/components/codewords/CodewordsTeamChat'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsScoreboard, CodewordsTimerBar } from '@/components/codewords/CodewordsScoreboard'
 import {
@@ -283,6 +284,15 @@ export function CodewordsActiveRound({
           )}
           {!gameOver && (
             <>
+              {isOperative && (
+                <CodewordsTeamChat
+                  gameCode={gameCode}
+                  playerId={myPlayerId}
+                  team={myTeam}
+                  players={players}
+                  enabled={active}
+                />
+              )}
               <CodewordsGuessSummary guesses={guesses} players={players} />
               <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
             </>

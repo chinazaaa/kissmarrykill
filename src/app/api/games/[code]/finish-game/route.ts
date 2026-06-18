@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { finishMonopolyGameEarly } from '@/lib/monopoly'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
+import { finishCodewordsGame } from '@/lib/codewords'
 import { markGameFinished } from '@/lib/game-finish'
 import { parseGameType, isAnonymousMessagesGame, isSecretMessageGame, isBingoGame, isCodewordsGame, isMonopolyGame, isYahtzeeGame, isWhotGame, isLudoGame } from '@/lib/game-types'
 import { hostActionSchema } from '@/lib/validation'
@@ -43,8 +44,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isCodewordsGame(parseGameType(game.game_type))) {
-    const { error } = await markGameFinished(supabase, gameId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const { error } = await finishCodewordsGame(supabase, gameId)
+    if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 

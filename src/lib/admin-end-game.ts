@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
+import { finishCodewordsGame } from '@/lib/codewords'
 import { markGameFinished } from '@/lib/game-finish'
-import { isAnonymousMessagesGame, isSecretMessageGame, parseGameType } from '@/lib/game-types'
+import { isAnonymousMessagesGame, isCodewordsGame, isSecretMessageGame, parseGameType } from '@/lib/game-types'
 
 export type AdminGameToEnd = {
   id: string
@@ -40,6 +41,9 @@ export async function adminEndGame(
   }
   if (isSecretMessageGame(gameType)) {
     return finishSecretMessageBoard(supabase, gameId)
+  }
+  if (isCodewordsGame(gameType)) {
+    return finishCodewordsGame(supabase, gameId)
   }
 
   const { error } = await markGameFinished(supabase, gameId, now)
