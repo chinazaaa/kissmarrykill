@@ -624,17 +624,19 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
         'If you cannot play, draw from the pile — or draw the full Pick 2 / Pick 3 penalty when those stacks are active.',
         'When the draw pile runs out, played cards (except the current top card) are shuffled back in as a new draw pile.',
         'If no cards can be drawn and nobody can play, the game ends — lowest hand total wins.',
-        'WHOT (20) can always be played — even during Pick 2 or Pick 3. The penalty stays on the next player.',
+        'WHOT (20) can be played anytime except during Pick 2 or Pick 3 — then you must play the matching number or draw.',
+        'If an opponent played WHOT and called a shape or number, you can match that call or play your own WHOT to override it and call something new.',
       ],
     },
     {
       title: 'Special cards',
       points: [
         '1 — Hold On: take another turn immediately.',
-        '2 — Pick 2: next player must play another 2, play WHOT, or draw the full stack (stacks +2 if they play a 2).',
-        '5 — Pick 3: next player must play another 5, play WHOT, or draw the full stack (stacks +3 if they play a 5). Pick 2 and Pick 3 cannot be mixed — only one penalty applies at a time.',
+        '2 — Pick 2: next player must play another 2 or draw the full stack (stacks +2 if they play a 2).',
+        '5 — Pick 3: next player must play another 5 or draw the full stack (stacks +3 if they play a 5). Pick 2 and Pick 3 cannot be mixed — only one penalty applies at a time.',
         '8 — Suspension: skip the next player.',
-        '14 — General Market: every other player draws 1 card.',
+        '14 — General Market: every other player automatically draws 1 card (no button tap needed).',
+        '20 — WHOT: call the next shape or number. Can override another player\'s WHOT call, but not Pick 2 or Pick 3.',
       ],
     },
     {

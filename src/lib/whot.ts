@@ -153,7 +153,7 @@ export function specialCardMessage(number: number): string | null {
     case 8:
       return 'Suspension — skip the next player'
     case 14:
-      return 'General Market — everyone else draws 1'
+      return 'General Market — all other players drew 1 card'
     case 20:
       return 'WHOT — choose a shape or number to match'
     default:
@@ -178,11 +178,16 @@ export function specialCardShortLabel(number: number): string | null {
   }
 }
 
-export function canPlayCard(card: WhotCard, session: WhotSession): boolean {
-  if (card.number === 20) return true
+export function hasActiveWhotCall(session: WhotSession): boolean {
+  return session.required_shape != null || session.required_number != null
+}
 
+export function canPlayCard(card: WhotCard, session: WhotSession): boolean {
   if ((session.pick_two_stack ?? 0) > 0) return card.number === 2
   if ((session.pick_five_stack ?? 0) > 0) return card.number === 5
+
+  // WHOT beats an opponent's WHOT call (required shape/number) or any normal match rule.
+  if (card.number === 20) return true
 
   if (session.required_shape) {
     return card.shape === session.required_shape
@@ -223,7 +228,6 @@ export function pickPenaltyDrawCount(session: WhotSession): number {
  * Pick stacks after playing a card.
  * - 2 stacks/adds Pick 2 and clears any Pick 3
  * - 5 stacks/adds Pick 3 and clears any Pick 2
- * - WHOT preserves the active penalty for the next player
  * - Other cards never change an active penalty (only draw clears it)
  */
 export function applyPickStacksAfterPlay(
@@ -239,9 +243,6 @@ export function applyPickStacksAfterPlay(
   if (cardNumber === 5) {
     return normalizePickStacks(0, current.pickFive > 0 ? current.pickFive + 3 : 3)
   }
-  if (cardNumber === 20) {
-    return current
-  }
   return current
 }
 
@@ -250,11 +251,11 @@ export function pickStackPlayError(card: WhotCard, session: WhotSession): string
     session.pick_two_stack ?? 0,
     session.pick_five_stack ?? 0
   )
-  if (pickTwo > 0 && card.number !== 2 && card.number !== 20) {
-    return 'Pick 2 active — play a 2, WHOT, or draw the penalty'
+  if (pickTwo > 0 && card.number !== 2) {
+    return 'Pick 2 active — play a 2 or draw the penalty'
   }
-  if (pickFive > 0 && card.number !== 5 && card.number !== 20) {
-    return 'Pick 3 active — play a 5, WHOT, or draw the penalty'
+  if (pickFive > 0 && card.number !== 5) {
+    return 'Pick 3 active — play a 5 or draw the penalty'
   }
   return null
 }
@@ -748,9 +749,7 @@ export async function processWhotPlay(
   let pickFive = stacks.pickFive
 
   if (card.number === 20) {
-    let whotStatus = `${playerName(playerNames, playerId)} played WHOT — choose shape or number`
-    if (pickTwo > 0) whotStatus = `Pick 2 active (${pickTwo} cards). ${whotStatus}`
-    if (pickFive > 0) whotStatus = `Pick 3 active (${pickFive} cards). ${whotStatus}`
+    const whotStatus = `${playerName(playerNames, playerId)} played WHOT — choose shape or number`
 
     await persistSession(
       supabase,

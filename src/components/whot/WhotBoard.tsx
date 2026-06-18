@@ -169,12 +169,12 @@ export function WhotTable({
 
       {session.required_shape && (
         <p className="text-center text-sm font-bold text-[var(--primary)]">
-          Must match: {WHOT_SHAPE_LABELS[session.required_shape]}
+          Must match: {WHOT_SHAPE_LABELS[session.required_shape]} — or play WHOT to call something new
         </p>
       )}
       {session.required_number != null && (
         <p className="text-center text-sm font-bold text-[var(--primary)]">
-          Must match: number {session.required_number}
+          Must match: number {session.required_number} — or play WHOT to call something new
         </p>
       )}
 

@@ -15,11 +15,13 @@ export function useWhotNotifications({
   game,
   session,
   myPlayerId,
+  myHandCount = 0,
   enabled = true,
 }: {
   game: Game | null
   session: WhotSession | null
   myPlayerId: string | null | undefined
+  myHandCount?: number
   enabled?: boolean
 }) {
   const { info } = useToast()
@@ -27,6 +29,7 @@ export function useWhotNotifications({
   const prevTurnIndexRef = useRef<number | null>(null)
   const prevStatusRef = useRef<string | null>(null)
   const prevPhaseRef = useRef<string | null>(null)
+  const prevHandCountRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!enabled || !game) return
@@ -36,13 +39,25 @@ export function useWhotNotifications({
       prevTurnIndexRef.current = session?.current_turn_index ?? null
       prevStatusRef.current = game.status
       prevPhaseRef.current = session?.phase ?? null
+      prevHandCountRef.current = myHandCount
       return
     }
 
     const prevStatus = prevStatusRef.current
     const prevTurnIndex = prevTurnIndexRef.current
     const prevPhase = prevPhaseRef.current
+    const prevHandCount = prevHandCountRef.current
     const currentTurnIndex = session?.current_turn_index ?? null
+
+    if (
+      prevHandCount !== null &&
+      myHandCount > prevHandCount &&
+      session?.status_message?.includes('General Market')
+    ) {
+      const gained = myHandCount - prevHandCount
+      info(`General Market — you drew ${gained} card${gained === 1 ? '' : 's'} 🛒`)
+      playVoteSubmittedSound()
+    }
 
     if (prevStatus === 'waiting' && game.status === 'active') {
       info('Game started! 🃏')
@@ -77,7 +92,8 @@ export function useWhotNotifications({
     prevTurnIndexRef.current = currentTurnIndex
     prevStatusRef.current = game.status
     prevPhaseRef.current = session?.phase ?? null
-  }, [enabled, game, info, myPlayerId, session])
+    prevHandCountRef.current = myHandCount
+  }, [enabled, game, info, myHandCount, myPlayerId, session])
 }
 
 export { playVoteSubmittedSound as playWhotActionSound }

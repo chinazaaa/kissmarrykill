@@ -235,10 +235,16 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     game?.status === 'active'
   )
 
+  const myHand = useMemo(() => {
+    const row = hands.find((h) => h.player_id === hostPlayerId)
+    return row?.cards ?? []
+  }, [hands, hostPlayerId])
+
   useWhotNotifications({
     game,
     session,
     myPlayerId: hostPlayerId,
+    myHandCount: myHand.length,
     enabled: hostPlays && game?.status === 'active',
   })
 
@@ -249,11 +255,6 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     hasTimer,
     urgent,
   }
-
-  const myHand = useMemo(() => {
-    const row = hands.find((h) => h.player_id === hostPlayerId)
-    return row?.cards ?? []
-  }, [hands, hostPlayerId])
 
   const handCounts = useMemo(() => {
     const counts: Record<string, number> = {}
