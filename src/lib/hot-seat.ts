@@ -112,9 +112,15 @@ export function buildHotSeatSequence(
 
   const picked: Player[] = []
   const pickedIds = new Set<string>()
+  let lastPickedId: string | null = null
 
   while (picked.length < roundCount) {
-    const remaining = players.filter((p) => !pickedIds.has(p.id) || picked.length >= players.length)
+    const avoidBackToBack = picked.length > 0 && pickedIds.size === 0
+    const remaining = players.filter((p) => {
+      if (pickedIds.has(p.id)) return false
+      if (avoidBackToBack && players.length > 1 && p.id === lastPickedId) return false
+      return true
+    })
     if (remaining.length === 0) break
 
     let minCount = Infinity
@@ -136,6 +142,7 @@ export function buildHotSeatSequence(
     const next = tier[0]
     if (!next) break
     picked.push(next)
+    lastPickedId = next.id
     if (picked.length % players.length === 0) pickedIds.clear()
     else pickedIds.add(next.id)
   }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { InviteLinkActions } from '@/components/InviteLinkActions'
-import { playerResumeUrl } from '@/lib/site'
+import { playerResumeUrl, playerGameUrl, shareOrigin } from '@/lib/site'
 import { getPlayerSession } from '@/lib/utils'
 
 export function PlayerResumeCard({
@@ -21,7 +21,7 @@ export function PlayerResumeCard({
 
   if (!resumeToken) return null
 
-  const url = playerResumeUrl(gameCode, resumeToken)
+  const url = playerResumeUrl(gameCode, resumeToken, shareOrigin())
 
   if (compact) {
     return (

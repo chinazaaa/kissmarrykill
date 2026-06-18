@@ -17,20 +17,28 @@ export function appOrigin(): string {
   return `https://${raw.replace(/\/$/, '')}`
 }
 
-export function playerGameUrl(gameCode: string): string {
-  return `${appOrigin()}/game/${gameCode.trim().toUpperCase()}`
+/** Prefer the live browser origin when sharing links so localStorage matches on the same device. */
+export function shareOrigin(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
+  }
+  return appOrigin()
 }
 
-export function playerResumeUrl(gameCode: string, resumeToken: string): string {
+export function playerGameUrl(gameCode: string, origin: string = appOrigin()): string {
+  return `${origin.replace(/\/$/, '')}/game/${gameCode.trim().toUpperCase()}`
+}
+
+export function playerResumeUrl(gameCode: string, resumeToken: string, origin: string = appOrigin()): string {
   const code = gameCode.trim().toUpperCase()
   const token = resumeToken.trim().toUpperCase()
-  return `${playerGameUrl(code)}?player=${encodeURIComponent(token)}`
+  return `${playerGameUrl(code, origin)}?player=${encodeURIComponent(token)}`
 }
 
-export function hostGameUrl(gameCode: string, hostToken: string): string {
+export function hostGameUrl(gameCode: string, hostToken: string, origin: string = appOrigin()): string {
   const code = gameCode.trim().toUpperCase()
   const token = hostToken.trim()
-  return `${appOrigin()}/host/${code}?token=${encodeURIComponent(token)}`
+  return `${origin.replace(/\/$/, '')}/host/${code}?token=${encodeURIComponent(token)}`
 }
 
 /** PayPal / Ko-fi / Buy Me a Coffee link. Override with NEXT_PUBLIC_SUPPORT_URL. */

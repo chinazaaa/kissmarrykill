@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { GameLinkQrModal } from '@/components/GameLinkQrModal'
 import { copyToClipboard } from '@/lib/copy'
-import { playerGameUrl } from '@/lib/site'
+import { playerGameUrl, shareOrigin } from '@/lib/site'
 import { useToast } from '@/components/ui/Toast'
 
 type Props = {
@@ -16,7 +16,7 @@ export function ShareGameLinkButton({ gameCode, className = '', qrLabel = 'QR' }
   const toast = useToast()
   const [copied, setCopied] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
-  const url = playerGameUrl(gameCode)
+  const url = playerGameUrl(gameCode, shareOrigin())
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(url)

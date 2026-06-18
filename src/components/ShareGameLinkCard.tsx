@@ -2,7 +2,7 @@
 
 import { PlayerInviteCard } from '@/components/PlayerInviteCard'
 import { PlayerResumeEntry } from '@/components/PlayerResumeEntry'
-import { playerGameUrl } from '@/lib/site'
+import { playerGameUrl, shareOrigin } from '@/lib/site'
 
 type Props = {
   gameCode: string
@@ -11,7 +11,7 @@ type Props = {
 }
 
 export function ShareGameLinkCard({ gameCode, className = '', onResumed }: Props) {
-  const url = playerGameUrl(gameCode)
+  const url = playerGameUrl(gameCode, shareOrigin())
   const handleResumed = onResumed ?? (() => window.location.reload())
 
   return (

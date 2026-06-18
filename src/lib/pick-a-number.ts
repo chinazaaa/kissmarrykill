@@ -25,6 +25,32 @@ export function pickANumberQuestionAt(pool: string[], number: number): string | 
   return question ? question : null
 }
 
+/** Numbers already locked in by earlier rounds (excludes the active round). */
+export function panUsedNumbersFromVotes(
+  votes: Array<{ picked_number?: number | null; round_id?: string | null }>,
+  currentRoundId?: string | null
+): Set<number> {
+  const used = new Set<number>()
+  for (const vote of votes) {
+    if (currentRoundId && vote.round_id === currentRoundId) continue
+    if (typeof vote.picked_number === 'number' && Number.isInteger(vote.picked_number)) {
+      used.add(vote.picked_number)
+    }
+  }
+  return used
+}
+
+export function panAvailableNumbers(poolSize: number, used: Iterable<number>): number[] {
+  const usedSet = used instanceof Set ? used : new Set(used)
+  return Array.from({ length: poolSize }, (_, i) => i + 1).filter((n) => !usedSet.has(n))
+}
+
+export function panPickRandomAvailable(poolSize: number, used: Iterable<number>): number | null {
+  const available = panAvailableNumbers(poolSize, used)
+  if (available.length === 0) return null
+  return available[Math.floor(Math.random() * available.length)] ?? null
+}
+
 export function panRoundRevealed(round: Pick<Round, 'mlt_question'> | null | undefined): boolean {
   return !!round?.mlt_question?.trim()
 }

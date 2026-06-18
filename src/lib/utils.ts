@@ -353,11 +353,13 @@ export function setPlayerSession(
     `kmk_player_${gameCode.toUpperCase()}`,
     JSON.stringify({ playerId, playerName, playerGender, resumeToken: token })
   )
+  window.dispatchEvent(new CustomEvent('kmk-player-session', { detail: { gameCode: gameCode.toUpperCase() } }))
 }
 
 export function clearPlayerSession(gameCode: string): void {
   if (typeof window === 'undefined') return
   localStorage.removeItem(`kmk_player_${gameCode.toUpperCase()}`)
+  window.dispatchEvent(new CustomEvent('kmk-player-session', { detail: { gameCode: gameCode.toUpperCase() } }))
 }
 
 export function getInitial(name: string): string {
