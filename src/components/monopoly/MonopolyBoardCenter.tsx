@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { MonopolyDiceRoll, MonopolyYourTokenChip } from '@/components/monopoly/MonopolyBoard'
+import { MonopolyJailCardInventory } from '@/components/monopoly/MonopolyChrome'
 import { useMonopolyDeadlineTimer } from '@/hooks/useMonopolyModalTimer'
 import { computeRent, parseBuildings, parseMortgaged } from '@/lib/monopoly-rent'
 import {
@@ -216,6 +217,11 @@ export function MonopolyBoardCenter({
           >
             {formatMonopolyMoney(myState.cash)}
           </p>
+          {(myState.get_out_of_jail_free ?? 0) > 0 && (
+            <div className="mt-1 flex justify-center">
+              <MonopolyJailCardInventory count={myState.get_out_of_jail_free} compact />
+            </div>
+          )}
         </div>
       )}
 

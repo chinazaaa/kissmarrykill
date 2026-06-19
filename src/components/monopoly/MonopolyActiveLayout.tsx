@@ -276,6 +276,7 @@ export function MonopolyActiveLayout({
                 board={board}
                 myPlayerId={myPlayerId}
                 myState={myState}
+                states={states}
                 players={players}
                 acting={acting}
                 postAction={postAction}

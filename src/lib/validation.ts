@@ -531,6 +531,7 @@ export const monopolyTradeProposeSchema = monopolyActionSchema.extend({
   offerGetOutCards: z.number().int().min(0).max(2).default(0),
   requestCash: z.number().int().min(0).default(0),
   requestProperties: monopolyTradePropertyListSchema.default([]),
+  requestGetOutCards: z.number().int().min(0).max(2).default(0),
 })
 
 export const monopolyTradeRespondSchema = monopolyActionSchema.extend({

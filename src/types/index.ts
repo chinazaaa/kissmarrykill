@@ -219,6 +219,7 @@ export interface MonopolyPendingTrade {
   offer_get_out_cards: number
   request_cash: number
   request_properties: number[]
+  request_get_out_cards?: number
 }
 
 export interface MonopolyLastRentEvent {

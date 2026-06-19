@@ -65,8 +65,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { playerId, toPlayerId, offerCash, offerProperties, offerGetOutCards, requestCash, requestProperties } =
-    parsed.data
+  const {
+    playerId,
+    toPlayerId,
+    offerCash,
+    offerProperties,
+    offerGetOutCards,
+    requestCash,
+    requestProperties,
+    requestGetOutCards,
+  } = parsed.data
   const { error } = await processMonopolyTradePropose(supabase, code, playerId, toPlayerId, {
     cash: offerCash,
     properties: offerProperties,
@@ -74,6 +82,7 @@ export async function POST(req: NextRequest) {
   }, {
     cash: requestCash,
     properties: requestProperties,
+    getOutCards: requestGetOutCards,
   })
   if (error) return NextResponse.json({ error }, { status: 400 })
 

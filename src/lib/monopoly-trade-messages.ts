@@ -42,6 +42,8 @@ export function normalizePendingTrade(trade: MonopolyPendingTrade): MonopolyPend
     ...trade,
     offer_properties: normalizeTradePropertyList(trade.offer_properties),
     request_properties: normalizeTradePropertyList(trade.request_properties),
+    offer_get_out_cards: trade.offer_get_out_cards ?? 0,
+    request_get_out_cards: trade.request_get_out_cards ?? 0,
   }
 }
 
@@ -88,7 +90,11 @@ export function formatIncomingTradeAlert(trade: MonopolyPendingTrade, fromName: 
     normalized.offer_properties,
     normalized.offer_get_out_cards
   )
-  const payCount = sideItemCount(normalized.request_cash, normalized.request_properties)
+  const payCount = sideItemCount(
+    normalized.request_cash,
+    normalized.request_properties,
+    normalized.request_get_out_cards
+  )
 
   const receiveSummary = formatTradeSideText(
     normalized.offer_cash,
@@ -96,7 +102,13 @@ export function formatIncomingTradeAlert(trade: MonopolyPendingTrade, fromName: 
     normalized.offer_get_out_cards
   )
   const paySummary =
-    payCount > 0 ? formatTradeSideText(normalized.request_cash, normalized.request_properties) : null
+    payCount > 0
+      ? formatTradeSideText(
+          normalized.request_cash,
+          normalized.request_properties,
+          normalized.request_get_out_cards
+        )
+      : null
 
   let message = `${fromName} offers ${receiveSummary}`
   if (paySummary && paySummary !== 'Nothing') {
