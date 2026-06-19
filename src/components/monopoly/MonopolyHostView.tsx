@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   MonopolyClassicBoard,
@@ -37,7 +37,7 @@ import {
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
-import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { clearPlayerSession, getPlayerSession, isFetchNetworkError, messageFromFetchActionError, setPlayerSession } from '@/lib/utils'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
@@ -71,6 +71,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
   const [hostJoinToken, setHostJoinToken] = useState<MonopolyTokenId | null>(null)
   const [hostJoining, setHostJoining] = useState(false)
   const [hostActing, setHostActing] = useState(false)
+  const hostActingRef = useRef(false)
   const [tab, setTab] = useState<HostTab>('manage')
 
   useApplyGameTheme(game?.theme)
@@ -185,7 +186,8 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
   }
 
   const postHostAction = async (url: string, body: Record<string, unknown> = {}) => {
-    if (!hostPlayerId || hostActing) return
+    if (!hostPlayerId || hostActingRef.current) return
+    hostActingRef.current = true
     setHostActing(true)
     try {
       const res = await fetch(url, {
@@ -193,12 +195,19 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameId: gameCode, playerId: hostPlayerId, ...body }),
       })
-      const data = await res.json()
+      let data: { error?: string }
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error(res.ok ? 'Invalid server response' : `Request failed (${res.status})`)
+      }
       if (!res.ok) throw new Error(data.error ?? 'Action failed')
       await load()
     } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Action failed')
+      toastError(messageFromFetchActionError(err))
+      if (isFetchNetworkError(err)) await load()
     } finally {
+      hostActingRef.current = false
       setHostActing(false)
     }
   }

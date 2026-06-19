@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
 import { MonopolyJoinForm } from '@/components/monopoly/MonopolyJoinForm'
@@ -24,7 +24,13 @@ import {
   MONOPOLY_PLAYER_STATE_SELECT,
   PLAYER_SELECT,
 } from '@/lib/supabase-selects'
-import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import {
+  getPlayerSession,
+  setPlayerSession,
+  clearPlayerSession,
+  isFetchNetworkError,
+  messageFromFetchActionError,
+} from '@/lib/utils'
 import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
@@ -60,6 +66,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   const [joinToken, setJoinToken] = useState<MonopolyTokenId | null>(null)
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
+  const actingRef = useRef(false)
 
   useApplyGameTheme(game?.theme)
 
@@ -192,7 +199,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   const postAction = async (url: string, body: Record<string, unknown> = {}) => {
-    if (!myPlayerId) return
+    if (!myPlayerId || actingRef.current) return
+    actingRef.current = true
     setActing(true)
     try {
       const res = await fetch(url, {
@@ -200,12 +208,19 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, ...body }),
       })
-      const data = await res.json()
+      let data: { error?: string }
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error(res.ok ? 'Invalid server response' : `Request failed (${res.status})`)
+      }
       if (!res.ok) throw new Error(data.error ?? 'Action failed')
       await load()
     } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Action failed')
+      toastError(messageFromFetchActionError(err))
+      if (isFetchNetworkError(err)) await load()
     } finally {
+      actingRef.current = false
       setActing(false)
     }
   }

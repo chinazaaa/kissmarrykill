@@ -365,3 +365,17 @@ export function clearPlayerSession(gameCode: string): void {
 export function getInitial(name: string): string {
   return name.charAt(0).toUpperCase()
 }
+
+const FETCH_NETWORK_ERROR = /load failed|failed to fetch|networkerror|network request failed/i
+
+export function isFetchNetworkError(err: unknown): boolean {
+  return err instanceof TypeError || (err instanceof Error && FETCH_NETWORK_ERROR.test(err.message))
+}
+
+export function messageFromFetchActionError(err: unknown, fallback = 'Action failed'): string {
+  if (isFetchNetworkError(err)) {
+    return 'Connection lost — check your network and try again'
+  }
+  if (err instanceof Error && err.message) return err.message
+  return fallback
+}
