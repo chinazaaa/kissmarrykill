@@ -980,8 +980,8 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
 
 /** Home page “Popular games” grid — order is display order. */
 export const HOMEPAGE_FEATURED_GAMES: GameType[] = [
-  'smash_marry_kill',
-  'this_or_that',
+  'monopoly',
+  'yahtzee',
   'codewords',
   'bingo',
   'trivia',

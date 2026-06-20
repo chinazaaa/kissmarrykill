@@ -264,6 +264,8 @@ export function faqPageJsonLd(faqs: GameLandingFaq[]): string {
 export const GAME_LANDING_OG_BY_SLUG: Record<string, string> = {
   'smash-marry-kill': '/og/smash-marry-kill.png',
   'smash-or-pass': '/og/smash-or-pass.png',
+  'red-flag-green-flag': '/og/red-flag-green-flag.png',
+  'most-likely-to': '/og/most-likely-to.png',
   'anonymous-room': '/og/anonymous-room.png',
   bingo: '/og/bingo.png',
   codewords: '/og/codewords.png',
