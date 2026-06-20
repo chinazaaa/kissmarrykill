@@ -113,11 +113,12 @@ export function ludoCanLeaveBase(dice: LudoDiceRoll): boolean {
 }
 
 export function ludoGrantsExtraRoll(dice: LudoDiceRoll): boolean {
-  return dice.doubles
+  // Only a double six grants the bonus roll — not every double.
+  return dice.d1 === 6 && dice.d2 === 6
 }
 
-function ludoExtraRollReason(dice: LudoDiceRoll): string {
-  return 'rolled doubles'
+function ludoExtraRollReason(): string {
+  return 'rolled double six'
 }
 
 export function formatLudoDiceRoll(dice: LudoDiceRoll): string {
@@ -701,12 +702,12 @@ async function persistMove(
 
       if (grantsExtra && consecutiveSixes < 3) {
         extraTurn = true
-        statusMessage = `${name} ${moveNote} — ${roll ? ludoExtraRollReason(roll) : 'bonus roll'}, roll again!`
+        statusMessage = `${name} ${moveNote} — ${roll ? ludoExtraRollReason() : 'bonus roll'}, roll again!`
       } else if (consecutiveSixes >= 3) {
         currentTurnIndex = advanceTurnIndex(session)
         consecutiveSixes = 0
         const nextId = session.turn_order[currentTurnIndex]
-        statusMessage = `Three doubles in a row — turn lost. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`
+        statusMessage = `Three double sixes in a row — turn lost. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`
       } else {
         currentTurnIndex = advanceTurnIndex(session)
         const nextId = session.turn_order[currentTurnIndex]
@@ -720,12 +721,12 @@ async function persistMove(
 
     if (grantsExtra && consecutiveSixes < 3) {
       extraTurn = true
-      statusMessage = `${name} ${moveNote} — ${roll ? ludoExtraRollReason(roll) : 'bonus roll'}, roll again!`
+      statusMessage = `${name} ${moveNote} — ${roll ? ludoExtraRollReason() : 'bonus roll'}, roll again!`
     } else if (consecutiveSixes >= 3) {
       currentTurnIndex = advanceTurnIndex(session)
       consecutiveSixes = 0
       const nextId = session.turn_order[currentTurnIndex]
-      statusMessage = `Three doubles in a row — turn lost. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`
+      statusMessage = `Three double sixes in a row — turn lost. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`
     } else {
       currentTurnIndex = advanceTurnIndex(session)
       const nextId = session.turn_order[currentTurnIndex]
@@ -828,7 +829,7 @@ export async function processLudoRoll(
           consecutive_sixes: 0,
           current_turn_index: nextIndex,
           phase: 'roll',
-          status_message: `Three doubles in a row — turn lost. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`,
+          status_message: `Three double sixes in a row — turn lost. ${playerNames.get(nextId ?? '') ?? 'Next player'}'s turn`,
           turn_deadline_at: ludoTurnDeadline(timerSeconds),
           updated_at: new Date().toISOString(),
         })

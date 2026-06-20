@@ -244,7 +244,7 @@ export function LudoDicePair({
       {dice && !rolling && (
         <p className="text-[8px] sm:text-[10px] font-bold text-slate-900 tabular-nums leading-none">
           {dice.total}
-          {dice.doubles ? ' · Doubles!' : ''}
+          {dice.d1 === 6 && dice.d2 === 6 ? ' · Double six!' : ''}
         </p>
       )}
     </div>

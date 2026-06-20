@@ -93,6 +93,7 @@ export function useLudoNotifications({
       myPlayerId &&
       message.includes('roll again') &&
       (message.toLowerCase().includes('rolled a 6') ||
+        message.toLowerCase().includes('double six') ||
         message.toLowerCase().includes('doubles') ||
         message.toLowerCase().includes('bonus roll'))
     ) {
