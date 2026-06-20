@@ -721,6 +721,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       points: [
         'The letter caller picks A–Z. Everyone fills Name, Animal, Place, Thing, and Food starting with that letter.',
         'When time runs out, papers pass — you mark the next player’s answers valid or invalid.',
+        'The letter caller reviews everyone’s answers and approves the round before scores are revealed.',
         'Duplicates are detected automatically: if two or more players wrote the same answer in a category, everyone with that duplicate scores 0 for it.',
         'Everyone sees all answers, marks, and scores live so marking stays fair.',
       ],
