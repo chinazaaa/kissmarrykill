@@ -405,7 +405,22 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
               <GameRulesLink gameType="ludo" variant="subtle" />
             </p>
 
-            {session && (
+            {game.status === 'finished' && (
+              <LudoFinalResultsShareBlock
+                game={game}
+                players={players}
+                states={states}
+                session={session}
+                winnerName={winner?.name}
+                playAgainButton={
+                  <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
+                    Play again
+                  </LudoPrimaryButton>
+                }
+              />
+            )}
+
+            {session && game.status !== 'finished' && (
               <LudoGamePanel
                 session={session}
                 states={states}
@@ -451,23 +466,6 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
               <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
                 {ending ? 'Ending…' : 'End game early'}
               </button>
-            )}
-
-            {game.status === 'finished' && (
-              <>
-                <LudoFinalResultsShareBlock
-                  game={game}
-                  players={players}
-                  states={states}
-                  session={session}
-                  winnerName={winner?.name}
-                  playAgainButton={
-                    <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
-                      Play again
-                    </LudoPrimaryButton>
-                  }
-                />
-              </>
             )}
           </>
         )}

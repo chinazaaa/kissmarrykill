@@ -49,9 +49,6 @@ export function LudoFinalResultsShareBlock({
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">
           {displayWinner ? `${displayWinner} wins!` : endedEarly ? 'Game ended early' : 'Game over'}
         </p>
-        {session?.status_message && (
-          <p className="text-center text-xs text-muted max-w-sm mx-auto">{session.status_message}</p>
-        )}
         {standings.length > 0 && (
           <div className="space-y-2 pt-2">
             {standings.map((row) => {
