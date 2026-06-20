@@ -284,7 +284,10 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const showManageScoreboard =
     game?.status === 'active' &&
     currentMetadata != null &&
-    (currentMetadata.phase === 'marking' || currentMetadata.phase === 'host_review' || currentMetadata.phase === 'reveal')
+    (currentMetadata.phase === 'writing' ||
+      currentMetadata.phase === 'marking' ||
+      currentMetadata.phase === 'host_review' ||
+      currentMetadata.phase === 'reveal')
 
   if (!game) {
     return (
@@ -492,6 +495,7 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
                     marks={currentRoundMarks}
                     metadata={currentMetadata}
                     showScores={currentMetadata.scores_computed || currentMetadata.phase === 'reveal'}
+                    maskAnswers={currentMetadata.phase === 'writing'}
                   />
                 )}
               </>
