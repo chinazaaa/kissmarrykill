@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
-import type { Game, LudoColor, LudoPiece, LudoPlayerState, LudoSession } from '@/types'
+import type { LudoColor, LudoPiece, LudoPlayerState, LudoSession, Player } from '@/types'
 
 export const LUDO_MIN_PLAYERS = 2
 export const LUDO_MAX_PLAYERS = 4
@@ -253,6 +253,37 @@ export function allPiecesFinished(pieces: LudoPiece[]): boolean {
 
 export function finishedPieceCount(pieces: LudoPiece[]): number {
   return pieces.filter((p) => p.zone === 'finished').length
+}
+
+export type LudoStanding = {
+  playerId: string
+  name: string
+  color: LudoColor
+  finishedCount: number
+  rank: number
+}
+
+export function buildLudoStandings(
+  states: LudoPlayerState[],
+  players: Player[],
+  winnerPlayerId?: string | null
+): LudoStanding[] {
+  const rows = states.map((state) => ({
+    playerId: state.player_id,
+    name: players.find((p) => p.id === state.player_id)?.name ?? 'Player',
+    color: state.color,
+    finishedCount: finishedPieceCount(state.pieces),
+  }))
+
+  rows.sort((a, b) => {
+    if (winnerPlayerId) {
+      if (a.playerId === winnerPlayerId) return -1
+      if (b.playerId === winnerPlayerId) return 1
+    }
+    return b.finishedCount - a.finishedCount || a.name.localeCompare(b.name)
+  })
+
+  return rows.map((row, index) => ({ ...row, rank: index + 1 }))
 }
 
 /** Send a captured piece back to its own yard circle (not the track start square). */

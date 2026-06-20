@@ -27,6 +27,7 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLudoTurnTimer } from '@/hooks/useLudoTurnTimer'
 import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/hooks/useLudoNotifications'
 import { LudoGamePanel } from '@/components/ludo/LudoBoard'
+import { LudoFinalResultsShareBlock } from '@/components/ludo/LudoFinalResultsShareBlock'
 import { LudoPrimaryButton } from '@/components/ludo/LudoChrome'
 import { SoundToggle } from '@/components/SoundToggle'
 
@@ -450,12 +451,20 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {game.status === 'finished' && (
-              <div className="glass-card-strong p-5 space-y-4 text-center">
-                <p className="text-2xl font-black">🏆 {winner?.name ?? 'Someone'} wins!</p>
-                <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
-                  Play again
-                </LudoPrimaryButton>
-              </div>
+              <>
+                <LudoFinalResultsShareBlock
+                  game={game}
+                  players={players}
+                  states={states}
+                  session={session}
+                  winnerName={winner?.name}
+                  playAgainButton={
+                    <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
+                      Play again
+                    </LudoPrimaryButton>
+                  }
+                />
+              </>
             )}
           </>
         )}

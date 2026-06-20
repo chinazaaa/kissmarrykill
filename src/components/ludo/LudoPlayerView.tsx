@@ -10,6 +10,7 @@ import {
   LudoShell,
 } from '@/components/ludo/LudoChrome'
 import { LudoGamePanel } from '@/components/ludo/LudoBoard'
+import { LudoFinalResultsShareBlock } from '@/components/ludo/LudoFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
 import { currentPlayerId } from '@/lib/ludo'
 import { supabase } from '@/lib/supabase'
@@ -290,22 +291,40 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'finished') {
+    const myName = players.find((p) => p.id === myPlayerId)?.name
+    const iWon = myPlayerId != null && session?.winner_player_id === myPlayerId
+    const shareWinnerName = iWon ? myName : winner?.name
+
     return (
-      <LudoShell title={game?.title ?? cfg.label} subtitle="Game over">
-        <LudoCard className="p-6 text-center space-y-3">
-          <p className="text-2xl font-black">🏆 {winner?.name ?? 'Someone'} wins!</p>
-          <p className="text-sm text-muted">Waiting for the host to start a new round…</p>
-          {myPlayerId && myName && (
-            <PlayerSessionControls
-              gameCode={gameCode}
-              playerId={myPlayerId}
-              currentName={myName}
-              onRenamed={() => void load()}
-              onLeft={handlePlayerLeft}
-              inLobby
-            />
-          )}
-        </LudoCard>
+      <LudoShell title="Game over!" subtitle={winner ? `${winner.name} wins` : 'Session ended'}>
+        {game && states.length > 0 ? (
+          <LudoFinalResultsShareBlock
+            game={game}
+            players={players}
+            states={states}
+            session={session}
+            winnerName={shareWinnerName}
+            highlightPlayerId={myPlayerId}
+          />
+        ) : (
+          <LudoCard className="p-6 text-center space-y-3">
+            <p className="text-4xl">{winner ? '🏆' : '🏁'}</p>
+            <p className="text-2xl font-black">
+              {winner ? `${winner.name} wins!` : 'Game ended early'}
+            </p>
+            <p className="text-sm text-muted">Waiting for the host to start a new round…</p>
+          </LudoCard>
+        )}
+        {myPlayerId && myName && (
+          <PlayerSessionControls
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            currentName={myName}
+            onRenamed={() => void load()}
+            onLeft={handlePlayerLeft}
+            inLobby
+          />
+        )}
       </LudoShell>
     )
   }
