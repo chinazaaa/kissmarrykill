@@ -83,7 +83,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
-  isNamePlaceAnimalThingGame,
+  isICallOnGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
@@ -1464,7 +1464,7 @@ export function PollGamePlayerExperience({
   if (game && isTwoTruthsGame(game.game_type)) {
     return <TwoTruthsPlayerView gameCode={gameCode} />
   }
-  if (game && isNamePlaceAnimalThingGame(game.game_type)) {
+  if (game && isICallOnGame(game.game_type)) {
     return <NpatPlayerView gameCode={gameCode} />
   }
   if (game && isMonopolyGame(game.game_type)) {

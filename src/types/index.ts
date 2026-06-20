@@ -31,7 +31,7 @@ export type GameType =
   | 'yahtzee'
   | 'whot'
   | 'ludo'
-  | 'name_place_animal_thing'
+  | 'i_call_on'
 
 export type NpatPhase = 'letter_pick' | 'writing' | 'marking' | 'host_review' | 'reveal'
 export type NpatCategory = 'name' | 'animal' | 'place' | 'thing'

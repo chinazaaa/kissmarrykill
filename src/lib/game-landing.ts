@@ -49,7 +49,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   yahtzee: 'yahtzee',
   whot: 'whot',
   ludo: 'ludo',
-  name_place_animal_thing: 'name-place-animal-thing',
+  i_call_on: 'i-call-on',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -955,11 +955,11 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
   }),
 
-  name_place_animal_thing: landing('name_place_animal_thing', {
-    seoTitle: 'Name Place Animal Thing — Free Online Party Game',
+  i_call_on: landing('i_call_on', {
+    seoTitle: 'I Call On — Free Online Party Game',
     seoDescription:
-      'Play Name Place Animal Thing online. Call a letter, fill four categories, mark answers together — duplicates score zero, unique answers earn points.',
-    keywords: ['name place animal thing', 'stop game', 'categories game', 'party game online'],
+      'Play I Call On online. Call a letter, fill four categories, mark answers together — duplicates score zero, unique answers earn points.',
+    keywords: ['i call on', 'stop game', 'categories game', 'party game online'],
     heroSubtitle:
       'The classic A–Z categories game. Someone calls a letter — everyone fills Name, Animal, Place, and Thing before time runs out.',
     highlights: ['Rotating letter caller', 'Live transparent scoring', 'Duplicate detection'],

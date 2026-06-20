@@ -56,7 +56,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
-  isNamePlaceAnimalThingGame,
+  isICallOnGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -278,7 +278,7 @@ function CreateGameInner() {
     setYahtzeeMaxPlayers((v) => clamp('yahtzee', v))
     setWhotMaxPlayers((v) => clamp('whot', v))
     setLudoMaxPlayers((v) => clamp('ludo', v))
-    setNpatMaxPlayers((v) => clamp('name_place_animal_thing', v))
+    setNpatMaxPlayers((v) => clamp('i_call_on', v))
   }, [lobbyLimits])
 
   useEffect(() => {
@@ -396,7 +396,7 @@ function CreateGameInner() {
     if (!whotCardsEnabled) setWhotNumberCallsEnabled(false)
   }, [whotCardsEnabled])
   const isLudo = isLudoGame(settings.game_type)
-  const isNpat = isNamePlaceAnimalThingGame(settings.game_type)
+  const isNpat = isICallOnGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -499,7 +499,7 @@ function CreateGameInner() {
     setCustomTriviaQuestions([])
     setTriviaCategory('general')
     setQuestionsUploadError(null)
-    if (isNamePlaceAnimalThingGame(type)) {
+    if (isICallOnGame(type)) {
       setNpatGameDuration(NPAT_DEFAULT_GAME_DURATION)
       setNpatMarkingTimer(NPAT_DEFAULT_MARKING_TIMER)
     }
@@ -572,7 +572,7 @@ function CreateGameInner() {
             timer_seconds: 60,
           }
         : {}),
-      ...(isNamePlaceAnimalThingGame(type)
+      ...(isICallOnGame(type)
         ? {
             participant_mode: 'joiners' as const,
             anonymous: true,
@@ -580,7 +580,7 @@ function CreateGameInner() {
             timer_seconds: NPAT_DEFAULT_TIMER,
           }
         : {}),
-        ...(isNamePlaceAnimalThingGame(type)
+        ...(isICallOnGame(type)
           ? {
               participant_mode: 'joiners' as const,
               anonymous: true,
@@ -1368,9 +1368,9 @@ function CreateGameInner() {
                 </p>
               </SettingsGroup>
             ) : isNpat ? (
-              <SettingsGroup title="Name Place Animal Thing room">
+              <SettingsGroup title="I Call On room">
                 <Field
-                  label={`Max players (${effectiveLimits.name_place_animal_thing.min}–${effectiveLimits.name_place_animal_thing.max})`}
+                  label={`Max players (${effectiveLimits.i_call_on.min}–${effectiveLimits.i_call_on.max})`}
                 >
                   <select
                     value={npatMaxPlayers}
@@ -1378,8 +1378,8 @@ function CreateGameInner() {
                     className="input-field w-full"
                   >
                     {playerCountOptions(
-                      effectiveLimits.name_place_animal_thing.min,
-                      effectiveLimits.name_place_animal_thing.max
+                      effectiveLimits.i_call_on.min,
+                      effectiveLimits.i_call_on.max
                     ).map((n) => (
                       <option key={n} value={n}>
                         {n} players

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
-import { isNamePlaceAnimalThingGame, parseGameType } from '@/lib/game-types'
+import { isICallOnGame, parseGameType } from '@/lib/game-types'
 import {
   buildNpatNextRound,
   clampNpatMarkingTimer,
@@ -339,7 +339,7 @@ export async function syncNpatGameState(
   const code = gameId.toUpperCase()
   const { data: game } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
   if (!game) return { ok: false, code: 'game_not_found' }
-  if (!isNamePlaceAnimalThingGame(parseGameType(game.game_type))) return { ok: false, code: 'not_npat' }
+  if (!isICallOnGame(parseGameType(game.game_type))) return { ok: false, code: 'not_npat' }
   if (game.status === 'finished') return { ok: true, code: 'already_done' }
   if (game.status !== 'active') return { ok: false, code: 'not_active' }
 

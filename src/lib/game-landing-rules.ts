@@ -700,7 +700,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     },
   ],
 
-  name_place_animal_thing: [
+  i_call_on: [
     {
       title: 'Objective',
       points: [

@@ -16,7 +16,7 @@ import {
   isMonopolyGame,
   isWhotGame,
   isLudoGame,
-  isNamePlaceAnimalThingGame,
+  isICallOnGame,
 } from '@/lib/game-types'
 import { tallyTriviaPlayerScores } from '@/lib/trivia'
 import { totalScore } from '@/lib/yahtzee'
@@ -76,7 +76,7 @@ function buildShareText({
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
 
-  if (isNamePlaceAnimalThingGame(gameType) && npatLeaderboard && npatLeaderboard.length > 0) {
+  if (isICallOnGame(gameType) && npatLeaderboard && npatLeaderboard.length > 0) {
     const lines = [
       config.headerEmoji,
       game.title,

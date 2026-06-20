@@ -62,7 +62,7 @@ const gameTypeEnum = z.enum([
   'yahtzee',
   'whot',
   'ludo',
-  'name_place_animal_thing',
+  'i_call_on',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])

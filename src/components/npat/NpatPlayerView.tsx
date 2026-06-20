@@ -164,7 +164,7 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
     setScreen('join')
   }
 
-  const cfg = gameTypeConfig('name_place_animal_thing')
+  const cfg = gameTypeConfig('i_call_on')
 
   if (screen === 'loading') {
     return (
@@ -197,7 +197,7 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
           <div className="text-center space-y-1">
             <div className="text-4xl">{cfg.headerEmoji}</div>
             <h1 className="text-2xl font-black gradient-title">{game?.title}</h1>
-            <GameTypeBadge gameType="name_place_animal_thing" />
+            <GameTypeBadge gameType="i_call_on" />
           </div>
           <input
             type="text"
@@ -236,7 +236,7 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
             />
           </div>
           <p className="text-center">
-            <GameRulesLink gameType="name_place_animal_thing" variant="subtle" />
+            <GameRulesLink gameType="i_call_on" variant="subtle" />
           </p>
           <GameLobbyPlayerList players={players} myPlayerId={myPlayerId} label="In lobby" />
           {isViewer && (

@@ -21,7 +21,7 @@ export function NpatFinalResultsShareBlock({
   showCreateNewGame?: boolean
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
-  const cfg = gameTypeConfig('name_place_animal_thing')
+  const cfg = gameTypeConfig('i_call_on')
   const winnerLabel = npatWinnerLabel(leaderboard)
   const rows = leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))
 

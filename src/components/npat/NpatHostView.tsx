@@ -299,7 +299,7 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     )
   }
 
-  const cfg = gameTypeConfig('name_place_animal_thing')
+  const cfg = gameTypeConfig('i_call_on')
   const playerLink = `${appOrigin()}/game/${gameCode}`
 
   const playerManageBlock =

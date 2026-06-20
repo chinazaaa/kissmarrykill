@@ -28,7 +28,7 @@ export const LOBBY_LIMIT_GAME_TYPES = [
   'yahtzee',
   'whot',
   'ludo',
-  'name_place_animal_thing',
+  'i_call_on',
 ] as const
 
 export type LobbyLimitGameType = (typeof LOBBY_LIMIT_GAME_TYPES)[number]
@@ -90,7 +90,7 @@ export const GAME_LIMIT_CODE_DEFAULTS: GamePlayerLimitsMap = {
     max: LUDO_MAX_PLAYERS,
     default: LUDO_DEFAULT_MAX_PLAYERS,
   },
-  name_place_animal_thing: {
+  i_call_on: {
     min: NPAT_MIN_PLAYERS,
     max: NPAT_MAX_PLAYERS,
     default: NPAT_DEFAULT_MAX_PLAYERS,
@@ -112,7 +112,7 @@ export function getCodeDefaultLimits(): GamePlayerLimitsMap {
     yahtzee: { ...GAME_LIMIT_CODE_DEFAULTS.yahtzee },
     whot: { ...GAME_LIMIT_CODE_DEFAULTS.whot },
     ludo: { ...GAME_LIMIT_CODE_DEFAULTS.ludo },
-    name_place_animal_thing: { ...GAME_LIMIT_CODE_DEFAULTS.name_place_animal_thing },
+    i_call_on: { ...GAME_LIMIT_CODE_DEFAULTS.i_call_on },
   }
 }
 

@@ -22,7 +22,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
-  isNamePlaceAnimalThingGame,
+  isICallOnGame,
 } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { getCustomSlotCount } from '@/lib/custom-game'
@@ -532,7 +532,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ success: true })
   }
 
-  if (isNamePlaceAnimalThingGame(gameType)) {
+  if (isICallOnGame(gameType)) {
     const playerIds = playersData.map((p) => p.id)
     if (playerIds.length < NPAT_MIN_PLAYERS) {
       return NextResponse.json(

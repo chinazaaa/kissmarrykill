@@ -38,9 +38,11 @@ CREATE INDEX IF NOT EXISTS idx_npat_marks_game_id ON npat_marks(game_id);
 CREATE INDEX IF NOT EXISTS idx_npat_marks_round_id ON npat_marks(round_id);
 
 ALTER TABLE npat_answers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_npat_answers" ON npat_answers;
 CREATE POLICY "public_npat_answers" ON npat_answers FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE npat_marks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_npat_marks" ON npat_marks;
 CREATE POLICY "public_npat_marks" ON npat_marks FOR ALL USING (true) WITH CHECK (true);
 
 ALTER PUBLICATION supabase_realtime ADD TABLE npat_answers;
@@ -70,7 +72,7 @@ ALTER TABLE games ADD CONSTRAINT games_game_type_check CHECK (game_type IN (
   'yahtzee',
   'whot',
   'ludo',
-  'name_place_animal_thing'
+  'i_call_on'
 ));
 
 ALTER TABLE app_feedback DROP CONSTRAINT IF EXISTS app_feedback_game_type_check;
@@ -98,14 +100,14 @@ ALTER TABLE app_feedback ADD CONSTRAINT app_feedback_game_type_check CHECK (game
   'yahtzee',
   'whot',
   'ludo',
-  'name_place_animal_thing'
+  'i_call_on'
 ));
 
 ALTER TABLE game_player_limits DROP CONSTRAINT IF EXISTS game_player_limits_game_type_check;
 ALTER TABLE game_player_limits ADD CONSTRAINT game_player_limits_game_type_check CHECK (
-  game_type IN ('anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths', 'monopoly', 'yahtzee', 'whot', 'ludo', 'name_place_animal_thing')
+  game_type IN ('anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths', 'monopoly', 'yahtzee', 'whot', 'ludo', 'i_call_on')
 );
 
 INSERT INTO game_player_limits (game_type, max_players)
-VALUES ('name_place_animal_thing', 20)
+VALUES ('i_call_on', 20)
 ON CONFLICT (game_type) DO NOTHING;

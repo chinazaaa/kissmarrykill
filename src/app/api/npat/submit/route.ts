@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { isNamePlaceAnimalThingGame, parseGameType } from '@/lib/game-types'
+import { isICallOnGame, parseGameType } from '@/lib/game-types'
 import { answerStartsWithLetter, availableLettersForPick, NPAT_MAX_ANSWER_LENGTH, parseNpatMetadata } from '@/lib/npat'
 import { npatSubmitSchema } from '@/lib/validation'
 
@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
 
   const { data: game } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
-  if (!isNamePlaceAnimalThingGame(parseGameType(game.game_type))) {
-    return NextResponse.json({ error: 'Not a Name Place Animal Thing game' }, { status: 400 })
+  if (!isICallOnGame(parseGameType(game.game_type))) {
+    return NextResponse.json({ error: 'Not an I Call On game' }, { status: 400 })
   }
   if (game.status !== 'active') return NextResponse.json({ error: 'Game not active' }, { status: 400 })
 

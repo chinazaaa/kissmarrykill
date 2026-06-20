@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { approveNpatRound } from '@/lib/npat-advance'
-import { isNamePlaceAnimalThingGame, parseGameType } from '@/lib/game-types'
+import { isICallOnGame, parseGameType } from '@/lib/game-types'
 import { NPAT_CATEGORIES, parseNpatMetadata } from '@/lib/npat'
 import { npatHostApproveSchema } from '@/lib/validation'
 import type { NpatMetadata } from '@/types'
@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
   const { data: game } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  if (!isNamePlaceAnimalThingGame(parseGameType(game.game_type))) {
-    return NextResponse.json({ error: 'Not a Name Place Animal Thing game' }, { status: 400 })
+  if (!isICallOnGame(parseGameType(game.game_type))) {
+    return NextResponse.json({ error: 'Not an I Call On game' }, { status: 400 })
   }
   if (game.status !== 'active') return NextResponse.json({ error: 'Game not active' }, { status: 400 })
 

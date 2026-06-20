@@ -63,7 +63,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
-  isNamePlaceAnimalThingGame,
+  isICallOnGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
@@ -1441,7 +1441,7 @@ export default function HostPage() {
     return <TwoTruthsHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
-  if (game && isNamePlaceAnimalThingGame(game.game_type)) {
+  if (game && isICallOnGame(game.game_type)) {
     return <NpatHostView gameCode={gameCode} hostToken={hostToken} />
   }
 

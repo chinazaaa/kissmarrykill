@@ -976,9 +976,9 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
-  name_place_animal_thing: {
-    id: 'name_place_animal_thing',
-    label: 'Name Place Animal Thing',
+  i_call_on: {
+    id: 'i_call_on',
+    label: 'I Call On',
     tagline: 'Call a letter — fill the categories — score unique answers',
     headerEmoji: '🔤🌍',
     card: {
@@ -1054,7 +1054,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'yahtzee',
   'whot',
   'ludo',
-  'name_place_animal_thing',
+  'i_call_on',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -1079,7 +1079,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'yahtzee') return 'yahtzee'
   if (raw === 'whot') return 'whot'
   if (raw === 'ludo') return 'ludo'
-  if (raw === 'name_place_animal_thing') return 'name_place_animal_thing'
+  if (raw === 'i_call_on') return 'i_call_on'
   return 'smash_marry_kill'
 }
 
@@ -1130,7 +1130,7 @@ export function gameHowItWorks(
       return 'Players join with their name. Match the top card by shape or number — WHOT lets you call the next match. Pick 2 and Pick 3 stacks are separate. First to empty their hand wins — or lowest hand total when the game clock runs out.'
     case 'ludo':
       return 'Players join with their name. Roll two dice each turn and use each die separately — a 6 brings pieces out; doubles earn another roll after both dice are played. Capture opponents, block with pairs — first to finish all four pieces wins!'
-    case 'name_place_animal_thing':
+    case 'i_call_on':
       return 'Players join with their name. Set a game timer (or play all 26 letters). Each letter cycle someone calls A–Z, everyone fills Name, Animal, Place, and Thing, then marks the next player\'s sheet. Duplicates score zero automatically; everyone sees all marks live.'
     case 'most_likely_to':
       return joiners
@@ -1363,7 +1363,7 @@ export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): b
     type === 'yahtzee' ||
     type === 'whot' ||
     type === 'ludo' ||
-    type === 'name_place_animal_thing'
+    type === 'i_call_on'
   )
 }
 
@@ -1456,8 +1456,8 @@ export function isLudoGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'ludo'
 }
 
-export function isNamePlaceAnimalThingGame(gameType: GameType | string | undefined): boolean {
-  return parseGameType(gameType) === 'name_place_animal_thing'
+export function isICallOnGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'i_call_on'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

@@ -11,6 +11,7 @@ import {
   clampNpatTimer,
   duplicateKeysByCategory,
   isForcedInvalidAnswer,
+  normalizeAnswer,
   NPAT_CATEGORIES,
   NPAT_CATEGORY_LABELS,
   NPAT_MAX_ANSWER_LENGTH,
@@ -138,15 +139,34 @@ export function NpatActiveRound({
   }, [currentRound?.id])
 
   useEffect(() => {
-    if (myMark) {
-      setValidFlags({
-        name: myMark.valid_name,
-        animal: myMark.valid_animal,
-        place: myMark.valid_place,
-        thing: myMark.valid_thing,
-      })
+    if (!myMark || !reviewTargetId) return
+    const answer = roundAnswers.find((a) => a.player_id === reviewTargetId)
+    if (!answer) return
+    const dupes = duplicateKeysByCategory(roundAnswers)
+    const letter = metadata?.letter ?? null
+    const clamp = (category: NpatCategory, value: boolean) => {
+      const text = answer[category]
+      const normalized = normalizeAnswer(text)
+      const isDuplicate = normalized ? dupes[category].has(normalized) : false
+      return isForcedInvalidAnswer(text, letter, isDuplicate) ? false : value
     }
-  }, [myMark?.id, currentRound?.id])
+    setValidFlags({
+      name: clamp('name', myMark.valid_name),
+      animal: clamp('animal', myMark.valid_animal),
+      place: clamp('place', myMark.valid_place),
+      thing: clamp('thing', myMark.valid_thing),
+    })
+  }, [
+    myMark?.id,
+    myMark?.valid_name,
+    myMark?.valid_animal,
+    myMark?.valid_place,
+    myMark?.valid_thing,
+    currentRound?.id,
+    reviewTargetId,
+    roundAnswers,
+    metadata?.letter,
+  ])
 
   useNpatAdvance({
     gameCode,
@@ -218,9 +238,17 @@ export function NpatActiveRound({
   }
 
   const submitMarks = async () => {
-    if (!currentRound || readOnly || submitting) return
+    if (!currentRound || readOnly || submitting || !reviewTargetAnswer) return
     setSubmitting(true)
     try {
+      const dupes = duplicateKeysByCategory(roundAnswers)
+      const letter = metadata?.letter ?? null
+      const clamp = (category: NpatCategory, value: boolean) => {
+        const text = reviewTargetAnswer[category]
+        const normalized = normalizeAnswer(text)
+        const isDuplicate = normalized ? dupes[category].has(normalized) : false
+        return isForcedInvalidAnswer(text, letter, isDuplicate) ? false : value
+      }
       const res = await fetch('/api/npat/mark', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -228,10 +256,10 @@ export function NpatActiveRound({
           gameId: gameCode,
           playerId: myPlayerId,
           roundId: currentRound.id,
-          validName: validFlags.name,
-          validAnimal: validFlags.animal,
-          validPlace: validFlags.place,
-          validThing: validFlags.thing,
+          validName: clamp('name', validFlags.name),
+          validAnimal: clamp('animal', validFlags.animal),
+          validPlace: clamp('place', validFlags.place),
+          validThing: clamp('thing', validFlags.thing),
         }),
       })
       const data = await res.json()
@@ -397,7 +425,9 @@ export function NpatActiveRound({
           </div>
         )}
 
-        {(screen === 'marking' || screen === 'marking_locked') && reviewTargetAnswer && (
+        {(screen === 'marking' || screen === 'marking_locked') && reviewTargetAnswer && (() => {
+          const markingDupes = duplicateKeysByCategory(roundAnswers)
+          return (
           <div className="glass-card p-4 space-y-3">
             <p className="font-bold">
               Mark {playerDisplayName(reviewTargetId, players)}&apos;s answers
@@ -408,10 +438,10 @@ export function NpatActiveRound({
             </p>
             {NPAT_CATEGORIES.map((category) => {
               const text = reviewTargetAnswer[category]
-              const dupes = duplicateKeysByCategory([reviewTargetAnswer])
               const normalized = text.trim().toLowerCase()
-              const isDuplicate = normalized ? dupes[category].has(normalized) : false
+              const isDuplicate = normalized ? markingDupes[category].has(normalized) : false
               const forcedInvalid = isForcedInvalidAnswer(text, metadata.letter, isDuplicate)
+              const displayValid = forcedInvalid ? false : validFlags[category]
               return (
               <div key={category} className="rounded-lg border border-[var(--border-strong)] p-3 space-y-2">
                 <p className="text-sm font-semibold">{NPAT_CATEGORY_LABELS[category]}</p>
@@ -428,7 +458,7 @@ export function NpatActiveRound({
                     onClick={() => setValidFlags((prev) => ({ ...prev, [category]: true }))}
                     className={[
                       'rounded-lg py-2 text-sm font-bold border',
-                      validFlags[category]
+                      displayValid
                         ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
                         : 'border-[var(--border-strong)]',
                     ].join(' ')}
@@ -441,7 +471,7 @@ export function NpatActiveRound({
                     onClick={() => setValidFlags((prev) => ({ ...prev, [category]: false }))}
                     className={[
                       'rounded-lg py-2 text-sm font-bold border',
-                      !validFlags[category]
+                      !displayValid
                         ? 'border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-200'
                         : 'border-[var(--border-strong)]',
                     ].join(' ')}
@@ -464,7 +494,8 @@ export function NpatActiveRound({
               <p className="text-center text-sm text-muted">Marks saved — everyone can see them below.</p>
             )}
           </div>
-        )}
+          )
+        })()}
 
         {showTransparency && <div className="lg:hidden">{scoreboard}</div>}
 
