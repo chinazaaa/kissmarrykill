@@ -1,12 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import {
-  playRoundStartSound,
-  playRoundEndSound,
-  playVoteSubmittedSound,
-  playGameFinishedSound,
-} from '@/lib/sounds'
+import { playRoundStartSound, playRoundEndSound, playVoteSubmittedSound, playGameFinishedSound } from '@/lib/sounds'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, LudoSession } from '@/types'
 import { currentPlayerId } from '@/lib/ludo'

@@ -420,9 +420,7 @@ export function parseRemainingDice(raw: number[] | null | undefined): number[] {
 }
 
 /** Prefer stored remaining_dice; fall back to last roll for older sessions. */
-export function resolveRemainingDice(
-  session: Pick<LudoSession, 'remaining_dice' | 'last_dice'>
-): number[] {
+export function resolveRemainingDice(session: Pick<LudoSession, 'remaining_dice' | 'last_dice'>): number[] {
   const stored = parseRemainingDice(session.remaining_dice)
   if (stored.length > 0) return stored
   const roll = parseLudoDice(session.last_dice)
@@ -589,10 +587,7 @@ export async function initializeLudoGame(
   return {}
 }
 
-export async function clearLudoSessionData(
-  supabase: SupabaseClient,
-  gameId: string
-): Promise<{ error?: string }> {
+export async function clearLudoSessionData(supabase: SupabaseClient, gameId: string): Promise<{ error?: string }> {
   const { error: sessionError } = await supabase.from('ludo_sessions').delete().eq('game_id', gameId)
   if (sessionError) return { error: sessionError.message }
 
@@ -622,11 +617,7 @@ function pickAutoMove(moves: LudoMoveOption[]): LudoMoveOption | null {
 
   // Rolling a 6 with every piece still in base — all moves go to the same start square.
   const dest = moves[0]!.to
-  if (
-    moves.every(
-      (m) => m.from.zone === 'base' && m.to.zone === 'track' && m.to.pos === dest.pos
-    )
-  ) {
+  if (moves.every((m) => m.from.zone === 'base' && m.to.zone === 'track' && m.to.pos === dest.pos)) {
     return [...moves].sort((a, b) => a.pieceId - b.pieceId)[0]!
   }
 
@@ -690,13 +681,7 @@ async function persistMove(
     statusMessage = `${name} wins!`
     await markGameFinished(supabase, gameId)
   } else if (remainingAfter.length > 0) {
-    const nextMoves = getLegalMovesFromRemaining(
-      playerRow.color,
-      myPieces,
-      remainingAfter,
-      nextStates,
-      playerId
-    )
+    const nextMoves = getLegalMovesFromRemaining(playerRow.color, myPieces, remainingAfter, nextStates, playerId)
     if (nextMoves.length > 0) {
       phase = 'move'
       lastDice = roll
@@ -794,13 +779,7 @@ export async function processLudoRoll(
   if (!playerRow) return { error: 'Player state not found' }
 
   const remainingDice = [dice.d1, dice.d2]
-  const canPlay = canPlayRemainingDiceSequence(
-    playerRow.color,
-    playerRow.pieces,
-    remainingDice,
-    states,
-    playerId
-  )
+  const canPlay = canPlayRemainingDiceSequence(playerRow.color, playerRow.pieces, remainingDice, states, playerId)
   const name = playerNames.get(playerId) ?? 'Player'
   const rollLabel = formatLudoDiceRoll(dice)
 
@@ -900,18 +879,9 @@ export async function processLudoMove(
   const remaining = resolveRemainingDice(session)
   if (remaining.length === 0) return { error: 'No dice left to play' }
 
-  const moves = getLegalMovesFromRemaining(
-    playerRow.color,
-    playerRow.pieces,
-    remaining,
-    states,
-    playerId
-  )
+  const moves = getLegalMovesFromRemaining(playerRow.color, playerRow.pieces, remaining, states, playerId)
 
-  let move =
-    diceIndex != null
-      ? moves.find((m) => m.pieceId === pieceId && m.diceIndex === diceIndex)
-      : undefined
+  let move = diceIndex != null ? moves.find((m) => m.pieceId === pieceId && m.diceIndex === diceIndex) : undefined
 
   if (!move) {
     move = pickLudoMoveForPiece(moves, pieceId) ?? undefined
@@ -922,10 +892,7 @@ export async function processLudoMove(
   return persistMove(supabase, gameId, session, states, playerId, move, timerSeconds, playerNames)
 }
 
-export async function processLudoExpireTurn(
-  supabase: SupabaseClient,
-  gameId: string
-): Promise<{ error?: string }> {
+export async function processLudoExpireTurn(supabase: SupabaseClient, gameId: string): Promise<{ error?: string }> {
   const { session, states, timerSeconds, playerNames } = await loadGameState(supabase, gameId)
   if (!session || session.phase === 'finished') return {}
 
@@ -940,13 +907,7 @@ export async function processLudoExpireTurn(
   if (!playerRow || !session.last_dice) return { error: 'Invalid state' }
 
   const remaining = resolveRemainingDice(session)
-  const moves = getLegalMovesFromRemaining(
-    playerRow.color,
-    playerRow.pieces,
-    remaining,
-    states,
-    playerId
-  )
+  const moves = getLegalMovesFromRemaining(playerRow.color, playerRow.pieces, remaining, states, playerId)
   const auto = pickAutoMove(moves)
   if (!auto) {
     const nextIndex = advanceTurnIndex(session)
