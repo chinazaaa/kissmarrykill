@@ -164,6 +164,8 @@ export const updateGameSchema = z.object({
   hostToken: hostTokenString(),
   rounds_count: z.coerce.number().int().min(1, 'rounds_count is required').optional(),
   timer_seconds: z.coerce.number().optional(),
+  operative_timer_seconds: z.coerce.number().optional(),
+  game_duration_seconds: z.coerce.number().optional(),
   participant_filter: participantFilterEnum.optional(),
   gender_based: z.boolean().optional(),
   pair_vote_mode: pairVoteModeEnum.optional(),

@@ -12,7 +12,9 @@ import {
   isMostLikelyTo,
   isCodewordsGame,
   isPickANumber,
+  isICallOnGame,
 } from '@/lib/game-types'
+import { clampNpatGameDuration, clampNpatMarkingTimer, clampNpatTimer } from '@/lib/npat'
 import { isCustomTwoSlotGame } from '@/lib/custom-game'
 import {
   clampHotSeatMaxCap,
@@ -35,7 +37,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { hostToken, rounds_count: rawRoundsCount, timer_seconds: rawTimerSeconds, participant_filter } = parsed.data
+  const {
+    hostToken,
+    rounds_count: rawRoundsCount,
+    timer_seconds: rawTimerSeconds,
+    operative_timer_seconds: rawOperativeTimerSeconds,
+    game_duration_seconds: rawGameDurationSeconds,
+    participant_filter,
+  } = parsed.data
 
   const lateJoinOnly =
     (parsed.data.late_join_policy !== undefined ||
@@ -43,6 +52,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
       parsed.data.allow_late_players !== undefined) &&
     rawRoundsCount === undefined &&
     rawTimerSeconds === undefined &&
+    rawOperativeTimerSeconds === undefined &&
+    rawGameDurationSeconds === undefined &&
     participant_filter === undefined &&
     parsed.data.pair_vote_mode === undefined &&
     parsed.data.player_questions_enabled === undefined &&
@@ -55,9 +66,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const updatePayload: Record<string, unknown> = {}
+  const gameType = parseGameType(auth.game!.game_type)
 
   if (rawRoundsCount !== undefined) {
-    const gameType = parseGameType(auth.game!.game_type)
     const min = isHotSeat(gameType) ? HOT_SEAT_MIN_PLAYERS : 1
     let rounds_count: number
 
@@ -96,7 +107,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
   }
 
   if (rawTimerSeconds !== undefined) {
-    updatePayload.timer_seconds = parseTimerSeconds(rawTimerSeconds)
+    updatePayload.timer_seconds = isICallOnGame(gameType)
+      ? clampNpatTimer(rawTimerSeconds)
+      : parseTimerSeconds(rawTimerSeconds)
+  }
+
+  if (rawOperativeTimerSeconds !== undefined) {
+    if (isICallOnGame(gameType)) {
+      updatePayload.operative_timer_seconds = clampNpatMarkingTimer(rawOperativeTimerSeconds)
+    }
+  }
+
+  if (rawGameDurationSeconds !== undefined) {
+    if (isICallOnGame(gameType)) {
+      updatePayload.game_duration_seconds = clampNpatGameDuration(rawGameDurationSeconds)
+    }
   }
 
   if (participant_filter !== undefined) {
@@ -118,8 +143,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     updatePayload.pair_vote_mode = parsePairVoteMode(parsed.data.pair_vote_mode)
   }
 
-  const gameType = parseGameType(auth.game!.game_type)
-  const isLobbyQuestions = isBinaryChoiceGame(gameType) || isMostLikelyTo(gameType)
+  const gameTypeForLobby = gameType
+  const isLobbyQuestions = isBinaryChoiceGame(gameTypeForLobby) || isMostLikelyTo(gameTypeForLobby)
   const supportsPlayerSubmissions =
     isLobbyQuestions ||
     supportsPlayerNameSubmissions({ game_type: gameType, participant_mode: auth.game!.participant_mode })

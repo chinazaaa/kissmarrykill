@@ -102,6 +102,7 @@ export function NpatActiveRound({
   const formRef = useRef(form)
   formRef.current = form
   const autoSubmittedRoundRef = useRef<string | null>(null)
+  const hydratedRoundRef = useRef<string | null>(null)
 
   const currentRound = useMemo(() => {
     const byPointer = rounds.find((r) => r.round_number === game.current_round_number) ?? null
@@ -147,14 +148,28 @@ export function NpatActiveRound({
     setValidFlags(defaultValidFlags)
     setSubmitting(false)
     autoSubmittedRoundRef.current = null
+    hydratedRoundRef.current = null
   }, [currentRound?.id, emptyForm, defaultValidFlags])
 
+  // Restore a saved draft once per round (e.g. after refresh). Never overwrite active typing —
+  // draft saves trigger realtime reloads that would otherwise reset the form.
   useEffect(() => {
-    if (!myAnswer || myAnswer.submitted_at || metadata?.phase !== 'writing') return
+    if (!currentRound || metadata?.phase !== 'writing' || myAnswer?.submitted_at) return
+    if (hydratedRoundRef.current === currentRound.id) return
+
+    const formHasContent = NPAT_CATEGORIES.some((category) => formRef.current[category]?.trim())
+    if (formHasContent) {
+      hydratedRoundRef.current = currentRound.id
+      return
+    }
+
+    if (!myAnswer) return
     const hasDraft = NPAT_CATEGORIES.some((category) => myAnswer[category]?.trim())
     if (!hasDraft) return
+
+    hydratedRoundRef.current = currentRound.id
     setForm(trimNpatAnswerFields(myAnswer))
-  }, [myAnswer, metadata?.phase])
+  }, [currentRound, metadata?.phase, myAnswer])
 
   useEffect(() => {
     if (readOnly || !currentRound || metadata?.phase !== 'writing' || myAnswer?.submitted_at) return
