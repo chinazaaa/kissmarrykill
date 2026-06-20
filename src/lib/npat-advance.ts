@@ -7,12 +7,14 @@ import {
   clampNpatTimer,
   availableLettersForPick,
   computeRoundScores,
+  countNpatLettersPlayed,
   ensureDefaultMarks,
   ensureBlankAnswers,
   finalizeUnsubmittedAnswers,
   NPAT_LETTER_PICK_SECONDS,
+  NPAT_MAX_LETTERS,
   NPAT_REVEAL_SECONDS,
-  npatSessionShouldEnd,
+  npatSessionExpired,
   parseNpatMetadata,
   randomUnusedLetter,
 } from '@/lib/npat'
@@ -268,6 +270,27 @@ async function advanceActiveRoundPhase(
   return 'round_active'
 }
 
+async function countPlayedLetters(
+  supabase: SupabaseClient,
+  gameId: string,
+  finishedMetadata: NpatMetadata
+): Promise<number> {
+  const { data: allRounds } = await supabase.from('rounds').select('npat_metadata').eq('game_id', gameId)
+  const fromRounds = countNpatLettersPlayed(allRounds ?? [])
+  const fromFinished = usedLettersAfterRound(finishedMetadata)
+  return Math.max(fromRounds, fromFinished)
+}
+
+async function shouldFinishNpatSession(
+  supabase: SupabaseClient,
+  game: Game,
+  finishedMetadata: NpatMetadata
+): Promise<boolean> {
+  const lettersPlayed = await countPlayedLetters(supabase, game.id, finishedMetadata)
+  if (lettersPlayed >= NPAT_MAX_LETTERS) return true
+  return npatSessionExpired(game.session_started_at, game.game_duration_seconds)
+}
+
 async function startNextLetterCycle(
   supabase: SupabaseClient,
   game: Game,
@@ -281,8 +304,7 @@ async function startNextLetterCycle(
   const { data: freshGame } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
   const liveGame = freshGame ?? game
 
-  const usedCount = usedLettersAfterRound(metadata)
-  if (npatSessionShouldEnd(liveGame, usedCount)) {
+  if (await shouldFinishNpatSession(supabase, liveGame, metadata)) {
     await markGameFinished(supabase, code)
     return { ok: true, code: 'advanced_finish' }
   }
@@ -297,7 +319,12 @@ async function startNextLetterCycle(
   })
 
   if (!nextRow) {
-    if (playerIds.length === 0) {
+    const lettersPlayed = await countPlayedLetters(supabase, code, metadata)
+    if (
+      lettersPlayed >= NPAT_MAX_LETTERS ||
+      npatSessionExpired(liveGame.session_started_at, liveGame.game_duration_seconds) ||
+      playerIds.length === 0
+    ) {
       await markGameFinished(supabase, code)
       return { ok: true, code: 'advanced_finish' }
     }

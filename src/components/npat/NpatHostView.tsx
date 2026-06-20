@@ -57,7 +57,7 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const [savingTimer, setSavingTimer] = useState(false)
   const [timerSeconds, setTimerSeconds] = useState(60)
   const [markingTimerSeconds, setMarkingTimerSeconds] = useState(45)
-  const [gameDurationSeconds, setGameDurationSeconds] = useState(1800)
+  const [gameDurationSeconds, setGameDurationSeconds] = useState(0)
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
   const [hostJoinName, setHostJoinName] = useState('')
@@ -94,7 +94,7 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
       setGame(gameRes.data)
       setTimerSeconds(gameRes.data.timer_seconds ?? 60)
       setMarkingTimerSeconds(gameRes.data.operative_timer_seconds ?? 45)
-      setGameDurationSeconds(gameRes.data.game_duration_seconds ?? 1800)
+      setGameDurationSeconds(gameRes.data.game_duration_seconds ?? 0)
     }
     setPlayers(plrsRes.data ?? [])
     setRounds(rdsRes.data ?? [])
@@ -204,6 +204,19 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const startGame = async () => {
     setStarting(true)
     try {
+      const saveRes = await fetch(`/api/games/${gameCode}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hostToken,
+          timer_seconds: timerSeconds,
+          operative_timer_seconds: markingTimerSeconds,
+          game_duration_seconds: gameDurationSeconds,
+        }),
+      })
+      const saveData = await saveRes.json()
+      if (!saveRes.ok) throw new Error(saveData.error ?? 'Failed to save timers')
+
       const res = await fetch(`/api/games/${gameCode}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

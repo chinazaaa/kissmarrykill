@@ -131,8 +131,8 @@ export function NpatCallerReviewPanel({
         <p className="text-sm text-muted leading-relaxed">
           You called letter{' '}
           <strong className="text-body">{letter ?? '?'}</strong> — review everyone&apos;s answers before scores are
-          revealed. Empty answers, wrong starting letters, and duplicates are invalid automatically. Toggle anything
-          else, then approve.
+          revealed. Empty answers, wrong starting letters, single-letter answers, and duplicates are invalid
+          automatically. Toggle anything else, then approve.
         </p>
         <button type="button" onClick={() => void approveRound()} disabled={approving} className="btn-primary w-full">
           {approving ? 'Approving…' : 'Approve & reveal scores'}

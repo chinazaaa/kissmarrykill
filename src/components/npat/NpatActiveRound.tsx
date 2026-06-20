@@ -12,12 +12,15 @@ import {
   clampNpatMarkingTimer,
   clampNpatTimer,
   duplicateKeysByCategory,
+  defaultMarkValidityForAnswer,
   isForcedInvalidAnswer,
+  isSingleLetterAnswer,
+  markValidityFromRow,
   normalizeAnswer,
   NPAT_CATEGORIES,
   NPAT_CATEGORY_LABELS,
   NPAT_MAX_ANSWER_LENGTH,
-  npatLettersRemaining,
+  npatLettersRemainingFromRounds,
   npatAnswerRequestPayload,
   parseNpatMetadata,
   phaseDeadlineMs,
@@ -105,6 +108,7 @@ export function NpatActiveRound({
   const autoSubmittedRoundRef = useRef<string | null>(null)
   const draftTimerRef = useRef<number | null>(null)
   const submittingRef = useRef(false)
+  const marksSeededRef = useRef<string | null>(null)
 
   const currentRound = useMemo(() => {
     const byPointer = rounds.find((r) => r.round_number === game.current_round_number) ?? null
@@ -176,6 +180,7 @@ export function NpatActiveRound({
   }, [metadata?.phase, currentRound?.id])
 
   useEffect(() => {
+    marksSeededRef.current = null
     setAnswerForm(emptyAnswerForm)
     setValidFlags(defaultValidFlags)
     setSubmitting(false)
@@ -188,37 +193,21 @@ export function NpatActiveRound({
   }, [currentRound?.id, emptyAnswerForm, defaultValidFlags])
 
   useEffect(() => {
-    if (!myMark || !reviewTargetId) return
-    const answer = roundAnswers.find((a) => a.player_id === reviewTargetId)
-    if (!answer) return
+    if (!currentRound || !reviewTargetAnswer || !metadata) return
+    if (metadata.phase !== 'marking') return
+
+    const seedKey = `${currentRound.id}:${reviewTargetId ?? ''}`
+    if (marksSeededRef.current === seedKey) return
+    marksSeededRef.current = seedKey
+
     const dupes = duplicateKeysByCategory(roundAnswers)
-    const letter = metadata?.letter ?? null
-    const clamp = (category: NpatCategory, value: boolean) => {
-      const text = answer[category]
-      const normalized = normalizeAnswer(text)
-      const isDuplicate = normalized ? dupes[category].has(normalized) : false
-      return isForcedInvalidAnswer(text, letter, isDuplicate) ? false : value
+    const letter = metadata.letter ?? null
+    if (myMark?.marked_at) {
+      setValidFlags(markValidityFromRow(myMark, reviewTargetAnswer, letter, dupes))
+    } else {
+      setValidFlags(defaultMarkValidityForAnswer(reviewTargetAnswer, letter, dupes))
     }
-    setValidFlags(
-      Object.fromEntries(
-        NPAT_CATEGORIES.map((category) => [
-          category,
-          clamp(category, myMark[`valid_${category}` as keyof NpatMark] as boolean),
-        ])
-      ) as Record<NpatCategory, boolean>
-    )
-  }, [
-    myMark?.id,
-    myMark?.valid_name,
-    myMark?.valid_animal,
-    myMark?.valid_place,
-    myMark?.valid_thing,
-    myMark?.valid_food,
-    currentRound?.id,
-    reviewTargetId,
-    roundAnswers,
-    metadata?.letter,
-  ])
+  }, [currentRound?.id, reviewTargetId, reviewTargetAnswer?.player_id, metadata?.phase, myMark?.marked_at, myMark?.id])
 
   useNpatAdvance({
     gameCode,
@@ -405,7 +394,7 @@ export function NpatActiveRound({
     screen === 'approval_wait'
   const showFinalScores = screen === 'revealed' || !!(metadata?.scores_computed && currentRound.status === 'finished')
   const maskScoreboardAnswers = metadata?.phase === 'writing'
-  const lettersLeft = npatLettersRemaining(metadata)
+  const lettersLeft = npatLettersRemainingFromRounds(rounds)
   const availableLetters = availableLettersForPick(rounds)
   const usedLetters = LETTERS.filter((letter) => !availableLetters.includes(letter))
 
@@ -564,7 +553,13 @@ export function NpatActiveRound({
                 <p className="font-medium">{text || '—'}</p>
                 {forcedInvalid && (
                   <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
-                    {!text.trim() ? 'Empty — invalid automatically' : isDuplicate ? 'Duplicate — 5 pts each' : `Must start with ${metadata.letter}`}
+                    {!text.trim()
+                      ? 'Empty — invalid automatically'
+                      : isDuplicate
+                        ? 'Duplicate — 5 pts each'
+                        : isSingleLetterAnswer(text)
+                          ? 'Single letter — invalid automatically'
+                          : `Must start with ${metadata.letter}`}
                   </p>
                 )}
                 <div className="grid grid-cols-2 gap-2">

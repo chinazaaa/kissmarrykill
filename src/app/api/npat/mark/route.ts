@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isICallOnGame, parseGameType } from '@/lib/game-types'
-import { parseNpatMetadata, reviewTargetForMarker, answerStartsWithLetter, normalizeAnswer, duplicateKeysByCategory } from '@/lib/npat'
+import { parseNpatMetadata, reviewTargetForMarker, answerStartsWithLetter, normalizeAnswer, duplicateKeysByCategory, isSingleLetterAnswer } from '@/lib/npat'
 import { npatMarkSchema } from '@/lib/validation'
 import type { NpatCategory } from '@/types'
 
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     const normalized = normalizeAnswer(text)
     const isDuplicate = normalized ? dupes[category].has(normalized) : false
     if (!normalized) return false
+    if (isSingleLetterAnswer(text)) return false
     if (letter && !answerStartsWithLetter(text, letter)) return false
     if (isDuplicate) return false
     return requested

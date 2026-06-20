@@ -32,7 +32,7 @@ export const NPAT_MAX_ANSWER_LENGTH = 80
 export const NPAT_TIMER_OPTIONS = [30, 45, 60, 90] as const
 export const NPAT_MARKING_TIMER_OPTIONS = [30, 45, 60] as const
 export const NPAT_MAX_LETTERS = 26
-export const NPAT_DEFAULT_GAME_DURATION = 1800
+export const NPAT_DEFAULT_GAME_DURATION = 0
 export const NPAT_GAME_DURATION_OPTIONS = [0, 600, 900, 1200, 1800, 2700, 3600] as const
 
 export const NPAT_CATEGORIES: NpatCategory[] = ['name', 'animal', 'place', 'thing', 'food']
@@ -253,10 +253,18 @@ export function buildNpatNextRound(opts: {
   }
 }
 
+export function countNpatLettersPlayed(rounds: Pick<Round, 'npat_metadata'>[]): number {
+  return collectUsedLetters(rounds).length
+}
+
 export function npatLettersRemaining(metadata: NpatMetadata | null): number {
   if (!metadata) return NPAT_MAX_LETTERS
   const used = metadata.used_letters.length + (metadata.letter ? 1 : 0)
   return Math.max(0, NPAT_MAX_LETTERS - used)
+}
+
+export function npatLettersRemainingFromRounds(rounds: Pick<Round, 'npat_metadata'>[]): number {
+  return Math.max(0, NPAT_MAX_LETTERS - countNpatLettersPlayed(rounds))
 }
 
 export function shufflePlayerOrder(playerIds: string[]): string[] {
@@ -277,11 +285,56 @@ export function answerStartsWithLetter(answer: string, letter: string): boolean 
   return trimmed[0].toUpperCase() === letter.toUpperCase().slice(0, 1)
 }
 
+export function isSingleLetterAnswer(answer: string): boolean {
+  return normalizeAnswer(answer).length <= 1
+}
+
 export function isForcedInvalidAnswer(answer: string, letter: string | null, isDuplicate: boolean): boolean {
-  if (!normalizeAnswer(answer)) return true
+  const normalized = normalizeAnswer(answer)
+  if (!normalized) return true
+  if (isSingleLetterAnswer(answer)) return true
   if (letter && !answerStartsWithLetter(answer, letter)) return true
   if (isDuplicate) return true
   return false
+}
+
+export function defaultMarkValidityForAnswer(
+  answer: Pick<NpatAnswer, 'name' | 'animal' | 'place' | 'thing' | 'food'>,
+  letter: string | null,
+  dupes: Record<NpatCategory, Set<string>>
+): Record<NpatCategory, boolean> {
+  return Object.fromEntries(
+    NPAT_CATEGORIES.map((category) => {
+      const text = answer[category]
+      const normalized = normalizeAnswer(text)
+      const isDuplicate = normalized ? dupes[category].has(normalized) : false
+      return [category, !isForcedInvalidAnswer(text, letter, isDuplicate)]
+    })
+  ) as Record<NpatCategory, boolean>
+}
+
+export function markValidityFromRow(
+  mark: Pick<NpatMark, 'valid_name' | 'valid_animal' | 'valid_place' | 'valid_thing' | 'valid_food'>,
+  answer: Pick<NpatAnswer, 'name' | 'animal' | 'place' | 'thing' | 'food'>,
+  letter: string | null,
+  dupes: Record<NpatCategory, Set<string>>
+): Record<NpatCategory, boolean> {
+  const storedByCategory: Record<NpatCategory, boolean> = {
+    name: mark.valid_name,
+    animal: mark.valid_animal,
+    place: mark.valid_place,
+    thing: mark.valid_thing,
+    food: mark.valid_food,
+  }
+  return Object.fromEntries(
+    NPAT_CATEGORIES.map((category) => {
+      const text = answer[category]
+      const normalized = normalizeAnswer(text)
+      const isDuplicate = normalized ? dupes[category].has(normalized) : false
+      const stored = storedByCategory[category]
+      return [category, isForcedInvalidAnswer(text, letter, isDuplicate) ? false : stored !== false]
+    })
+  ) as Record<NpatCategory, boolean>
 }
 
 export function duplicateKeysByCategory(
@@ -310,7 +363,7 @@ export function duplicateKeysByCategory(
   return result
 }
 
-export type NpatScoreReason = 'empty' | 'duplicate' | 'invalid' | 'wrong_letter' | 'valid'
+export type NpatScoreReason = 'empty' | 'duplicate' | 'invalid' | 'wrong_letter' | 'single_letter' | 'valid'
 
 export function computeCategoryScore(opts: {
   answer: string
@@ -319,6 +372,7 @@ export function computeCategoryScore(opts: {
   isDuplicate: boolean
 }): { points: number; reason: NpatScoreReason } {
   if (!normalizeAnswer(opts.answer)) return { points: 0, reason: 'empty' }
+  if (isSingleLetterAnswer(opts.answer)) return { points: 0, reason: 'single_letter' }
   if (opts.letter && !answerStartsWithLetter(opts.answer, opts.letter)) {
     return { points: 0, reason: 'wrong_letter' }
   }

@@ -6,6 +6,7 @@ import {
   computeCategoryScore,
   duplicateKeysByCategory,
   isForcedInvalidAnswer,
+  isSingleLetterAnswer,
   NPAT_CATEGORIES,
   NPAT_CATEGORY_LABELS,
   NPAT_CATEGORY_POINTS,
@@ -18,6 +19,7 @@ import type { NpatAnswer, NpatCategory, NpatMark, NpatMetadata, Player } from '@
 function scoreReasonLabel(reason: NpatScoreReason): string {
   if (reason === 'duplicate') return 'Duplicate'
   if (reason === 'wrong_letter') return 'Wrong letter'
+  if (reason === 'single_letter') return 'Single letter'
   if (reason === 'invalid') return 'Marked invalid'
   if (reason === 'empty') return 'Empty'
   return 'Valid'
@@ -81,7 +83,7 @@ export function NpatScoreboard({
       </div>
       <p className="text-faint text-xs">
         {hostReview
-          ? 'Tap valid or invalid for answers you want to override. Empty, wrong-letter, and duplicate answers are locked invalid.'
+          ? 'Tap valid or invalid for answers you want to override. Empty, wrong-letter, single-letter, and duplicate answers are locked invalid.'
           : maskAnswers
             ? `${lockedInCount}/${players.length} locked in — answers stay hidden until marking starts.`
             : 'Duplicates score 5 automatically. Reviewers mark whether each answer fits its category — everyone can see the marks.'}
@@ -141,12 +143,16 @@ export function NpatScoreboard({
                   const markedValid = mark?.[`valid_${category}` as keyof NpatMark]
                   const hasMark = mark?.marked_at != null
                   const forcedInvalid = isForcedInvalidAnswer(text, letter, isDuplicate)
-                  const hostValid = hostReview
-                    ? hostOverrides?.[player.id]?.[category]
-                    : undefined
-                  const effectiveValid =
-                    hostReview && typeof hostValid === 'boolean'
+                  const hostOverride = metadata?.host_overrides?.[player.id]?.[category]
+                  const hostValid = hostReview ? hostOverrides?.[player.id]?.[category] : undefined
+                  const effectiveValid = hostReview
+                    ? typeof hostValid === 'boolean'
                       ? hostValid
+                      : typeof hostOverride === 'boolean'
+                        ? hostOverride
+                        : markedValid !== false
+                    : typeof hostOverride === 'boolean'
+                      ? hostOverride
                       : markedValid !== false
 
                   let reason: NpatScoreReason = 'empty'
@@ -155,15 +161,16 @@ export function NpatScoreboard({
                     const scoreKey = `score_${category}` as keyof NpatAnswer
                     points = (answer[scoreKey] as number | null) ?? 0
                     if (!normalized) reason = 'empty'
+                    else if (isSingleLetterAnswer(text)) reason = 'single_letter'
                     else if (letter && !answerStartsWithLetter(text, letter)) reason = 'wrong_letter'
                     else if (isDuplicate) reason = 'duplicate'
-                    else if (markedValid === false) reason = 'invalid'
+                    else if (points === 0) reason = 'invalid'
                     else reason = 'valid'
                   } else {
                     const preview = computeCategoryScore({
                       answer: text,
                       letter,
-                      markedValid: hostReview ? effectiveValid : markedValid !== false,
+                      markedValid: effectiveValid,
                       isDuplicate,
                     })
                     points = preview.points
@@ -178,6 +185,11 @@ export function NpatScoreboard({
                         {normalized && letter && !answerStartsWithLetter(text, letter) && (
                           <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
                             Must start with {letter}
+                          </p>
+                        )}
+                        {normalized && isSingleLetterAnswer(text) && (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
+                            Single letter
                           </p>
                         )}
                         {isDuplicate && normalized && (
@@ -211,10 +223,10 @@ export function NpatScoreboard({
                             </button>
                           </div>
                         )}
-                        {!hostReview && hasMark && markedValid === false && (
+                        {!hostReview && (hasMark || typeof hostOverride === 'boolean') && !effectiveValid && !forcedInvalid && (
                           <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">Invalid</p>
                         )}
-                        {!hostReview && hasMark && markedValid === true && normalized && !isDuplicate && (
+                        {!hostReview && (hasMark || typeof hostOverride === 'boolean') && effectiveValid && normalized && !isDuplicate && !forcedInvalid && (
                           <p className="text-[11px] text-emerald-600 dark:text-emerald-300">Valid</p>
                         )}
                         {!hostReview && !hasMark && metadata?.phase === 'marking' && normalized && (
