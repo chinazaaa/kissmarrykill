@@ -25,6 +25,7 @@ export const NPAT_DEFAULT_TIMER = 60
 export const NPAT_DEFAULT_MARKING_TIMER = 45
 export const NPAT_LETTER_PICK_SECONDS = 15
 export const NPAT_REVEAL_SECONDS = 8
+export const NPAT_CALLER_REVIEW_SECONDS = 45
 export const NPAT_CATEGORY_POINTS = 10
 export const NPAT_DUPLICATE_POINTS = 5
 export const NPAT_MAX_ANSWER_LENGTH = 80
@@ -179,6 +180,39 @@ export function parseNpatMetadata(raw: unknown): NpatMetadata | null {
   }
 }
 
+/** Who should pick the letter and approve this round — always submitter_player_id when set. */
+export function roundCallerPlayerId(
+  round: Pick<Round, 'submitter_player_id'>,
+  metadata: NpatMetadata | null
+): string | null {
+  if (round.submitter_player_id) return round.submitter_player_id
+  if (!metadata?.caller_order.length) return null
+  return metadata.caller_order[metadata.caller_index] ?? metadata.caller_order[0] ?? null
+}
+
+export function syncCallerIndexInMetadata(
+  metadata: NpatMetadata,
+  submitterPlayerId: string | null
+): NpatMetadata {
+  if (!submitterPlayerId || metadata.caller_order.length === 0) return metadata
+  const idx = metadata.caller_order.indexOf(submitterPlayerId)
+  if (idx === -1) return metadata
+  return { ...metadata, caller_index: idx }
+}
+
+/** Prefer the in-progress active round over a stale game pointer. */
+export function resolveActiveNpatRound(rounds: Round[], currentRoundNumber: number): Round | null {
+  const active = rounds.find((r) => r.status === 'active') ?? null
+  if (active) {
+    const meta = parseNpatMetadata(active.npat_metadata)
+    if (meta && meta.phase !== 'reveal') return active
+  }
+
+  const byPointer = rounds.find((r) => r.round_number === currentRoundNumber) ?? null
+  if (active && byPointer && active.id !== byPointer.id && byPointer.status === 'finished') return active
+  return byPointer ?? active
+}
+
 export function buildReviewerAssignments(playerIds: string[]): Record<string, string> {
   const assignments: Record<string, string> = {}
   for (let i = 0; i < playerIds.length; i += 1) {
@@ -214,29 +248,72 @@ export function buildNpatInitialRound(opts: {
   }
 }
 
+/** Keep caller order in sync with active players and advance to the next caller. */
+export function syncCallerOrder(
+  previousOrder: string[],
+  currentPlayerIds: string[],
+  previousCallerId: string | null
+): { caller_order: string[]; caller_index: number; caller_id: string } {
+  const active = new Set(currentPlayerIds)
+  let order = previousOrder.filter((id) => active.has(id))
+  for (const id of currentPlayerIds) {
+    if (!order.includes(id)) order.push(id)
+  }
+  if (order.length === 0) order = [...currentPlayerIds]
+  if (order.length === 0) {
+    return { caller_order: [], caller_index: 0, caller_id: '' }
+  }
+
+  let nextIndex = 0
+  if (previousCallerId) {
+    const prevIndex = order.indexOf(previousCallerId)
+    if (prevIndex !== -1) nextIndex = (prevIndex + 1) % order.length
+  }
+
+  return {
+    caller_order: order,
+    caller_index: nextIndex,
+    caller_id: order[nextIndex],
+  }
+}
+
 export function buildNpatNextRound(opts: {
   gameId: string
   roundNumber: number
   previousMetadata: NpatMetadata
+  previousCallerId: string | null
   playerIds: string[]
   now: string
 }): Record<string, unknown> | null {
-  const used_letters = [...opts.previousMetadata.used_letters]
-  if (opts.previousMetadata.letter) used_letters.push(opts.previousMetadata.letter)
-  if (used_letters.length >= NPAT_MAX_LETTERS) return null
+  const usedSet = new Set(
+    opts.previousMetadata.used_letters.map((l) => l.toUpperCase().slice(0, 1))
+  )
+  if (opts.previousMetadata.letter) {
+    usedSet.add(opts.previousMetadata.letter.toUpperCase().slice(0, 1))
+  }
+  if (usedSet.size >= NPAT_MAX_LETTERS) return null
 
-  const caller_order =
-    opts.previousMetadata.caller_order.length > 0 ? opts.previousMetadata.caller_order : opts.playerIds
-  if (caller_order.length === 0) return null
+  const used_letters = [...usedSet].sort()
 
-  const caller_index = (opts.previousMetadata.caller_index + 1) % caller_order.length
+  const { caller_order, caller_index, caller_id } = syncCallerOrder(
+    opts.previousMetadata.caller_order,
+    opts.playerIds,
+    opts.previousCallerId
+  )
+
+  if (opts.playerIds.length === 0 && caller_order.length === 0) return null
+
+  const submitterId = caller_id || opts.playerIds[0] || caller_order[0]
+  if (!submitterId) return null
+
+  const callerIndex = caller_order.indexOf(submitterId)
   const reviewerIds = opts.playerIds.length > 0 ? opts.playerIds : caller_order
 
   return {
     game_id: opts.gameId,
     round_number: opts.roundNumber,
     participant_ids: [],
-    submitter_player_id: caller_order[caller_index],
+    submitter_player_id: submitterId,
     status: 'pending',
     started_at: null,
     ended_at: null,
@@ -248,13 +325,15 @@ export function buildNpatNextRound(opts: {
       scores_computed: false,
       used_letters,
       caller_order,
-      caller_index,
+      caller_index: callerIndex >= 0 ? callerIndex : caller_index,
     } satisfies NpatMetadata,
   }
 }
 
-export function countNpatLettersPlayed(rounds: Pick<Round, 'npat_metadata'>[]): number {
-  return collectUsedLetters(rounds).length
+export function countNpatLettersPlayed(
+  rounds: Array<Pick<Round, 'npat_metadata'> & { status?: Round['status'] }>
+): number {
+  return collectUsedLetters(rounds.filter((r) => r.status === 'finished')).length
 }
 
 export function npatLettersRemaining(metadata: NpatMetadata | null): number {

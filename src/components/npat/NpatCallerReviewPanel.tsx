@@ -6,6 +6,8 @@ import {
   duplicateKeysByCategory,
   isForcedInvalidAnswer,
   NPAT_CATEGORIES,
+  parseNpatMetadata,
+  roundCallerPlayerId,
   suggestedHostReviewValidity,
 } from '@/lib/npat'
 import type { NpatAnswer, NpatCategory, NpatMark, NpatMetadata, Player, Round } from '@/types'
@@ -60,8 +62,10 @@ export function NpatCallerReviewPanel({
   onApproved?: () => void
 }) {
   const { error: toastError, success } = useToast()
-  const metadata = round.npat_metadata as NpatMetadata | null | undefined
+  const metadata = parseNpatMetadata(round.npat_metadata)
   const letter = metadata?.letter ?? null
+  const callerId = roundCallerPlayerId(round, metadata)
+  const isLetterCaller = callerId === playerId
   const roundAnswers = useMemo(() => answers.filter((a) => a.round_id === round.id), [answers, round.id])
   const roundMarks = useMemo(() => marks.filter((m) => m.round_id === round.id), [marks, round.id])
   const dupes = useMemo(() => duplicateKeysByCategory(roundAnswers), [roundAnswers])
@@ -123,6 +127,18 @@ export function NpatCallerReviewPanel({
     }
     return result
   }, [validity])
+
+  if (!isLetterCaller) {
+    return (
+      <div className="glass-card p-6 text-center space-y-2">
+        <p className="text-2xl">👀</p>
+        <p className="font-bold">Waiting for the letter caller</p>
+        <p className="text-sm text-muted">
+          Only the player who called this letter can approve the round. You&apos;re not the caller for this round.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">

@@ -11,12 +11,15 @@ import {
   ensureDefaultMarks,
   ensureBlankAnswers,
   finalizeUnsubmittedAnswers,
+  NPAT_CALLER_REVIEW_SECONDS,
   NPAT_LETTER_PICK_SECONDS,
   NPAT_MAX_LETTERS,
   NPAT_REVEAL_SECONDS,
   npatSessionExpired,
   parseNpatMetadata,
   randomUnusedLetter,
+  suggestedHostReviewValidity,
+  syncCallerIndexInMetadata,
 } from '@/lib/npat'
 import type { Game, NpatMetadata, Round } from '@/types'
 
@@ -40,8 +43,12 @@ export type NpatAdvanceResult = {
   nextRound?: number
 }
 
-async function countPlayers(supabase: SupabaseClient, gameId: string): Promise<string[]> {
-  const { data } = await supabase.from('players').select('id').eq('game_id', gameId)
+async function countActivePlayers(supabase: SupabaseClient, gameId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('players')
+    .select('id')
+    .eq('game_id', gameId)
+    .eq('spectator', false)
   return (data ?? []).map((p) => p.id)
 }
 
@@ -74,16 +81,15 @@ function phaseExpired(metadata: NpatMetadata, game: Game): boolean {
   if (metadata.phase === 'marking') {
     return now >= start + clampNpatMarkingTimer(game.operative_timer_seconds) * 1000
   }
+  if (metadata.phase === 'host_review') {
+    return now >= start + NPAT_CALLER_REVIEW_SECONDS * 1000
+  }
   return false
 }
 
 function revealPending(round: Round): boolean {
   if (!round.ended_at) return false
   return Date.now() < new Date(round.ended_at).getTime() + NPAT_REVEAL_SECONDS * 1000
-}
-
-function usedLettersAfterRound(metadata: NpatMetadata): number {
-  return metadata.used_letters.length + (metadata.letter ? 1 : 0)
 }
 
 async function updateRoundMetadata(
@@ -131,6 +137,23 @@ async function startMarkingPhase(
     phase: 'marking',
     phase_started_at: now,
   })
+}
+
+async function autoApproveCallerReview(
+  supabase: SupabaseClient,
+  gameId: string,
+  round: Round
+): Promise<boolean> {
+  const metadata = parseNpatMetadata(round.npat_metadata)
+  if (!metadata || metadata.phase !== 'host_review') return false
+
+  const [{ data: answers }, { data: marks }] = await Promise.all([
+    supabase.from('npat_answers').select('*').eq('round_id', round.id),
+    supabase.from('npat_marks').select('*').eq('round_id', round.id),
+  ])
+
+  const hostOverrides = suggestedHostReviewValidity(answers ?? [], marks ?? [], metadata.letter) ?? {}
+  return approveNpatRound(supabase, gameId, round.id, hostOverrides)
 }
 
 async function startHostReviewPhase(
@@ -203,17 +226,22 @@ async function syncGamePointer(supabase: SupabaseClient, gameId: string, roundNu
 
 async function activateRound(supabase: SupabaseClient, roundId: string): Promise<boolean> {
   const now = new Date().toISOString()
-  const { data: round } = await supabase.from('rounds').select('npat_metadata').eq('id', roundId).maybeSingle()
+  const { data: round } = await supabase
+    .from('rounds')
+    .select('submitter_player_id, npat_metadata')
+    .eq('id', roundId)
+    .maybeSingle()
   const metadata = parseNpatMetadata(round?.npat_metadata)
   if (!metadata) return false
 
+  const synced = syncCallerIndexInMetadata(metadata, round?.submitter_player_id ?? null)
   const { data, error } = await supabase
     .from('rounds')
     .update({
       status: 'active',
       started_at: now,
       ended_at: null,
-      npat_metadata: { ...metadata, phase: 'letter_pick', phase_started_at: now },
+      npat_metadata: { ...synced, phase: 'letter_pick', phase_started_at: now },
     })
     .eq('id', roundId)
     .eq('status', 'pending')
@@ -264,31 +292,30 @@ async function advanceActiveRoundPhase(
   }
 
   if (metadata.phase === 'host_review') {
+    if (phaseExpired(metadata, game)) {
+      const ok = await autoApproveCallerReview(supabase, game.id, round)
+      return ok ? 'phase_advanced' : 'round_active'
+    }
     return 'round_active'
   }
 
   return 'round_active'
 }
 
-async function countPlayedLetters(
-  supabase: SupabaseClient,
-  gameId: string,
-  finishedMetadata: NpatMetadata
-): Promise<number> {
-  const { data: allRounds } = await supabase.from('rounds').select('npat_metadata').eq('game_id', gameId)
-  const fromRounds = countNpatLettersPlayed(allRounds ?? [])
-  const fromFinished = usedLettersAfterRound(finishedMetadata)
-  return Math.max(fromRounds, fromFinished)
+async function countPlayedLetters(supabase: SupabaseClient, gameId: string): Promise<number> {
+  const { data: allRounds } = await supabase
+    .from('rounds')
+    .select('npat_metadata, status')
+    .eq('game_id', gameId)
+  return countNpatLettersPlayed(allRounds ?? [])
 }
 
-async function shouldFinishNpatSession(
-  supabase: SupabaseClient,
-  game: Game,
-  finishedMetadata: NpatMetadata
-): Promise<boolean> {
-  const lettersPlayed = await countPlayedLetters(supabase, game.id, finishedMetadata)
+async function shouldFinishNpatSession(supabase: SupabaseClient, game: Game): Promise<boolean> {
+  const lettersPlayed = await countPlayedLetters(supabase, game.id)
   if (lettersPlayed >= NPAT_MAX_LETTERS) return true
-  return npatSessionExpired(game.session_started_at, game.game_duration_seconds)
+  const duration = game.game_duration_seconds ?? 0
+  if (duration <= 0) return false
+  return npatSessionExpired(game.session_started_at, duration)
 }
 
 async function startNextLetterCycle(
@@ -304,7 +331,7 @@ async function startNextLetterCycle(
   const { data: freshGame } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
   const liveGame = freshGame ?? game
 
-  if (await shouldFinishNpatSession(supabase, liveGame, metadata)) {
+  if (await shouldFinishNpatSession(supabase, liveGame)) {
     await markGameFinished(supabase, code)
     return { ok: true, code: 'advanced_finish' }
   }
@@ -314,17 +341,16 @@ async function startNextLetterCycle(
     gameId: code,
     roundNumber: nextRoundNumber,
     previousMetadata: metadata,
+    previousCallerId: finishedRound.submitter_player_id,
     playerIds,
     now: new Date().toISOString(),
   })
 
   if (!nextRow) {
-    const lettersPlayed = await countPlayedLetters(supabase, code, metadata)
-    if (
-      lettersPlayed >= NPAT_MAX_LETTERS ||
-      npatSessionExpired(liveGame.session_started_at, liveGame.game_duration_seconds) ||
-      playerIds.length === 0
-    ) {
+    const lettersPlayed = await countPlayedLetters(supabase, code)
+    const duration = liveGame.game_duration_seconds ?? 0
+    const timedOut = duration > 0 && npatSessionExpired(liveGame.session_started_at, duration)
+    if (lettersPlayed >= NPAT_MAX_LETTERS || timedOut || playerIds.length === 0) {
       await markGameFinished(supabase, code)
       return { ok: true, code: 'advanced_finish' }
     }
@@ -386,7 +412,7 @@ export async function syncNpatGameState(
   const roundList = rounds ?? []
   const activeRound = roundList.find((r) => r.status === 'active') ?? null
   const pointerRound = roundList.find((r) => r.round_number === game.current_round_number) ?? null
-  const playerIds = await countPlayers(supabase, code)
+  const playerIds = await countActivePlayers(supabase, code)
 
   if (pointerRound && pointerRound.status === 'finished' && revealPending(pointerRound) && !opts?.force) {
     return { ok: true, code: 'reveal_pending' }

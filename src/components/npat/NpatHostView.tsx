@@ -20,6 +20,7 @@ import {
   NPAT_MIN_PLAYERS,
   NPAT_TIMER_OPTIONS,
   parseNpatMetadata,
+  resolveActiveNpatRound,
   setNpatHostMode,
   tallyNpatScores,
   type NpatHostMode,
@@ -149,10 +150,7 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
   const currentRound = useMemo(() => {
     if (!game) return null
-    const byPointer = rounds.find((r) => r.round_number === game.current_round_number) ?? null
-    const active = rounds.find((r) => r.status === 'active') ?? null
-    if (active && byPointer && active.id !== byPointer.id && byPointer.status === 'finished') return active
-    return byPointer ?? active
+    return resolveActiveNpatRound(rounds, game.current_round_number)
   }, [rounds, game])
 
   const currentMetadata = currentRound ? parseNpatMetadata(currentRound.npat_metadata) : null

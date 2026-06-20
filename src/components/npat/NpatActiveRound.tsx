@@ -26,8 +26,10 @@ import {
   phaseDeadlineMs,
   phaseSecondsLeft,
   playerDisplayName,
+  resolveActiveNpatRound,
   revealCountdownSeconds,
   reviewTargetForMarker,
+  roundCallerPlayerId,
   tallyNpatScores,
 } from '@/lib/npat'
 import { useNpatAdvance } from '@/hooks/useNpatAdvance'
@@ -110,14 +112,13 @@ export function NpatActiveRound({
   const submittingRef = useRef(false)
   const marksSeededRef = useRef<string | null>(null)
 
-  const currentRound = useMemo(() => {
-    const byPointer = rounds.find((r) => r.round_number === game.current_round_number) ?? null
-    const active = rounds.find((r) => r.status === 'active') ?? null
-    if (active && byPointer && active.id !== byPointer.id && byPointer.status === 'finished') return active
-    return byPointer ?? active
-  }, [rounds, game.current_round_number])
+  const currentRound = useMemo(
+    () => resolveActiveNpatRound(rounds, game.current_round_number),
+    [rounds, game.current_round_number]
+  )
 
   const metadata = currentRound ? parseNpatMetadata(currentRound.npat_metadata) : null
+  const callerId = currentRound ? roundCallerPlayerId(currentRound, metadata) : null
   const roundAnswers = useMemo(
     () => (currentRound ? answers.filter((a) => a.round_id === currentRound.id) : []),
     [answers, currentRound]
@@ -128,13 +129,13 @@ export function NpatActiveRound({
   )
   const myAnswer = roundAnswers.find((a) => a.player_id === myPlayerId) ?? null
   const myMark = roundMarks.find((m) => m.marker_player_id === myPlayerId) ?? null
-  const isCaller = currentRound?.submitter_player_id === myPlayerId
+  const isCaller = callerId === myPlayerId
   const reviewTargetId = reviewTargetForMarker(metadata, myPlayerId)
   const reviewTargetAnswer = reviewTargetId
     ? roundAnswers.find((a) => a.player_id === reviewTargetId) ?? null
     : null
   const leaderboard = useMemo(() => tallyNpatScores(answers, players), [answers, players])
-  const callerName = playerDisplayName(currentRound?.submitter_player_id, players)
+  const callerName = playerDisplayName(callerId, players)
 
   const writingTimer = clampNpatTimer(game.timer_seconds)
   const markingTimer = clampNpatMarkingTimer(game.operative_timer_seconds)
@@ -419,6 +420,9 @@ export function NpatActiveRound({
           <p className="label-caps text-xs">
             Letter {currentRound.round_number}
             {lettersLeft > 0 ? ` · ${lettersLeft} letter${lettersLeft === 1 ? '' : 's'} left` : ''}
+            {metadata.caller_order.length > 1 && callerId
+              ? ` · Caller ${metadata.caller_order.indexOf(callerId) + 1} of ${metadata.caller_order.length}`
+              : ''}
           </p>
           {metadata.letter ? (
             <p className="text-5xl font-black text-sky-500">{metadata.letter}</p>
@@ -521,12 +525,25 @@ export function NpatActiveRound({
         )}
 
         {screen === 'approval_wait' && (
-          <div className="glass-card p-6 text-center space-y-2">
-            <p className="text-2xl">👀</p>
-            <p className="font-bold">Waiting for {callerName}&apos;s approval</p>
-            <p className="text-sm text-muted">
-              The letter caller is reviewing everyone&apos;s answers before scores are revealed.
-            </p>
+          <div className="space-y-4">
+            <div className="glass-card p-6 text-center space-y-2">
+              <p className="text-2xl">👀</p>
+              <p className="font-bold">Waiting for {callerName}&apos;s approval</p>
+              <p className="text-sm text-muted">
+                Only the person who called letter {metadata.letter ?? '?'} can approve this round. Scores reveal
+                automatically after 45s if they don&apos;t tap approve.
+              </p>
+            </div>
+            {showTransparency && (
+              <NpatScoreboard
+                letter={metadata.letter}
+                players={players}
+                answers={roundAnswers}
+                marks={roundMarks}
+                metadata={metadata}
+                showScores={false}
+              />
+            )}
           </div>
         )}
 

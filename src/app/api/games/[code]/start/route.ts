@@ -533,7 +533,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isICallOnGame(gameType)) {
-    const playerIds = playersData.map((p) => p.id)
+    const playerIds = playersData.filter((p) => p.spectator !== true).map((p) => p.id)
     if (playerIds.length < NPAT_MIN_PLAYERS) {
       return NextResponse.json(
         { error: `Need at least ${NPAT_MIN_PLAYERS} players to start` },
