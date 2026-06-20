@@ -27,6 +27,7 @@ import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
+import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { useLudoTurnTimer } from '@/hooks/useLudoTurnTimer'
 import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/hooks/useLudoNotifications'
 
@@ -273,7 +274,7 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
               inLobby
             />
           )}
-          <p className="text-center text-sm text-muted">{players.length} player{players.length === 1 ? '' : 's'} in lobby</p>
+          <GameLobbyPlayerList players={players} myPlayerId={myPlayerId} label="In lobby" />
         </LudoCard>
       </LudoShell>
     )

@@ -28,6 +28,7 @@ import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
+import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
@@ -423,7 +424,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
             green, then hit BINGO when you complete a line.
           </p>
           <BingoCardLegend />
-          <p className="text-faint text-xs">{players.length} player{players.length === 1 ? '' : 's'} in lobby</p>
+          <GameLobbyPlayerList players={players} myPlayerId={myPlayerId} label="In lobby" />
           <GameRulesLink gameType="bingo" variant="subtle" />
           {myPlayerId && (
             <PlayerSessionControls

@@ -41,6 +41,17 @@ export function lateJoinPolicyToFields(policy: LateJoinPolicy): {
   }
 }
 
+/** Board games only support lobby-only or watch-only late join. */
+export function clampLateJoinPolicyForGameType(
+  policy: LateJoinPolicy,
+  gameType: GameType
+): LateJoinPolicy {
+  if (!gameAllowsLatePlayerJoin(gameType) && policy === 'viewers_and_players') {
+    return 'viewers_only'
+  }
+  return policy
+}
+
 /** Host can toggle late join policy (excludes secret message). */
 export function gameSupportsViewerSetting(gameType: GameType): boolean {
   return !isSecretMessageGame(gameType)

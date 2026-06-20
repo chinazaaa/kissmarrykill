@@ -9,6 +9,7 @@ import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRoun
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsWaitingPanel } from '@/components/codewords/CodewordsWaitingPanel'
+import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
@@ -449,6 +450,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             />
           )}
 
+          <GameLobbyPlayerList players={allPlayers} myPlayerId={myPlayerId} label="In lobby" />
+
           {playersPickTeams ? (
             <>
               <div className="space-y-2">
@@ -543,7 +546,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
           <CodewordsWaitingPanel
             playerName={myPlayerName}
             myRole={myRole}
-            playerCount={allPlayers.length}
+            players={allPlayers}
+            myPlayerId={myPlayerId}
           />
           <ShareGameLinkCard gameCode={gameCode} />
           {leaveButton}
@@ -661,7 +665,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
           <CodewordsWaitingPanel
             playerName={myPlayerName}
             myRole={myRole}
-            playerCount={allPlayers.length}
+            players={allPlayers}
+            myPlayerId={myPlayerId}
             variant="starting"
           />
           {leaveButton}

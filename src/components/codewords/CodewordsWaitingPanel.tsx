@@ -1,8 +1,9 @@
 'use client'
 
 import { CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
+import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { roleLabel, teamLabel } from '@/lib/codewords'
-import type { CodewordsPlayerRole } from '@/types'
+import type { CodewordsPlayerRole, Player } from '@/types'
 
 const RULES = [
   'Two teams — Red and Blue — each with one spymaster and operatives.',
@@ -14,13 +15,15 @@ const RULES = [
 export function CodewordsWaitingPanel({
   playerName,
   myRole,
-  playerCount = 0,
+  players = [],
+  myPlayerId,
   variant = 'lobby',
   manageHint,
 }: {
   playerName: string
   myRole?: CodewordsPlayerRole | null
-  playerCount?: number
+  players?: Pick<Player, 'id' | 'name'>[]
+  myPlayerId?: string | null
   variant?: 'lobby' | 'starting'
   manageHint?: string
 }) {
@@ -45,12 +48,11 @@ export function CodewordsWaitingPanel({
             </span>
           </p>
         )}
-        {playerCount > 0 && (
-          <p className="text-faint text-xs">
-            {playerCount} player{playerCount === 1 ? '' : 's'} in the lobby
-          </p>
-        )}
       </div>
+
+      {variant !== 'starting' && (
+        <GameLobbyPlayerList players={players} myPlayerId={myPlayerId} label="In lobby" />
+      )}
 
       <div className="rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] p-4 space-y-3">
         <p className="label-caps">How to play</p>

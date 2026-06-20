@@ -28,6 +28,7 @@ import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
+import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useWhotTurnTimer } from '@/hooks/useWhotTurnTimer'
 import { useWhotNotifications, playWhotActionSound } from '@/hooks/useWhotNotifications'
@@ -284,12 +285,7 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
     const myName = players.find((p) => p.id === myPlayerId)?.name ?? ''
     return (
       <WhotShell title={game?.title} subtitle="Waiting for the host to start">
-        <WhotCard className="p-4 text-center">
-          <p className="text-3xl font-black text-[var(--primary)]">{players.length}</p>
-          <p className="text-sm text-muted">
-            {players.length} player{players.length === 1 ? '' : 's'} in the lobby
-          </p>
-        </WhotCard>
+        <GameLobbyPlayerList players={players} myPlayerId={myPlayerId} label="In lobby" />
         {myPlayerId && myName && (
           <PlayerSessionControls
             gameCode={gameCode}

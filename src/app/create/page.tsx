@@ -97,7 +97,7 @@ import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/component
 import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGrid } from '@/components/ui/CreateWizard'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { LateJoinPolicyToggle } from '@/components/AllowViewersToggle'
-import { gameSupportsViewerSetting, type LateJoinPolicy } from '@/lib/viewers'
+import { gameSupportsViewerSetting, clampLateJoinPolicyForGameType, type LateJoinPolicy } from '@/lib/viewers'
 import {
   getParticipantCustomContentHint,
   getQuestionCustomContentHint,
@@ -224,7 +224,7 @@ function CreateGameInner() {
   const [codewordsMaxPlayers, setCodewordsMaxPlayers] = useState(CODEWORDS_DEFAULT_MAX_PLAYERS)
   const [codewordsOperativeTimer, setCodewordsOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
   const [codewordsPlayerPicks, setCodewordsPlayerPicks] = useState(true)
-  const [lateJoinPolicy, setLateJoinPolicy] = useState<LateJoinPolicy>('viewers_and_players')
+  const [lateJoinPolicy, setLateJoinPolicy] = useState<LateJoinPolicy>('viewers_only')
   const [codewordsRandomizeTeams, setCodewordsRandomizeTeams] = useState(false)
   const [triviaCategory, setTriviaCategory] = useState<TriviaCategory>('general')
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
@@ -265,6 +265,10 @@ function CreateGameInner() {
     setWhotMaxPlayers((v) => clamp('whot', v))
     setLudoMaxPlayers((v) => clamp('ludo', v))
   }, [lobbyLimits])
+
+  useEffect(() => {
+    setLateJoinPolicy((prev) => clampLateJoinPolicyForGameType(prev, settings.game_type))
+  }, [settings.game_type])
 
   useEffect(() => {
     const typeParam = searchParams.get('type')

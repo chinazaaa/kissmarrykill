@@ -491,7 +491,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
             <CodewordsWaitingPanel
               playerName={hostPlayerName}
               myRole={hostMyRole}
-              playerCount={players.length}
+              players={players}
+              myPlayerId={hostPlayerId}
               variant={game.status === 'active' ? 'starting' : 'lobby'}
               manageHint="Head to Manage → Teams to assign players, then start the game when ready."
             />
