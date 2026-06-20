@@ -42,6 +42,7 @@ import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
 import { MonopolyJoinForm } from '@/components/monopoly/MonopolyJoinForm'
 import { type MonopolyTokenId } from '@/lib/monopoly-tokens'
@@ -75,6 +76,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
   const [tab, setTab] = useState<HostTab>('manage')
 
   useApplyGameTheme(game?.theme)
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, boardRes, stateRes] = await Promise.all([

@@ -39,6 +39,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification, useBingoStartNotification } from '@/hooks/useBingoNotifications'
 import { useBingoAutoCall } from '@/hooks/useBingoAutoCall'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 type HostTab = 'play' | 'manage'
 
@@ -67,6 +68,8 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const [hostMarking, setHostMarking] = useState(false)
   const [hostClaiming, setHostClaiming] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const loadHostCard = useCallback(async (playerId: string) => {
     const res = await supabase

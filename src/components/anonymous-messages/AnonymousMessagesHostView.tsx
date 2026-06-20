@@ -27,6 +27,7 @@ import type { Game, Player } from '@/types'
 import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
@@ -43,6 +44,8 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [mutingPlayerId, setMutingPlayerId] = useState<string | null>(null)
   const [muteMinutes, setMuteMinutes] = useState(ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES)
+
+  useScrollHostViewToTop({ gameStatus: game?.status })
 
   const lobbyActionsEnabled = game?.status === 'waiting' || game?.status === 'active'
   const { bans, banForPlayer, reload: reloadBans } = useAnonymousRoomBans(gameCode, !!lobbyActionsEnabled)

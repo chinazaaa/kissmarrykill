@@ -22,6 +22,7 @@ import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 type HostTab = 'play' | 'manage'
 
@@ -43,6 +44,8 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostMode, setHostMode] = useState<TtlHostMode>('spectator')
   const [tab, setTab] = useState<HostTab>('manage')
   const [editingStatements, setEditingStatements] = useState(false)
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const handlePlayerRemoved = useCallback(
     (playerId: string) => {

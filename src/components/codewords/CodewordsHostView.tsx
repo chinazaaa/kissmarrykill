@@ -25,6 +25,7 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/ut
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, CodewordsRole, CodewordsTeam, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 type HostTab = 'play' | 'manage'
 
@@ -50,6 +51,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] =

@@ -15,6 +15,7 @@ import type { AnonymousMessage, Game } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: string; hostToken: string }) {
   const { error: toastError, success } = useToast()
@@ -23,6 +24,8 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
   const [reopening, setReopening] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [sharingId, setSharingId] = useState<string | null>(null)
+
+  useScrollHostViewToTop({ gameStatus: game?.status })
   const sharingLock = useRef(false)
 
   const inboxEnabled = game?.status === 'active'

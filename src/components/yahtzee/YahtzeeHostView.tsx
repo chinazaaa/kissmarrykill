@@ -24,6 +24,7 @@ import type { Game, Player, YahtzeeCategory, YahtzeePlayerScore, YahtzeeSession 
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
@@ -54,6 +55,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
   const turnIndexRef = useRef<number | null>(null)
 
   useApplyGameTheme(game?.theme)
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, sessionRes, scoresRes] = await Promise.all([

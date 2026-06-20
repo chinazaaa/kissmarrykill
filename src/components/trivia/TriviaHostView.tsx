@@ -15,6 +15,7 @@ import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/ut
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 
 type HostTab = 'play' | 'manage'
@@ -38,6 +39,8 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   const [tab, setTab] = useState<HostTab>('manage')
   const settingsModalRef = useRef(settingsModal)
   settingsModalRef.current = settingsModal
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, rdsRes, ansRes] = await Promise.all([

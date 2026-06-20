@@ -6,6 +6,7 @@ import { filterParticipantsInRounds } from '@/lib/utils'
 import { hexToRgba } from '@/lib/color'
 import { useGameRealtime } from '@/hooks/useGameRealtime'
 import { LOAD_TIMEOUT_MS, POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import {
   CONFESSION_SELECT,
   GAME_SELECT,
@@ -211,6 +212,8 @@ export default function HostPage() {
   >([])
   const [votes, setVotes] = useState<Vote[]>([])
   const [confessions, setConfessions] = useState<Confession[]>([])
+
+  useScrollHostViewToTop({ gameStatus: game?.status })
 
   const [starting, setStarting] = useState(false)
   const [savingPairVoteMode, setSavingPairVoteMode] = useState(false)
