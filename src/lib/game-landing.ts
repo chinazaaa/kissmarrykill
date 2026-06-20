@@ -958,7 +958,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
   i_call_on: landing('i_call_on', {
     seoTitle: 'I Call On — Free Online Party Game',
     seoDescription:
-      'Play I Call On online. Call a letter, fill four categories, mark answers together — duplicates score zero, unique answers earn points.',
+      'Play I Call On online. Call a letter, fill five categories, mark answers together — duplicates score 5, unique answers earn 10.',
     keywords: ['i call on', 'stop game', 'categories game', 'party game online'],
     heroSubtitle:
       'The classic A–Z categories game. Someone calls a letter — everyone fills Name, Animal, Place, Thing, and Food before time runs out.',
@@ -979,15 +979,15 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Join the room', description: 'Enter your name and wait for the host to start.' },
-      { title: 'Play letters', description: 'While time lasts, callers pick unused A–Z letters and everyone fills the four categories.' },
-      { title: 'Score together', description: 'Mark the next player\'s sheet — duplicates auto-zero, everyone sees marks live.' },
+      { title: 'Play letters', description: 'While time lasts, callers pick unused A–Z letters and everyone fills all five categories.' },
+      { title: 'Score together', description: 'Mark the next player\'s sheet — duplicates score 5, unique answers score 10, everyone sees marks live.' },
     ],
     perfectFor: ['Classrooms', 'Road trips', 'Family game night', 'Friend groups'],
     extraFaqs: [
       {
         question: 'How does scoring work?',
         answer:
-          'Each unique valid answer earns 10 points per category (40 max per round). If two or more players write the same answer in a category, everyone with that duplicate gets zero for it. Reviewers mark whether an answer actually fits its category.',
+          'Each unique valid answer earns 10 points per category (50 max per round). If two or more players write the same answer in a category, everyone with that duplicate gets 5 for it. Reviewers mark whether an answer actually fits its category.',
       },
     ],
   }),

@@ -24,8 +24,8 @@ function scoreReasonLabel(reason: NpatScoreReason): string {
 }
 
 function scoreReasonClass(reason: NpatScoreReason, points: number): string {
+  if (reason === 'duplicate') return 'text-amber-600 dark:text-amber-300'
   if (points > 0) return 'text-emerald-600 dark:text-emerald-300'
-  if (reason === 'duplicate') return 'text-red-600 dark:text-red-300'
   if (reason === 'wrong_letter' || reason === 'invalid') return 'text-amber-600 dark:text-amber-300'
   return 'text-muted'
 }
@@ -76,7 +76,7 @@ export function NpatScoreboard({
       <p className="text-faint text-xs">
         {hostReview
           ? 'Tap valid or invalid for answers you want to override. Empty, wrong-letter, and duplicate answers are locked invalid.'
-          : 'Duplicates are detected automatically. Reviewers mark whether each answer fits its category — everyone can see the marks.'}
+          : 'Duplicates score 5 automatically. Reviewers mark whether each answer fits its category — everyone can see the marks.'}
       </p>
 
       <table className="w-full min-w-[640px] text-sm border-collapse">

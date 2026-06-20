@@ -26,6 +26,7 @@ export const NPAT_DEFAULT_MARKING_TIMER = 45
 export const NPAT_LETTER_PICK_SECONDS = 15
 export const NPAT_REVEAL_SECONDS = 8
 export const NPAT_CATEGORY_POINTS = 10
+export const NPAT_DUPLICATE_POINTS = 5
 export const NPAT_MAX_ANSWER_LENGTH = 80
 
 export const NPAT_TIMER_OPTIONS = [30, 45, 60, 90] as const
@@ -320,7 +321,7 @@ export function computeCategoryScore(opts: {
   if (opts.letter && !answerStartsWithLetter(opts.answer, opts.letter)) {
     return { points: 0, reason: 'wrong_letter' }
   }
-  if (opts.isDuplicate) return { points: 0, reason: 'duplicate' }
+  if (opts.isDuplicate) return { points: NPAT_DUPLICATE_POINTS, reason: 'duplicate' }
   if (!opts.markedValid) return { points: 0, reason: 'invalid' }
   return { points: NPAT_CATEGORY_POINTS, reason: 'valid' }
 }

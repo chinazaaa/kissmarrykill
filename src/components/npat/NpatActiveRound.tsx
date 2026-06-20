@@ -474,7 +474,7 @@ export function NpatActiveRound({
                 <p className="font-medium">{text || '—'}</p>
                 {forcedInvalid && (
                   <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
-                    {!text.trim() ? 'Empty — invalid automatically' : isDuplicate ? 'Duplicate — invalid automatically' : `Must start with ${metadata.letter}`}
+                    {!text.trim() ? 'Empty — invalid automatically' : isDuplicate ? 'Duplicate — 5 pts each' : `Must start with ${metadata.letter}`}
                   </p>
                 )}
                 <div className="grid grid-cols-2 gap-2">
