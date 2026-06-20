@@ -23,6 +23,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
@@ -33,7 +34,7 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useWhotTurnTimer } from '@/hooks/useWhotTurnTimer'
 import { useWhotNotifications, playWhotActionSound } from '@/hooks/useWhotNotifications'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -48,13 +49,17 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
 
-  useApplyGameTheme(game?.theme)
+  useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
       if (pre === 'game_started_waiting') {
         setScreen('game_started_waiting')
+        return
+      }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
         return
       }
       setScreen('join')
@@ -246,6 +251,10 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'game_started_waiting' && game) {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={() => void load()} />
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'join') {

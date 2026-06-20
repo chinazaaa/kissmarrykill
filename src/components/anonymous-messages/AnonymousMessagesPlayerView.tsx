@@ -29,13 +29,14 @@ import { useAnonymousReactions } from '@/hooks/useAnonymousReactions'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { allowLateJoin, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -70,7 +71,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
       setScreen('active')
       return
     }
-    setScreen(playerId ? 'finished' : 'join')
+    setScreen(playerId ? 'finished' : 'game_ended')
   }, [])
 
   const load = useCallback(async (): Promise<boolean> => {
@@ -265,6 +266,10 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
 
   if (screen === 'game_started_waiting') {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'join') {

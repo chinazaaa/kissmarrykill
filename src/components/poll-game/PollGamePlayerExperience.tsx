@@ -168,6 +168,7 @@ import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { useGameChannel } from '@/hooks/useGameChannel'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
@@ -216,6 +217,7 @@ type View =
   | 'join'
   | 'game_started_waiting'
   | 'late_join_choice'
+  | 'game_ended'
   | 'waiting'
   | 'round'
   | 'round_results'
@@ -225,6 +227,7 @@ function preJoinView(game: Game, hasPlayer: boolean): View {
   const pre = preJoinScreen(game, hasPlayer)
   if (pre === 'game_started_waiting') return 'game_started_waiting'
   if (pre === 'late_join_choice') return 'late_join_choice'
+  if (pre === 'game_ended') return 'game_ended'
   return 'join'
 }
 
@@ -596,6 +599,10 @@ export function PollGamePlayerExperience({
         }
 
         if (gameData.status === 'finished') {
+          if (!session) {
+            setView('game_ended')
+            return
+          }
           await loadAllResults()
           setView('results')
           return
@@ -745,6 +752,10 @@ export function PollGamePlayerExperience({
           }
         }
         if (newGame.status === 'finished') {
+          if (!myPlayerIdRef.current) {
+            setView('game_ended')
+            return
+          }
           await loadAllResults()
           setView('results')
         }
@@ -957,6 +968,10 @@ export function PollGamePlayerExperience({
       }
 
       if (gameData?.status === 'finished') {
+        if (!myPlayerIdRef.current) {
+          setView('game_ended')
+          return true
+        }
         await loadAllResults()
         setView('results')
         return true
@@ -1471,6 +1486,10 @@ export function PollGamePlayerExperience({
         onLobbyOpen={() => setView('join')}
       />
     )
+  }
+
+  if (view === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (view === 'late_join_choice' && game) {

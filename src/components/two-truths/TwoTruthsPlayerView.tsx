@@ -19,6 +19,7 @@ import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
@@ -27,7 +28,7 @@ import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'lobby' | 'playing' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'lobby' | 'playing' | 'not_found'
 
 export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
   const { error: toastError, success } = useToast()
@@ -79,7 +80,9 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
 
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
-      setScreen(pre === 'game_started_waiting' ? 'game_started_waiting' : 'join')
+      setScreen(
+        pre === 'game_started_waiting' ? 'game_started_waiting' : pre === 'game_ended' ? 'game_ended' : 'join'
+      )
       return true
     }
 
@@ -198,6 +201,10 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'game_started_waiting') {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'join') {

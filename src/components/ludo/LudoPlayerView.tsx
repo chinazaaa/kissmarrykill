@@ -22,6 +22,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
@@ -34,7 +35,7 @@ import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/
 
 const ROLL_MIN_MS = 700
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -52,13 +53,17 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const [displayDice, setDisplayDice] = useState<LudoDiceRoll | null>(null)
   const rollStartedRef = useRef(0)
 
-  useApplyGameTheme(game?.theme)
+  useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
       if (pre === 'game_started_waiting') {
         setScreen('game_started_waiting')
+        return
+      }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
         return
       }
       setScreen('join')
@@ -266,6 +271,10 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'game_started_waiting') {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={() => void load()} />
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'waiting') {

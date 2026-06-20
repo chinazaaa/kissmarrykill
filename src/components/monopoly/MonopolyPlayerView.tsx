@@ -37,6 +37,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
@@ -45,7 +46,7 @@ import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 function colorBarClass(color?: MonopolyColorGroup): string {
   if (!color) return 'bg-neutral-500'
@@ -68,13 +69,17 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   const [acting, setActing] = useState(false)
   const actingRef = useRef(false)
 
-  useApplyGameTheme(game?.theme)
+  useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
       if (pre === 'game_started_waiting') {
         setScreen('game_started_waiting')
+        return
+      }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
         return
       }
       setScreen('join')
@@ -88,7 +93,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       setScreen(playerId ? 'active' : 'join')
       return
     }
-    setScreen(playerId ? 'finished' : 'join')
+    setScreen(playerId ? 'finished' : 'game_ended')
   }, [])
 
   const load = useCallback(async (): Promise<boolean> => {
@@ -261,6 +266,10 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
         onLobbyOpen={openLobbyJoin}
       />
     )
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'not_found') {

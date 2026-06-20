@@ -23,6 +23,7 @@ import { useBingoWinNotification, useBingoStartNotification } from '@/hooks/useB
 import { useBingoAutoCall } from '@/hooks/useBingoAutoCall'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
@@ -34,7 +35,7 @@ import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { playerIsViewer, preJoinScreen, allowLatePlayers } from '@/lib/viewers'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 export function BingoPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -63,6 +64,10 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
         setScreen('late_join_choice')
         return
       }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
+        return
+      }
       setScreen('join')
       return
     }
@@ -74,7 +79,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
       setScreen(playerId ? 'active' : 'join')
       return
     }
-    setScreen(playerId ? 'finished' : 'join')
+    setScreen(playerId ? 'finished' : 'game_ended')
   }, [])
 
   const loadCard = useCallback(
@@ -349,6 +354,10 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'game_started_waiting') {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'late_join_choice' && game) {

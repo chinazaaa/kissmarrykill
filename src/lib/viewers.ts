@@ -134,7 +134,7 @@ export function lateJoinBlockedMessage(gameType: GameType): string {
   return 'This game has already started. Wait here — you can join when the host opens the lobby again.'
 }
 
-export type PreJoinScreen = 'join' | 'game_started_waiting' | 'late_join_choice'
+export type PreJoinScreen = 'join' | 'game_started_waiting' | 'late_join_choice' | 'game_ended'
 
 /** Screen for someone who has not joined yet (no player row / session). */
 export function preJoinScreen(
@@ -142,7 +142,8 @@ export function preJoinScreen(
   hasPlayer: boolean
 ): PreJoinScreen | null {
   if (hasPlayer) return null
-  if (game.status === 'waiting' || game.status === 'finished') return 'join'
+  if (game.status === 'finished') return 'game_ended'
+  if (game.status === 'waiting') return 'join'
   if (game.status === 'active') {
     if (!allowLateJoin(game)) return 'game_started_waiting'
     const gameType = parseGameType(game.game_type)

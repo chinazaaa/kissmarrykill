@@ -15,6 +15,7 @@ import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
@@ -25,7 +26,7 @@ import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'playing' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'game_ended' | 'playing' | 'not_found'
 
 export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -74,7 +75,15 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
 
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
-      setScreen(pre === 'game_started_waiting' ? 'game_started_waiting' : pre === 'late_join_choice' ? 'late_join_choice' : 'join')
+      setScreen(
+        pre === 'game_started_waiting'
+          ? 'game_started_waiting'
+          : pre === 'late_join_choice'
+            ? 'late_join_choice'
+            : pre === 'game_ended'
+              ? 'game_ended'
+              : 'join'
+      )
       return true
     }
 
@@ -188,6 +197,10 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'game_started_waiting') {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'late_join_choice' && game) {

@@ -24,6 +24,7 @@ import {
 import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
 import { useCodewordsNotifications } from '@/hooks/useCodewordsNotifications'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
@@ -44,7 +45,7 @@ import type {
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { useToast } from '@/components/ui/Toast'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'lobby' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'game_ended' | 'lobby' | 'active' | 'finished' | 'not_found'
 
 export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const { success, error: toastError } = useToast()
@@ -121,6 +122,10 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
         setScreen('late_join_choice')
         return
       }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
+        return
+      }
       setScreen('join')
       return
     }
@@ -132,7 +137,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
       setScreen(playerId ? 'active' : 'join')
       return
     }
-    setScreen(playerId ? 'finished' : 'join')
+    setScreen(playerId ? 'finished' : 'game_ended')
   }, [])
 
   const loadBoard = useCallback(async () => {
@@ -358,6 +363,10 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'game_started_waiting') {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
+  }
+
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (screen === 'late_join_choice' && game) {
