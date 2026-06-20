@@ -244,7 +244,7 @@ export function moveDestinationCell(
   if (to.zone === 'track') return TRACK_GRID[to.pos] ?? null
   if (to.zone === 'home') return HOME_GRID[color][to.pos] ?? null
   if (to.zone === 'finished') return FINISHED_DISPLAY[color]
-  if (to.zone === 'base') return BASE_SLOTS[color][0] ?? null
+  if (to.zone === 'base') return BASE_SLOTS[color][to.pos] ?? BASE_SLOTS[color][0] ?? null
   return null
 }
 
@@ -304,7 +304,7 @@ export const CORNER_BOUNDS: Record<
 }
 
 export function pieceStatusLabel(piece: { zone: string; pos: number }): string {
-  if (piece.zone === 'base') return 'In base'
+  if (piece.zone === 'base') return 'At home'
   if (piece.zone === 'track') return `On path (space ${piece.pos + 1})`
   if (piece.zone === 'home') return `Home lane (${piece.pos + 1}/5)`
   if (piece.zone === 'finished') return 'In the center'

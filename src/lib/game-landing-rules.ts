@@ -682,7 +682,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Captures & blockades',
       points: [
-        'Landing on a single opponent piece sends it back to their base — they need another 6 to re-enter.',
+        'Landing on a single opponent piece sends it back to its home yard circle — they need another 6 to re-enter.',
         'If two of your pieces share a square, that space is blocked. Opponents cannot land on or pass through it.',
         'Your own pieces can still land on and pass your blockades.',
       ],

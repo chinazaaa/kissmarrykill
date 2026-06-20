@@ -430,7 +430,7 @@ export function LudoPlayerStrip({
               </span>
             </div>
             <p className="text-faint mt-0.5">
-              {finished}/4 finished · {inBase} in base · {onPath} on path
+              {finished}/4 finished · {inBase} at home · {onPath} on path
             </p>
           </div>
         )

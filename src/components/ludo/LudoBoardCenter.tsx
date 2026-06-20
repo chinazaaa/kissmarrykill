@@ -26,13 +26,13 @@ export function LudoBoardCenter({
       <LudoDice value={diceValue} rolling={rolling} compact />
 
       {phase === 'move' && lastDice != null && (
-        <p className="text-[8px] sm:text-[10px] font-bold text-slate-800 tabular-nums leading-none">
+        <p className="rounded bg-white/95 px-1 py-px text-[8px] sm:text-[10px] font-bold text-slate-900 tabular-nums leading-none shadow-sm">
           Rolled {lastDice}
         </p>
       )}
 
       {consecutiveSixes != null && consecutiveSixes > 0 && (
-        <p className="text-[7px] sm:text-[9px] font-semibold text-amber-700 leading-none">
+        <p className="rounded bg-white/95 px-1 py-px text-[7px] sm:text-[9px] font-bold text-slate-900 tabular-nums leading-none shadow-sm">
           6s: {consecutiveSixes}/3
         </p>
       )}

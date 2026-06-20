@@ -381,7 +381,7 @@ export type LudoPhase = 'roll' | 'move' | 'finished'
 export interface LudoPiece {
   id: number
   zone: LudoPieceZone
-  /** Track: 0–51. Home: 0–4 before finish. */
+  /** Base yard: 0–3 (home circle). Track: 0–51. Home lane: 0–4 before finish. */
   pos: number
 }
 

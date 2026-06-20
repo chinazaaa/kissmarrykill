@@ -49,7 +49,7 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 export function createInitialPieces(): LudoPiece[] {
-  return [0, 1, 2, 3].map((id) => ({ id, zone: 'base', pos: 0 }))
+  return [0, 1, 2, 3].map((id) => ({ id, zone: 'base', pos: id }))
 }
 
 export function currentPlayerId(session: LudoSession): string | null {
@@ -255,6 +255,11 @@ export function finishedPieceCount(pieces: LudoPiece[]): number {
   return pieces.filter((p) => p.zone === 'finished').length
 }
 
+/** Send a captured piece back to its own yard circle (not the track start square). */
+function returnPieceToHomeYard(piece: LudoPiece): LudoPiece {
+  return { ...piece, zone: 'base', pos: piece.id }
+}
+
 function applyCapture(
   states: LudoPlayerState[],
   pos: number,
@@ -264,7 +269,7 @@ function applyCapture(
     if (row.color === capturingColor) return row
     const nextPieces = row.pieces.map((piece) => {
       if (piece.zone === 'track' && piece.pos === pos) {
-        return { ...piece, zone: 'base' as const, pos: 0 }
+        return returnPieceToHomeYard(piece)
       }
       return piece
     })
@@ -447,7 +452,7 @@ async function persistMove(
   const moveNote = movedFromBase
     ? 'brought a piece onto the board'
     : move.captures
-      ? 'moved and captured an opponent'
+      ? 'moved and sent an opponent home'
       : move.to.zone === 'finished'
         ? 'finished a piece'
         : 'moved a piece'
