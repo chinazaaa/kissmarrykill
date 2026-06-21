@@ -1,5 +1,6 @@
 'use client'
 import { useRoundResults } from '@/hooks/useRoundResults'
+import { useJoinFlow } from '@/hooks/useJoinFlow'
 import { useWstQuotePool } from '@/hooks/useWstQuotePool'
 import { usePlayerQuestions } from '@/hooks/usePlayerQuestions'
 import { usePlayerNameSubmissions } from '@/hooks/usePlayerNameSubmissions'
@@ -285,13 +286,6 @@ export function PollGamePlayerExperience({
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
   const [myPlayerName, setMyPlayerName] = useState<string | null>(null)
   const [myPlayerGender, setMyPlayerGender] = useState<PlayerGender | null>(null)
-  const [nameInput, setNameInput] = useState('')
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
-  const [joinIdentityGender, setJoinIdentityGender] = useState<ParticipantGender>('female')
-  const [voteBothGenders, setVoteBothGenders] = useState(false)
-  const [joining, setJoining] = useState(false)
-  const [editingJoin, setEditingJoin] = useState(false)
-
   const {
     wstPool, quoteInput, quoteAuthorParticipantId, quoteSubmitting, editingQuoteId,
     setWstPool, setQuoteInput, setQuoteAuthorParticipantId, setEditingQuoteId,
@@ -330,7 +324,6 @@ export function PollGamePlayerExperience({
   const isVoterOnly = game ? isVoterOnlyMode(game) : false
   const isImportClaim = game ? isImportClaimMode(game) : false
   const isNameOnlyJoin = isNameOnlyPlayerJoin(game?.game_type)
-  const joinNeedsGender = game ? isGameGenderBased(game) : false
   const isWstGame = isWhoSaidThis(game?.game_type)
   const isWyrGame = isWouldYouRather(game?.game_type)
   const isTotGame = isThisOrThat(game?.game_type)
@@ -343,44 +336,6 @@ export function PollGamePlayerExperience({
     view === 'late_join_choice'
   )
   const isMltImport = game ? isMltImportGame(game) : false
-  const joinPlayerGender: PlayerGender =
-    isNameOnlyJoin || !joinNeedsGender ? 'both' : playerGenderFromJoin(joinIdentityGender, voteBothGenders)
-
-  const setJoinIdentity = (gender: ParticipantGender) => {
-    joinGenderTouchedRef.current = true
-    setJoinIdentityGender(gender)
-  }
-
-  const namePickerOptions = useMemo(() => {
-    if (isJoinersMode || isVoterOnly) return []
-    const claimedParticipantIds = new Set(
-      players.filter((p) => p.id !== myPlayerId && p.participant_id).map((p) => p.participant_id as string)
-    )
-    const takenNames = new Set(players.filter((p) => p.id !== myPlayerId).map((p) => p.name.toLowerCase()))
-    return participants
-      .filter((p) => !claimedParticipantIds.has(p.id) && !takenNames.has(p.name.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        ...(joinNeedsGender ? { subtitle: genderLabel(p.gender) } : {}),
-      }))
-  }, [isJoinersMode, isVoterOnly, participants, players, myPlayerId, joinNeedsGender])
-
-  const handleSelectParticipant = (id: string, name: string) => {
-    const changed = id !== selectedParticipantId
-    setSelectedParticipantId(id)
-    setNameInput(name)
-    const p = participants.find((x) => x.id === id)
-    if (p && !isJoinersMode && changed && !joinGenderTouchedRef.current) {
-      setJoinIdentityGender(p.gender)
-      setVoteBothGenders(false)
-    }
-  }
-
-  const useFreeNameJoin = isJoinersMode || isVoterOnly
-
-  const canSubmitJoin = useFreeNameJoin ? nameInput.trim().length > 0 : selectedParticipantId !== null
 
   const myPlayer = useMemo(() => players.find((p) => p.id === myPlayerId) ?? null, [players, myPlayerId])
   const isViewer = !!(game && myPlayer && playerIsViewer(myPlayer, game))
@@ -420,16 +375,6 @@ export function PollGamePlayerExperience({
       />
     ) : null
 
-  // If someone else claims this name while you're still on the join screen, clear your pick
-  useEffect(() => {
-    if (useFreeNameJoin || view !== 'join' || !selectedParticipantId) return
-    const stillAvailable = namePickerOptions.some((o) => o.id === selectedParticipantId)
-    if (!stillAvailable) {
-      setSelectedParticipantId(null)
-      setNameInput('')
-      joinGenderTouchedRef.current = false
-    }
-  }, [namePickerOptions, selectedParticipantId, useFreeNameJoin, view])
   const { refs: autoSubmitRefs, triggerAutoSubmit } = useAutoSubmit(gameCode, {
     onCustomAssignmentsChange: setCustomAssignments,
   })
@@ -469,7 +414,6 @@ export function PollGamePlayerExperience({
 
   const announcedRoundIdRef = useRef<string | null>(null)
   const suppressRoundSoundRef = useRef(true)
-  const joinGenderTouchedRef = useRef(false)
   const roundFormIdRef = useRef<string | null>(null)
 
   // ── Initial load ──────────────────────────────────────────────────────────
@@ -663,6 +607,20 @@ export function PollGamePlayerExperience({
     }
   }
 
+  const {
+    nameInput, selectedParticipantId, joinIdentityGender, voteBothGenders,
+    joining, editingJoin, canSubmitJoin, useFreeNameJoin, joinPlayerGender,
+    namePickerOptions, joinNeedsGender,
+    setNameInput, setJoinIdentityGender, setVoteBothGenders,
+    joinGame, openEditJoin, cancelEditJoin,
+    handlePlayerLeft, handlePlayerRenamed, handleSelectParticipant,
+    resetJoinState,
+  } = useJoinFlow({
+    gameCode, game, players, participants, myPlayerId, myPlayerName, view,
+    setView, setMyPlayerId, setMyPlayerName, setMyPlayerGender,
+    setPlayers, setParticipants, applyActiveRound,
+  })
+
   function resetPlayerForLobby(hasSession: boolean) {
     setCurrentRound(null)
     resetRoundResultsState()
@@ -779,7 +737,7 @@ export function PollGamePlayerExperience({
           setMyPlayerId(null)
           setMyPlayerName(null)
           setMyPlayerGender(null)
-          setEditingJoin(false)
+          resetJoinState()
           setView('join')
         }
       },
@@ -1164,134 +1122,6 @@ export function PollGamePlayerExperience({
     }
   }
 
-  const joinGame = async (joinAsViewer?: boolean) => {
-    if (joining) return
-    if (useFreeNameJoin ? !nameInput.trim() : !selectedParticipantId) return
-    unlockAudio()
-    setJoining(true)
-    try {
-      const body =
-        isNameOnlyJoin || ((isJoinersMode || isVoterOnly) && !joinNeedsGender)
-          ? { gameCode, playerName: nameInput.trim() }
-          : !joinNeedsGender && isImportClaim
-            ? { gameCode, participantId: selectedParticipantId! }
-            : isJoinersMode || isVoterOnly
-              ? {
-                  gameCode,
-                  playerName: nameInput.trim(),
-                  gender: joinPlayerGender,
-                  identityGender: joinIdentityGender,
-                  ...(voteBothGenders ? { pollGender: joinIdentityGender } : {}),
-                }
-              : {
-                  gameCode,
-                  gender: joinPlayerGender,
-                  identityGender: joinIdentityGender,
-                  participantId: selectedParticipantId!,
-                }
-
-      const gameType = parseGameType(game?.game_type)
-      const activeJoinExtras =
-        game?.status === 'active'
-          ? gameOffersLateJoinChoice(gameType)
-            ? { joinAsViewer }
-            : allowLatePlayers(game!)
-              ? {}
-              : { joinAsViewer: true }
-          : {}
-
-      const res = await fetch('/api/players', {
-        method: editingJoin && myPlayerId ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          editingJoin && myPlayerId ? { ...body, playerId: myPlayerId } : { ...body, ...activeJoinExtras }
-        ),
-      })
-      const data = await res.json()
-      if (data.playerId) {
-        const [{ data: plrs }, { data: parts }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-        ])
-        setPlayers(plrs || [])
-        setParticipants(parts || [])
-        const me = plrs?.find((p) => p.id === data.playerId)
-        const voteGender = me ? playerVoteGenderForRound(me, parts || []) : parsePlayerGenderFromDb(data.playerGender)
-        if (voteGender) {
-          setPlayerSession(gameCode, data.playerId, data.playerName, voteGender, data.resumeToken)
-          setMyPlayerGender(voteGender)
-        }
-        setMyPlayerId(data.playerId)
-        setMyPlayerName(data.playerName)
-        setEditingJoin(false)
-        if (game?.status === 'active') {
-          const { data: activeRound } = await supabase
-            .from('rounds')
-            .select('*')
-            .eq('game_id', gameCode)
-            .eq('status', 'active')
-            .maybeSingle()
-          if (activeRound) {
-            applyActiveRound(activeRound)
-          } else {
-            setView('waiting')
-          }
-        } else {
-          setView('waiting')
-        }
-      } else {
-        const msg = data.error ?? 'Failed to join'
-        toast.error(msg.toLowerCase().includes('taken') ? 'That name was just taken — pick another' : msg)
-      }
-    } finally {
-      setJoining(false)
-    }
-  }
-
-  const openEditJoin = () => {
-    const me = players.find((p) => p.id === myPlayerId)
-    const votePref = me
-      ? parsePlayerGenderFromDb(me.gender)
-      : parsePlayerGenderFromDb(getPlayerSession(gameCode)?.playerGender ?? '')
-    const voteBoth = votePref === 'both'
-    setNameInput(myPlayerName ?? '')
-    const part =
-      participants.find((p) => p.id === me?.participant_id) ?? participants.find((p) => p.name === myPlayerName)
-    setSelectedParticipantId(part?.id ?? null)
-    setJoinIdentityGender(
-      me?.identity_gender ? (parseParticipantGenderFromDb(me.identity_gender) ?? 'female') : (part?.gender ?? 'female')
-    )
-    setVoteBothGenders(voteBoth)
-    joinGenderTouchedRef.current = true
-    setEditingJoin(true)
-    setView('join')
-  }
-
-  const cancelEditJoin = () => {
-    setEditingJoin(false)
-    if (myPlayerId) setView('waiting')
-  }
-
-  const handlePlayerLeft = () => {
-    clearPlayerSession(gameCode)
-    setMyPlayerId(null)
-    setMyPlayerName(null)
-    setMyPlayerGender(null)
-    setNameInput('')
-    setSelectedParticipantId(null)
-    setJoinIdentityGender('female')
-    setVoteBothGenders(false)
-    joinGenderTouchedRef.current = false
-    setEditingJoin(false)
-    setView('join')
-  }
-
-  const handlePlayerRenamed = (name: string) => {
-    setMyPlayerName(name)
-    const existing = getPlayerSession(gameCode)
-    if (existing) setPlayerSession(gameCode, existing.playerId, name, existing.playerGender ?? 'both', existing.resumeToken)
-  }
-
   const sessionBar =
     myPlayerId && myPlayerName ? (
       <PlayerSessionBar
@@ -1453,7 +1283,7 @@ export function PollGamePlayerExperience({
                 <p className="text-faint text-xs mb-2 text-center">I am</p>
                 <SegmentedControl
                   value={joinIdentityGender}
-                  onChange={setJoinIdentity}
+                  onChange={setJoinIdentityGender}
                   options={[
                     { value: 'female', label: 'Female' },
                     { value: 'male', label: 'Male' },
