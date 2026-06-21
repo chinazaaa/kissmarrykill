@@ -2,18 +2,14 @@
 
 type Props = {
   title: string
-  description?: string
   children: React.ReactNode
   className?: string
 }
 
-export function HostLobbySettingBlock({ title, description, children, className = '' }: Props) {
+export function HostLobbySettingBlock({ title, children, className = '' }: Props) {
   return (
-    <section className={`space-y-3 ${className}`}>
-      <div>
-        <p className="text-sm font-semibold text-body">{title}</p>
-        {description ? <p className="text-faint text-xs mt-0.5 leading-relaxed">{description}</p> : null}
-      </div>
+    <section className={`space-y-2 ${className}`}>
+      <p className="label-caps text-[10px]">{title}</p>
       {children}
     </section>
   )

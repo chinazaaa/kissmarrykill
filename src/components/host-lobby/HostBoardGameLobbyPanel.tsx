@@ -8,7 +8,6 @@ import {
   type BoardGameLobbyType,
 } from '@/lib/board-game-lobby-settings'
 import { formatMonopolyGameDuration, MONOPOLY_GAME_DURATION_OPTIONS } from '@/lib/monopoly'
-import { MONOPOLY_STARTING_CASH } from '@/lib/monopoly-board'
 import { formatWhotGameDuration, WHOT_GAME_DURATION_OPTIONS } from '@/lib/whot'
 import {
   lobbyMaxPlayersFromGame,
@@ -183,7 +182,7 @@ export function HostBoardGameLobbyPanel({
   )
 
   const summary = useMemo(() => {
-    const parts = [`Up to ${maxPlayers}`, formatBoardGameTurnTimer(turnTimer)]
+    const parts = [`${maxPlayers} max`, formatBoardGameTurnTimer(turnTimer)]
     if (boardGameType === 'monopoly' || boardGameType === 'whot') {
       parts.push(durationFormatter(gameDuration))
     }
@@ -200,41 +199,24 @@ export function HostBoardGameLobbyPanel({
     saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : null
 
   return (
-    <HostLobbySettingsSection
-      subtitle="Tap an option to update — changes save automatically."
-      status={statusLabel}
-      summary={summary}
-    >
-      <HostLobbySettingBlock
-        title="Room size"
-        description={`${playerCount} joined · pick the lobby cap before you start.`}
-      >
+    <HostLobbySettingsSection status={statusLabel} summary={summary}>
+      <HostLobbySettingBlock title={`Max players · ${playerCount} joined`}>
         <HostLobbyOptionChips value={maxPlayers} options={maxPlayerOptions} onChange={onMaxPlayersChange} />
       </HostLobbySettingBlock>
 
-      <HostLobbySettingBlock
-        title="Turn timer"
-        description="Auto-resolves stalled turns so the game keeps moving."
-      >
+      <HostLobbySettingBlock title="Turn timer">
         <HostLobbyOptionChips value={turnTimer} options={turnTimerOptions} onChange={onTurnTimerChange} />
       </HostLobbySettingBlock>
 
       {(boardGameType === 'monopoly' || boardGameType === 'whot') && (
-        <HostLobbySettingBlock
-          title="Game length"
-          description={
-            boardGameType === 'monopoly'
-              ? `£${MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} starting cash — richest player wins when time is up.`
-              : 'Optional session cap — lowest card total wins if time runs out.'
-          }
-        >
+        <HostLobbySettingBlock title="Game length">
           <HostLobbyOptionChips value={gameDuration} options={durationOptions} onChange={onGameDurationChange} />
         </HostLobbySettingBlock>
       )}
 
       {boardGameType === 'whot' && (
-        <HostLobbySettingBlock title="House rules" description="Deck and penalty options for this table.">
-          <div className="space-y-2">
+        <HostLobbySettingBlock title="House rules">
+          <div className="space-y-1.5">
             <Toggle
               label="Pick 3"
               description="Include 5 cards and the Pick 3 draw penalty"
@@ -260,10 +242,7 @@ export function HostBoardGameLobbyPanel({
       )}
 
       {gameSupportsViewerSetting(game.game_type) && game.status === 'waiting' && (
-        <HostLobbySettingBlock
-          title="Who can join later"
-          description="After you start, choose whether new people can watch or play."
-        >
+        <HostLobbySettingBlock title="Late joiners">
           <HostAllowViewersField
             embedded
             hideHeader

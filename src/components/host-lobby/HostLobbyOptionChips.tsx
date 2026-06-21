@@ -26,7 +26,7 @@ export function HostLobbyOptionChips({
             key={opt.value}
             active={value === opt.value}
             onClick={() => onChange(opt.value)}
-            className="min-w-[2.75rem] px-3 py-2 text-sm font-semibold"
+            className="min-w-[2.25rem] px-2.5 py-1.5 text-xs font-semibold"
           >
             {opt.label}
           </Chip>
