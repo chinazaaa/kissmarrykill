@@ -7,24 +7,16 @@ import { usePlayerNameSubmissions } from '@/hooks/usePlayerNameSubmissions'
 import { useHotSeat } from '@/hooks/useHotSeat'
 import { usePhotoUpload } from '@/hooks/usePhotoUpload'
 import { useVoteState } from '@/hooks/useVoteState'
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import { useGameSession } from '@/hooks/useGameSession'
+import { useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getPlayerSession, setPlayerSession, clearPlayerSession, filterParticipantsInRounds } from '@/lib/utils'
-import { resolvePlayerSession } from '@/lib/player-resume'
+import { getPlayerSession, filterParticipantsInRounds } from '@/lib/utils'
+import { playVoteSubmittedSound } from '@/lib/sounds'
 import { hexToRgba } from '@/lib/color'
 import { Avatar } from '@/components/Avatar'
 import { ParticipantPhotoCard } from '@/components/ParticipantPhotoCard'
 import { ParticipantGallery } from '@/components/ParticipantGallery'
-import { parseThemeId, THEME_MAP } from '@/lib/themes'
-import {
-  playRoundStartSound,
-  playVoteSubmittedSound,
-  playRoundEndSound,
-  playGameFinishedSound,
-  playConfessionSound,
-  unlockAudio,
-} from '@/lib/sounds'
 import {
   roundGenderLabel,
   playerIdentityLabel,
@@ -34,11 +26,7 @@ import {
   roundVoterLabel,
   spectatorMessage,
   activeVoteBanner,
-  parsePlayerGenderFromDb,
-  parseParticipantGenderFromDb,
-  playerGenderFromJoin,
   joinGenderHint,
-  playerVoteGenderForRound,
 } from '@/lib/participants'
 import type { ParticipantGender, PlayerGender } from '@/types'
 import {
@@ -170,9 +158,6 @@ import ReactionBar from '@/components/ReactionBar'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
-import { useTimerTickSound } from '@/hooks/useTimerTickSound'
-import { useGameChannel } from '@/hooks/useGameChannel'
-import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
 import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
@@ -180,19 +165,8 @@ import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { PlayerSessionBar } from '@/components/ui/PlayerSessionBar'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
-import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
-import { gameOffersLateJoinChoice, preJoinScreen, playerIsViewer, allowLatePlayers } from '@/lib/viewers'
-import {
-  CONFESSION_SELECT,
-  GAME_SELECT,
-  PARTICIPANT_SELECT,
-  PLAYER_QUESTION_SELECT,
-  PLAYER_SELECT,
-  ROUND_SELECT,
-  VOTE_SELECT,
-} from '@/lib/supabase-selects'
-import { useRoundTimer } from '@/hooks/useRoundTimer'
+import { playerIsViewer, allowLatePlayers } from '@/lib/viewers'
 import { useAutoSubmit } from '@/hooks/useAutoSubmit'
 import { HOT_SEAT_SUBMISSION_TYPES, hotSeatPlayerDisplayName } from '@/lib/hot-seat'
 import { pickANumberPoolSize, panRoundRevealed } from '@/lib/pick-a-number'
@@ -215,24 +189,7 @@ import type {
   WyrChoice,
   WstQuotePoolEntry,
 } from '@/types'
-
-type View =
-  | 'loading'
-  | 'not_found'
-  | 'join'
-  | 'game_started_waiting'
-  | 'late_join_choice'
-  | 'waiting'
-  | 'round'
-  | 'round_results'
-  | 'results'
-
-function preJoinView(game: Game, hasPlayer: boolean): View {
-  const pre = preJoinScreen(game, hasPlayer)
-  if (pre === 'game_started_waiting') return 'game_started_waiting'
-  if (pre === 'late_join_choice') return 'late_join_choice'
-  return 'join'
-}
+import type { View } from '@/hooks/useGameSession'
 
 export function PollGamePlayerExperience({
   gameCode: gameCodeProp,
@@ -249,6 +206,7 @@ export function PollGamePlayerExperience({
     gameCodeProp ?? (Array.isArray(params.code) ? params.code[0] : params.code)
   ).toUpperCase()
 
+  // ── 1. State containers (no deps on session) ──────────────────────────────
   const {
     lastFinishedRound, lastRoundVotes,
     allVotes, allRounds, allConfessions, allHotSeatSubmissions,
@@ -256,29 +214,6 @@ export function PollGamePlayerExperience({
     setAllVotes, setAllRounds, setAllConfessions, setAllHotSeatSubmissions,
     resetRoundResultsState,
   } = useRoundResults()
-
-  const [view, setView] = useState<View>('loading')
-  const [game, setGame] = useState<Game | null>(null)
-  const [participants, setParticipants] = useState<Participant[]>([])
-  const [players, setPlayers] = useState<Player[]>([])
-
-  // Active round state
-  const [currentRound, setCurrentRound] = useState<Round | null>(null)
-
-  const {
-    hotSeatText, hotSeatType, hotSeatSubmitted, hotSeatSubmissions,
-    setHotSeatText, setHotSeatType, setHotSeatSubmitted, setHotSeatSubmissions,
-    resetHotSeatState,
-  } = useHotSeat({ gameCode, game, view, lastFinishedRound })
-
-  const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
-  const [myPlayerName, setMyPlayerName] = useState<string | null>(null)
-  const [myPlayerGender, setMyPlayerGender] = useState<PlayerGender | null>(null)
-  const {
-    wstPool, quoteInput, quoteAuthorParticipantId, quoteSubmitting, editingQuoteId,
-    setWstPool, setQuoteInput, setQuoteAuthorParticipantId, setEditingQuoteId,
-    handleSubmitPoolQuote, handleDeletePoolQuote, fetchWstPool, resetWstQuoteState,
-  } = useWstQuotePool({ gameCode, myPlayerId })
 
   // Player question submission (WYR/MLT lobby)
   const {
@@ -295,6 +230,130 @@ export function PollGamePlayerExperience({
     resetPlayerNameSubmissionsState,
   } = usePlayerNameSubmissions()
 
+  // ── 2. Auto submit (provides refs) ───────────────────────────────────────
+  const customAssignmentsCallbackRef = useRef<((ca: Record<string, string>) => void) | undefined>(undefined)
+  const { refs: autoSubmitRefs, triggerAutoSubmit } = useAutoSubmit(gameCode, {
+    onCustomAssignmentsChange: (...args) => customAssignmentsCallbackRef.current?.(...args),
+  })
+
+  // ── Refs for forward-referenced setters (break circular deps) ───────────
+  const resetVoteStateRef = useRef(() => {})
+  const resetHotSeatStateRef = useRef(() => {})
+  const resetWstQuoteStateRef = useRef(() => {})
+  const resetJoinStateRef = useRef(() => {})
+  const setWstPoolRef = useRef<React.Dispatch<React.SetStateAction<WstQuotePoolEntry[]>>>(() => {})
+  const fetchWstPoolRef = useRef<() => Promise<WstQuotePoolEntry[]>>(() => Promise.resolve([]))
+  const setQuoteInputRef = useRef<React.Dispatch<React.SetStateAction<string>>>(() => {})
+  const setQuoteAuthorParticipantIdRef = useRef<React.Dispatch<React.SetStateAction<string | null>>>(() => {})
+  const setWyrChoiceRef = useRef<React.Dispatch<React.SetStateAction<WyrChoice | null>>>(() => {})
+  const setPickedNumberRef = useRef<React.Dispatch<React.SetStateAction<number | null>>>(() => {})
+  const setMltTargetPlayerIdRef = useRef<React.Dispatch<React.SetStateAction<string | null>>>(() => {})
+  const setPairAssignmentRef = useRef<React.Dispatch<React.SetStateAction<PairAssignmentMap>>>(() => {})
+  const setAssignmentRef = useRef<React.Dispatch<React.SetStateAction<VoteAssignment>>>(() => {})
+  const setSubmittedRef = useRef<React.Dispatch<React.SetStateAction<boolean>>>(() => {})
+
+  // ── 3. Core session (the new hook) ───────────────────────────────────────
+  const session = useGameSession({
+    gameCode,
+    resetVoteStateRef,
+    resetHotSeatStateRef,
+    resetRoundResultsState,
+    resetWstQuoteStateRef,
+    resetJoinStateRef,
+    setLastFinishedRound, setLastRoundVotes,
+    setAllVotes, setAllRounds, setAllConfessions, setAllHotSeatSubmissions,
+    setWstPool: (action) => setWstPoolRef.current(action),
+    fetchWstPool: () => fetchWstPoolRef.current(),
+    setPqList,
+    setPnList,
+    setWyrChoice: (action) => setWyrChoiceRef.current(action),
+    setPickedNumber: (action) => setPickedNumberRef.current(action),
+    setMltTargetPlayerId: (action) => setMltTargetPlayerIdRef.current(action),
+    setPairAssignment: (action) => setPairAssignmentRef.current(action),
+    setAssignment: (action) => setAssignmentRef.current(action),
+    setSubmitted: (action) => setSubmittedRef.current(action),
+    setQuoteInput: (action) => setQuoteInputRef.current(action),
+    setQuoteAuthorParticipantId: (action) => setQuoteAuthorParticipantIdRef.current(action),
+    autoSubmitRefs,
+    triggerAutoSubmit,
+  })
+
+  const {
+    view, setView,
+    game,
+    players,
+    participants, setParticipants,
+    currentRound,
+    myPlayerId, setMyPlayerId,
+    myPlayerName, setMyPlayerName,
+    myPlayerGender, setMyPlayerGender,
+    applyActiveRound,
+    reloadPlayers,
+    patchCurrentRound,
+    timeLeft,
+  } = session
+
+  // ── 4. Hooks that depend on session state ────────────────────────────────
+  const {
+    hotSeatText, hotSeatType, hotSeatSubmitted, hotSeatSubmissions,
+    setHotSeatText, setHotSeatType, setHotSeatSubmitted, setHotSeatSubmissions,
+    resetHotSeatState,
+  } = useHotSeat({ gameCode, game, view, lastFinishedRound })
+
+  const {
+    wstPool, quoteInput, quoteAuthorParticipantId, quoteSubmitting, editingQuoteId,
+    setWstPool, setQuoteInput, setQuoteAuthorParticipantId, setEditingQuoteId,
+    handleSubmitPoolQuote, handleDeletePoolQuote, fetchWstPool, resetWstQuoteState,
+  } = useWstQuotePool({ gameCode, myPlayerId })
+
+  const myPlayer = useMemo(() => players.find((p) => p.id === myPlayerId) ?? null, [players, myPlayerId])
+  const isViewer = !!(game && myPlayer && playerIsViewer(myPlayer, game))
+
+  const {
+    assignment, pairAssignment, wyrChoice, pickedNumber, panUsedNumbers,
+    mltTargetPlayerId, animeChoice, customAssignments, submitted,
+    confessionText, confessionSent,
+    setAssignment, setPairAssignment, setWyrChoice, setPickedNumber,
+    setMltTargetPlayerId, setAnimeChoice, setCustomAssignments,
+    setSubmitted, setConfessionText, setPanUsedNumbers,
+    assign, handleSubmit, sendConfession, resetVoteState,
+  } = useVoteState({
+    gameCode, game, currentRound, myPlayerId, myPlayerGender, isViewer, view,
+    players, participants, autoSubmitRefs, patchCurrentRound,
+  })
+  customAssignmentsCallbackRef.current = setCustomAssignments
+
+  const {
+    nameInput, selectedParticipantId, joinIdentityGender, voteBothGenders,
+    joining, editingJoin, canSubmitJoin, useFreeNameJoin, joinPlayerGender,
+    namePickerOptions, joinNeedsGender,
+    setNameInput, setJoinIdentityGender, setVoteBothGenders,
+    joinGame, openEditJoin, cancelEditJoin,
+    handlePlayerLeft, handlePlayerRenamed, handleSelectParticipant,
+    resetJoinState,
+  } = useJoinFlow({
+    gameCode, game, players, participants, myPlayerId, myPlayerName, view,
+    setView, setMyPlayerId, setMyPlayerName, setMyPlayerGender,
+    setPlayers: session.setPlayers, setParticipants, applyActiveRound,
+  })
+
+  // ── Sync refs after hooks are called ────────────────────────────────────
+  resetVoteStateRef.current = resetVoteState
+  resetHotSeatStateRef.current = resetHotSeatState
+  resetWstQuoteStateRef.current = resetWstQuoteState
+  resetJoinStateRef.current = resetJoinState
+  setWstPoolRef.current = setWstPool
+  fetchWstPoolRef.current = fetchWstPool
+  setQuoteInputRef.current = setQuoteInput
+  setQuoteAuthorParticipantIdRef.current = setQuoteAuthorParticipantId
+  setWyrChoiceRef.current = setWyrChoice
+  setPickedNumberRef.current = setPickedNumber
+  setMltTargetPlayerIdRef.current = setMltTargetPlayerId
+  setPairAssignmentRef.current = setPairAssignment
+  setAssignmentRef.current = setAssignment
+  setSubmittedRef.current = setSubmitted
+
+  // ── Derived computed values ──────────────────────────────────────────────
   const roundResultsActive = view === 'round_results' && !!lastFinishedRound
   const roundResultsIsLast = roundResultsActive && (lastFinishedRound?.round_number ?? 0) >= (game?.rounds_count ?? 0)
   const nextRoundCountdown = useDeadlineCountdown(
@@ -325,9 +384,6 @@ export function PollGamePlayerExperience({
   )
   const isMltImport = game ? isMltImportGame(game) : false
 
-  const myPlayer = useMemo(() => players.find((p) => p.id === myPlayerId) ?? null, [players, myPlayerId])
-  const isViewer = !!(game && myPlayer && playerIsViewer(myPlayer, game))
-
   // Photo upload (people-based modes)
   const {
     photoUploading, photoInputRef,
@@ -338,11 +394,6 @@ export function PollGamePlayerExperience({
     playerId: myPlayerId,
     setParticipants,
   })
-
-  const reloadPlayers = useCallback(async () => {
-    const { data: plrs } = await supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at')
-    if (plrs) setPlayers(plrs)
-  }, [gameCode])
 
   const { context: viewerPromoteContext } = useLateJoinContext(
     gameCode,
@@ -362,592 +413,6 @@ export function PollGamePlayerExperience({
         onPromoted={reloadPlayers}
       />
     ) : null
-
-  const customAssignmentsCallbackRef = useRef<((ca: Record<string, string>) => void) | undefined>(undefined)
-  const { refs: autoSubmitRefs, triggerAutoSubmit } = useAutoSubmit(gameCode, {
-    onCustomAssignmentsChange: (...args) => customAssignmentsCallbackRef.current?.(...args),
-  })
-  const {
-    currentRoundRef,
-    gameRef,
-    participantsRef,
-    myPlayerIdRef,
-    myPlayerGenderRef,
-  } = autoSubmitRefs
-
-  const patchCurrentRound = (patch: Partial<Round>) => {
-    setCurrentRound((prev) => prev ? { ...prev, ...patch } : prev)
-  }
-
-  const {
-    assignment, pairAssignment, wyrChoice, pickedNumber, panUsedNumbers,
-    mltTargetPlayerId, animeChoice, customAssignments, submitted,
-    confessionText, confessionSent,
-    setAssignment, setPairAssignment, setWyrChoice, setPickedNumber,
-    setMltTargetPlayerId, setAnimeChoice, setCustomAssignments,
-    setSubmitted, setConfessionText, setPanUsedNumbers,
-    assign, handleSubmit, sendConfession, resetVoteState,
-  } = useVoteState({
-    gameCode, game, currentRound, myPlayerId, myPlayerGender, isViewer, view,
-    players, participants, autoSubmitRefs, patchCurrentRound,
-  })
-  customAssignmentsCallbackRef.current = setCustomAssignments
-
-  const announcedRoundIdRef = useRef<string | null>(null)
-  const suppressRoundSoundRef = useRef(true)
-  const roundFormIdRef = useRef<string | null>(null)
-
-  // ── Initial load ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
-        if (!gameData) {
-          setView('not_found')
-          return
-        }
-        setGame(gameData)
-
-        const [{ data: parts }, { data: plrs }] = await Promise.all([
-          supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
-        ])
-        setParticipants(parts || [])
-        setPlayers(plrs || [])
-
-        const session = await resolvePlayerSession(gameCode, plrs || [])
-        if (session) {
-          setMyPlayerId(session.playerId)
-          setMyPlayerName(session.playerName)
-          const me = (plrs || []).find((p) => p.id === session.playerId)
-          const voteGender = me ? playerVoteGenderForRound(me, parts || []) : session.playerGender
-          setMyPlayerGender(voteGender)
-          if (me && voteGender) {
-            setPlayerSession(gameCode, me.id, me.name, voteGender, session.resumeToken ?? me.resume_token)
-          }
-        }
-
-        if (gameData.status === 'active') {
-          const { data: activeRound } = await supabase
-            .from('rounds')
-            .select('*')
-            .eq('game_id', gameCode)
-            .eq('status', 'active')
-            .maybeSingle()
-
-          if (activeRound) {
-            roundFormIdRef.current = activeRound.id
-            setCurrentRound(activeRound)
-            announcedRoundIdRef.current = activeRound.id
-            if (session) {
-              const { data: existingVote } = await supabase
-                .from('votes')
-                .select('*')
-                .eq('player_id', session.playerId)
-                .eq('round_id', activeRound.id)
-                .maybeSingle()
-              if (existingVote) {
-                const gameType = parseGameType(gameData.game_type)
-                if (isBinaryChoiceGame(gameType)) {
-                  setWyrChoice(existingVote.wyr_choice)
-                } else if (isNeverHaveIEver(gameType)) {
-                  setWyrChoice(existingVote.wyr_choice)
-                } else if (isPickANumber(gameType)) {
-                  setPickedNumber(existingVote.picked_number ?? null)
-                } else if (isMostLikelyTo(gameType)) {
-                  const targetId = isMltImportGame(gameData)
-                    ? existingVote.target_participant_id
-                    : existingVote.target_player_id
-                  setMltTargetPlayerId(targetId)
-                } else if (isWhoSaidThis(gameType)) {
-                  setMltTargetPlayerId(existingVote.target_participant_id)
-                } else if (isBinaryPeoplePollGame(gameType)) {
-                  setPairAssignment(pairAssignmentFromVote(existingVote, activeRound.participant_ids))
-                } else {
-                  setAssignment({
-                    kiss: existingVote.kiss_participant_id,
-                    marry: existingVote.marry_participant_id,
-                    kill: existingVote.kill_participant_id,
-                  })
-                }
-                autoSubmitRefs.submittedRef.current = true
-                setSubmitted(true)
-              }
-            }
-            setView(session ? 'round' : preJoinView(gameData, false))
-          } else {
-            const { data: finishedRound } = await supabase
-              .from('rounds')
-              .select('*')
-              .eq('game_id', gameCode)
-              .eq('status', 'finished')
-              .order('round_number', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-
-            if (finishedRound && session) {
-              const [{ data: rv }, { data: rc }] = await Promise.all([
-                supabase.from('votes').select('*').eq('round_id', finishedRound.id),
-                supabase.from('confessions').select('*').eq('round_id', finishedRound.id).order('created_at'),
-              ])
-              setLastFinishedRound(finishedRound)
-              setLastRoundVotes(rv || [])
-              if (rc?.length) {
-                setAllConfessions((prev) => {
-                  const ids = new Set(prev.map((c) => c.id))
-                  return [...prev, ...rc.filter((c) => !ids.has(c.id))]
-                })
-              }
-              setView('round_results')
-            } else {
-              setView(session ? 'waiting' : preJoinView(gameData, false))
-            }
-          }
-          return
-        }
-
-        if (gameData.status === 'finished') {
-          await loadAllResults()
-          setView('results')
-          return
-        }
-
-        setView(session ? 'waiting' : 'join')
-        if (gameData.status === 'waiting' && isWhoSaidThis(parseGameType(gameData.game_type))) {
-          const { data: pool } = await supabase
-            .from('wst_quote_pool')
-            .select('*')
-            .eq('game_id', gameCode)
-            .order('created_at')
-          setWstPool(dedupeWstPool(pool ?? []))
-        }
-      } finally {
-        suppressRoundSoundRef.current = false
-      }
-    }
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- polling on mount only
-  }, [gameCode])
-
-  useEffect(() => {
-    if (view !== 'round' || !currentRound?.id || suppressRoundSoundRef.current) return
-    if (announcedRoundIdRef.current === currentRound.id) return
-    announcedRoundIdRef.current = currentRound.id
-    playRoundStartSound()
-  }, [view, currentRound?.id])
-
-  // Play round-end sound when transitioning to round results, game-finished sound for final results
-  const prevViewRef = useRef<View | null>(null)
-  useEffect(() => {
-    if (view === 'round_results' && prevViewRef.current !== 'round_results' && !suppressRoundSoundRef.current) {
-      playRoundEndSound()
-    }
-    if (view === 'results' && prevViewRef.current !== 'results') {
-      playGameFinishedSound()
-    }
-    prevViewRef.current = view
-  }, [view])
-
-
-  async function loadAllResults() {
-    const [{ data: rounds }, { data: votes }, { data: confs }, { data: subs }] = await Promise.all([
-      supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
-      supabase.from('votes').select('*').eq('game_id', gameCode),
-      supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),
-      supabase.from('hot_seat_submissions').select('id, round_id, text, submission_type').eq('game_id', gameCode),
-    ])
-    setAllRounds(rounds || [])
-    setAllVotes(votes || [])
-    setAllConfessions(confs || [])
-    setAllHotSeatSubmissions(subs ?? [])
-  }
-
-  function resetRoundPlayerState() {
-    resetVoteState()
-    setQuoteInput('')
-    setQuoteAuthorParticipantId(null)
-    resetHotSeatState()
-  }
-
-  function applyActiveRound(round: Round, options?: { switchView?: boolean }) {
-    setCurrentRound((prev) => mergeActiveRound(prev, round))
-    if (roundFormIdRef.current !== round.id) {
-      roundFormIdRef.current = round.id
-      resetRoundPlayerState()
-      if (options?.switchView !== false) setView('round')
-    }
-  }
-
-  const {
-    nameInput, selectedParticipantId, joinIdentityGender, voteBothGenders,
-    joining, editingJoin, canSubmitJoin, useFreeNameJoin, joinPlayerGender,
-    namePickerOptions, joinNeedsGender,
-    setNameInput, setJoinIdentityGender, setVoteBothGenders,
-    joinGame, openEditJoin, cancelEditJoin,
-    handlePlayerLeft, handlePlayerRenamed, handleSelectParticipant,
-    resetJoinState,
-  } = useJoinFlow({
-    gameCode, game, players, participants, myPlayerId, myPlayerName, view,
-    setView, setMyPlayerId, setMyPlayerName, setMyPlayerGender,
-    setPlayers, setParticipants, applyActiveRound,
-  })
-
-  function resetPlayerForLobby(hasSession: boolean) {
-    setCurrentRound(null)
-    resetRoundResultsState()
-    roundFormIdRef.current = null
-    resetRoundPlayerState()
-    resetWstQuoteState()
-    announcedRoundIdRef.current = null
-    setView(hasSession ? 'waiting' : 'join')
-  }
-
-  useLobbyOpenNotification(game?.status, () => {
-    if (myPlayerIdRef.current) {
-      resetPlayerForLobby(true)
-    } else {
-      setView('join')
-    }
-  })
-
-  // ── Real-time subscriptions ───────────────────────────────────────────────
-  useGameChannel(
-    gameCode,
-    `game-player-${gameCode}`,
-    {
-      setGame,
-      setPlayers,
-      setParticipants,
-      setWstPool,
-      setConfessions: setAllConfessions,
-    },
-    {
-      onGameUpdate: async (newGame) => {
-        if (newGame.status === 'active' && !myPlayerIdRef.current) {
-          setView(preJoinView(newGame, false))
-        }
-        if (newGame.status === 'active' && myPlayerIdRef.current) {
-          const [{ data: activeRound }, { data: parts }] = await Promise.all([
-            supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-            supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-          ])
-          if (parts) setParticipants(parts)
-          if (activeRound) {
-            applyActiveRound(activeRound)
-          }
-        }
-        if (newGame.status === 'finished') {
-          await loadAllResults()
-          setView('results')
-        }
-        if (newGame.status === 'waiting') {
-          resetPlayerForLobby(!!myPlayerIdRef.current)
-        }
-      },
-      onRoundInsert: async (round) => {
-        if (round.status === 'active' && myPlayerIdRef.current) {
-          const { data: parts } = await supabase
-            .from('participants')
-            .select('*')
-            .eq('game_id', gameCode)
-            .order('display_order')
-          if (parts) setParticipants(parts)
-          applyActiveRound(round)
-        }
-      },
-      onRoundUpdate: async (round) => {
-        if (round.status === 'active') {
-          const priorId = roundFormIdRef.current
-          applyActiveRound(round, { switchView: priorId !== round.id })
-          if (isPickANumber(parseGameType(gameRef.current?.game_type)) && panRoundRevealed(round) && round.submitter_player_id) {
-            const { data: pickerVote } = await supabase
-              .from('votes')
-              .select('picked_number')
-              .eq('round_id', round.id)
-              .eq('player_id', round.submitter_player_id)
-              .maybeSingle()
-            if (pickerVote?.picked_number) setPickedNumber(pickerVote.picked_number)
-          }
-        }
-        if (round.status === 'finished') {
-          const [{ data: rv }, { data: rc }] = await Promise.all([
-            supabase.from('votes').select('*').eq('round_id', round.id),
-            supabase.from('confessions').select('*').eq('round_id', round.id).order('created_at'),
-          ])
-          setLastFinishedRound(round)
-          setLastRoundVotes(rv || [])
-          setAllConfessions((prev) => {
-            const ids = new Set(prev.map((c) => c.id))
-            return [...prev, ...(rc || []).filter((c) => !ids.has(c.id))]
-          })
-          setAllVotes((prev) => {
-            const ids = new Set(prev.map((v) => v.id))
-            return [...prev, ...(rv || []).filter((v) => !ids.has(v.id))]
-          })
-          setAllRounds((prev) => {
-            const ids = new Set(prev.map((r) => r.id))
-            return ids.has(round.id) ? prev.map((r) => (r.id === round.id ? round : r)) : [...prev, round]
-          })
-          setView('round_results')
-        }
-      },
-      onPlayerUpdate: (p) => {
-        if (p.id === myPlayerIdRef.current) {
-          setMyPlayerName(p.name)
-          const voteGender = playerVoteGenderForRound(p, participantsRef.current)
-          if (voteGender) {
-            setMyPlayerGender(voteGender)
-            const existing = getPlayerSession(gameCode)
-            setPlayerSession(gameCode, p.id, p.name, voteGender, existing?.resumeToken ?? p.resume_token)
-          }
-        }
-      },
-      onPlayerDelete: (p) => {
-        if (p.id === myPlayerIdRef.current) {
-          clearPlayerSession(gameCode)
-          setMyPlayerId(null)
-          setMyPlayerName(null)
-          setMyPlayerGender(null)
-          resetJoinState()
-          setView('join')
-        }
-      },
-      onConfessionInsert: () => {
-        // Trigger re-render for live confessions in round results
-        setLastRoundVotes((prev) => prev)
-      },
-    }
-  )
-
-  // Poll during final results — return to lobby when host resets
-  usePolling(
-    async () => {
-      const res = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
-      if (!supabasePollOk(res)) return false
-      if (res.data?.status === 'waiting') {
-        setGame(res.data)
-        resetPlayerForLobby(!!myPlayerIdRef.current)
-      }
-      return true
-    },
-    [gameCode, view],
-    { intervalMs: POLL_INTERVALS.results, enabled: view === 'results' }
-  )
-
-  // Poll lobby / join — slow fallback if realtime is slow
-  usePolling(
-    async () => {
-      const [plrsRes, partsRes, gameRes] = await Promise.all([
-        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
-        supabase.from('participants').select(PARTICIPANT_SELECT).eq('game_id', gameCode).order('display_order'),
-        supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
-      ])
-      if (!supabasePollOk(plrsRes, partsRes, gameRes)) return false
-      if (plrsRes.data) setPlayers(plrsRes.data)
-      if (partsRes.data) setParticipants(partsRes.data)
-      if (gameRes.data) setGame(gameRes.data)
-      if (!myPlayerIdRef.current && gameRes.data) {
-        setView((current) => {
-          const next = preJoinView(gameRes.data as Game, false)
-          if (current === 'join' || current === 'game_started_waiting' || current === 'late_join_choice') {
-            return next
-          }
-          return current
-        })
-      }
-      if (gameRes.data && isWhoSaidThis(parseGameType(gameRes.data.game_type))) {
-        await fetchWstPool()
-      }
-
-      if (view === 'waiting' && gameRes.data?.status === 'active' && myPlayerIdRef.current) {
-        const roundRes = await supabase
-          .from('rounds')
-          .select(ROUND_SELECT)
-          .eq('game_id', gameCode)
-          .eq('status', 'active')
-          .maybeSingle()
-        if (!supabasePollOk(roundRes)) return false
-        if (roundRes.data) {
-          applyActiveRound(roundRes.data)
-        }
-      }
-      return true
-    },
-    [gameCode, view],
-    { intervalMs: POLL_INTERVALS.lobby, enabled: view === 'waiting' || view === 'join' || view === 'game_started_waiting' || view === 'late_join_choice' }
-  )
-
-  // Poll player-submitted questions in lobby (WYR/MLT only)
-  usePolling(
-    async () => {
-      const res = await supabase
-        .from('player_questions')
-        .select(PLAYER_QUESTION_SELECT)
-        .eq('game_id', gameCode)
-        .order('created_at')
-      if (!supabasePollOk(res)) return false
-      if (res.data) setPqList(res.data)
-      return true
-    },
-    [gameCode, game?.game_type, game?.player_questions_enabled, isBinaryGame],
-    {
-      intervalMs: POLL_INTERVALS.lobby,
-      enabled:
-        view === 'waiting' &&
-        !!game &&
-        (isBinaryGame || isNhieGame || isMostLikelyTo(game.game_type)) &&
-        lobbyAllowsPlayerQuestions(game),
-    }
-  )
-
-  // Poll player-submitted names in lobby (people poll games)
-  usePolling(
-    async () => {
-      const res = await fetch(`/api/player-participants?gameId=${gameCode}`)
-      if (!res.ok) return false
-      const { participants: subs } = await res.json()
-      setPnList(subs ?? [])
-      return true
-    },
-    [gameCode, game?.game_type, game?.player_questions_enabled],
-    {
-      intervalMs: POLL_INTERVALS.lobby,
-      enabled:
-        view === 'waiting' &&
-        !!game &&
-        isPeoplePollGame(game.game_type) &&
-        lobbyAllowsPlayerNameSubmissions(game),
-    }
-  )
-
-  // Poll during round / results — slow fallback when realtime misses transitions
-  usePolling(
-    async () => {
-      const [gameRes, activeRoundRes, finishedRoundRes] = await Promise.all([
-        supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
-        supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
-        supabase
-          .from('rounds')
-          .select(ROUND_SELECT)
-          .eq('game_id', gameCode)
-          .eq('status', 'finished')
-          .order('round_number', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ])
-      if (!supabasePollOk(gameRes, activeRoundRes, finishedRoundRes)) return false
-
-      const gameData = gameRes.data
-      const activeRound = activeRoundRes.data
-      const finishedRound = finishedRoundRes.data
-
-      if (gameData) setGame(gameData)
-
-      if (gameData?.status === 'waiting') {
-        resetPlayerForLobby(!!myPlayerIdRef.current)
-        return true
-      }
-
-      if (gameData?.status === 'finished') {
-        await loadAllResults()
-        setView('results')
-        return true
-      }
-
-      if (activeRound && myPlayerIdRef.current) {
-        applyActiveRound(activeRound, {
-          switchView: view === 'round_results' || activeRound.id !== roundFormIdRef.current,
-        })
-        return true
-      }
-
-      if (finishedRound && myPlayerIdRef.current) {
-        const [votesRes, confsRes] = await Promise.all([
-          supabase.from('votes').select(VOTE_SELECT).eq('round_id', finishedRound.id),
-          supabase.from('confessions').select(CONFESSION_SELECT).eq('round_id', finishedRound.id).order('created_at'),
-        ])
-        if (!supabasePollOk(votesRes, confsRes)) return false
-        setLastFinishedRound(finishedRound)
-        setLastRoundVotes(votesRes.data || [])
-        if (confsRes.data?.length) {
-          setAllConfessions((prev) => {
-            const ids = new Set(prev.map((c) => c.id))
-            return [...prev, ...confsRes.data!.filter((c) => !ids.has(c.id))]
-          })
-        }
-        setView('round_results')
-      }
-      return true
-    },
-    [gameCode, view, currentRound?.id],
-    { intervalMs: POLL_INTERVALS.activeGame, enabled: view === 'round' || view === 'round_results' }
-  )
-
-  useEffect(() => {
-    if (!myPlayerId) return
-    const me = players.find((p) => p.id === myPlayerId)
-    const parsed = me ? playerVoteGenderForRound(me, participants) : null
-    if (parsed) setMyPlayerGender(parsed)
-  }, [myPlayerId, players, participants])
-
-  const timeLeft = useRoundTimer({
-    game,
-    currentRound,
-    active: view === 'round' && !!currentRound?.started_at && !!game,
-    onExpire: () => {
-      if (autoSubmitRefs.submittedRef.current) return
-
-      const roundGender = getRoundParticipantGender(
-        currentRoundRef.current?.participant_ids ?? [],
-        participantsRef.current
-      )
-      const gameType = parseGameType(gameRef.current?.game_type)
-      const playerGender = myPlayerGenderRef.current ?? getPlayerSession(gameCode)?.playerGender ?? null
-      const r = currentRoundRef.current
-      const isWstRound = isWhoSaidThis(gameType)
-      const isPanRound = isPickANumber(gameType)
-      const isPanPicker = isPanRound && r?.submitter_player_id === myPlayerIdRef.current
-      const isSubmitter = isWstRound && r?.submitter_player_id === myPlayerIdRef.current
-      const genderFreeVoting = !!gameRef.current && isGenderFreeVoting(gameRef.current)
-      const canVote = isWstRound
-        ? !!myPlayerIdRef.current && !isSubmitter && !!r?.quote_text
-        : isNameOnlyPlayerJoin(gameType) || genderFreeVoting
-          ? !!myPlayerIdRef.current
-          : !!roundGender && !!playerGender && canPlayerVoteInRound(playerGender, roundGender)
-
-      if (canVote && (!isPanRound || isPanPicker)) {
-        void triggerAutoSubmit().then((result) => {
-          if (result.submitted) {
-            autoSubmitRefs.submittedRef.current = true
-            setSubmitted(true)
-            if (result.revealedQuestion && currentRoundRef.current) {
-              setCurrentRound({ ...currentRoundRef.current, mlt_question: result.revealedQuestion })
-            }
-            if (typeof result.pickedNumber === 'number') setPickedNumber(result.pickedNumber)
-            playVoteSubmittedSound()
-          }
-        })
-      }
-    },
-  })
-
-  useTimerTickSound(timeLeft, view === 'round')
-
-  // ── Apply theme CSS variables (same as host page) ─────────────────────────
-  useEffect(() => {
-    const themeId = parseThemeId(game?.theme)
-    const vars = THEME_MAP[themeId]?.cssVars ?? {}
-    const root = document.documentElement
-    const keys = Object.keys(vars)
-    keys.forEach((k) => root.style.setProperty(k, vars[k]))
-    if (Object.keys(vars).length > 0) {
-      root.style.setProperty('background', vars['--background'] ?? '')
-    }
-    return () => {
-      keys.forEach((k) => root.style.removeProperty(k))
-      root.style.removeProperty('background')
-    }
-  }, [game?.theme])
 
   const sessionBar =
     myPlayerId && myPlayerName ? (
