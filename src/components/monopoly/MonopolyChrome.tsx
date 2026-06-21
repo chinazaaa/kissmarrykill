@@ -234,6 +234,52 @@ export function MonopolyCashBadge({
   )
 }
 
+export function MonopolyJailCardInventory({
+  count,
+  compact = false,
+  showEmpty = false,
+  className = '',
+}: {
+  count: number
+  compact?: boolean
+  showEmpty?: boolean
+  className?: string
+}) {
+  if (count <= 0 && !showEmpty) return null
+
+  if (count <= 0) {
+    return (
+      <p className={['text-xs text-muted leading-relaxed', className].join(' ')}>
+        No Get Out of Jail cards — draw one from Chance or Community Chest.
+      </p>
+    )
+  }
+
+  return (
+    <div
+      className={[
+        'rounded-xl border border-orange-500/30 bg-orange-500/8',
+        compact ? 'px-2.5 py-1.5' : 'px-3 py-2',
+        className,
+      ].join(' ')}
+    >
+      <p
+        className={[
+          'font-semibold text-orange-600 dark:text-orange-300 leading-snug',
+          compact ? 'text-[11px]' : 'text-xs',
+        ].join(' ')}
+      >
+        🎫 {count} Get Out of Jail card{count === 1 ? '' : 's'}
+      </p>
+      {!compact && (
+        <p className="text-[10px] text-muted mt-0.5 leading-snug">
+          Use from the jail panel, or include in a trade.
+        </p>
+      )}
+    </div>
+  )
+}
+
 export function MonopolyTurnStrip({
   turnName,
   isMyTurn,

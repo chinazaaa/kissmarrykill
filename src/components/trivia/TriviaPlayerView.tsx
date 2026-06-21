@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { GameTypeBadge } from '@/components/GameTypeBadge'
+import { GameJoinHeader } from '@/components/game-lobby/GameJoinHeader'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
+import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { TriviaActiveRound } from '@/components/trivia/TriviaActiveRound'
 import { gameTypeConfig } from '@/lib/game-types'
 import { triviaCategoryFromGame } from '@/lib/trivia'
@@ -15,15 +17,17 @@ import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
-import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { playerIsViewer, preJoinScreen, allowLatePlayers } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
+import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
+import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'playing' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'game_ended' | 'playing' | 'not_found'
 
 export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -72,7 +76,15 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
 
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
-      setScreen(pre === 'game_started_waiting' ? 'game_started_waiting' : pre === 'late_join_choice' ? 'late_join_choice' : 'join')
+      setScreen(
+        pre === 'game_started_waiting'
+          ? 'game_started_waiting'
+          : pre === 'late_join_choice'
+            ? 'late_join_choice'
+            : pre === 'game_ended'
+              ? 'game_ended'
+              : 'join'
+      )
       return true
     }
 
@@ -188,6 +200,10 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
   }
 
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
+  }
+
   if (screen === 'late_join_choice' && game) {
     return (
       <LateJoinChoice
@@ -208,38 +224,27 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'join') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-8">
-        <div className="glass-card-strong w-full max-w-lg p-8 sm:p-10 space-y-6">
-          <div className="text-center space-y-2">
-            <div className="text-5xl sm:text-6xl">{cfg.headerEmoji}</div>
-            <h1 className="text-2xl sm:text-3xl font-black gradient-title">{game?.title}</h1>
-            <GameTypeBadge gameType="trivia" />
-            {game && (
-              <p className="text-muted text-base">
+      <GameJoinLobbyShell gameCode={gameCode} onResumed={load}>
+        <GameJoinHeader
+          emoji={cfg.headerEmoji}
+          title={game?.title}
+          gameType="trivia"
+          meta={
+            game ? (
+              <>
                 {triviaCategoryLabel(triviaCategoryFromGame(game))} · {game.rounds_count} rounds · {game.timer_seconds}s
                 each
-              </p>
-            )}
-          </div>
-          <input
-            value={joinName}
-            onChange={(e) => setJoinName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && joinGame()}
-            placeholder="Your name"
-            autoFocus
-            className="input-field w-full text-base py-3.5"
-          />
-          <button
-            type="button"
-            onClick={() => void joinGame()}
-            disabled={joining || !joinName.trim()}
-            className="btn-primary w-full py-4 text-base sm:text-lg"
-          >
-            {joining ? 'Joining…' : 'Join game'}
-          </button>
-          <ShareGameLinkCard gameCode={gameCode} onResumed={load} />
-        </div>
-      </div>
+              </>
+            ) : null
+          }
+        />
+        <NameJoinForm
+          value={joinName}
+          onChange={setJoinName}
+          onSubmit={() => void joinGame()}
+          joining={joining}
+        />
+      </GameJoinLobbyShell>
     )
   }
 
@@ -275,6 +280,14 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
           onLeft={handlePlayerLeft}
           inLobby={game.status === 'waiting'}
         />
+        {game.status === 'waiting' && (
+          <>
+            <p className="text-center">
+              <GameRulesLink gameType="trivia" variant="subtle" />
+            </p>
+            <GameLobbyPlayerList players={players} myPlayerId={myPlayerId} label="In lobby" />
+          </>
+        )}
         <TriviaActiveRound
           gameCode={gameCode}
           game={game}

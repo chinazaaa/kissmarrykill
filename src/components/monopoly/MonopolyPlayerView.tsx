@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MonopolyActiveLayout } from '@/components/monopoly/MonopolyActiveLayout'
 import { MonopolyJoinForm } from '@/components/monopoly/MonopolyJoinForm'
@@ -8,7 +8,8 @@ import { tokenColorForOrder } from '@/components/monopoly/monopoly-ui'
 import { monopolyTokenEmoji, type MonopolyTokenId } from '@/lib/monopoly-tokens'
 import { MONOPOLY_COLOR_CLASSES } from '@/lib/monopoly'
 import type { MonopolyColorGroup } from '@/lib/monopoly'
-import { GameTypeBadge } from '@/components/GameTypeBadge'
+import { GameJoinHeader } from '@/components/game-lobby/GameJoinHeader'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
 import { MonopolyPageHeader } from '@/components/monopoly/MonopolyChrome'
 import { gameTypeConfig } from '@/lib/game-types'
 import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
@@ -24,14 +25,20 @@ import {
   MONOPOLY_PLAYER_STATE_SELECT,
   PLAYER_SELECT,
 } from '@/lib/supabase-selects'
-import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import {
+  getPlayerSession,
+  setPlayerSession,
+  clearPlayerSession,
+  isFetchNetworkError,
+  messageFromFetchActionError,
+} from '@/lib/utils'
 import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
-import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
@@ -39,7 +46,7 @@ import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 function colorBarClass(color?: MonopolyColorGroup): string {
   if (!color) return 'bg-neutral-500'
@@ -60,14 +67,19 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   const [joinToken, setJoinToken] = useState<MonopolyTokenId | null>(null)
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
+  const actingRef = useRef(false)
 
-  useApplyGameTheme(game?.theme)
+  useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
       if (pre === 'game_started_waiting') {
         setScreen('game_started_waiting')
+        return
+      }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
         return
       }
       setScreen('join')
@@ -81,7 +93,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       setScreen(playerId ? 'active' : 'join')
       return
     }
-    setScreen(playerId ? 'finished' : 'join')
+    setScreen(playerId ? 'finished' : 'game_ended')
   }, [])
 
   const load = useCallback(async (): Promise<boolean> => {
@@ -192,7 +204,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   const postAction = async (url: string, body: Record<string, unknown> = {}) => {
-    if (!myPlayerId) return
+    if (!myPlayerId || actingRef.current) return
+    actingRef.current = true
     setActing(true)
     try {
       const res = await fetch(url, {
@@ -200,12 +213,19 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, ...body }),
       })
-      const data = await res.json()
+      let data: { error?: string }
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error(res.ok ? 'Invalid server response' : `Request failed (${res.status})`)
+      }
       if (!res.ok) throw new Error(data.error ?? 'Action failed')
       await load()
     } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Action failed')
+      toastError(messageFromFetchActionError(err))
+      if (isFetchNetworkError(err)) await load()
     } finally {
+      actingRef.current = false
       setActing(false)
     }
   }
@@ -248,6 +268,10 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
+  }
+
   if (screen === 'not_found') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
@@ -262,48 +286,45 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   if (screen === 'join') {
     const joiningAsViewer = game?.status === 'active'
     return (
-      <div className="min-h-screen overflow-y-auto py-6 px-4 flex justify-center">
-        <div className="glass-card p-6 w-full max-w-xl space-y-5 my-auto">
-          <div className="text-center space-y-1">
-            <div className="text-4xl">{cfg.headerEmoji}</div>
-            <h1 className="text-2xl font-black gradient-title">{game?.title}</h1>
-            <GameTypeBadge gameType="monopoly" />
-          </div>
-          <MonopolyJoinForm
-            name={joinName}
-            onNameChange={setJoinName}
-            tokenId={joinToken}
-            onTokenChange={setJoinToken}
-            players={players}
-            joining={joining}
-            joiningAsViewer={joiningAsViewer}
-            submitLabel={joiningAsViewer ? 'Join as viewer' : 'Join Monopoly'}
-            onSubmit={() => void join()}
-          />
-          <p className="text-faint text-xs leading-relaxed text-center">
-            {joiningAsViewer
-              ? 'This game is in progress — you will join as a viewer and watch live (read-only).'
-              : `${MONOPOLY_MIN_PLAYERS}–6 players · £${MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} starting cash.`}
-          </p>
-          <ShareGameLinkCard gameCode={gameCode} />
-        </div>
-      </div>
+      <GameJoinLobbyShell
+        gameCode={gameCode}
+        wide
+        header={<GameJoinHeader emoji={cfg.headerEmoji} title={game?.title} gameType="monopoly" />}
+      >
+        <MonopolyJoinForm
+          name={joinName}
+          onNameChange={setJoinName}
+          tokenId={joinToken}
+          onTokenChange={setJoinToken}
+          players={players}
+          joining={joining}
+          joiningAsViewer={joiningAsViewer}
+          submitLabel={joiningAsViewer ? 'Join as viewer' : 'Join Monopoly'}
+          onSubmit={() => void join()}
+        />
+        <p className="text-faint text-xs leading-relaxed text-center">
+          {joiningAsViewer
+            ? 'This game is in progress — you will join as a viewer and watch live (read-only).'
+            : `${MONOPOLY_MIN_PLAYERS}–6 players · £${MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} starting cash.`}
+        </p>
+      </GameJoinLobbyShell>
     )
   }
 
   if (screen === 'waiting') {
     const displayName = myPlayerName ?? players.find((p) => p.id === myPlayerId)?.name ?? 'Player'
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="glass-card p-6 w-full max-w-md space-y-4">
-          <div className="text-center space-y-1">
-            <div className="text-4xl">{cfg.headerEmoji}</div>
-            <h2 className="text-xl font-black">You&apos;re in, {displayName}!</h2>
+      <GameJoinLobbyShell gameCode={gameCode}>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_18%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_6%,transparent)] px-4 py-4 text-center space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">You&apos;re in</p>
+            <h2 className="text-xl sm:text-2xl font-black">You&apos;re in, {displayName}!</h2>
             <p className="text-muted text-sm leading-relaxed">
               Waiting for the host to start. You&apos;ll begin with £{MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} when
               the game begins.
             </p>
           </div>
+          <GameRulesLink gameType="monopoly" variant="subtle" />
           <div className="glass-card-strong p-4 text-center">
             <p className="text-3xl font-black text-[var(--primary)]">{players.length}</p>
             <p className="text-sm text-muted">
@@ -331,7 +352,6 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
               ))}
             </div>
           )}
-          <GameRulesLink gameType="monopoly" variant="subtle" />
           {myPlayerId && (
             <PlayerSessionControls
               gameCode={gameCode}
@@ -345,9 +365,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
               inLobby
             />
           )}
-          <ShareGameLinkCard gameCode={gameCode} />
         </div>
-      </div>
+      </GameJoinLobbyShell>
     )
   }
 
@@ -403,8 +422,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   return (
-    <div className="min-h-screen pb-24">
-      <div className="max-w-5xl mx-auto px-4 py-4 sm:py-6 space-y-4">
+    <div className="min-h-screen pb-24 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4">
         <MonopolyPageHeader title={game?.title}>
           {myPlayerId && sessionName ? (
             <PlayerSessionControls

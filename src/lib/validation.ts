@@ -62,6 +62,7 @@ const gameTypeEnum = z.enum([
   'yahtzee',
   'whot',
   'ludo',
+  'i_call_on',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -163,6 +164,8 @@ export const updateGameSchema = z.object({
   hostToken: hostTokenString(),
   rounds_count: z.coerce.number().int().min(1, 'rounds_count is required').optional(),
   timer_seconds: z.coerce.number().optional(),
+  operative_timer_seconds: z.coerce.number().optional(),
+  game_duration_seconds: z.coerce.number().optional(),
   participant_filter: participantFilterEnum.optional(),
   gender_based: z.boolean().optional(),
   pair_vote_mode: pairVoteModeEnum.optional(),
@@ -425,6 +428,19 @@ export const bingoSettingsSchema = z.object({
 
 export type BingoSettingsInput = z.infer<typeof bingoSettingsSchema>
 
+export const boardGameLobbySettingsSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+  max_players: z.coerce.number().int().min(1).max(100).optional(),
+  timer_seconds: z.coerce.number().optional(),
+  game_duration_seconds: z.coerce.number().optional(),
+  whot_pick3_enabled: z.boolean().optional(),
+  whot_cards_enabled: z.boolean().optional(),
+  whot_number_calls_enabled: z.boolean().optional(),
+})
+
+export type BoardGameLobbySettingsInput = z.infer<typeof boardGameLobbySettingsSchema>
+
 // ---------------------------------------------------------------------------
 // Admin game player limits
 // ---------------------------------------------------------------------------
@@ -489,6 +505,61 @@ export const ttlAdvanceSchema = z.object({
 
 export type TtlAdvanceInput = z.infer<typeof ttlAdvanceSchema>
 
+export const npatSubmitSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  name: z.string().max(80),
+  animal: z.string().max(80),
+  place: z.string().max(80),
+  thing: z.string().max(80),
+  food: z.string().max(80),
+})
+
+export type NpatSubmitInput = z.infer<typeof npatSubmitSchema>
+
+export const npatDraftSchema = npatSubmitSchema
+
+export type NpatDraftInput = z.infer<typeof npatDraftSchema>
+
+export const npatMarkSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  validName: z.boolean(),
+  validAnimal: z.boolean(),
+  validPlace: z.boolean(),
+  validThing: z.boolean(),
+  validFood: z.boolean(),
+})
+
+export type NpatMarkInput = z.infer<typeof npatMarkSchema>
+
+const npatHostOverrideEntrySchema = z.object({
+  playerId: uuidString('playerId'),
+  validName: z.boolean(),
+  validAnimal: z.boolean(),
+  validPlace: z.boolean(),
+  validThing: z.boolean(),
+  validFood: z.boolean(),
+})
+
+export const npatCallerApproveSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  overrides: z.array(npatHostOverrideEntrySchema),
+})
+
+export type NpatCallerApproveInput = z.infer<typeof npatCallerApproveSchema>
+
+export const npatAdvanceSchema = z.object({
+  gameId: gameCodeString(),
+  force: z.boolean().optional(),
+})
+
+export type NpatAdvanceInput = z.infer<typeof npatAdvanceSchema>
+
 export const monopolyActionSchema = z.object({
   gameId: gameCodeString(),
   playerId: uuidString('playerId'),
@@ -531,6 +602,7 @@ export const monopolyTradeProposeSchema = monopolyActionSchema.extend({
   offerGetOutCards: z.number().int().min(0).max(2).default(0),
   requestCash: z.number().int().min(0).default(0),
   requestProperties: monopolyTradePropertyListSchema.default([]),
+  requestGetOutCards: z.number().int().min(0).max(2).default(0),
 })
 
 export const monopolyTradeRespondSchema = monopolyActionSchema.extend({
@@ -615,6 +687,7 @@ export const ludoActionSchema = z.object({
 
 export const ludoMoveSchema = ludoActionSchema.extend({
   pieceId: z.coerce.number().int().min(0).max(3),
+  diceIndex: z.coerce.number().int().min(0).max(1).optional(),
 })
 
 export const ludoExpireSchema = z.object({

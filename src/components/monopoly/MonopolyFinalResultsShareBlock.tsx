@@ -2,8 +2,8 @@
 
 import { useMemo, useRef, type ReactNode } from 'react'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
-import { gameTypeConfig } from '@/lib/game-types'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
+import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 import { buildMonopolyStandings, formatMonopolyMoney } from '@/lib/monopoly'
 
@@ -25,7 +25,6 @@ export function MonopolyFinalResultsShareBlock({
   playAgainButton?: ReactNode
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
-  const cfg = gameTypeConfig('monopoly')
 
   const standings = useMemo(
     () =>
@@ -47,11 +46,7 @@ export function MonopolyFinalResultsShareBlock({
   return (
     <div className="space-y-4">
       <div ref={captureRef} className="glass-card-strong p-6 sm:p-8 space-y-4">
-        <div className="text-center space-y-2">
-          <p className="text-3xl sm:text-4xl leading-none">{cfg.headerEmoji}</p>
-          <p className="text-2xl sm:text-3xl font-black gradient-title">{game.title}</p>
-          <p className="text-muted text-xs uppercase tracking-wider">Final results</p>
-        </div>
+        <ShareResultsCaptureHeader game={game} />
         <p className="text-5xl sm:text-6xl leading-none text-center pt-1">🏆</p>
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">
           {displayWinner ? `${displayWinner} wins!` : 'Game over'}
@@ -97,18 +92,21 @@ export function MonopolyFinalResultsShareBlock({
           </div>
         )}
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={[]}
-        votes={[]}
-        rounds={[]}
-        players={players}
-        monopolyStandings={standings}
-        monopolyWinnerName={displayWinner ?? undefined}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+            monopolyStandings={standings}
+            monopolyWinnerName={displayWinner ?? undefined}
+          />
+        }
       />
-      {playAgainButton}
-      <CreateNewGameButton />
     </div>
   )
 }

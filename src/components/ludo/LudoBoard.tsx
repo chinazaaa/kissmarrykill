@@ -1,14 +1,18 @@
 'use client'
 
-import { useMemo } from 'react'
-import type { LudoColor, LudoPlayerState, LudoSession, Player } from '@/types'
+import { useMemo, type ReactNode } from 'react'
+import type { LudoColor, LudoDiceRoll, LudoPlayerState, LudoSession, Player } from '@/types'
 import {
   LUDO_COLOR_HEX,
   LUDO_COLOR_LABELS,
   START_POS,
   TRACK_LENGTH,
   finishedPieceCount,
-  getLegalMoves,
+  dedupeLudoMovesForUi,
+  getLegalMovesFromRemaining,
+  parseLudoDice,
+  pickLudoMoveForPiece,
+  resolveRemainingDice,
   type LudoMoveOption,
 } from '@/lib/ludo'
 import {
@@ -23,7 +27,8 @@ import {
   pieceStatusLabel,
   trackCellsAlongSteps,
 } from '@/lib/ludo-board-layout'
-import { LudoCard, LudoDice, LudoTurnBar } from '@/components/ludo/LudoChrome'
+import { LudoCard, LudoTurnBar } from '@/components/ludo/LudoChrome'
+import { LudoBoardCenter } from '@/components/ludo/LudoBoardCenter'
 
 const BOARD_BG = '#e8d4b0'
 
@@ -163,14 +168,16 @@ export function LudoBoard({
   onMovePiece,
   selectablePieceIds,
   highlightCells,
+  center,
 }: {
   session: LudoSession
   states: LudoPlayerState[]
   players: Player[]
   myPlayerId: string | null
-  onMovePiece?: (pieceId: number) => void
+  onMovePiece?: (pieceId: number, diceIndex?: number) => void
   selectablePieceIds?: number[]
   highlightCells?: Set<string>
+  center?: ReactNode
 }) {
   const myColor = states.find((s) => s.player_id === myPlayerId)?.color
   const activeColors = useMemo(() => new Set(states.map((s) => s.color)), [states])
@@ -304,7 +311,7 @@ export function LudoBoard({
           <span className="font-bold" style={{ color: LUDO_COLOR_HEX[myColor] }}>
             {LUDO_COLOR_LABELS[myColor]}
           </span>
-          . Roll a 6 to leave your yard onto your{' '}
+          . Roll a 6 on either die to leave your yard onto your{' '}
           <span className="font-bold text-[var(--foreground)]">★</span> start square, then follow the
           arrows clockwise around the board into your coloured home column.
         </p>
@@ -317,6 +324,19 @@ export function LudoBoard({
           {cells}
         </div>
         <CenterTriangles />
+        {center && (
+          <div
+            className="absolute z-[15] flex items-center justify-center pointer-events-auto"
+            style={{
+              left: `${(6 / 15) * 100}%`,
+              top: `${(6 / 15) * 100}%`,
+              width: `${(3 / 15) * 100}%`,
+              height: `${(3 / 15) * 100}%`,
+            }}
+          >
+            {center}
+          </div>
+        )}
         {(['red', 'green', 'yellow', 'blue'] as LudoColor[])
           .filter((color) => activeColors.has(color))
           .map((color) => (
@@ -414,7 +434,7 @@ export function LudoPlayerStrip({
               </span>
             </div>
             <p className="text-faint mt-0.5">
-              {finished}/4 finished · {inBase} in base · {onPath} on path
+              {finished}/4 finished · {inBase} at home · {onPath} on path
             </p>
           </div>
         )
@@ -447,25 +467,40 @@ export function LudoGamePanel({
   hasTimer: boolean
   urgent: boolean
   onRoll?: () => void
-  onMovePiece?: (pieceId: number) => void
+  onMovePiece?: (pieceId: number, diceIndex?: number) => void
   acting?: boolean
   rolling?: boolean
-  displayDice?: number | null
+  displayDice?: LudoDiceRoll | null
 }) {
   const turnPlayer = players.find((p) => p.id === session.turn_order[session.current_turn_index])
   const myState = states.find((s) => s.player_id === myPlayerId)
+  const parsedLastDice = parseLudoDice(session.last_dice)
+  const remainingDice = resolveRemainingDice(session)
 
   const legalMoves = useMemo((): LudoMoveOption[] => {
-    if (!isMyTurn || session.phase !== 'move' || !myState || !session.last_dice || !myPlayerId) return []
-    return getLegalMoves(myState.color, myState.pieces, session.last_dice, states, myPlayerId)
-  }, [isMyTurn, session, myState, states, myPlayerId])
+    if (!isMyTurn || session.phase !== 'move' || !myState || remainingDice.length === 0 || !myPlayerId) {
+      return []
+    }
+    return getLegalMovesFromRemaining(myState.color, myState.pieces, remainingDice, states, myPlayerId)
+  }, [isMyTurn, session.phase, myState, states, myPlayerId, remainingDice])
 
-  const selectablePieceIds = legalMoves.map((m) => m.pieceId)
+  const displayMoves = useMemo(() => dedupeLudoMovesForUi(legalMoves), [legalMoves])
+
+  const handleMovePiece = (pieceId: number, diceIndex?: number) => {
+    if (!onMovePiece) return
+    if (diceIndex != null) {
+      onMovePiece(pieceId, diceIndex)
+      return
+    }
+    const move = pickLudoMoveForPiece(legalMoves, pieceId)
+    if (move) onMovePiece(move.pieceId, move.diceIndex)
+  }
+
+  const selectablePieceIds = [...new Set(displayMoves.map((m) => m.pieceId))]
 
   const highlightCells = useMemo(() => {
-    if (!myState || legalMoves.length === 0 || !session.last_dice) return undefined
+    if (!myState || legalMoves.length === 0) return undefined
     const cells = new Set<string>()
-    const dice = session.last_dice
 
     for (const move of legalMoves) {
       const dest = moveDestinationCell(myState.color, move.to)
@@ -474,16 +509,24 @@ export function LudoGamePanel({
       if (move.from.zone === 'track' && move.to.zone === 'track') {
         const steps =
           (move.from.pos - START_POS[myState.color] + TRACK_LENGTH) % TRACK_LENGTH
-        for (const cell of trackCellsAlongSteps(myState.color, steps, dice)) {
+        for (const cell of trackCellsAlongSteps(myState.color, steps, move.diceValue)) {
           cells.add(`${cell.row},${cell.col}`)
         }
       }
     }
     return cells
-  }, [legalMoves, myState, session.last_dice])
+  }, [legalMoves, myState])
 
-  const diceValue =
-    session.phase === 'move' ? session.last_dice : rolling ? null : (displayDice ?? session.last_dice)
+  const diceDisplay =
+    session.phase === 'move'
+      ? parsedLastDice
+      : rolling
+        ? null
+        : (displayDice ?? parsedLastDice)
+
+  const hasBaseSixMove = displayMoves.some((m) => m.from.zone === 'base' && m.diceValue === 6)
+  const allSixes =
+    remainingDice.length > 0 && remainingDice.every((value) => value === 6)
 
   return (
     <LudoCard className="p-3 sm:p-4 space-y-3">
@@ -497,49 +540,47 @@ export function LudoGamePanel({
 
       {session.status_message && <p className="text-center text-sm text-muted">{session.status_message}</p>}
 
-      <div className="flex items-center justify-center gap-4">
-        <LudoDice value={diceValue} rolling={rolling} />
-        {session.last_dice && session.phase === 'move' && (
-          <span className="text-sm font-bold text-[var(--foreground)]">Rolled {session.last_dice}</span>
-        )}
-        {session.consecutive_sixes > 0 && (
-          <span className="text-xs text-amber-500 font-semibold">6s: {session.consecutive_sixes}/3</span>
-        )}
-      </div>
-
       <LudoBoard
         session={session}
         states={states}
         players={players}
         myPlayerId={myPlayerId}
-        onMovePiece={isMyTurn && session.phase === 'move' ? onMovePiece : undefined}
+        onMovePiece={isMyTurn && session.phase === 'move' ? handleMovePiece : undefined}
         selectablePieceIds={selectablePieceIds}
         highlightCells={highlightCells}
+        center={
+          <LudoBoardCenter
+            dice={diceDisplay}
+            rolling={rolling}
+            showRoll={isMyTurn && session.phase === 'roll' && !!onRoll}
+            onRoll={onRoll}
+            acting={acting}
+            consecutiveSixes={session.consecutive_sixes}
+            phase={session.phase}
+            lastDice={parsedLastDice}
+            remainingDice={remainingDice}
+          />
+        }
       />
 
       <LudoPlayerStrip states={states} players={players} session={session} myPlayerId={myPlayerId} />
 
-      {isMyTurn && session.phase === 'roll' && onRoll && (
-        <button
-          type="button"
-          onClick={onRoll}
-          disabled={acting || rolling}
-          className="btn-primary w-full py-3 font-bold text-base"
-        >
-          {acting || rolling ? 'Rolling…' : 'Roll die'}
-        </button>
-      )}
-
-      {isMyTurn && session.phase === 'move' && legalMoves.length > 0 && onMovePiece && (
+      {isMyTurn && session.phase === 'move' && displayMoves.length > 0 && onMovePiece && (
         <div className="space-y-2">
           <p className="text-center text-sm font-semibold text-[var(--foreground)]">
-            {session.last_dice === 6 && legalMoves.some((m) => m.from.zone === 'base')
-              ? 'You rolled a 6 — pick a piece to bring onto your ★ square'
-              : 'Choose which piece to move'}
+            {allSixes && remainingDice.length === 2
+              ? 'Doubles! Use each 6 — bring out two pieces, or one out then move 6'
+              : allSixes && remainingDice.length === 1
+                ? 'Use your 6 — bring out another piece or move 6 spaces'
+                : hasBaseSixMove
+                  ? 'Use your 6 — pick a piece to bring onto your ★ square'
+                  : remainingDice.length === 1
+                    ? `Move a piece ${remainingDice[0]} spaces`
+                    : `Use each die (${remainingDice.join(' & ')}) — pick a piece`}
           </p>
           <p className="text-center text-xs text-muted">Tap a highlighted piece on the board or use a button below</p>
           <div className="grid grid-cols-2 gap-2">
-            {legalMoves.map((move) => {
+            {displayMoves.map((move) => {
               const fromLabel = pieceStatusLabel(move.from)
               const toLabel =
                 move.to.zone === 'finished'
@@ -551,10 +592,10 @@ export function LudoGamePanel({
                       : 'Leave base'
               return (
                 <button
-                  key={move.pieceId}
+                  key={`${move.pieceId}-${move.diceIndex}`}
                   type="button"
                   disabled={acting}
-                  onClick={() => onMovePiece(move.pieceId)}
+                  onClick={() => handleMovePiece(move.pieceId, move.diceIndex)}
                   className="rounded-xl border border-[var(--primary)]/40 bg-[var(--primary)]/10 px-3 py-2 text-left text-xs font-semibold hover:bg-[var(--primary)]/20 disabled:opacity-50"
                 >
                   <span className="flex items-center gap-1.5">
@@ -565,6 +606,9 @@ export function LudoGamePanel({
                       {move.pieceId + 1}
                     </span>
                     Piece {move.pieceId + 1}
+                    <span className="rounded bg-white/90 px-1 text-[10px] font-bold text-slate-900">
+                      🎲 {move.diceValue}
+                    </span>
                   </span>
                   <span className="mt-0.5 block text-faint font-normal">
                     {fromLabel} → {toLabel}
@@ -585,7 +629,7 @@ export function LudoGamePanel({
 
       {isMyTurn && session.phase === 'roll' && !rolling && (
         <p className="text-center text-xs text-faint">
-          Roll a 6 — your piece jumps from the corner circle to your highlighted ★ square
+          Tap 🎲 Roll in the board centre — roll a 6 on either die to leave your yard onto your ★ square
         </p>
       )}
     </LudoCard>

@@ -9,7 +9,7 @@ import {
 } from '@/components/monopoly/MonopolyBoard'
 import { MonopolyBoardCenter } from '@/components/monopoly/MonopolyBoardCenter'
 import { MonopolyGameTimerBar } from '@/components/monopoly/MonopolyGameTimerBar'
-import { MonopolyManagePanel, MonopolyTurnModals, MonopolyCardAlertModal } from '@/components/monopoly/MonopolyGamePanels'
+import { MonopolyManagePanel, MonopolyTurnModals } from '@/components/monopoly/MonopolyGamePanels'
 import { getMonopolyBuildActionCount } from '@/components/monopoly/monopoly-manage-utils'
 import {
   MonopolyCashBadge,
@@ -162,17 +162,19 @@ export function MonopolyActiveLayout({
       <div className="space-y-2 sm:space-y-3">
       <MonopolyGameTimerBar gameCode={gameCode} game={game} />
 
-      <div className={`grid gap-2 sm:gap-3 items-stretch ${spectator ? 'grid-cols-1' : 'grid-cols-3'}`}>
-        <MonopolyTurnStrip
-          compact
-          turnName={turnPlayer?.name ?? '—'}
-          isMyTurn={spectator ? false : isMyTurn}
-          isMyAuctionTurn={spectator ? false : isMyAuctionTurn}
-          phase={board.phase}
-          secondsLeft={secondsLeft}
-          hasTimer={hasTimer && !spectator && amActor}
-          urgent={urgent}
-        />
+      <div className={`grid gap-2 sm:gap-3 items-stretch ${spectator ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
+        <div className={spectator ? undefined : 'col-span-2 sm:col-span-1 min-w-0'}>
+          <MonopolyTurnStrip
+            compact
+            turnName={turnPlayer?.name ?? '—'}
+            isMyTurn={spectator ? false : isMyTurn}
+            isMyAuctionTurn={spectator ? false : isMyAuctionTurn}
+            phase={board.phase}
+            secondsLeft={secondsLeft}
+            hasTimer={hasTimer && !spectator && amActor}
+            urgent={urgent}
+          />
+        </div>
         {!spectator && myState ? (
           <MonopolyCurrentSpace
             compact
@@ -228,7 +230,7 @@ export function MonopolyActiveLayout({
       )}
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,22rem)] lg:gap-5 lg:items-start">
-        <div className="space-y-4 lg:sticky lg:top-4">
+        <div className="min-w-0 space-y-3 lg:space-y-4 lg:sticky lg:top-4">
           <MonopolyClassicBoard
             key={ownershipKey}
             states={states}
@@ -257,6 +259,7 @@ export function MonopolyActiveLayout({
                   acting={acting}
                   postAction={postAction}
                   colorBarClass={colorBarClass}
+                  layout="board"
                 />
               )
             }
@@ -276,6 +279,7 @@ export function MonopolyActiveLayout({
                 board={board}
                 myPlayerId={myPlayerId}
                 myState={myState}
+                states={states}
                 players={players}
                 acting={acting}
                 postAction={postAction}
@@ -296,10 +300,6 @@ export function MonopolyActiveLayout({
         </div>
       </div>
       </div>
-
-      {!spectator && (
-        <MonopolyCardAlertModal board={board} myPlayerId={myPlayerId} players={players} />
-      )}
 
       {!spectator && (
       <MonopolyTurnModals

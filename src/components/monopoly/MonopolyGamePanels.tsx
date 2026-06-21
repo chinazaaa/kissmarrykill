@@ -1,16 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   MonopolyModal,
   MonopolyPrimaryButton,
   MonopolySecondaryButton,
+  MonopolyJailCardInventory,
 } from '@/components/monopoly/MonopolyChrome'
-import { formatCardAlertForPlayer } from '@/lib/monopoly-card-messages'
-import {
-  useMonopolyFixedTimer,
-} from '@/hooks/useMonopolyModalTimer'
-import { MONOPOLY_CARD_MODAL_SECONDS } from '@/lib/supabase-selects'
 import {
   canAddHotel,
   canAddHouse,
@@ -186,62 +182,6 @@ function TradeExchangeReview({
   )
 }
 
-export function MonopolyCardAlertModal({
-  board,
-  myPlayerId,
-  players,
-}: {
-  board: MonopolyBoard | null
-  myPlayerId: string | null
-  players: Player[]
-}) {
-  const event = board?.last_card_event ?? null
-  const [dismissedSeq, setDismissedSeq] = useState<number | null>(null)
-  const readyRef = useRef(false)
-  const prevSeqRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (!board) return
-    const seq = board.last_card_event?.seq ?? null
-
-    if (!readyRef.current) {
-      readyRef.current = true
-      prevSeqRef.current = seq
-      if (seq != null) setDismissedSeq(seq)
-      return
-    }
-
-    if (seq != null && seq !== prevSeqRef.current) {
-      prevSeqRef.current = seq
-      setDismissedSeq(null)
-    }
-  }, [board, board?.last_card_event?.seq])
-
-  const isOpen = !!(event && dismissedSeq !== event.seq)
-  const dismiss = useCallback(() => {
-    if (event?.seq != null) setDismissedSeq(event.seq)
-  }, [event?.seq])
-
-  const cardSecondsLeft = useMonopolyFixedTimer(MONOPOLY_CARD_MODAL_SECONDS, isOpen, dismiss)
-
-  if (!isOpen || !event) return null
-
-  const alert = formatCardAlertForPlayer(event, myPlayerId, players)
-
-  return (
-    <MonopolyModal
-      open
-      subtitle={alert.subtitle}
-      title={alert.title}
-      timerSecondsLeft={cardSecondsLeft}
-    >
-      <p className="text-4xl text-center">{alert.emoji}</p>
-      <p className="text-sm text-muted text-center leading-relaxed">{alert.body}</p>
-      <MonopolyPrimaryButton onClick={dismiss}>Got it</MonopolyPrimaryButton>
-    </MonopolyModal>
-  )
-}
-
 export function MonopolyTurnModals({
   board,
   myPlayerId,
@@ -264,6 +204,13 @@ export function MonopolyTurnModals({
   const receiveCount = trade
     ? buildTradeSideItems(trade.offer_cash, trade.offer_properties, trade.offer_get_out_cards).length
     : 0
+  const payCount = trade
+    ? buildTradeSideItems(
+        trade.request_cash,
+        trade.request_properties,
+        trade.request_get_out_cards ?? 0
+      ).length
+    : 0
 
   return (
     <>
@@ -277,12 +224,18 @@ export function MonopolyTurnModals({
               You receive {receiveCount} item{receiveCount === 1 ? '' : 's'} in this trade.
             </p>
           )}
+          {payCount > 0 && (
+            <p className="text-sm font-semibold text-[var(--foreground)]">
+              You pay {payCount} item{payCount === 1 ? '' : 's'} in this trade.
+            </p>
+          )}
           <div className="pt-2 max-h-[min(50vh,18rem)] overflow-y-auto">
             <TradeExchangeReview
               giveLabel="You pay"
               getLabel="You receive"
               giveCash={trade.request_cash}
               giveProps={trade.request_properties}
+              giveJailCards={trade.request_get_out_cards ?? 0}
               getCash={trade.offer_cash}
               getProps={trade.offer_properties}
               getJailCards={trade.offer_get_out_cards}
@@ -309,6 +262,7 @@ export function MonopolyManagePanel({
   board,
   myPlayerId,
   myState,
+  states,
   players,
   acting,
   postAction,
@@ -316,6 +270,7 @@ export function MonopolyManagePanel({
   board: MonopolyBoard | null
   myPlayerId: string | null
   myState: MonopolyPlayerState | undefined
+  states: MonopolyPlayerState[]
   players: Player[]
   acting: boolean
   postAction: PostAction
@@ -325,6 +280,8 @@ export function MonopolyManagePanel({
   const [requestCash, setRequestCash] = useState('')
   const [offerProps, setOfferProps] = useState<number[]>([])
   const [requestProps, setRequestProps] = useState<number[]>([])
+  const [offerJailCards, setOfferJailCards] = useState(0)
+  const [requestJailCards, setRequestJailCards] = useState(0)
   const [tradeConfirmOpen, setTradeConfirmOpen] = useState(false)
   const [confirmOneWayGift, setConfirmOneWayGift] = useState(false)
 
@@ -358,6 +315,10 @@ export function MonopolyManagePanel({
   const mortgaged = parseMortgaged(board.mortgaged_properties)
   const mine = playerProperties(owners, myPlayerId)
   const theirs = tradeTarget ? playerProperties(owners, tradeTarget) : []
+  const myJailCards = myState.get_out_of_jail_free ?? 0
+  const targetJailCards = tradeTarget
+    ? states.find((s) => s.player_id === tradeTarget)?.get_out_of_jail_free ?? 0
+    : 0
   const housesInBank = board.houses_in_bank ?? 32
   const hotelsInBank = board.hotels_in_bank ?? 12
 
@@ -370,8 +331,8 @@ export function MonopolyManagePanel({
   const targetName = tradeTarget ? players.find((p) => p.id === tradeTarget)?.name ?? 'player' : ''
   const parsedOfferCash = Number(offerCash) || 0
   const parsedRequestCash = Number(requestCash) || 0
-  const givingSomething = tradeSideHasValue(parsedOfferCash, offerProps)
-  const gettingSomething = tradeSideHasValue(parsedRequestCash, requestProps)
+  const givingSomething = tradeSideHasValue(parsedOfferCash, offerProps, offerJailCards)
+  const gettingSomething = tradeSideHasValue(parsedRequestCash, requestProps, requestJailCards)
   const isOneWayGift = givingSomething && !gettingSomething
   const isOneWayReceive = gettingSomething && !givingSomething
   const tradeIsEmpty = !givingSomething && !gettingSomething
@@ -383,6 +344,8 @@ export function MonopolyManagePanel({
     setRequestCash('')
     setOfferProps([])
     setRequestProps([])
+    setOfferJailCards(0)
+    setRequestJailCards(0)
     setTradeConfirmOpen(false)
     setConfirmOneWayGift(false)
   }
@@ -394,6 +357,8 @@ export function MonopolyManagePanel({
       requestCash: parsedRequestCash,
       offerProperties: offerProps,
       requestProperties: requestProps,
+      offerGetOutCards: offerJailCards,
+      requestGetOutCards: requestJailCards,
     })
     resetTradeForm()
   }
@@ -427,8 +392,10 @@ export function MonopolyManagePanel({
             getLabel="You get"
             giveCash={activePendingTrade.offer_cash}
             giveProps={activePendingTrade.offer_properties}
+            giveJailCards={activePendingTrade.offer_get_out_cards}
             getCash={activePendingTrade.request_cash}
             getProps={activePendingTrade.request_properties}
+            getJailCards={activePendingTrade.request_get_out_cards ?? 0}
           />
           <MonopolySecondaryButton
             onClick={() => postAction('/api/monopoly/trade', { cancel: true })}
@@ -454,6 +421,7 @@ export function MonopolyManagePanel({
             getLabel="You receive"
             giveCash={activePendingTrade.request_cash}
             giveProps={activePendingTrade.request_properties}
+            giveJailCards={activePendingTrade.request_get_out_cards ?? 0}
             getCash={activePendingTrade.offer_cash}
             getProps={activePendingTrade.offer_properties}
             getJailCards={activePendingTrade.offer_get_out_cards}
@@ -481,8 +449,8 @@ export function MonopolyManagePanel({
             <p className="text-xs font-semibold text-[var(--foreground)]">Propose a trade</p>
             <p className="text-xs text-muted leading-relaxed">
               Pick what <strong className="text-body">you give</strong> and what{' '}
-              <strong className="text-body">you get back</strong>. Both sides must be filled in for a normal swap.
-              Cash-only trades work even if you own no properties.
+              <strong className="text-body">you get back</strong> — cash, properties, or Get Out of Jail cards.
+              Both sides must be filled in for a normal swap.
             </p>
           </div>
           <select
@@ -490,6 +458,7 @@ export function MonopolyManagePanel({
             onChange={(e) => {
               setTradeTarget(e.target.value)
               setRequestProps([])
+              setRequestJailCards(0)
               setTradeConfirmOpen(false)
               setConfirmOneWayGift(false)
             }}
@@ -536,6 +505,20 @@ export function MonopolyManagePanel({
                   ) : (
                     <p className="text-xs text-muted">You don&apos;t own any properties to offer.</p>
                   )}
+                  {myJailCards > 0 && (
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={offerJailCards > 0}
+                        onChange={(e) => {
+                          setOfferJailCards(e.target.checked ? 1 : 0)
+                          setTradeConfirmOpen(false)
+                          setConfirmOneWayGift(false)
+                        }}
+                      />
+                      Include 1 Get Out of Jail card
+                    </label>
+                  )}
                 </div>
 
                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 space-y-2">
@@ -570,6 +553,20 @@ export function MonopolyManagePanel({
                   ) : (
                     <p className="text-xs text-muted">They don&apos;t own any properties yet.</p>
                   )}
+                  {targetJailCards > 0 && (
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={requestJailCards > 0}
+                        onChange={(e) => {
+                          setRequestJailCards(e.target.checked ? 1 : 0)
+                          setTradeConfirmOpen(false)
+                          setConfirmOneWayGift(false)
+                        }}
+                      />
+                      Ask for 1 Get Out of Jail card
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -579,8 +576,10 @@ export function MonopolyManagePanel({
                 getLabel={`You get from ${targetName}`}
                 giveCash={parsedOfferCash}
                 giveProps={offerProps}
+                giveJailCards={offerJailCards}
                 getCash={parsedRequestCash}
                 getProps={requestProps}
+                getJailCards={requestJailCards}
               />
 
               {(isOneWayGift || isOneWayReceive) && (
@@ -620,8 +619,10 @@ export function MonopolyManagePanel({
                     getLabel={`You get from ${targetName}`}
                     giveCash={parsedOfferCash}
                     giveProps={offerProps}
+                    giveJailCards={offerJailCards}
                     getCash={parsedRequestCash}
                     getProps={requestProps}
+                    getJailCards={requestJailCards}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -754,6 +755,11 @@ export function MonopolyManagePanel({
 
   return (
     <div className="glass-card p-4 space-y-4">
+      <div className="space-y-2">
+        <p className="label-caps">Inventory</p>
+        <MonopolyJailCardInventory count={myJailCards} showEmpty />
+      </div>
+
       <MonopolyColorPortfolio propertyOwners={owners} myPlayerId={myPlayerId} players={players} />
 
       <div className="space-y-3 pt-2 border-t border-[var(--border-strong)]">

@@ -6,7 +6,10 @@ import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { BingoCardGrid, CalledNumbersBoard } from '@/components/bingo/BingoCardGrid'
 import { BingoFinalResultsShareBlock } from '@/components/bingo/BingoFinalResultsShareBlock'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   BINGO_CALL_INTERVAL_OPTIONS,
@@ -32,13 +35,13 @@ import {
 import { appOrigin } from '@/lib/site'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import type { BingoCallMode, BingoCalledNumber, BingoClaim, BingoCard, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useBingoWinNotification, useBingoStartNotification } from '@/hooks/useBingoNotifications'
 import { useBingoAutoCall } from '@/hooks/useBingoAutoCall'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 type HostTab = 'play' | 'manage'
 
@@ -67,6 +70,8 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const [hostMarking, setHostMarking] = useState(false)
   const [hostClaiming, setHostClaiming] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const loadHostCard = useCallback(async (playerId: string) => {
     const res = await supabase
@@ -170,15 +175,12 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
 
   const playerManageBlock =
     game && (game.status === 'waiting' || game.status === 'active') ? (
-      <div className="glass-card p-4 space-y-3">
-        <p className="label-caps">Players — {players.length}</p>
-        <HostPlayerManageList
-          players={players}
-          removingPlayerId={removingPlayerId}
-          onRemovePlayer={removePlayer}
-          highlightPlayerId={hostPlayerId}
-        />
-      </div>
+      <HostLobbyPlayersSection
+        players={players}
+        removingPlayerId={removingPlayerId}
+        onRemovePlayer={removePlayer}
+        highlightPlayerId={hostPlayerId}
+      />
     ) : null
 
   useBingoAutoCall({ gameCode, game, enabled: game?.status === 'active', onSynced: load })
@@ -368,14 +370,11 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
     )
   }
 
+  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+
   return (
-    <div className="min-h-screen pb-24">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host panel</p>
-        </div>
+    <HostPageShell gameCode={gameCode} {...layout}>
+        <HostGameHeader game={game} />
 
         {/* Host mode selector — lobby only */}
         {game.status === 'waiting' && (
@@ -506,18 +505,10 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
         {/* Manage tab (or default when no Play tab) */}
         {(tab === 'manage' || !showPlayTab) && (
           <>
-            <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
-                <p className="font-mono font-bold text-lg">{gameCode}</p>
-              </div>
-              <InviteLinkActions url={playerLink} copyLabel="Copy player link" successMessage="Player link copied" />
-            </div>
-
             {game.status === 'waiting' && (
               <>
                 {playerManageBlock}
-                <div className="glass-card p-5 space-y-4">
+                <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-5 space-y-4">
                 <div className="space-y-3">
                   <p className="label-caps">Game settings</p>
                   <label className="block text-sm text-muted">
@@ -591,22 +582,18 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={startGame}
-                  disabled={starting || players.length < BINGO_MIN_PLAYERS}
-                  className="btn-primary w-full"
-                >
-                  {starting ? 'Starting…' : `Start Bingo (${BINGO_MIN_PLAYERS}+ players)`}
-                </button>
-                <HostEndGameButton
+                <HostLobbyWaitingFooter
                   gameCode={gameCode}
                   hostToken={hostToken}
+                  onStart={startGame}
                   onEnded={load}
-                  label="End lobby"
-                  confirmTitle="Close this lobby?"
-                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                  className="btn-secondary w-full"
+                  canStart={players.length >= BINGO_MIN_PLAYERS}
+                  starting={starting}
+                  startDisabledHint={
+                    players.length >= BINGO_MIN_PLAYERS
+                      ? null
+                      : `Need at least ${BINGO_MIN_PLAYERS} players to start (${players.length}/${BINGO_MIN_PLAYERS})`
+                  }
                 />
               </div>
               </>
@@ -675,7 +662,6 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
         <button type="button" onClick={() => router.push('/games')} className="btn-ghost w-full text-muted">
           Browse all games
         </button>
-      </div>
-    </div>
+    </HostPageShell>
   )
 }

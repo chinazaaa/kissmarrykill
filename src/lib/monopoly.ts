@@ -1842,7 +1842,7 @@ export async function processMonopolyTradePropose(
   fromPlayerId: string,
   toPlayerId: string,
   offer: { cash: number; properties: number[]; getOutCards: number },
-  request: { cash: number; properties: number[] }
+  request: { cash: number; properties: number[]; getOutCards: number }
 ): Promise<{ error?: string }> {
   const { data: boardRaw } = await supabase.from('monopoly_boards').select('*').eq('game_id', gameId).maybeSingle()
   if (!boardRaw) return { error: 'Board not found' }
@@ -1875,7 +1875,7 @@ export async function processMonopolyTradePropose(
     toPlayerId,
     request.cash,
     requestProperties,
-    0,
+    request.getOutCards,
     owners,
     buildings,
     toState.cash,
@@ -1891,6 +1891,7 @@ export async function processMonopolyTradePropose(
     offer_get_out_cards: offer.getOutCards,
     request_cash: request.cash,
     request_properties: requestProperties,
+    request_get_out_cards: request.getOutCards,
   })
 
   const names = await playerNamesById(supabase, gameId, [fromPlayerId, toPlayerId])
@@ -1972,7 +1973,7 @@ export async function processMonopolyTradeRespond(
     trade.to_player_id,
     trade.request_cash,
     trade.request_properties,
-    0,
+    trade.request_get_out_cards ?? 0,
     owners,
     buildings,
     toState.cash,
@@ -2004,7 +2005,10 @@ export async function processMonopolyTradeRespond(
     .from('monopoly_player_state')
     .update({
       cash: fromState.cash - trade.offer_cash + trade.request_cash,
-      get_out_of_jail_free: fromState.get_out_of_jail_free - trade.offer_get_out_cards,
+      get_out_of_jail_free:
+        fromState.get_out_of_jail_free -
+        trade.offer_get_out_cards +
+        (trade.request_get_out_cards ?? 0),
     })
     .eq('game_id', gameId)
     .eq('player_id', trade.from_player_id)
@@ -2015,7 +2019,10 @@ export async function processMonopolyTradeRespond(
     .from('monopoly_player_state')
     .update({
       cash: toState.cash + trade.offer_cash - trade.request_cash,
-      get_out_of_jail_free: toState.get_out_of_jail_free + trade.offer_get_out_cards,
+      get_out_of_jail_free:
+        toState.get_out_of_jail_free +
+        trade.offer_get_out_cards -
+        (trade.request_get_out_cards ?? 0),
     })
     .eq('game_id', gameId)
     .eq('player_id', trade.to_player_id)
@@ -2562,6 +2569,20 @@ async function bankruptPlayer(
   const turnIndex = nextTurnIndex(board, updatedStates)
   const winner = checkWinner(updatedStates)
 
+  let assetNote = 'Properties returned to the Bank.'
+  if (creditorId) {
+    const transferred: string[] = []
+    if (state.cash > 0) transferred.push(formatMonopolyMoney(state.cash))
+    if (state.get_out_of_jail_free > 0) {
+      transferred.push(
+        `${state.get_out_of_jail_free} Get Out of Jail card${state.get_out_of_jail_free === 1 ? '' : 's'}`
+      )
+    }
+    if (transferred.length > 0) {
+      assetNote = `${transferred.join(' and ')} transferred to creditor. ${assetNote}`
+    }
+  }
+
   await supabase
     .from('monopoly_boards')
     .update({
@@ -2573,7 +2594,7 @@ async function bankruptPlayer(
       phase: winner ? 'finished' : phaseForTurn(board, updatedStates, turnIndex),
       current_turn_index: turnIndex,
       winner_player_id: winner,
-      status_message: `${reason} — bankrupt! Properties returned to the Bank.`,
+      status_message: `${reason} — bankrupt! ${assetNote}`,
       last_cash_event: lastCashEvent,
       pending_debt: null,
       pending_space: null,

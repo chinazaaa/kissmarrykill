@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { TwoTruthsActiveRound } from '@/components/two-truths/TwoTruthsActiveRound'
 import { TwoTruthsHostManagePanel } from '@/components/two-truths/TwoTruthsHostManagePanel'
 import { TwoTruthsLobbySubmit } from '@/components/two-truths/TwoTruthsLobbySubmit'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
 import { EditNameInline } from '@/components/ui/EditNameInline'
 import { gameTypeConfig } from '@/lib/game-types'
 import { useTwoTruthsAdvance } from '@/hooks/useTwoTruthsAdvance'
@@ -22,6 +24,7 @@ import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import type { Game, Player, Round, TtlGuess, TtlStatement } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 type HostTab = 'play' | 'manage'
 
@@ -43,6 +46,8 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostMode, setHostMode] = useState<TtlHostMode>('spectator')
   const [tab, setTab] = useState<HostTab>('manage')
   const [editingStatements, setEditingStatements] = useState(false)
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const handlePlayerRemoved = useCallback(
     (playerId: string) => {
@@ -250,14 +255,11 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   const cfg = gameTypeConfig('two_truths')
   const playerLink = `${appOrigin()}/game/${gameCode}`
 
+  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+
   return (
-    <div className="min-h-screen pb-16">
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        <div className="text-center space-y-1">
-          <div className="text-4xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl font-black gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host</p>
-        </div>
+    <HostPageShell gameCode={gameCode} {...layout}>
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <div className="glass-card p-4 space-y-3">
@@ -435,7 +437,6 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
             onGameUpdate={setGame}
           />
         )}
-      </div>
-    </div>
+    </HostPageShell>
   )
 }

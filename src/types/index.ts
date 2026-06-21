@@ -31,6 +31,59 @@ export type GameType =
   | 'yahtzee'
   | 'whot'
   | 'ludo'
+  | 'i_call_on'
+
+export type NpatPhase = 'letter_pick' | 'writing' | 'marking' | 'host_review' | 'reveal'
+export type NpatCategory = 'name' | 'animal' | 'place' | 'thing' | 'food'
+
+export type NpatHostOverrides = Record<
+  string,
+  Partial<Record<NpatCategory, boolean>>
+>
+
+export interface NpatMetadata {
+  letter: string | null
+  phase: NpatPhase
+  phase_started_at: string | null
+  reviewer_assignments: Record<string, string>
+  scores_computed?: boolean
+  used_letters: string[]
+  caller_order: string[]
+  caller_index: number
+  host_overrides?: NpatHostOverrides
+}
+
+export interface NpatAnswer {
+  id: string
+  game_id: string
+  round_id: string
+  player_id: string
+  name: string
+  animal: string
+  place: string
+  thing: string
+  food: string
+  submitted_at: string | null
+  score_name: number | null
+  score_animal: number | null
+  score_place: number | null
+  score_thing: number | null
+  score_food: number | null
+}
+
+export interface NpatMark {
+  id: string
+  game_id: string
+  round_id: string
+  marker_player_id: string
+  target_player_id: string
+  valid_name: boolean
+  valid_animal: boolean
+  valid_place: boolean
+  valid_thing: boolean
+  valid_food: boolean
+  marked_at: string | null
+}
 
 export type YahtzeeCategory =
   | 'ones'
@@ -219,6 +272,7 @@ export interface MonopolyPendingTrade {
   offer_get_out_cards: number
   request_cash: number
   request_properties: number[]
+  request_get_out_cards?: number
 }
 
 export interface MonopolyLastRentEvent {
@@ -377,10 +431,17 @@ export type LudoColor = 'red' | 'green' | 'yellow' | 'blue'
 export type LudoPieceZone = 'base' | 'track' | 'home' | 'finished'
 export type LudoPhase = 'roll' | 'move' | 'finished'
 
+export interface LudoDiceRoll {
+  d1: number
+  d2: number
+  total: number
+  doubles: boolean
+}
+
 export interface LudoPiece {
   id: number
   zone: LudoPieceZone
-  /** Track: 0–51. Home: 0–4 before finish. */
+  /** Base yard: 0–3 (home circle). Track: 0–51. Home lane: 0–4 before finish. */
   pos: number
 }
 
@@ -390,7 +451,9 @@ export interface LudoSession {
   turn_order: string[]
   current_turn_index: number
   phase: LudoPhase
-  last_dice: number | null
+  last_dice: LudoDiceRoll | null
+  /** Die values still to play this turn, e.g. [6, 3] after rolling 6+3. */
+  remaining_dice: number[] | null
   consecutive_sixes: number
   extra_turn: boolean
   status_message: string | null
@@ -515,6 +578,7 @@ export interface Round {
   anime_metadata?: AnimeMetadata | null
   trivia_metadata?: TriviaMetadata | null
   ttl_metadata?: TtlMetadata | null
+  npat_metadata?: NpatMetadata | null
 }
 
 export type PairFlag = 'kiss' | 'kill'

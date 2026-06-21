@@ -662,27 +662,30 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       points: [
         '2–4 players join a room. Each player is assigned a color (red, green, yellow, or blue) with four pieces in their corner base.',
         'Turn order is set when the host starts. Optional per-turn timer keeps the game moving.',
+        'Roll two dice each turn. You use each die as its own move — not the combined total.',
       ],
     },
     {
       title: 'Getting pieces into play',
       points: [
-        'You must roll a 6 to move a piece from your base onto your start position.',
-        'Until at least one piece is in play, you cannot make other moves.',
-        'When you roll a 6, you may bring a piece out of base or move a piece already in play.',
+        'You need a 6 on a die to move a piece from your home yard onto your start square.',
+        'Until at least one piece is in play, you cannot use non-6 dice (e.g. on a 6+3 roll, use the 6 first, then the 3).',
+        'Example: 6+3 lets you bring one piece out on the 6, then move it (or another piece) 3 spaces.',
+        'Example: 6+6 (doubles) lets you bring out two pieces, or bring one out on the first 6 and move it 6 on the second.',
       ],
     },
     {
-      title: 'Rolling a six',
+      title: 'Doubles',
       points: [
-        'Any time you roll a 6, you get an extra roll after completing your move.',
-        'If you roll three 6s in a row, your turn ends immediately — play passes to the next player.',
+        'Rolling doubles (e.g. 4+4 or 6+6) means you use each die separately, then roll again after both are played.',
+        'Three doubles in a row without finishing your turn ends that turn immediately.',
       ],
     },
     {
       title: 'Captures & blockades',
       points: [
-        'Landing on a single opponent piece sends it back to their base — they need another 6 to re-enter.',
+        'Landing on a single opponent piece on a normal square sends it back to its home yard circle — they need a 6 to re-enter.',
+        '★ Start squares and safe entry squares protect pieces — you can land there but cannot capture.',
         'If two of your pieces share a square, that space is blocked. Opponents cannot land on or pass through it.',
         'Your own pieces can still land on and pass your blockades.',
       ],
@@ -693,6 +696,43 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
         'After completing the main track, pieces enter your colored home column toward the center.',
         'You need an exact roll to enter the home triangle — overshooting is not allowed.',
         'The first player with all four pieces in the center wins.',
+      ],
+    },
+  ],
+
+  i_call_on: [
+    {
+      title: 'Objective',
+      points: [
+        'Score the most points across all rounds by writing unique, valid answers for each category.',
+        'Each category can earn up to 10 points per round (50 max).',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        '3–20 players join with their name. The host sets game length, writing time, and marking time.',
+        'Game length can be 10–60 minutes, or play until all 26 letters are used.',
+        'Letter callers rotate — not one round per player, but as many letters as time allows.',
+      ],
+    },
+    {
+      title: 'How a letter works',
+      points: [
+        'The letter caller picks A–Z. Everyone fills Name, Animal, Place, Thing, and Food starting with that letter.',
+        'When time runs out, papers pass — you mark the next player’s answers valid or invalid.',
+        'The letter caller reviews everyone’s answers and approves the round before scores are revealed.',
+        'Duplicates are detected automatically: if two or more players wrote the same answer in a category, everyone with that duplicate scores 5 for it.',
+        'Everyone sees all answers, marks, and scores live so marking stays fair.',
+      ],
+    },
+    {
+      title: 'Scoring',
+      points: [
+        'Empty answer = 0.',
+        'Duplicate answer = 5 (automatic).',
+        'Marked invalid = 0 (e.g. wrong category like “cat” under Name).',
+        'Unique + marked valid = 10 points.',
       ],
     },
   ],

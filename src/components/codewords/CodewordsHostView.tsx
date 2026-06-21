@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsHostManagePanel } from '@/components/codewords/CodewordsHostManagePanel'
 import { CodewordsWaitingPanel } from '@/components/codewords/CodewordsWaitingPanel'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
@@ -25,6 +27,7 @@ import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/ut
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, CodewordsRole, CodewordsTeam, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 type HostTab = 'play' | 'manage'
 
@@ -50,6 +53,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] =
@@ -366,14 +371,11 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
     )
   }
 
+  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+
   return (
-    <div className="min-h-screen pb-24">
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host</p>
-        </div>
+    <HostPageShell gameCode={gameCode} {...layout}>
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <div className="glass-card p-4 space-y-3">
@@ -488,7 +490,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
             <CodewordsWaitingPanel
               playerName={hostPlayerName}
               myRole={hostMyRole}
-              playerCount={players.length}
+              players={players}
+              myPlayerId={hostPlayerId}
               variant={game.status === 'active' ? 'starting' : 'lobby'}
               manageHint="Head to Manage → Teams to assign players, then start the game when ready."
             />
@@ -531,7 +534,6 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
           />
         )}
 
-      </div>
-    </div>
+    </HostPageShell>
   )
 }

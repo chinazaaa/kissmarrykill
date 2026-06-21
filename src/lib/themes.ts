@@ -195,6 +195,11 @@ export const THEME_MAP: Record<ThemeId, ThemeConfig> = Object.fromEntries(THEMES
   ThemeConfig
 >
 
+/** All CSS custom properties that any theme may set on `:root` (for clearing on reset). */
+export const ALL_THEME_CSS_VAR_KEYS = [
+  ...new Set(THEMES.flatMap((theme) => Object.keys(theme.cssVars))),
+]
+
 /** Parse a raw string into a valid ThemeId, defaulting to 'default'. */
 export function parseThemeId(raw: unknown): ThemeId {
   if (typeof raw === 'string' && raw in THEME_MAP) return raw as ThemeId

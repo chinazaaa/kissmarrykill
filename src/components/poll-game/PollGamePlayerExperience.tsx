@@ -77,12 +77,14 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isICallOnGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
 import { BingoPlayerView } from '@/components/bingo/BingoPlayerView'
 import { TriviaPlayerView } from '@/components/trivia/TriviaPlayerView'
 import { TwoTruthsPlayerView } from '@/components/two-truths/TwoTruthsPlayerView'
+import { NpatPlayerView } from '@/components/npat/NpatPlayerView'
 import { CodewordsPlayerView } from '@/components/codewords/CodewordsPlayerView'
 import { MonopolyPlayerView } from '@/components/monopoly/MonopolyPlayerView'
 import { YahtzeePlayerView } from '@/components/yahtzee/YahtzeePlayerView'
@@ -159,7 +161,8 @@ import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
-import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { PlayerSessionBar } from '@/components/ui/PlayerSessionBar'
@@ -450,6 +453,9 @@ export function PollGamePlayerExperience({
   if (game && isTwoTruthsGame(game.game_type)) {
     return <TwoTruthsPlayerView gameCode={gameCode} />
   }
+  if (game && isICallOnGame(game.game_type)) {
+    return <NpatPlayerView gameCode={gameCode} />
+  }
   if (game && isMonopolyGame(game.game_type)) {
     return <MonopolyPlayerView gameCode={gameCode} />
   }
@@ -474,6 +480,10 @@ export function PollGamePlayerExperience({
         onLobbyOpen={() => setView('join')}
       />
     )
+  }
+
+  if (view === 'game_ended') {
+    return <GameEndedScreen game={game} />
   }
 
   if (view === 'late_join_choice' && game) {
@@ -615,7 +625,6 @@ export function PollGamePlayerExperience({
               <GameRulesLink gameType={game.game_type} variant="subtle" />
             </p>
           ) : null}
-          <ShareGameLinkCard gameCode={gameCode} />
         </div>
       </CenteredCard>
     )
@@ -1198,8 +1207,6 @@ export function PollGamePlayerExperience({
         )}
 
         {sessionBar}
-
-        <ShareGameLinkCard gameCode={gameCode} />
 
         <p className="text-faint text-xs text-center">Keep this tab open</p>
       </CenteredCard>

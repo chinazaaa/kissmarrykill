@@ -10,18 +10,23 @@ import {
   LudoShell,
 } from '@/components/ludo/LudoChrome'
 import { LudoGamePanel } from '@/components/ludo/LudoBoard'
+import { LudoFinalResultsShareBlock } from '@/components/ludo/LudoFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentPlayerId } from '@/lib/ludo'
+import { currentPlayerId, parseLudoDice } from '@/lib/ludo'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, LUDO_PLAYER_STATE_SELECT, LUDO_SESSION_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { resolvePlayerSession } from '@/lib/player-resume'
-import type { Game, LudoPlayerState, LudoSession, Player } from '@/types'
+import type { Game, LudoDiceRoll, LudoPlayerState, LudoSession, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
-import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
+import { GameJoinHeader } from '@/components/game-lobby/GameJoinHeader'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
+import { GameLobbyWaitingPanel } from '@/components/game-lobby/GameLobbyWaitingPanel'
+import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
@@ -30,7 +35,9 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLudoTurnTimer } from '@/hooks/useLudoTurnTimer'
 import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/hooks/useLudoNotifications'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
+const ROLL_MIN_MS = 700
+
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -45,15 +52,20 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
   const [rolling, setRolling] = useState(false)
-  const [displayDice, setDisplayDice] = useState<number | null>(null)
+  const [displayDice, setDisplayDice] = useState<LudoDiceRoll | null>(null)
+  const rollStartedRef = useRef(0)
 
-  useApplyGameTheme(game?.theme)
+  useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
       if (pre === 'game_started_waiting') {
         setScreen('game_started_waiting')
+        return
+      }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
         return
       }
       setScreen('join')
@@ -173,6 +185,7 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
     if (!myPlayerId) return
     setActing(true)
     if (path.includes('/roll')) {
+      rollStartedRef.current = Date.now()
       setRolling(true)
       setDisplayDice(null)
       playLudoRollSound()
@@ -187,12 +200,16 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
       if (!res.ok) {
         toastError(data.error ?? 'Action failed')
       } else {
-        if (typeof data.dice === 'number') setDisplayDice(data.dice)
+        if (data.dice) setDisplayDice(parseLudoDice(data.dice))
         if (path.includes('/roll') || path.includes('/move')) playLudoActionSound()
         await load()
       }
     } finally {
       setActing(false)
+      if (path.includes('/roll')) {
+        const wait = Math.max(0, ROLL_MIN_MS - (Date.now() - rollStartedRef.current))
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait))
+      }
       setRolling(false)
     }
   }
@@ -234,23 +251,24 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'join') {
     return (
-      <LudoShell title={game?.title ?? cfg.label} subtitle={cfg.tagline}>
-        <LudoCard className="p-5 space-y-4">
-          <GameRulesLink gameType="ludo" className="block text-center" />
-          <input
-            type="text"
-            value={joinName}
-            onChange={(e) => setJoinName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && join()}
-            placeholder="Your name"
-            className="input-field w-full"
-            maxLength={40}
-          />
-          <LudoPrimaryButton onClick={join} loading={joining} disabled={!joinName.trim()}>
-            Join game
-          </LudoPrimaryButton>
-        </LudoCard>
-      </LudoShell>
+      <GameJoinLobbyShell
+        gameCode={gameCode}
+        header={
+          <GameJoinHeader emoji={cfg.headerEmoji} title={game?.title ?? cfg.label} gameType="ludo" subtitle={cfg.tagline} />
+        }
+      >
+        <NameJoinForm
+          value={joinName}
+          onChange={setJoinName}
+          onSubmit={join}
+          joining={joining}
+          footer={
+            <p className="text-center pt-1">
+              <GameRulesLink gameType="ludo" variant="subtle" />
+            </p>
+          }
+        />
+      </GameJoinLobbyShell>
     )
   }
 
@@ -258,44 +276,62 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={() => void load()} />
   }
 
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
+  }
+
   if (screen === 'waiting') {
     return (
-      <LudoShell title={game?.title ?? cfg.label} subtitle="Waiting for host to start…" compact>
-        <LudoCard className="p-4 space-y-3">
-          <ShareGameLinkCard gameCode={gameCode} />
-          {myPlayerId && myName && (
-            <PlayerSessionControls
-              gameCode={gameCode}
-              playerId={myPlayerId}
-              currentName={myName}
-              onRenamed={() => void load()}
-              onLeft={handlePlayerLeft}
-              inLobby
-            />
-          )}
-          <p className="text-center text-sm text-muted">{players.length} player{players.length === 1 ? '' : 's'} in lobby</p>
-        </LudoCard>
-      </LudoShell>
+      <GameJoinLobbyShell gameCode={gameCode}>
+        <GameLobbyWaitingPanel
+          gameCode={gameCode}
+          players={players}
+          myPlayerId={myPlayerId}
+          myPlayerName={myName}
+          onRenamed={() => void load()}
+          onLeft={handlePlayerLeft}
+          title="Waiting for host to start"
+          rulesLink={<GameRulesLink gameType="ludo" variant="subtle" />}
+        />
+      </GameJoinLobbyShell>
     )
   }
 
   if (screen === 'finished') {
+    const myName = players.find((p) => p.id === myPlayerId)?.name
+    const iWon = myPlayerId != null && session?.winner_player_id === myPlayerId
+    const shareWinnerName = iWon ? myName : winner?.name
+
     return (
-      <LudoShell title={game?.title ?? cfg.label} subtitle="Game over">
-        <LudoCard className="p-6 text-center space-y-3">
-          <p className="text-2xl font-black">🏆 {winner?.name ?? 'Someone'} wins!</p>
-          <p className="text-sm text-muted">Waiting for the host to start a new round…</p>
-          {myPlayerId && myName && (
-            <PlayerSessionControls
-              gameCode={gameCode}
-              playerId={myPlayerId}
-              currentName={myName}
-              onRenamed={() => void load()}
-              onLeft={handlePlayerLeft}
-              inLobby
-            />
-          )}
-        </LudoCard>
+      <LudoShell title="Game over!" subtitle={winner ? `${winner.name} wins` : 'Session ended'}>
+        {game && states.length > 0 ? (
+          <LudoFinalResultsShareBlock
+            game={game}
+            players={players}
+            states={states}
+            session={session}
+            winnerName={shareWinnerName}
+            highlightPlayerId={myPlayerId}
+          />
+        ) : (
+          <LudoCard className="p-6 text-center space-y-3">
+            <p className="text-4xl">{winner ? '🏆' : '🏁'}</p>
+            <p className="text-2xl font-black">
+              {winner ? `${winner.name} wins!` : 'Game ended early'}
+            </p>
+            <p className="text-sm text-muted">Waiting for the host to start a new round…</p>
+          </LudoCard>
+        )}
+        {myPlayerId && myName && (
+          <PlayerSessionControls
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            currentName={myName}
+            onRenamed={() => void load()}
+            onLeft={handlePlayerLeft}
+            inLobby
+          />
+        )}
       </LudoShell>
     )
   }
@@ -314,7 +350,11 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
           hasTimer={hasTimer}
           urgent={urgent}
           onRoll={isMyTurn && !isViewer ? () => postAction('/api/ludo/roll') : undefined}
-          onMovePiece={isMyTurn && !isViewer ? (pieceId) => postAction('/api/ludo/move', { pieceId }) : undefined}
+          onMovePiece={
+            isMyTurn && !isViewer
+              ? (pieceId, diceIndex) => postAction('/api/ludo/move', { pieceId, diceIndex })
+              : undefined
+          }
           acting={acting}
           rolling={rolling}
           displayDice={displayDice}

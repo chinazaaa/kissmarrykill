@@ -1,7 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostBoardGameLobbyPanel } from '@/components/host-lobby/HostBoardGameLobbyPanel'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   currentPlayerId,
@@ -18,12 +22,12 @@ import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, WHOT_PLAYER_HANDS_SELECT, WHOT_SESSION_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player, WhotPlayerHand, WhotSession, WhotShape } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useWhotTurnTimer } from '@/hooks/useWhotTurnTimer'
@@ -53,6 +57,7 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const [tab, setTab] = useState<HostTab>('manage')
 
   useApplyGameTheme(game?.theme)
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, sessionRes, handsRes] = await Promise.all([
@@ -261,14 +266,11 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     )
   }
 
+  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+
   return (
-    <div className="min-h-screen pb-24">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host panel</p>
-        </div>
+    <HostPageShell gameCode={gameCode} {...layout}>
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <div className="glass-card-strong p-5 space-y-3">
@@ -392,16 +394,6 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
         {(tab === 'manage' || !showPlayTab) && (
           <>
-            <div className="glass-card-strong p-5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="label-caps">Share link</p>
-                <InviteLinkActions url={joinUrl} copyLabel="Copy player link" successMessage="Player link copied" />
-              </div>
-              <p className="text-xs text-muted break-all">{joinUrl}</p>
-            </div>
-
-            <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-
             <p className="text-center">
               <GameRulesLink gameType="whot" variant="subtle" />
             </p>
@@ -421,41 +413,45 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {(game.status === 'waiting' || game.status === 'active') && (
-              <div className="glass-card p-4 space-y-3">
-                <p className="label-caps">Players — {players.length}</p>
-                <HostPlayerManageList
-                  players={players}
-                  removingPlayerId={removingPlayerId}
-                  onRemovePlayer={removePlayer}
-                  highlightPlayerId={hostPlayerId}
-                />
-              </div>
+              <HostLobbyPlayersSection
+                players={players}
+                removingPlayerId={removingPlayerId}
+                onRemovePlayer={removePlayer}
+                highlightPlayerId={hostPlayerId}
+              />
             )}
 
             {game.status === 'waiting' && (
               <>
-                <button
-                  type="button"
-                  onClick={() => void startGame()}
-                  disabled={!canStart || starting}
-                  className="btn-primary w-full py-3"
-                >
-                  {starting ? 'Starting…' : canStart ? 'Start game' : `Need at least ${WHOT_MIN_PLAYERS} players`}
-                </button>
-                <HostEndGameButton
+                <HostBoardGameLobbyPanel
                   gameCode={gameCode}
                   hostToken={hostToken}
+                  game={game}
+                  boardGameType="whot"
+                  playerCount={players.length}
+                  onGameUpdate={setGame}
+                />
+                <HostLobbyWaitingFooter
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onStart={() => void startGame()}
                   onEnded={load}
-                  label="End lobby"
-                  confirmTitle="Close this lobby?"
-                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                  className="btn-secondary w-full py-3"
+                  canStart={canStart}
+                  starting={starting}
+                  startDisabledHint={
+                    canStart
+                      ? null
+                      : `Need at least ${WHOT_MIN_PLAYERS} players to start (${players.length}/${WHOT_MIN_PLAYERS})`
+                  }
+                  className="space-y-3"
                 />
               </>
             )}
 
             {game.status === 'active' && (
-              <HostEndGameButton
+              <>
+                <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+                <HostEndGameButton
                 gameCode={gameCode}
                 hostToken={hostToken}
                 onEnded={load}
@@ -464,6 +460,7 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
                 confirmMessage="The current game will end and players will see the results screen."
                 className="btn-secondary w-full py-3"
               />
+              </>
             )}
 
             {game.status === 'finished' && (
@@ -488,7 +485,6 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
           </>
         )}
-      </div>
-    </div>
+    </HostPageShell>
   )
 }

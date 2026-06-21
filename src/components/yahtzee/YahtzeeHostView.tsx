@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation'
 import { YahtzeeDiceTray } from '@/components/yahtzee/YahtzeeChrome'
 import { YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { YahtzeeFinalResultsShareBlock } from '@/components/yahtzee/YahtzeeFinalResultsShareBlock'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostBoardGameLobbyPanel } from '@/components/host-lobby/HostBoardGameLobbyPanel'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   currentPlayerId,
@@ -18,12 +22,12 @@ import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player, YahtzeeCategory, YahtzeePlayerScore, YahtzeeSession } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
@@ -54,6 +58,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
   const turnIndexRef = useRef<number | null>(null)
 
   useApplyGameTheme(game?.theme)
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, sessionRes, scoresRes] = await Promise.all([
@@ -133,15 +138,12 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
 
   const playerManageBlock =
     game && (game.status === 'waiting' || game.status === 'active') ? (
-      <div className="glass-card p-4 space-y-3">
-        <p className="label-caps">Players — {players.length}</p>
-        <HostPlayerManageList
-          players={players}
-          removingPlayerId={removingPlayerId}
-          onRemovePlayer={removePlayer}
-          highlightPlayerId={hostPlayerId}
-        />
-      </div>
+      <HostLobbyPlayersSection
+        players={players}
+        removingPlayerId={removingPlayerId}
+        onRemovePlayer={removePlayer}
+        highlightPlayerId={hostPlayerId}
+      />
     ) : null
 
   const changeHostMode = (mode: YahtzeeHostMode) => {
@@ -294,14 +296,11 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
     )
   }
 
+  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+
   return (
-    <div className="min-h-screen pb-24">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host panel</p>
-        </div>
+    <HostPageShell gameCode={gameCode} {...layout}>
+        <HostGameHeader game={game} />
 
         {/* Host mode selector — lobby only */}
         {game.status === 'waiting' && (
@@ -362,10 +361,6 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
               </p>
             )}
           </div>
-        )}
-
-        {game.status === 'waiting' && (
-          <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
         )}
 
       {/* Play / Manage tab switcher */}
@@ -434,50 +429,35 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
         {/* Manage tab (or default when no Play tab) */}
         {(tab === 'manage' || !showPlayTab) && (
           <>
-            {game.status === 'active' && (
-              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-            )}
-
-            <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
-                <p className="font-mono font-bold text-lg">{gameCode}</p>
-              </div>
-              <InviteLinkActions url={joinUrl} copyLabel="Copy player link" successMessage="Player link copied" />
-            </div>
-
             {game.status === 'waiting' && (
               <>
                 {playerManageBlock}
-                <div className="glass-card p-5 space-y-4">
-                {!canStart && (
-                  <p className="text-sm text-[var(--marry)]">
-                    Join as a player above to start solo, or wait for others to join.
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={startGame}
-                  disabled={!canStart || starting}
-                  className="btn-primary w-full"
-                >
-                  {starting ? 'Starting…' : 'Start Yahtzee'}
-                </button>
-                <HostEndGameButton
+                <HostBoardGameLobbyPanel
                   gameCode={gameCode}
                   hostToken={hostToken}
-                  onEnded={load}
-                  label="End lobby"
-                  confirmTitle="Close this lobby?"
-                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                  className="btn-secondary w-full"
+                  game={game}
+                  boardGameType="yahtzee"
+                  playerCount={players.length}
+                  onGameUpdate={setGame}
                 />
-              </div>
+                <HostLobbyWaitingFooter
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onStart={startGame}
+                  onEnded={load}
+                  canStart={canStart}
+                  starting={starting}
+                  startDisabledHint={
+                    canStart ? null : 'Join as a player above to start solo, or wait for others to join.'
+                  }
+                />
               </>
             )}
 
             {game.status === 'active' && (
-              session ? (
+              <>
+                <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+                {session ? (
                 <>
                   {playerManageBlock}
                   <div className="space-y-2">
@@ -511,7 +491,8 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                 </>
               ) : (
                 <div className="glass-card p-8 text-center text-sm text-muted">Loading game…</div>
-              )
+              )}
+              </>
             )}
 
             {game.status === 'finished' && (
@@ -521,24 +502,27 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                   players={players}
                   scores={scores}
                   winnerName={winner?.name}
+                  playAgainButton={
+                    <button
+                      type="button"
+                      onClick={playAgain}
+                      disabled={playingAgain}
+                      className="btn-primary w-full py-3"
+                    >
+                      {playingAgain ? 'Resetting…' : 'Play again'}
+                    </button>
+                  }
                 />
-                <button
-                  type="button"
-                  onClick={playAgain}
-                  disabled={playingAgain}
-                  className="btn-secondary w-full py-3"
-                >
-                  {playingAgain ? 'Resetting…' : 'Play again'}
-                </button>
               </>
             )}
           </>
         )}
 
-        <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">
-          Back home
-        </button>
-      </div>
-    </div>
+        {game.status !== 'finished' && (
+          <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">
+            Back home
+          </button>
+        )}
+    </HostPageShell>
   )
 }

@@ -49,6 +49,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   yahtzee: 'yahtzee',
   whot: 'whot',
   ludo: 'ludo',
+  i_call_on: 'i-call-on',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -825,7 +826,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Create a room', description: 'Set the player cap and share the link — everyone joins with their name.' },
-      { title: 'Start the game', description: 'Everyone begins on GO with $1,500. The host starts when ready.' },
+      { title: 'Start the game', description: 'Everyone begins on GO with £1,500. The host starts when ready.' },
       { title: 'Last one wins', description: 'Buy properties, collect rent, and bankrupt opponents until one player remains.' },
     ],
     perfectFor: ['Game nights', 'Family gatherings', 'Friend groups', 'Remote hangouts'],
@@ -833,7 +834,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       {
         question: 'How many people can play Monopoly online?',
         answer:
-          'Monopoly on Fate Round supports 2–6 players in one room. Everyone joins with a display name, starts on GO with $1,500, and takes turns rolling dice until one player bankrupts the rest.',
+          'Monopoly on Fate Round supports 2–6 players in one room. Everyone joins with a display name, starts on GO with £1,500, and takes turns rolling dice until one player bankrupts the rest.',
       },
     ],
   }),
@@ -915,16 +916,17 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
   ludo: landing('ludo', {
     seoTitle: 'Ludo Online — Play Classic Board Game with Friends',
     seoDescription:
-      'Play Ludo online with friends. Roll the die, race your pieces home, capture opponents, and block with pairs — classic rules.',
+      'Play Ludo online with friends. Roll two dice, race your pieces home, capture opponents, and block with pairs — classic rules.',
     keywords: ['ludo online', 'play ludo friends', 'ludo board game multiplayer', 'ludo game online free'],
-    heroSubtitle: 'The classic board game — roll, race, capture, and be first to get all four pieces home.',
+    heroSubtitle: 'The classic board game — roll two dice, race, capture, and be first to get all four pieces home.',
     bodyParagraph:
-      'Ludo on Fate Round follows classic rules: roll a 6 to enter the board, move pieces clockwise around the track, send opponents back to base on capture, and form blockades with pairs. Exact rolls are needed to enter the home triangle. First player to finish all four pieces wins.',
+      'Ludo on Fate Round follows classic rules: roll two dice and use each die separately — a 6 brings pieces onto the board, doubles (e.g. 6+6) let you play both sixes then roll again, send opponents back to their yard on capture, and form blockades with pairs. First player to finish all four pieces wins.',
     highlights: ['2–4 players', 'Classic rules', 'Real-time board'],
     features: [
       {
         title: 'Roll & move',
-        description: 'Roll the die on your turn — a 6 lets you bring a piece out or move one in play, plus an extra roll.',
+        description:
+          'Roll two dice — use each die on its own. 6+3 brings one piece out then moves 3; 6+6 can bring out two pieces or one out then move 6. Doubles earn another roll after both dice are played.',
         emoji: '🎲',
       },
       {
@@ -937,18 +939,55 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Join a room', description: 'Enter your name and pick your color when the host starts.' },
-      { title: 'Roll the die', description: 'Roll a 6 to enter the board, then move pieces around the track.' },
+      { title: 'Roll the dice', description: 'Roll two dice — use each die separately. A 6 brings a piece out; doubles play both dice then roll again.' },
       { title: 'Race home', description: 'Get all four pieces into the center home triangle to win.' },
     ],
     perfectFor: ['Family game night', 'Friend groups', 'Board game fans'],
     extraFaqs: [
       {
-        question: 'What happens when I roll three 6s in a row?',
+        question: 'What happens when I roll three doubles in a row?',
         answer: 'Your turn ends immediately — no move and no extra roll. Play passes to the next player.',
       },
       {
         question: 'Do I need an exact roll to finish?',
         answer: 'Yes. A piece can only enter the home triangle with an exact roll — overshooting is not allowed.',
+      },
+    ],
+  }),
+
+  i_call_on: landing('i_call_on', {
+    seoTitle: 'I Call On — Free Online Party Game',
+    seoDescription:
+      'Play I Call On online. Call a letter, fill five categories, mark answers together — duplicates score 5, unique answers earn 10.',
+    keywords: ['i call on', 'stop game', 'categories game', 'party game online'],
+    heroSubtitle:
+      'The classic A–Z categories game. Someone calls a letter — everyone fills Name, Animal, Place, Thing, and Food before time runs out.',
+    highlights: ['Rotating letter caller', 'Live transparent scoring', 'Duplicate detection'],
+    features: [
+      {
+        title: 'Call the letter',
+        description: 'Players take turns picking A–Z for the whole room.',
+        emoji: '🔤',
+      },
+      {
+        title: 'Mark together',
+        description: 'Everyone sees who marked what — reviewers decide if answers fit the category.',
+        emoji: '👀',
+      },
+      SHARED_FEATURES.realtime,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join the room', description: 'Enter your name and wait for the host to start.' },
+      { title: 'Play letters', description: 'While time lasts, callers pick unused A–Z letters and everyone fills all five categories.' },
+      { title: 'Score together', description: 'Mark the next player\'s sheet — duplicates score 5, unique answers score 10, everyone sees marks live.' },
+    ],
+    perfectFor: ['Classrooms', 'Road trips', 'Family game night', 'Friend groups'],
+    extraFaqs: [
+      {
+        question: 'How does scoring work?',
+        answer:
+          'Each unique valid answer earns 10 points per category (50 max per round). If two or more players write the same answer in a category, everyone with that duplicate gets 5 for it. Reviewers mark whether an answer actually fits its category.',
       },
     ],
   }),

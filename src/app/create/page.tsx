@@ -56,6 +56,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isICallOnGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -97,7 +98,7 @@ import { PageShell, BackBtn, Field, Chip, Toggle, PrimaryBtn } from '@/component
 import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGrid } from '@/components/ui/CreateWizard'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { LateJoinPolicyToggle } from '@/components/AllowViewersToggle'
-import { gameSupportsViewerSetting, type LateJoinPolicy } from '@/lib/viewers'
+import { gameSupportsViewerSetting, clampLateJoinPolicyForGameType, type LateJoinPolicy } from '@/lib/viewers'
 import {
   getParticipantCustomContentHint,
   getQuestionCustomContentHint,
@@ -142,14 +143,25 @@ import {
   LUDO_DEFAULT_MAX_PLAYERS,
 } from '@/lib/ludo'
 import {
+  formatNpatGameDuration,
+  NPAT_DEFAULT_GAME_DURATION,
+  NPAT_DEFAULT_MARKING_TIMER,
+  NPAT_DEFAULT_MAX_PLAYERS,
+  NPAT_DEFAULT_TIMER,
+  NPAT_GAME_DURATION_OPTIONS,
+  NPAT_MARKING_TIMER_OPTIONS,
+  NPAT_TIMER_OPTIONS,
+} from '@/lib/npat'
+import {
   getCodeDefaultLimits,
   playerCountOptions,
   type GamePlayerLimitsMap,
 } from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
-import { PlayerInviteCard } from '@/components/PlayerInviteCard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
+import { scrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useToast } from '@/components/ui/Toast'
 
 interface Settings {
@@ -224,7 +236,7 @@ function CreateGameInner() {
   const [codewordsMaxPlayers, setCodewordsMaxPlayers] = useState(CODEWORDS_DEFAULT_MAX_PLAYERS)
   const [codewordsOperativeTimer, setCodewordsOperativeTimer] = useState(CODEWORDS_DEFAULT_OPERATIVE_TIMER)
   const [codewordsPlayerPicks, setCodewordsPlayerPicks] = useState(true)
-  const [lateJoinPolicy, setLateJoinPolicy] = useState<LateJoinPolicy>('viewers_and_players')
+  const [lateJoinPolicy, setLateJoinPolicy] = useState<LateJoinPolicy>('viewers_only')
   const [codewordsRandomizeTeams, setCodewordsRandomizeTeams] = useState(false)
   const [triviaCategory, setTriviaCategory] = useState<TriviaCategory>('general')
   const [triviaMaxPlayers, setTriviaMaxPlayers] = useState(TRIVIA_DEFAULT_MAX_PLAYERS)
@@ -238,6 +250,9 @@ function CreateGameInner() {
   const [whotCardsEnabled, setWhotCardsEnabled] = useState(true)
   const [whotNumberCallsEnabled, setWhotNumberCallsEnabled] = useState(true)
   const [ludoMaxPlayers, setLudoMaxPlayers] = useState(LUDO_DEFAULT_MAX_PLAYERS)
+  const [npatMaxPlayers, setNpatMaxPlayers] = useState(NPAT_DEFAULT_MAX_PLAYERS)
+  const [npatGameDuration, setNpatGameDuration] = useState(NPAT_DEFAULT_GAME_DURATION)
+  const [npatMarkingTimer, setNpatMarkingTimer] = useState(NPAT_DEFAULT_MARKING_TIMER)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
@@ -264,7 +279,12 @@ function CreateGameInner() {
     setYahtzeeMaxPlayers((v) => clamp('yahtzee', v))
     setWhotMaxPlayers((v) => clamp('whot', v))
     setLudoMaxPlayers((v) => clamp('ludo', v))
+    setNpatMaxPlayers((v) => clamp('i_call_on', v))
   }, [lobbyLimits])
+
+  useEffect(() => {
+    setLateJoinPolicy((prev) => clampLateJoinPolicyForGameType(prev, settings.game_type))
+  }, [settings.game_type])
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -377,6 +397,7 @@ function CreateGameInner() {
     if (!whotCardsEnabled) setWhotNumberCallsEnabled(false)
   }, [whotCardsEnabled])
   const isLudo = isLudoGame(settings.game_type)
+  const isNpat = isICallOnGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -455,11 +476,15 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo || isNpat
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
+
+  useEffect(() => {
+    if (step === 'done') scrollHostViewToTop()
+  }, [step])
 
   useEffect(() => {
     if (isPan) return
@@ -479,6 +504,10 @@ function CreateGameInner() {
     setCustomTriviaQuestions([])
     setTriviaCategory('general')
     setQuestionsUploadError(null)
+    if (isICallOnGame(type)) {
+      setNpatGameDuration(NPAT_DEFAULT_GAME_DURATION)
+      setNpatMarkingTimer(NPAT_DEFAULT_MARKING_TIMER)
+    }
     setSettings({
       ...settings,
       game_type: type,
@@ -548,6 +577,22 @@ function CreateGameInner() {
             timer_seconds: 60,
           }
         : {}),
+      ...(isICallOnGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: NPAT_DEFAULT_TIMER,
+          }
+        : {}),
+        ...(isICallOnGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+              timer_seconds: NPAT_DEFAULT_TIMER,
+            }
+          : {}),
       ...(isWhoSaidThis(type)
         ? {
             participant_mode: 'import' as const,
@@ -891,8 +936,14 @@ function CreateGameInner() {
                             ? whotMaxPlayers
                             : isLudo
                               ? ludoMaxPlayers
+                              : isNpat
+                                ? npatMaxPlayers
                           : undefined,
-          operative_timer_seconds: isCodewords ? codewordsOperativeTimer : undefined,
+          operative_timer_seconds: isCodewords
+            ? codewordsOperativeTimer
+            : isNpat
+              ? npatMarkingTimer
+              : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? lateJoinPolicy === 'viewers_and_players' : undefined,
           codewords_randomize_teams: isCodewords ? codewordsRandomizeTeams : undefined,
@@ -909,6 +960,8 @@ function CreateGameInner() {
             ? monopolyGameDuration
             : isWhot
               ? whotGameDuration
+              : isNpat
+                ? npatGameDuration
               : undefined,
           whot_pick3_enabled: isWhot ? whotPick3Enabled : undefined,
           whot_cards_enabled: isWhot ? whotCardsEnabled : undefined,
@@ -1315,8 +1368,73 @@ function CreateGameInner() {
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="ludo" />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Classic Ludo — roll a 6 to enter, race around the board, capture opponents, and block with pairs.
+                  Classic Ludo — roll two dice to enter, race around the board, capture opponents, and block with pairs.
                   Exact rolls needed to finish. First to get all four pieces home wins!
+                </p>
+              </SettingsGroup>
+            ) : isNpat ? (
+              <SettingsGroup title="I Call On room">
+                <Field
+                  label={`Max players (${effectiveLimits.i_call_on.min}–${effectiveLimits.i_call_on.max})`}
+                >
+                  <select
+                    value={npatMaxPlayers}
+                    onChange={(e) => setNpatMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(
+                      effectiveLimits.i_call_on.min,
+                      effectiveLimits.i_call_on.max
+                    ).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Game length">
+                  <select
+                    value={npatGameDuration}
+                    onChange={(e) => setNpatGameDuration(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {NPAT_GAME_DURATION_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {formatNpatGameDuration(s)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Writing time (per letter)">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    {NPAT_TIMER_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s} seconds
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Marking time (per letter)">
+                  <select
+                    value={npatMarkingTimer}
+                    onChange={(e) => setNpatMarkingTimer(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {NPAT_MARKING_TIMER_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s} seconds
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Players take turns calling a letter, then fill Name, Animal, Place, Thing, and Food. Reviewers mark answers,
+                  the letter caller approves each round, and unique valid answers score points. Play until time runs out or all
+                  26 letters are used.
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (
@@ -1868,7 +1986,13 @@ function CreateGameInner() {
                 )}
 
                 {!isAnonymousRoom &&
-                  ((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type) && !isTrivia && !isPan) || isHotSeatGame ? (
+                  ((!isBinaryLobby &&
+                    !isWst &&
+                    !isWhoSaidThis(settings.game_type) &&
+                    !isTrivia &&
+                    !isPan &&
+                    !isNpat) ||
+                    isHotSeatGame ? (
                     <SettingsGroup title={isHotSeatGame ? "Who's in the game" : "Who's in the poll"}>
                       <SegmentedControl
                         value={settings.participant_mode}
@@ -1925,7 +2049,8 @@ function CreateGameInner() {
                   !isWst &&
                   !isHotSeatGame &&
                   !isPan &&
-                  !isTrivia && (
+                  !isTrivia &&
+                  !isNpat && (
                     <SettingsGroup title="Who appears in rounds">
                       <SegmentedControl
                         value={settings.participant_filter}
@@ -2211,22 +2336,24 @@ function CreateGameInner() {
   }
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  const gameUrl = `${origin}/game/${result?.gameCode}`
   const hostUrl = `${origin}/host/${result?.gameCode}?token=${result?.hostToken}`
 
   return (
-    <PageShell centered>
-      <div className="text-center space-y-2">
-        <div
-          className="inline-flex h-20 w-20 items-center justify-center rounded-3xl text-4xl mx-auto"
-          style={{ background: 'var(--chip-active-bg)' }}
-        >
-          🎉
+    <GameJoinLobbyShell
+      gameCode={result?.gameCode ?? ''}
+      header={
+        <div className="text-center space-y-2">
+          <div
+            className="inline-flex h-20 w-20 items-center justify-center rounded-3xl text-4xl mx-auto"
+            style={{ background: 'var(--chip-active-bg)' }}
+          >
+            🎉
+          </div>
+          <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">You&apos;re live!</h1>
+          <p className="text-muted text-sm">Share the code with players — save your host link.</p>
         </div>
-        <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">You're live!</h1>
-        <p className="text-muted text-sm">Share the code with players — save your host link.</p>
-      </div>
-
+      }
+    >
       <div className="glass-card-strong p-6 text-center space-y-2">
         <span className="label-caps">Game code</span>
         <p className="font-mono text-5xl font-black tracking-[0.2em]">{result?.gameCode}</p>
@@ -2238,15 +2365,14 @@ function CreateGameInner() {
         />
       </div>
 
-      <PlayerInviteCard url={gameUrl} gameCode={result?.gameCode ?? ''} title="Player link" />
       <CopyCard label="Host link — save this" value={hostUrl} accent />
 
       <PrimaryBtn onClick={() => router.push(`/host/${result?.gameCode}?token=${result?.hostToken}`)}>
         Open Host Panel →
       </PrimaryBtn>
 
-      <p className="text-faint text-xs text-center">The host link won't be shown again</p>
-    </PageShell>
+      <p className="text-faint text-xs text-center">The host link won&apos;t be shown again</p>
+    </GameJoinLobbyShell>
   )
 }
 

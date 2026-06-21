@@ -1,12 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostBoardGameLobbyPanel } from '@/components/host-lobby/HostBoardGameLobbyPanel'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   currentPlayerId,
   getLudoHostMode,
   LUDO_MIN_PLAYERS,
+  parseLudoDice,
   setLudoHostMode,
   type LudoHostMode,
 } from '@/lib/ludo'
@@ -14,20 +19,22 @@ import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, LUDO_PLAYER_STATE_SELECT, LUDO_SESSION_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
-import type { Game, LudoPlayerState, LudoSession, Player } from '@/types'
+import type { Game, LudoDiceRoll, LudoPlayerState, LudoSession, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLudoTurnTimer } from '@/hooks/useLudoTurnTimer'
 import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/hooks/useLudoNotifications'
 import { LudoGamePanel } from '@/components/ludo/LudoBoard'
+import { LudoFinalResultsShareBlock } from '@/components/ludo/LudoFinalResultsShareBlock'
 import { LudoPrimaryButton } from '@/components/ludo/LudoChrome'
-import { SoundToggle } from '@/components/SoundToggle'
+
+const ROLL_MIN_MS = 700
 
 type HostTab = 'play' | 'manage'
 
@@ -47,10 +54,12 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const [hostJoining, setHostJoining] = useState(false)
   const [hostActing, setHostActing] = useState(false)
   const [rolling, setRolling] = useState(false)
-  const [displayDice, setDisplayDice] = useState<number | null>(null)
+  const [displayDice, setDisplayDice] = useState<LudoDiceRoll | null>(null)
+  const rollStartedRef = useRef(0)
   const [tab, setTab] = useState<HostTab>('manage')
 
   useApplyGameTheme(game?.theme)
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, sessionRes, statesRes] = await Promise.all([
@@ -155,6 +164,7 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     if (!hostPlayerId) return
     setHostActing(true)
     if (path.includes('/roll')) {
+      rollStartedRef.current = Date.now()
       setRolling(true)
       setDisplayDice(null)
       playLudoRollSound()
@@ -167,13 +177,17 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Action failed')
-      if (typeof data.dice === 'number') setDisplayDice(data.dice)
+      if (data.dice) setDisplayDice(parseLudoDice(data.dice))
       if (path.includes('/roll') || path.includes('/move')) playLudoActionSound()
       await load()
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setHostActing(false)
+      if (path.includes('/roll')) {
+        const wait = Math.max(0, ROLL_MIN_MS - (Date.now() - rollStartedRef.current))
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait))
+      }
       setRolling(false)
     }
   }
@@ -267,14 +281,11 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     )
   }
 
+  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+
   return (
-    <div className="min-h-screen pb-24">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host panel</p>
-        </div>
+    <HostPageShell gameCode={gameCode} {...layout}>
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <div className="glass-card-strong p-5 space-y-3">
@@ -366,7 +377,9 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             hasTimer={hasTimer}
             urgent={urgent}
             onRoll={() => void postHostAction('/api/ludo/roll')}
-            onMovePiece={(pieceId) => void postHostAction('/api/ludo/move', { pieceId })}
+            onMovePiece={(pieceId, diceIndex) =>
+              void postHostAction('/api/ludo/move', { pieceId, diceIndex })
+            }
             acting={hostActing}
             rolling={rolling}
             displayDice={displayDice}
@@ -375,23 +388,26 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
         {(tab === 'manage' || !showPlayTab) && (
           <>
-            <div className="glass-card-strong p-5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="label-caps">Share link</p>
-                <InviteLinkActions url={joinUrl} copyLabel="Copy player link" successMessage="Player link copied" />
-              </div>
-              <p className="text-xs text-muted break-all">{joinUrl}</p>
-            </div>
-
-            {game.status === 'waiting' && (
-              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-            )}
-
             <p className="text-center">
               <GameRulesLink gameType="ludo" variant="subtle" />
             </p>
 
-            {session && (
+            {game.status === 'finished' && (
+              <LudoFinalResultsShareBlock
+                game={game}
+                players={players}
+                states={states}
+                session={session}
+                winnerName={winner?.name}
+                playAgainButton={
+                  <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
+                    Play again
+                  </LudoPrimaryButton>
+                }
+              />
+            )}
+
+            {session && game.status !== 'finished' && (
               <LudoGamePanel
                 session={session}
                 states={states}
@@ -405,52 +421,51 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {(game.status === 'waiting' || game.status === 'active') && (
-              <div className="glass-card p-4 space-y-3">
-                <p className="label-caps">Players — {players.length}</p>
-                <HostPlayerManageList
-                  players={players}
-                  removingPlayerId={removingPlayerId}
-                  onRemovePlayer={removePlayer}
-                  highlightPlayerId={hostPlayerId}
-                />
-              </div>
+              <HostLobbyPlayersSection
+                players={players}
+                removingPlayerId={removingPlayerId}
+                onRemovePlayer={removePlayer}
+                highlightPlayerId={hostPlayerId}
+              />
             )}
 
             {game.status === 'waiting' && (
               <>
-                <LudoPrimaryButton onClick={startGame} disabled={!canStart} loading={starting}>
-                  {canStart ? 'Start game' : `Need at least ${LUDO_MIN_PLAYERS} players`}
-                </LudoPrimaryButton>
-                <HostEndGameButton
+                <HostBoardGameLobbyPanel
                   gameCode={gameCode}
                   hostToken={hostToken}
-                  onEnded={load}
-                  label="End lobby"
-                  confirmTitle="Close this lobby?"
-                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                  className="btn-secondary w-full py-3"
+                  game={game}
+                  boardGameType="ludo"
+                  playerCount={players.length}
+                  onGameUpdate={setGame}
                 />
+                <HostLobbyWaitingFooter
+                gameCode={gameCode}
+                hostToken={hostToken}
+                onStart={startGame}
+                onEnded={load}
+                canStart={canStart}
+                starting={starting}
+                startDisabledHint={
+                  canStart
+                    ? null
+                    : `Need at least ${LUDO_MIN_PLAYERS} players to start (${players.length}/${LUDO_MIN_PLAYERS})`
+                }
+                className="space-y-3"
+              />
               </>
             )}
 
             {game.status === 'active' && (
-              <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
+              <>
+                <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+                <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
                 {ending ? 'Ending…' : 'End game early'}
               </button>
-            )}
-
-            {game.status === 'finished' && (
-              <div className="glass-card-strong p-5 space-y-4 text-center">
-                <p className="text-2xl font-black">🏆 {winner?.name ?? 'Someone'} wins!</p>
-                <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
-                  Play again
-                </LudoPrimaryButton>
-              </div>
+              </>
             )}
           </>
         )}
-      </div>
-      <SoundToggle />
-    </div>
+    </HostPageShell>
   )
 }

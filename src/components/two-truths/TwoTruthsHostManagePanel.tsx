@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { TwoTruthsSubmitterBadge } from '@/components/two-truths/TwoTruthsSubmitterBadge'
-import { PlayerInviteCard } from '@/components/PlayerInviteCard'
+import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
@@ -91,8 +91,6 @@ export function TwoTruthsHostManagePanel({
 
   return (
     <div className="space-y-5">
-      <PlayerInviteCard url={playerLink} gameCode={gameCode} title="Share link" />
-
       {inLobby && (
         <div className="glass-card p-5 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -138,9 +136,6 @@ export function TwoTruthsHostManagePanel({
             ))}
           </ul>
 
-          {!ready.ok && (
-            <p className="text-amber-700 dark:text-amber-200 text-sm">{ready.error}</p>
-          )}
           {ready.ok && submittedIds.size < players.length && (
             <p className="text-faint text-sm">
               {players.length - submittedIds.size} player{players.length - submittedIds.size === 1 ? '' : 's'} {' '} haven&apos;t submitted — they&apos;ll be skipped.
@@ -176,14 +171,12 @@ export function TwoTruthsHostManagePanel({
             onGameUpdate={onGameUpdate}
           />
 
-          <button
-            type="button"
+          <HostLobbyStartButton
             onClick={onStartGame}
             disabled={starting || !ready.ok}
-            className="btn-primary w-full"
-          >
-            {starting ? 'Starting…' : `Start game (${submittedIds.size} submitted)`}
-          </button>
+            starting={starting}
+            disabledHint={ready.ok ? null : ready.error}
+          />
           <HostEndGameButton
             gameCode={gameCode}
             hostToken={hostToken}
@@ -288,7 +281,7 @@ export function TwoTruthsHostManagePanel({
 
       {game.status === 'finished' && (
         <div className="space-y-4">
-          <TwoTruthsShareBlock gameTitle={game.title}>
+          <TwoTruthsShareBlock game={game}>
             <div className="glass-card p-6 text-center space-y-2">
               <p className="text-4xl">🏆</p>
               <p className="text-xl font-black">Game finished</p>

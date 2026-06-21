@@ -60,7 +60,7 @@ export function TwoTruthsSessionSummary({
       {game.status === 'waiting' && statements.length === 0 ? (
         <div className="glass-card p-8 text-center text-muted">This session never started — no statements submitted.</div>
       ) : leaderboard.length > 0 ? (
-        <TwoTruthsShareBlock gameTitle={game.title}>
+        <TwoTruthsShareBlock game={game}>
           <PaginatedLeaderboard
             title="Final leaderboard"
             rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}

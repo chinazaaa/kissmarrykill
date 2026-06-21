@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { TriviaActiveRound } from '@/components/trivia/TriviaActiveRound'
 import { TriviaHostManagePanel } from '@/components/trivia/TriviaHostManagePanel'
 import { TriviaPlayAgainSetup, type TriviaSettingsPayload } from '@/components/trivia/TriviaPlayAgainSetup'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
 import { gameTypeConfig } from '@/lib/game-types'
 import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
 import { useTriviaHostRoundAutomation } from '@/hooks/useTriviaHostRoundAutomation'
@@ -15,6 +17,7 @@ import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/ut
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 
 type HostTab = 'play' | 'manage'
@@ -38,6 +41,8 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   const [tab, setTab] = useState<HostTab>('manage')
   const settingsModalRef = useRef(settingsModal)
   settingsModalRef.current = settingsModal
+
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, rdsRes, ansRes] = await Promise.all([
@@ -276,14 +281,11 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     )
   }
 
+  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+
   return (
-    <div className="min-h-screen pb-24">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl sm:text-5xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm sm:text-base">{cfg.label} · Host</p>
-        </div>
+    <HostPageShell gameCode={gameCode} {...layout}>
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <div className="glass-card-strong p-5 sm:p-6 space-y-3">
@@ -428,7 +430,6 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
           loading={settingsModal === 'lobby' ? savingLobbySettings : playingAgain}
           onConfirm={settingsModal === 'lobby' ? saveLobbySettings : playAgain}
         />
-      </div>
-    </div>
+    </HostPageShell>
   )
 }

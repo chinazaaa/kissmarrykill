@@ -38,7 +38,7 @@ import type {
   PlayerGender,
 } from '@/types'
 
-type View = 'loading' | 'not_found' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'waiting' | 'round' | 'round_results' | 'results'
+import type { View } from '@/hooks/useGameSession'
 
 export interface VoteStateDeps {
   gameCode: string

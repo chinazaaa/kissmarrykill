@@ -23,7 +23,11 @@ import { useToast } from '@/components/ui/Toast'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
-import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
+import { GameEndedScreen } from '@/components/GameEndedScreen'
+import { GameJoinHeader } from '@/components/game-lobby/GameJoinHeader'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
+import { GameLobbyWaitingPanel } from '@/components/game-lobby/GameLobbyWaitingPanel'
+import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
@@ -32,7 +36,7 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useWhotTurnTimer } from '@/hooks/useWhotTurnTimer'
 import { useWhotNotifications, playWhotActionSound } from '@/hooks/useWhotNotifications'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
 
 export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -47,13 +51,17 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const [joining, setJoining] = useState(false)
   const [acting, setActing] = useState(false)
 
-  useApplyGameTheme(game?.theme)
+  useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
 
   const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
       if (pre === 'game_started_waiting') {
         setScreen('game_started_waiting')
+        return
+      }
+      if (pre === 'game_ended') {
+        setScreen('game_ended')
         return
       }
       setScreen('join')
@@ -247,64 +255,60 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={() => void load()} />
   }
 
+  if (screen === 'game_ended') {
+    return <GameEndedScreen game={game} />
+  }
+
   if (screen === 'join') {
     const joiningAsViewer = game?.status === 'active'
     return (
-      <WhotShell title={game?.title ?? cfg.label} subtitle="Enter your name to join">
-        <WhotCard className="p-6 space-y-5 max-w-md mx-auto">
-          <div className="text-center">
-            <div className="text-5xl mb-3">🃏</div>
-            <p className="text-sm text-muted">
-              {joiningAsViewer
+      <GameJoinLobbyShell
+        gameCode={gameCode}
+        header={
+          <GameJoinHeader
+            emoji="🃏"
+            title={game?.title ?? cfg.label}
+            gameType="whot"
+            subtitle={
+              joiningAsViewer
                 ? 'Game in progress — join as a viewer (read-only).'
-                : '2–6 players · match shape or number'}
-            </p>
-          </div>
-          <input
-            value={joinName}
-            onChange={(e) => setJoinName(e.target.value)}
-            placeholder="Your name"
-            className="input-field w-full"
-            maxLength={40}
-            onKeyDown={(e) => e.key === 'Enter' && join()}
+                : '2–6 players · match shape or number'
+            }
           />
-          <WhotPrimaryButton onClick={() => void join()} disabled={!joinName.trim()} loading={joining}>
-            {joiningAsViewer ? 'Join as viewer' : 'Join game'}
-          </WhotPrimaryButton>
-        </WhotCard>
-        <p className="text-center">
-          <GameRulesLink gameType="whot" variant="subtle" />
-        </p>
-        <ShareGameLinkCard gameCode={gameCode} className="max-w-md mx-auto" />
-      </WhotShell>
+        }
+      >
+        <NameJoinForm
+          value={joinName}
+          onChange={setJoinName}
+          onSubmit={() => void join()}
+          joining={joining}
+          submitLabel={joiningAsViewer ? 'Join as viewer' : 'Join game'}
+          label=""
+          footer={
+            <p className="text-center pt-1">
+              <GameRulesLink gameType="whot" variant="subtle" />
+            </p>
+          }
+        />
+      </GameJoinLobbyShell>
     )
   }
 
   if (screen === 'waiting') {
     const myName = players.find((p) => p.id === myPlayerId)?.name ?? ''
     return (
-      <WhotShell title={game?.title} subtitle="Waiting for the host to start">
-        <WhotCard className="p-4 text-center">
-          <p className="text-3xl font-black text-[var(--primary)]">{players.length}</p>
-          <p className="text-sm text-muted">
-            {players.length} player{players.length === 1 ? '' : 's'} in the lobby
-          </p>
-        </WhotCard>
-        {myPlayerId && myName && (
-          <PlayerSessionControls
-            gameCode={gameCode}
-            playerId={myPlayerId}
-            currentName={myName}
-            onRenamed={() => void load()}
-            onLeft={handlePlayerLeft}
-            inLobby
-          />
-        )}
-        <p className="text-center">
-          <GameRulesLink gameType="whot" variant="subtle" />
-        </p>
-        <ShareGameLinkCard gameCode={gameCode} />
-      </WhotShell>
+      <GameJoinLobbyShell gameCode={gameCode}>
+        <GameLobbyWaitingPanel
+          gameCode={gameCode}
+          players={players}
+          myPlayerId={myPlayerId}
+          myPlayerName={myName}
+          onRenamed={() => void load()}
+          onLeft={handlePlayerLeft}
+          title="Waiting for the host to start"
+          rulesLink={<GameRulesLink gameType="whot" variant="subtle" />}
+        />
+      </GameJoinLobbyShell>
     )
   }
 
