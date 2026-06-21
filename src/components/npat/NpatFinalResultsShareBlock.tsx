@@ -3,7 +3,6 @@
 import { useRef } from 'react'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { ShareResults } from '@/components/ShareResults'
-import { gameTypeConfig } from '@/lib/game-types'
 import { npatWinnerLabel } from '@/lib/npat'
 import type { Game, Player } from '@/types'
 
@@ -21,19 +20,12 @@ export function NpatFinalResultsShareBlock({
   showCreateNewGame?: boolean
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
-  const cfg = gameTypeConfig('i_call_on')
   const winnerLabel = npatWinnerLabel(leaderboard)
   const rows = leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))
 
   return (
     <div className="space-y-4">
       <div ref={captureRef} className="glass-card-strong p-6 sm:p-8 space-y-4">
-        <div className="text-center space-y-2">
-          <p className="text-3xl sm:text-4xl leading-none">{cfg.headerEmoji}</p>
-          <p className="text-2xl sm:text-3xl font-black gradient-title">{game.title || cfg.label}</p>
-          {game.title ? <p className="text-muted text-sm">{cfg.label}</p> : null}
-          <p className="text-muted text-xs uppercase tracking-wider">Final results</p>
-        </div>
         <p className="text-5xl sm:text-6xl leading-none text-center pt-1">🏆</p>
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">{winnerLabel}</p>
         <div className="space-y-2 pt-2">

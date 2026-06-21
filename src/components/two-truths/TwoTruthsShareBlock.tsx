@@ -8,10 +8,8 @@ import { shareImageBlob } from '@/lib/share-image'
 
 export function TwoTruthsShareBlock({
   children,
-  gameTitle,
 }: {
   children: ReactNode
-  gameTitle: string
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
   const { success, error } = useToast()
@@ -37,11 +35,6 @@ export function TwoTruthsShareBlock({
   return (
     <div className="space-y-3">
       <div ref={captureRef} className="space-y-4">
-        <div className="text-center space-y-1">
-          <p className="text-2xl leading-none">🤥</p>
-          <p className="font-bold text-body">{gameTitle}</p>
-          <p className="text-muted text-xs uppercase tracking-wider">Final results</p>
-        </div>
         {children}
       </div>
       <button

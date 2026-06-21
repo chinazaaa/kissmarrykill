@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { TriviaActiveRound } from '@/components/trivia/TriviaActiveRound'
 import { TriviaHostManagePanel } from '@/components/trivia/TriviaHostManagePanel'
 import { TriviaPlayAgainSetup, type TriviaSettingsPayload } from '@/components/trivia/TriviaPlayAgainSetup'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { gameTypeConfig } from '@/lib/game-types'
 import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
 import { useTriviaHostRoundAutomation } from '@/hooks/useTriviaHostRoundAutomation'
@@ -282,11 +283,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   return (
     <div className="min-h-screen pb-24">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl sm:text-5xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm sm:text-base">{cfg.label} · Host</p>
-        </div>
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <div className="glass-card-strong p-5 sm:p-6 space-y-3">

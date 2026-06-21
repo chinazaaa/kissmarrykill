@@ -138,7 +138,7 @@ export function TwoTruthsActiveRound({
   if (screen === 'finished') {
     return (
       <div className="space-y-4">
-        <TwoTruthsShareBlock gameTitle={game.title}>
+        <TwoTruthsShareBlock>
           <div className="glass-card p-8 text-center space-y-2">
             <p className="text-4xl">🏆</p>
             <p className="text-2xl font-black">Game over!</p>

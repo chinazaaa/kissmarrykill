@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsHostManagePanel } from '@/components/codewords/CodewordsHostManagePanel'
 import { CodewordsWaitingPanel } from '@/components/codewords/CodewordsWaitingPanel'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
@@ -372,11 +373,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   return (
     <div className="min-h-screen pb-24">
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm">{cfg.label} · Host</p>
-        </div>
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <div className="glass-card p-4 space-y-3">

@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, type ReactNode } from 'react'
 import type { Game, LudoPlayerState, LudoSession, Player } from '@/types'
-import { gameTypeConfig } from '@/lib/game-types'
 import { buildLudoStandings, LUDO_COLOR_LABELS } from '@/lib/ludo'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { ShareResults } from '@/components/ShareResults'
@@ -25,7 +24,6 @@ export function LudoFinalResultsShareBlock({
   playAgainButton?: ReactNode
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
-  const cfg = gameTypeConfig('ludo')
 
   const standings = useMemo(
     () => buildLudoStandings(states, players, session?.winner_player_id),
@@ -40,11 +38,6 @@ export function LudoFinalResultsShareBlock({
   return (
     <div className="space-y-4">
       <div ref={captureRef} className="glass-card-strong p-6 sm:p-8 space-y-4">
-        <div className="text-center space-y-2">
-          <p className="text-3xl sm:text-4xl leading-none">{cfg.headerEmoji}</p>
-          <p className="text-2xl sm:text-3xl font-black gradient-title">{game.title}</p>
-          <p className="text-muted text-xs uppercase tracking-wider">Final results</p>
-        </div>
         <p className="text-5xl sm:text-6xl leading-none text-center pt-1">{endedEarly ? '🏁' : '🏆'}</p>
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">
           {displayWinner ? `${displayWinner} wins!` : endedEarly ? 'Game ended early' : 'Game over'}

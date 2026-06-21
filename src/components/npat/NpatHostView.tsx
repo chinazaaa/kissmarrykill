@@ -7,6 +7,7 @@ import { NpatScoreboard } from '@/components/npat/NpatScoreboard'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { HostModePanel } from '@/components/host/HostModePanel'
 import { HostPlayManageTabs } from '@/components/host/HostPlayManageTabs'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { gameTypeConfig } from '@/lib/game-types'
@@ -323,13 +324,7 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   return (
     <div className="min-h-screen pb-24">
       <div className="max-w-5xl mx-auto px-2 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-5 overflow-x-hidden">
-        {game.status !== 'finished' && (
-          <div className="text-center space-y-1">
-            <div className="text-4xl">{cfg.headerEmoji}</div>
-            <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-            <p className="text-muted text-sm">{cfg.label} · Host panel</p>
-          </div>
-        )}
+        <HostGameHeader game={game} />
 
         {game.status === 'waiting' && (
           <HostModePanel

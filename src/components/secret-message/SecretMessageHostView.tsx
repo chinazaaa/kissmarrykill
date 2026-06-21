@@ -6,6 +6,7 @@ import { GameLinkQrCode } from '@/components/GameLinkQrCode'
 import { InviteLinkActions } from '@/components/InviteLinkActions'
 import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT } from '@/lib/supabase-selects'
@@ -163,11 +164,7 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
 
   return (
     <div className="page-wrap px-4 py-6 max-w-lg mx-auto w-full space-y-5">
-      <div className="text-center space-y-2">
-        <div className="text-4xl">{cfg.headerEmoji}</div>
-        <h1 className="text-2xl font-black tracking-tight gradient-title">{game.title}</h1>
-        <p className="text-muted text-sm">{cfg.label} · only you can read these</p>
-      </div>
+      <HostGameHeader game={game} subtitle={`${cfg.label} · only you can read these`} />
 
       <div className="glass-card-strong p-4 space-y-3">
         <p className="label-caps">Share link</p>

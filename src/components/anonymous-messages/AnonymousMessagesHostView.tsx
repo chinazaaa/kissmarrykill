@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
 import { ResultsPagination, usePagination } from '@/components/ui/ResultsPagination'
 import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
@@ -226,19 +227,20 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
 
   return (
     <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-muted text-xs uppercase tracking-wider">Host panel</p>
-          <h1 className="text-2xl font-black text-body mt-1">{game.title}</h1>
-          <p className="text-muted text-sm">{gameTypeConfig(game.game_type).label}</p>
-          <p className="text-[var(--primary)] text-xs mt-1 font-medium">
-            Anonymous room — players get auto names shown on messages
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-muted text-xs uppercase tracking-wider">Code</p>
-          <p className="text-body font-mono font-black text-2xl tracking-[0.2em]">{gameCode}</p>
-        </div>
+      <HostGameHeader
+        game={game}
+        subtitle={
+          game.status === 'finished'
+            ? `${gameTypeConfig(game.game_type).label} · Final results`
+            : `${gameTypeConfig(game.game_type).label} · Host panel`
+        }
+      />
+      <p className="text-center text-[var(--primary)] text-xs font-medium -mt-3">
+        Anonymous room — players get auto names shown on messages
+      </p>
+      <div className="text-center -mt-2">
+        <p className="text-muted text-xs uppercase tracking-wider">Code</p>
+        <p className="text-body font-mono font-black text-2xl tracking-[0.2em]">{gameCode}</p>
       </div>
 
       <div className="glass-card p-4 space-y-3">
