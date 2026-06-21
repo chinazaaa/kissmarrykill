@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
-import { PlayerInviteCard } from '@/components/PlayerInviteCard'
+import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
 import { ResultsPagination, usePagination } from '@/components/ui/ResultsPagination'
 import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
 import { useAnonymousMessages } from '@/hooks/useAnonymousMessages'
@@ -241,8 +241,6 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
         </div>
       </div>
 
-      <PlayerInviteCard url={playerLink} gameCode={gameCode} title="Player link" />
-
       <div className="glass-card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <p className="text-muted text-xs uppercase tracking-wider">
@@ -341,13 +339,16 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
       <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
 
       {game.status === 'waiting' && (
-        <button type="button" onClick={startSession} disabled={!canStart || starting} className="btn-primary w-full">
-          {starting
-            ? 'Starting…'
-            : canStart
-              ? 'Start anonymous session'
-              : `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players`}
-        </button>
+        <HostLobbyStartButton
+          onClick={startSession}
+          disabled={!canStart || starting}
+          starting={starting}
+          disabledHint={
+            canStart
+              ? null
+              : `Need at least ${ANONYMOUS_ROOM_MIN_PLAYERS} players to start (${players.length}/${ANONYMOUS_ROOM_MIN_PLAYERS})`
+          }
+        />
       )}
 
       {game.status === 'waiting' && (

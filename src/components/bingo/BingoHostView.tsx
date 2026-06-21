@@ -6,7 +6,8 @@ import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { BingoCardGrid, CalledNumbersBoard } from '@/components/bingo/BingoCardGrid'
 import { BingoFinalResultsShareBlock } from '@/components/bingo/BingoFinalResultsShareBlock'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   BINGO_CALL_INTERVAL_OPTIONS,
@@ -32,7 +33,6 @@ import {
 import { appOrigin } from '@/lib/site'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import type { BingoCallMode, BingoCalledNumber, BingoClaim, BingoCard, Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
@@ -173,15 +173,12 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
 
   const playerManageBlock =
     game && (game.status === 'waiting' || game.status === 'active') ? (
-      <div className="glass-card p-4 space-y-3">
-        <p className="label-caps">Players — {players.length}</p>
-        <HostPlayerManageList
-          players={players}
-          removingPlayerId={removingPlayerId}
-          onRemovePlayer={removePlayer}
-          highlightPlayerId={hostPlayerId}
-        />
-      </div>
+      <HostLobbyPlayersSection
+        players={players}
+        removingPlayerId={removingPlayerId}
+        onRemovePlayer={removePlayer}
+        highlightPlayerId={hostPlayerId}
+      />
     ) : null
 
   useBingoAutoCall({ gameCode, game, enabled: game?.status === 'active', onSynced: load })
@@ -509,18 +506,10 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
         {/* Manage tab (or default when no Play tab) */}
         {(tab === 'manage' || !showPlayTab) && (
           <>
-            <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
-                <p className="font-mono font-bold text-lg">{gameCode}</p>
-              </div>
-              <InviteLinkActions url={playerLink} copyLabel="Copy player link" successMessage="Player link copied" />
-            </div>
-
             {game.status === 'waiting' && (
               <>
                 {playerManageBlock}
-                <div className="glass-card p-5 space-y-4">
+                <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-5 space-y-4">
                 <div className="space-y-3">
                   <p className="label-caps">Game settings</p>
                   <label className="block text-sm text-muted">
@@ -594,22 +583,18 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={startGame}
-                  disabled={starting || players.length < BINGO_MIN_PLAYERS}
-                  className="btn-primary w-full"
-                >
-                  {starting ? 'Starting…' : `Start Bingo (${BINGO_MIN_PLAYERS}+ players)`}
-                </button>
-                <HostEndGameButton
+                <HostLobbyWaitingFooter
                   gameCode={gameCode}
                   hostToken={hostToken}
+                  onStart={startGame}
                   onEnded={load}
-                  label="End lobby"
-                  confirmTitle="Close this lobby?"
-                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                  className="btn-secondary w-full"
+                  canStart={players.length >= BINGO_MIN_PLAYERS}
+                  starting={starting}
+                  startDisabledHint={
+                    players.length >= BINGO_MIN_PLAYERS
+                      ? null
+                      : `Need at least ${BINGO_MIN_PLAYERS} players to start (${players.length}/${BINGO_MIN_PLAYERS})`
+                  }
                 />
               </div>
               </>

@@ -1,7 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostLobbySettingsSection } from '@/components/host-lobby/HostLobbySettingsSection'
+import { HostBoardGameLobbySettings } from '@/components/host-lobby/HostBoardGameLobbySettings'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   currentPlayerId,
@@ -15,7 +18,6 @@ import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, LUDO_PLAYER_STATE_SELECT, LUDO_SESSION_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, LudoDiceRoll, LudoPlayerState, LudoSession, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
@@ -388,18 +390,6 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
         {(tab === 'manage' || !showPlayTab) && (
           <>
-            <div className="glass-card-strong p-5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="label-caps">Share link</p>
-                <InviteLinkActions url={joinUrl} copyLabel="Copy player link" successMessage="Player link copied" />
-              </div>
-              <p className="text-xs text-muted break-all">{joinUrl}</p>
-            </div>
-
-            {game.status === 'waiting' && (
-              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-            )}
-
             <p className="text-center">
               <GameRulesLink gameType="ludo" variant="subtle" />
             </p>
@@ -433,38 +423,57 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {(game.status === 'waiting' || game.status === 'active') && (
-              <div className="glass-card p-4 space-y-3">
-                <p className="label-caps">Players — {players.length}</p>
-                <HostPlayerManageList
-                  players={players}
-                  removingPlayerId={removingPlayerId}
-                  onRemovePlayer={removePlayer}
-                  highlightPlayerId={hostPlayerId}
-                />
-              </div>
+              <HostLobbyPlayersSection
+                players={players}
+                removingPlayerId={removingPlayerId}
+                onRemovePlayer={removePlayer}
+                highlightPlayerId={hostPlayerId}
+              />
             )}
 
             {game.status === 'waiting' && (
               <>
-                <LudoPrimaryButton onClick={startGame} disabled={!canStart} loading={starting}>
-                  {canStart ? 'Start game' : `Need at least ${LUDO_MIN_PLAYERS} players`}
-                </LudoPrimaryButton>
-                <HostEndGameButton
-                  gameCode={gameCode}
-                  hostToken={hostToken}
-                  onEnded={load}
-                  label="End lobby"
-                  confirmTitle="Close this lobby?"
-                  confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                  className="btn-secondary w-full py-3"
-                />
+                <HostLobbySettingsSection>
+                  <HostBoardGameLobbySettings
+                    gameCode={gameCode}
+                    hostToken={hostToken}
+                    game={game}
+                    boardGameType="ludo"
+                    playerCount={players.length}
+                    onGameUpdate={setGame}
+                  />
+                  <HostLateJoinSettingsCard
+                    bare
+                    gameCode={gameCode}
+                    hostToken={hostToken}
+                    game={game}
+                    onGameUpdate={setGame}
+                  />
+                </HostLobbySettingsSection>
+                <HostLobbyWaitingFooter
+                gameCode={gameCode}
+                hostToken={hostToken}
+                onStart={startGame}
+                onEnded={load}
+                canStart={canStart}
+                starting={starting}
+                startDisabledHint={
+                  canStart
+                    ? null
+                    : `Need at least ${LUDO_MIN_PLAYERS} players to start (${players.length}/${LUDO_MIN_PLAYERS})`
+                }
+                className="space-y-3"
+              />
               </>
             )}
 
             {game.status === 'active' && (
-              <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
+              <>
+                <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+                <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
                 {ending ? 'Ending…' : 'End game early'}
               </button>
+              </>
             )}
           </>
         )}

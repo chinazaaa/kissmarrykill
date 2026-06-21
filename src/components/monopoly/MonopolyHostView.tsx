@@ -12,7 +12,10 @@ import { MonopolyHostTimeExtension } from '@/components/monopoly/MonopolyHostTim
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostLobbySettingsSection } from '@/components/host-lobby/HostLobbySettingsSection'
+import { HostBoardGameLobbySettings } from '@/components/host-lobby/HostBoardGameLobbySettings'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import {
@@ -35,7 +38,6 @@ import {
 } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { clearPlayerSession, getPlayerSession, isFetchNetworkError, messageFromFetchActionError, setPlayerSession } from '@/lib/utils'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
@@ -142,15 +144,12 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
 
   const playerManageBlock =
     game && (game.status === 'waiting' || game.status === 'active') ? (
-      <div className="glass-card p-4 space-y-3">
-        <p className="label-caps">Players — {players.length}</p>
-        <HostPlayerManageList
-          players={players}
-          removingPlayerId={removingPlayerId}
-          onRemovePlayer={removePlayer}
-          highlightPlayerId={hostPlayerId}
-        />
-      </div>
+      <HostLobbyPlayersSection
+        players={players}
+        removingPlayerId={removingPlayerId}
+        onRemovePlayer={removePlayer}
+        highlightPlayerId={hostPlayerId}
+      />
     ) : null
 
   const changeHostMode = (mode: MonopolyHostMode) => {
@@ -371,10 +370,6 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
           </div>
         )}
 
-        {game.status === 'waiting' && (
-          <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-        )}
-
         {showPlayTab && (
           <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
             <button
@@ -426,41 +421,39 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
               <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
             )}
 
-            <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
-                <p className="font-mono font-bold text-lg">{gameCode}</p>
-              </div>
-              <InviteLinkActions url={joinUrl} copyLabel="Copy player link" successMessage="Player link copied" />
-            </div>
-
             {game.status === 'waiting' && (
               <>
                 {playerManageBlock}
-                <div className="glass-card p-5 space-y-4">
-                  {!canStart && (
-                    <p className="text-sm text-[var(--marry)]">
-                      Need at least {MONOPOLY_MIN_PLAYERS} players to start.
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={startGame}
-                    disabled={!canStart || starting}
-                    className="btn-primary w-full"
-                  >
-                    {starting ? 'Starting…' : `Start Monopoly (${MONOPOLY_MIN_PLAYERS}+ players)`}
-                  </button>
-                  <HostEndGameButton
+                <HostLobbySettingsSection>
+                  <HostBoardGameLobbySettings
                     gameCode={gameCode}
                     hostToken={hostToken}
-                    onEnded={load}
-                    label="End lobby"
-                    confirmTitle="Close this lobby?"
-                    confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                    className="btn-secondary w-full"
+                    game={game}
+                    boardGameType="monopoly"
+                    playerCount={players.length}
+                    onGameUpdate={setGame}
                   />
-                </div>
+                  <HostLateJoinSettingsCard
+                    bare
+                    gameCode={gameCode}
+                    hostToken={hostToken}
+                    game={game}
+                    onGameUpdate={setGame}
+                  />
+                </HostLobbySettingsSection>
+                <HostLobbyWaitingFooter
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onStart={startGame}
+                  onEnded={load}
+                  canStart={canStart}
+                  starting={starting}
+                  startDisabledHint={
+                    canStart
+                      ? null
+                      : `Need at least ${MONOPOLY_MIN_PLAYERS} players to start (${players.length}/${MONOPOLY_MIN_PLAYERS})`
+                  }
+                />
               </>
             )}
 

@@ -7,7 +7,8 @@ import { NpatScoreboard } from '@/components/npat/NpatScoreboard'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { HostModePanel } from '@/components/host/HostModePanel'
 import { HostPlayManageTabs } from '@/components/host/HostPlayManageTabs'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { gameTypeConfig } from '@/lib/game-types'
 import { useNpatAdvance } from '@/hooks/useNpatAdvance'
 import {
@@ -40,8 +41,6 @@ import type { Game, NpatAnswer, NpatMark, Player, Round } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
-import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 
 type HostTab = 'play' | 'manage'
@@ -313,15 +312,12 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
   const playerManageBlock =
     game.status === 'waiting' || game.status === 'active' ? (
-      <div className="glass-card p-4 space-y-3">
-        <p className="label-caps">Players — {players.length}</p>
-        <HostPlayerManageList
-          players={players}
-          onRemovePlayer={removePlayer}
-          removingPlayerId={removingPlayerId}
-          highlightPlayerId={hostPlayerId}
-        />
-      </div>
+      <HostLobbyPlayersSection
+        players={players}
+        onRemovePlayer={removePlayer}
+        removingPlayerId={removingPlayerId}
+        highlightPlayerId={hostPlayerId}
+      />
     ) : null
 
   return (
@@ -393,18 +389,12 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
         {(tab === 'manage' || !showPlayTab) && (
           <div className="space-y-4">
-            <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
-                <p className="font-mono font-bold text-lg">{gameCode}</p>
-              </div>
-              <InviteLinkActions url={playerLink} copyLabel="Copy player link" successMessage="Player link copied" />
-            </div>
-
             {game.status === 'waiting' && (
               <>
-                <div className="glass-card p-4 space-y-3">
-                  <p className="label-caps">Timers</p>
+                {playerManageBlock}
+
+                <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-5 space-y-3">
+                  <p className="label-caps">Game settings</p>
                   <label className="block space-y-1">
                     <span className="text-sm font-semibold">Game length</span>
                     <select
@@ -452,28 +442,17 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
                   </button>
                 </div>
 
-                <GameLobbyPlayerList
-                  players={players}
-                  myPlayerId={hostPlayerId}
-                  label="In lobby"
-                  minPlayers={NPAT_MIN_PLAYERS}
-                  maxCapacity={game.max_players}
+                <HostLobbyWaitingFooter
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  onStart={startGame}
+                  onEnded={load}
+                  canStart={canStart}
+                  starting={starting}
+                  startDisabledHint={
+                    canStart ? null : `Need at least ${NPAT_MIN_PLAYERS} players to start (${players.length}/${NPAT_MIN_PLAYERS})`
+                  }
                 />
-
-                {playerManageBlock}
-
-                <button
-                  type="button"
-                  onClick={startGame}
-                  disabled={!canStart || starting}
-                  className="btn-primary w-full"
-                >
-                  {starting
-                    ? 'Starting…'
-                    : canStart
-                      ? `Start game (${players.length} players)`
-                      : `Need at least ${NPAT_MIN_PLAYERS} players`}
-                </button>
               </>
             )}
 

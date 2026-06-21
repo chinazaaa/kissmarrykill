@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { PlayerInviteCard } from '@/components/PlayerInviteCard'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
-import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
 import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
@@ -141,53 +141,36 @@ export function TriviaHostManagePanel({
         />
       )}
 
-      <PlayerInviteCard url={playerLink} gameCode={gameCode} title="Player link" />
-
       {canManagePlayers && (
-        <div className="glass-card-strong p-5 sm:p-6 space-y-3">
-          <p className="label-caps">
-            Players — {players.length}
-          </p>
-          <HostPlayerManageList
-            players={players}
-            removingPlayerId={removingPlayerId}
-            onRemovePlayer={onRemovePlayer}
-            highlightPlayerId={highlightPlayerId}
-          />
-        </div>
+        <HostLobbyPlayersSection
+          players={players}
+          removingPlayerId={removingPlayerId}
+          onRemovePlayer={onRemovePlayer}
+          highlightPlayerId={highlightPlayerId}
+        />
       )}
 
       {game.status === 'waiting' && (
-        <div className="glass-card-strong p-6 sm:p-8 space-y-5">
+        <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-6 sm:p-8 space-y-5">
           <div>
-            <p className="text-xl sm:text-2xl font-bold text-body">
-              Lobby — {players.length} player{players.length !== 1 ? 's' : ''}
-            </p>
-            <p className="text-muted text-sm sm:text-base mt-1">{settingsSummary}</p>
+            <p className="label-caps">Game settings</p>
+            <p className="text-muted text-sm sm:text-base mt-2 leading-relaxed">{settingsSummary}</p>
           </div>
-          <button
-            type="button"
-            onClick={onEditSettings}
-            className="btn-secondary w-full py-3 text-base"
-          >
+          <button type="button" onClick={onEditSettings} className="btn-secondary w-full py-3 text-base">
             Edit settings
           </button>
-          <button
-            type="button"
-            onClick={onStartGame}
-            disabled={starting || players.length < TRIVIA_MIN_PLAYERS}
-            className="btn-primary w-full py-4 text-base sm:text-lg"
-          >
-            {starting ? 'Starting…' : `Start trivia (${players.length}/${TRIVIA_MIN_PLAYERS}+ players)`}
-          </button>
-          <HostEndGameButton
+          <HostLobbyWaitingFooter
             gameCode={gameCode}
             hostToken={hostToken}
+            onStart={onStartGame}
             onEnded={onReload}
-            label="End lobby"
-            confirmTitle="Close this lobby?"
-            confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-            className="btn-secondary w-full py-3 text-base"
+            canStart={players.length >= TRIVIA_MIN_PLAYERS}
+            starting={starting}
+            startDisabledHint={
+              players.length >= TRIVIA_MIN_PLAYERS
+                ? null
+                : `Need at least ${TRIVIA_MIN_PLAYERS} players to start (${players.length}/${TRIVIA_MIN_PLAYERS})`
+            }
           />
         </div>
       )}

@@ -5,7 +5,7 @@ import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords
 import { CodewordsBoardGrid } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsLobbyRoster } from '@/components/codewords/CodewordsLobbyRoster'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
-import { InviteLinkActions } from '@/components/InviteLinkActions'
+import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import {
   CODEWORDS_MIN_PLAYERS,
@@ -106,14 +106,6 @@ export function CodewordsHostManagePanel({
 
   return (
     <div className="space-y-5">
-      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-faint text-xs uppercase tracking-wider">Share with players</p>
-          <p className="font-mono font-bold text-lg">{gameCode}</p>
-        </div>
-        <InviteLinkActions url={playerLink} copyLabel="Copy player link" successMessage="Player link copied" />
-      </div>
-
       <div className="glass-card p-5 space-y-4">
         <p className="label-caps">Timers</p>
         {inLobby ? (
@@ -227,9 +219,6 @@ export function CodewordsHostManagePanel({
 
           {inLobby && (
             <>
-              {!ready.ok && players.length >= CODEWORDS_MIN_PLAYERS && (
-                <p className="text-amber-700 dark:text-amber-200 text-sm">{ready.error}</p>
-              )}
               {needsShuffle && onRandomizeTeams && (
                 <button
                   type="button"
@@ -240,18 +229,18 @@ export function CodewordsHostManagePanel({
                   {randomizingTeams ? 'Shuffling…' : 'Shuffle teams'}
                 </button>
               )}
-              <button
-                type="button"
+              <HostLobbyStartButton
                 onClick={onStartGame}
                 disabled={starting || players.length < CODEWORDS_MIN_PLAYERS || !ready.ok}
-                className="btn-primary w-full"
-              >
-                {starting
-                  ? 'Starting…'
-                  : needsShuffle
-                    ? `Start game (shuffle teams)`
-                    : `Start game (${CODEWORDS_MIN_PLAYERS}+ players)`}
-              </button>
+                starting={starting}
+                disabledHint={
+                  players.length < CODEWORDS_MIN_PLAYERS
+                    ? `Need at least ${CODEWORDS_MIN_PLAYERS} players to start (${players.length}/${CODEWORDS_MIN_PLAYERS})`
+                    : !ready.ok
+                      ? ready.error
+                      : null
+                }
+              />
               <HostEndGameButton
                 gameCode={gameCode}
                 hostToken={hostToken}

@@ -428,6 +428,19 @@ export const bingoSettingsSchema = z.object({
 
 export type BingoSettingsInput = z.infer<typeof bingoSettingsSchema>
 
+export const boardGameLobbySettingsSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+  max_players: z.coerce.number().int().min(1).max(100).optional(),
+  timer_seconds: z.coerce.number().optional(),
+  game_duration_seconds: z.coerce.number().optional(),
+  whot_pick3_enabled: z.boolean().optional(),
+  whot_cards_enabled: z.boolean().optional(),
+  whot_number_calls_enabled: z.boolean().optional(),
+})
+
+export type BoardGameLobbySettingsInput = z.infer<typeof boardGameLobbySettingsSchema>
+
 // ---------------------------------------------------------------------------
 // Admin game player limits
 // ---------------------------------------------------------------------------

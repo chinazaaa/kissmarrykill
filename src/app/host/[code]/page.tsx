@@ -139,7 +139,7 @@ import {
   FinalOverallLeaderboards,
   FinalOverallBreakdown,
 } from '@/components/FinalLeaderboard'
-import { PlayerInviteCard } from '@/components/PlayerInviteCard'
+import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
 import { PlayAgainSetup, playAgainNeedsSetup, hostPoolSetupLabels, type PlayAgainPayload, type PoolSetupVariant } from '@/components/PlayAgainSetup'
 import {
@@ -1622,6 +1622,56 @@ export default function HostPage() {
                   !roundsTooHigh &&
                   (gameGenderBased ? voterCheck.ok : true)
 
+    const startDisabledHint = !canStart
+      ? isWst && wstSource === 'anime' && animeQuoteCount < 2
+        ? `Need 2+ anime quotes (${animeQuoteCount} loaded)`
+        : isWst && wstSource === 'both' && totalQuotes < 2
+          ? `Need 2+ total quotes (${totalQuotes} ready)`
+          : isWst && wstSource === 'player' && participants.length < 2
+            ? `Need at least 2 names on the list (${participants.length}/2)`
+            : isWst && wstSource === 'player' && wstSubmitters.length < 2
+              ? `Need 2+ players who claimed a name (${wstSubmitters.length} ready)`
+              : isWst && wstSource === 'player' && wstPool.length < 2
+                ? `Need 2+ quotes in the pool (${wstPool.length} submitted)`
+                : isVoterOnly && participants.length < minPool
+                  ? `Need at least ${minPool} names on the list (${participants.length}/${minPool})`
+                  : isVoterOnly && players.length === 0
+                    ? 'Waiting for voters to join…'
+                    : isMlt && !isVoterOnly && players.length < 2
+                      ? `Need at least 2 players (${players.length}/2)`
+                      : panLobby && players.length < PAN_MIN_PLAYERS
+                        ? `Need at least ${PAN_MIN_PLAYERS} players (${players.length}/${PAN_MIN_PLAYERS})`
+                        : hotSeatLobby && hotSeatLegacyJoiners && players.length < HOT_SEAT_MIN_PLAYERS
+                          ? `Need at least ${HOT_SEAT_MIN_PLAYERS} players (${players.length}/${HOT_SEAT_MIN_PLAYERS})`
+                          : hotSeatLobby && !hotSeatLegacyJoiners && roundParticipants.length < HOT_SEAT_MIN_PLAYERS
+                            ? `Need ${HOT_SEAT_MIN_PLAYERS}+ players who claimed a name (${roundParticipants.length}/${HOT_SEAT_MIN_PLAYERS})`
+                            : hotSeatLobby && !hotSeatLegacyJoiners && participants.length < HOT_SEAT_MIN_PLAYERS
+                              ? `Need at least ${HOT_SEAT_MIN_PLAYERS} names on the list (${participants.length}/${HOT_SEAT_MIN_PLAYERS})`
+                              : isNhie && players.length === 0
+                                ? 'Need at least 2 players to start'
+                                : isWyr && players.length === 0
+                                  ? 'Waiting for players…'
+                                  : isJoinersMode
+                                    ? participants.length < minPool
+                                      ? `Need ${minPool - participants.length} more to start`
+                                      : roundsTooHigh
+                                        ? `Lower to ${maxRounds} rounds max`
+                                        : gameGenderBased
+                                          ? `Need ${minPool}+ of one gender to start`
+                                          : `Need ${minPool}+ people to start`
+                                    : players.length === 0
+                                      ? 'Waiting for players…'
+                                      : roundParticipants.length < minPool
+                                        ? `Need ${minPool - roundParticipants.length} more to join (${roundParticipants.length}/${minPool})`
+                                        : roundsTooHigh
+                                          ? `Lower to ${maxRounds} rounds max`
+                                          : !voterCheck.ok
+                                            ? 'Need voters for each list'
+                                            : gameGenderBased
+                                              ? `Need ${minPool}+ joined of one gender`
+                                              : `Need ${minPool}+ names joined`
+      : null
+
     return (
       <div className="page-wrap px-4 py-8 max-w-2xl mx-auto w-full space-y-6">
         <PollHostPlayShell
@@ -2167,14 +2217,6 @@ export default function HostPage() {
           </div>
         )}
 
-        {/* Share link */}
-        <PlayerInviteCard
-          url={playerLinkUrl}
-          gameCode={gameCode}
-          title="Player link"
-          showInlineQr
-        />
-
         {/* Players / in-the-game list */}
         <div className="glass-card p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -2697,67 +2739,13 @@ export default function HostPage() {
           </div>
         )}
 
-        <button
+        <HostLobbyStartButton
           onClick={handleStart}
           disabled={!canStart || starting || savingPairVoteMode || savingPlayerQuestions}
-          className="btn-primary"
-        >
-          {starting
-            ? 'Starting...'
-            : !canStart
-              ? isWst && wstSource === 'anime' && animeQuoteCount < 2
-                ? `Need 2+ anime quotes (${animeQuoteCount} loaded)`
-                : isWst && wstSource === 'both' && totalQuotes < 2
-                  ? `Need 2+ total quotes (${totalQuotes} ready)`
-                  : isWst && wstSource === 'player' && participants.length < 2
-                    ? `Need at least 2 names on the list (${participants.length}/2)`
-                    : isWst && wstSource === 'player' && wstSubmitters.length < 2
-                      ? `Need 2+ players who claimed a name (${wstSubmitters.length} ready)`
-                      : isWst && wstSource === 'player' && wstPool.length < 2
-                        ? `Need 2+ quotes in the pool (${wstPool.length} submitted)`
-                        : isVoterOnly && participants.length < minPool
-                          ? `Need at least ${minPool} names on the list (${participants.length}/${minPool})`
-                          : isVoterOnly && players.length === 0
-                            ? 'Waiting for voters to join...'
-                            : isMlt && !isVoterOnly && players.length < 2
-                              ? `Need at least 2 players (${players.length}/2)`
-                              : panLobby && players.length < PAN_MIN_PLAYERS
-                                ? `Need at least ${PAN_MIN_PLAYERS} players (${players.length}/${PAN_MIN_PLAYERS})`
-                                : hotSeatLobby && hotSeatLegacyJoiners && players.length < HOT_SEAT_MIN_PLAYERS
-                                ? `Need at least ${HOT_SEAT_MIN_PLAYERS} players (${players.length}/${HOT_SEAT_MIN_PLAYERS})`
-                                : hotSeatLobby && !hotSeatLegacyJoiners && roundParticipants.length < HOT_SEAT_MIN_PLAYERS
-                                  ? `Need ${HOT_SEAT_MIN_PLAYERS}+ players who claimed a name (${roundParticipants.length}/${HOT_SEAT_MIN_PLAYERS})`
-                                  : hotSeatLobby && !hotSeatLegacyJoiners && participants.length < HOT_SEAT_MIN_PLAYERS
-                                    ? `Need at least ${HOT_SEAT_MIN_PLAYERS} names on the list (${participants.length}/${HOT_SEAT_MIN_PLAYERS})`
-                                    : isNhie && players.length === 0
-                                      ? 'Need at least 2 players to start'
-                                      : isWyr && players.length === 0
-                                      ? 'Waiting for players...'
-                                      : isJoinersMode
-                                        ? participants.length < minPool
-                                          ? `Need ${minPool - participants.length} more to start`
-                                          : roundsTooHigh
-                                            ? `Lower to ${maxRounds} rounds max`
-                                            : gameGenderBased
-                                              ? `Need ${minPool}+ of one gender to start`
-                                              : `Need ${minPool}+ people to start`
-                                        : players.length === 0
-                                          ? 'Waiting for players...'
-                                          : roundParticipants.length < minPool
-                                            ? `Need ${minPool - roundParticipants.length} more to join (${roundParticipants.length}/${minPool})`
-                                            : roundsTooHigh
-                                              ? `Lower to ${maxRounds} rounds max`
-                                              : !voterCheck.ok
-                                                ? 'Need voters for each list'
-                                                : gameGenderBased
-                                                  ? `Need ${minPool}+ joined of one gender`
-                                                  : `Need ${minPool}+ names joined`
-              : panLobby
-                ? `Start Game (${game.rounds_count} round${game.rounds_count === 1 ? '' : 's'})`
-                : hotSeatLobby
-                ? `Start Game (${hotSeatEffective} round${hotSeatEffective === 1 ? '' : 's'})`
-                : `Start Game (${players.length} players)`}
-        </button>
+          starting={starting}
+          disabledHint={startDisabledHint}
+          className="btn-primary w-full"
+        />
 
         <HostEndGameButton
           gameCode={gameCode}
