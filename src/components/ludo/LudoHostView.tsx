@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { HostLobbySettingsSection } from '@/components/host-lobby/HostLobbySettingsSection'
-import { HostBoardGameLobbySettings } from '@/components/host-lobby/HostBoardGameLobbySettings'
+import { HostBoardGameLobbyPanel } from '@/components/host-lobby/HostBoardGameLobbyPanel'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
@@ -433,23 +432,14 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
             {game.status === 'waiting' && (
               <>
-                <HostLobbySettingsSection>
-                  <HostBoardGameLobbySettings
-                    gameCode={gameCode}
-                    hostToken={hostToken}
-                    game={game}
-                    boardGameType="ludo"
-                    playerCount={players.length}
-                    onGameUpdate={setGame}
-                  />
-                  <HostLateJoinSettingsCard
-                    bare
-                    gameCode={gameCode}
-                    hostToken={hostToken}
-                    game={game}
-                    onGameUpdate={setGame}
-                  />
-                </HostLobbySettingsSection>
+                <HostBoardGameLobbyPanel
+                  gameCode={gameCode}
+                  hostToken={hostToken}
+                  game={game}
+                  boardGameType="ludo"
+                  playerCount={players.length}
+                  onGameUpdate={setGame}
+                />
                 <HostLobbyWaitingFooter
                 gameCode={gameCode}
                 hostToken={hostToken}

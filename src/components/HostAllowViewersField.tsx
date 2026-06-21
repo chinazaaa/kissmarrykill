@@ -13,14 +13,16 @@ export function HostAllowViewersField({
   onGameUpdate,
   className = '',
   embedded = false,
+  hideHeader = false,
 }: {
   gameCode: string
   hostToken: string
   game: Game
   onGameUpdate: (game: Game) => void
   className?: string
-  /** Set when already inside a glass-card (avoids double nesting). */
   embedded?: boolean
+  /** Hide title and helper copy when a parent section already provides them. */
+  hideHeader?: boolean
 }) {
   const toast = useToast()
   const [saving, setSaving] = useState(false)
@@ -62,12 +64,14 @@ export function HostAllowViewersField({
 
   const body = (
     <div className={`space-y-3 ${className}`}>
-      <div className="space-y-1">
-        <p className="label-caps">Late joiners</p>
-        <p className="text-xs text-muted leading-relaxed">
-          Choose whether people can join after the game starts. Viewers watch live without playing.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="space-y-1">
+          <p className="label-caps">Late joiners</p>
+          <p className="text-xs text-muted leading-relaxed">
+            Choose whether people can join after the game starts. Viewers watch live without playing.
+          </p>
+        </div>
+      )}
       <LateJoinPolicyToggle value={value} onChange={onChange} disabled={saving} gameType={game.game_type} />
     </div>
   )
