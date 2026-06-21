@@ -1,6 +1,7 @@
 'use client'
 import { useRoundResults } from '@/hooks/useRoundResults'
 import { useWstQuotePool } from '@/hooks/useWstQuotePool'
+import { usePlayerQuestions } from '@/hooks/usePlayerQuestions'
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -298,22 +299,12 @@ export function PollGamePlayerExperience({
   } = useWstQuotePool({ gameCode, myPlayerId })
 
   // Player question submission (WYR/MLT lobby)
-  const [pqWyrA, setPqWyrA] = useState('')
-  const [pqWyrB, setPqWyrB] = useState('')
-  const [pqTotText, setPqTotText] = useState('')
-  const [pqMltText, setPqMltText] = useState('')
-  const [pqSubmitting, setPqSubmitting] = useState(false)
-  const [pqList, setPqList] = useState<
-    {
-      id: string
-      player_id: string
-      question_type: string
-      option_a?: string
-      option_b?: string
-      question_text?: string
-    }[]
-  >([])
-  const [pqOpen, setPqOpen] = useState(false)
+  const {
+    pqWyrA, pqWyrB, pqTotText, pqMltText, pqSubmitting, pqList, pqOpen,
+    setPqWyrA, setPqWyrB, setPqTotText, setPqMltText, setPqOpen, setPqList,
+    setPqSubmitting,
+    resetPlayerQuestionsState,
+  } = usePlayerQuestions()
 
   // Player name submission (people poll games — RFGF, SMK, etc.)
   const [pnNameInput, setPnNameInput] = useState('')
