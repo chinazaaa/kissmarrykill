@@ -3,6 +3,7 @@
 import { useRef, type ReactNode } from 'react'
 import type { Game, Participant, Player, Round, TriviaAnswer, Vote } from '@/types'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
+import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 
 /** Wraps final leaderboard UI so Share Results captures a snapshot of what's on screen. */
@@ -32,6 +33,7 @@ export function FinalResultsShareBlock({
   return (
     <>
       <div ref={captureRef} className="space-y-4">
+        <ShareResultsCaptureHeader game={game} />
         {children}
       </div>
       <HostGameFinishedActions

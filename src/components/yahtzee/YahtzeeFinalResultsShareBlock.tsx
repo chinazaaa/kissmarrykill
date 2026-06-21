@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import type { Game, Player, YahtzeePlayerScore } from '@/types'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
+import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 import { YahtzeeLeaderboard } from '@/components/yahtzee/YahtzeeScorecard'
 import type { ReactNode } from 'react'
@@ -27,6 +28,7 @@ export function YahtzeeFinalResultsShareBlock({
   return (
     <div className="space-y-4">
       <div ref={captureRef} className="glass-card-strong p-6 sm:p-8 space-y-4">
+        <ShareResultsCaptureHeader game={game} />
         <p className="text-5xl sm:text-6xl leading-none text-center pt-1">🏆</p>
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">
           {winnerName ? `${winnerName} wins!` : 'Game over'}

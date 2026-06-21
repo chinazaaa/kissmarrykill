@@ -1,15 +1,19 @@
 'use client'
 
 import { useRef, useState, type ReactNode } from 'react'
+import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { useToast } from '@/components/ui/Toast'
 import { captureElementAsImage } from '@/lib/capture-element-image'
 import { shareImageBlob } from '@/lib/share-image'
+import type { Game } from '@/types'
 
 export function TwoTruthsShareBlock({
   children,
+  game,
 }: {
   children: ReactNode
+  game: Pick<Game, 'title' | 'game_type'>
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
   const { success, error } = useToast()
@@ -35,6 +39,7 @@ export function TwoTruthsShareBlock({
   return (
     <div className="space-y-3">
       <div ref={captureRef} className="space-y-4">
+        <ShareResultsCaptureHeader game={game} />
         {children}
       </div>
       <button

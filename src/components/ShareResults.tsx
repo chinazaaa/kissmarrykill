@@ -75,12 +75,11 @@ function buildShareText({
 }): string {
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
+  const gameHeader = [config.headerEmoji, game.title, config.label, '']
 
   if (isICallOnGame(gameType) && npatLeaderboard && npatLeaderboard.length > 0) {
     const lines = [
-      config.headerEmoji,
-      game.title,
-      '',
+      ...gameHeader,
       npatWinnerLabel ?? '🏆 Game over',
       '',
       'Final leaderboard:',
@@ -93,9 +92,7 @@ function buildShareText({
 
   if (isLudoGame(gameType) && ludoStandings && ludoStandings.length > 0) {
     const lines = [
-      config.headerEmoji,
-      game.title,
-      '',
+      ...gameHeader,
       ludoWinnerName ? `🏆 ${ludoWinnerName} wins!` : ludoEndedEarly ? '🏁 Game ended early' : '🏁 Game over',
       '',
       'Final standings:',
@@ -110,9 +107,7 @@ function buildShareText({
 
   if (isWhotGame(gameType) && whotStandings && whotStandings.length > 0) {
     const lines = [
-      config.headerEmoji,
-      game.title,
-      '',
+      ...gameHeader,
       whotWinnerName ? `🏆 ${whotWinnerName} wins!` : '🏆 Game over',
       '',
       'Final standings:',
@@ -128,9 +123,7 @@ function buildShareText({
 
   if (isMonopolyGame(gameType) && monopolyStandings && monopolyStandings.length > 0) {
     const lines = [
-      config.headerEmoji,
-      game.title,
-      '',
+      ...gameHeader,
       monopolyWinnerName ? `🏆 ${monopolyWinnerName} wins!` : '🏆 Game over',
       '',
       'Final standings (total assets):',
@@ -145,9 +138,7 @@ function buildShareText({
 
   if (isBingoGame(gameType) && bingoWinnerName) {
     return [
-      config.headerEmoji,
-      game.title,
-      '',
+      ...gameHeader,
       '🏆',
       '',
       'BINGO!',
@@ -167,9 +158,7 @@ function buildShareText({
       .sort((a, b) => b.score - a.score)
 
     const lines = [
-      config.headerEmoji,
-      game.title,
-      '',
+      ...gameHeader,
       yahtzeeWinnerName ? `🏆 ${yahtzeeWinnerName} wins!` : 'Game over',
       '',
       'Final leaderboard:',
@@ -183,7 +172,7 @@ function buildShareText({
   const lines: string[] = []
 
   lines.push(`${config.headerEmoji} ${game.title}`)
-  lines.push(`${config.label} - ${players.length} players, ${rounds.length} rounds`)
+  lines.push(config.label)
   lines.push('')
 
   const isWyr = isBinaryChoiceGame(gameType)

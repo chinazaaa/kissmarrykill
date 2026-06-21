@@ -2,6 +2,7 @@
 
 import { useRef } from 'react'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
+import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 import { npatWinnerLabel } from '@/lib/npat'
 import type { Game, Player } from '@/types'
@@ -29,6 +30,7 @@ export function NpatFinalResultsShareBlock({
   return (
     <div className="space-y-4">
       <div ref={captureRef} className="glass-card-strong p-6 sm:p-8 space-y-4">
+        <ShareResultsCaptureHeader game={game} />
         <p className="text-5xl sm:text-6xl leading-none text-center pt-1">🏆</p>
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">{winnerLabel}</p>
         <div className="space-y-2 pt-2">

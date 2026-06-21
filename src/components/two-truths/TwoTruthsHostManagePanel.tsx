@@ -281,7 +281,7 @@ export function TwoTruthsHostManagePanel({
 
       {game.status === 'finished' && (
         <div className="space-y-4">
-          <TwoTruthsShareBlock>
+          <TwoTruthsShareBlock game={game}>
             <div className="glass-card p-6 text-center space-y-2">
               <p className="text-4xl">🏆</p>
               <p className="text-xl font-black">Game finished</p>

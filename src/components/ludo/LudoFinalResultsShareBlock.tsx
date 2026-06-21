@@ -4,6 +4,7 @@ import { useMemo, useRef, type ReactNode } from 'react'
 import type { Game, LudoPlayerState, LudoSession, Player } from '@/types'
 import { buildLudoStandings, LUDO_COLOR_LABELS } from '@/lib/ludo'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
+import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 
 export function LudoFinalResultsShareBlock({
@@ -38,6 +39,7 @@ export function LudoFinalResultsShareBlock({
   return (
     <div className="space-y-4">
       <div ref={captureRef} className="glass-card-strong p-6 sm:p-8 space-y-4">
+        <ShareResultsCaptureHeader game={game} />
         <p className="text-5xl sm:text-6xl leading-none text-center pt-1">{endedEarly ? '🏁' : '🏆'}</p>
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">
           {displayWinner ? `${displayWinner} wins!` : endedEarly ? 'Game ended early' : 'Game over'}
