@@ -2,9 +2,10 @@
 
 import { useRef } from 'react'
 import type { Game, Player, YahtzeePlayerScore } from '@/types'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResults } from '@/components/ShareResults'
 import { YahtzeeLeaderboard } from '@/components/yahtzee/YahtzeeScorecard'
+import type { ReactNode } from 'react'
 
 export function YahtzeeFinalResultsShareBlock({
   game,
@@ -12,12 +13,14 @@ export function YahtzeeFinalResultsShareBlock({
   scores,
   winnerName,
   highlightPlayerId,
+  playAgainButton,
 }: {
   game: Game
   players: Player[]
   scores: YahtzeePlayerScore[]
   winnerName?: string | null
   highlightPlayerId?: string | null
+  playAgainButton?: ReactNode
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
 
@@ -30,17 +33,21 @@ export function YahtzeeFinalResultsShareBlock({
         </p>
         <YahtzeeLeaderboard rows={scores} players={players} highlightPlayerId={highlightPlayerId} />
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={[]}
-        votes={[]}
-        rounds={[]}
-        players={players}
-        yahtzeeScores={scores}
-        yahtzeeWinnerName={winnerName ?? undefined}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+            yahtzeeScores={scores}
+            yahtzeeWinnerName={winnerName ?? undefined}
+          />
+        }
       />
-      <CreateNewGameButton />
     </div>
   )
 }

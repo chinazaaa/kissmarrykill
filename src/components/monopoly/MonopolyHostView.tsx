@@ -529,7 +529,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
                     type="button"
                     onClick={playAgain}
                     disabled={playingAgain}
-                    className="btn-secondary w-full py-3"
+                    className="btn-primary w-full py-3"
                   >
                     {playingAgain ? 'Resetting…' : 'Play again'}
                   </button>
@@ -539,9 +539,11 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
           </>
         )}
 
-        <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">
-          Back home
-        </button>
+        {game.status !== 'finished' && (
+          <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">
+            Back home
+          </button>
+        )}
       </div>
     </div>
   )

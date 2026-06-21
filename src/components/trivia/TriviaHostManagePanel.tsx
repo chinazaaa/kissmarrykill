@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
@@ -274,7 +273,12 @@ export function TriviaHostManagePanel({
             rounds={rounds}
             players={players}
             triviaAnswers={answers}
-            showCreateNewGame={false}
+            showCreateNewGame
+            playAgainButton={
+              <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-primary w-full py-3.5 text-base">
+                {playingAgain ? 'Resetting…' : 'Play again'}
+              </button>
+            }
           >
             <PaginatedLeaderboard
               title="Final leaderboard"
@@ -287,10 +291,6 @@ export function TriviaHostManagePanel({
               <p className="text-muted text-base">{leaderboard[0]?.score ?? 0} points total</p>
             </div>
           </FinalResultsShareBlock>
-          <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-secondary w-full py-3.5 text-base">
-            {playingAgain ? 'Resetting…' : 'Play again'}
-          </button>
-          <CreateNewGameButton className="btn-primary w-full py-3.5 text-base" />
         </>
       )}
     </div>

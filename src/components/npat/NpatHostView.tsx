@@ -487,18 +487,17 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             )}
 
             {game.status === 'finished' && (
-              <div className="space-y-3">
-                <NpatFinalResultsShareBlock
-                  game={game}
-                  players={players}
-                  leaderboard={leaderboard}
-                  highlightPlayerId={hostPlayerId}
-                  showCreateNewGame={false}
-                />
-                <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full">
-                  {playingAgain ? 'Resetting…' : 'Play again'}
-                </button>
-              </div>
+              <NpatFinalResultsShareBlock
+                game={game}
+                players={players}
+                leaderboard={leaderboard}
+                highlightPlayerId={hostPlayerId}
+                playAgainButton={
+                  <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full py-3">
+                    {playingAgain ? 'Resetting…' : 'Play again'}
+                  </button>
+                }
+              />
             )}
 
             {game.status === 'active' && (

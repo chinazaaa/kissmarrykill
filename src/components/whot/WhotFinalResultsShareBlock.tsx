@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, type ReactNode } from 'react'
 import type { Game, Player, WhotPlayerHand, WhotSession } from '@/types'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResults } from '@/components/ShareResults'
 import { buildWhotStandings } from '@/lib/whot'
 
@@ -98,18 +98,21 @@ export function WhotFinalResultsShareBlock({
           </div>
         )}
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={[]}
-        votes={[]}
-        rounds={[]}
-        players={players}
-        whotStandings={standings}
-        whotWinnerName={displayWinner ?? undefined}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+            whotStandings={standings}
+            whotWinnerName={displayWinner ?? undefined}
+          />
+        }
       />
-      {playAgainButton}
-      <CreateNewGameButton />
     </div>
   )
 }

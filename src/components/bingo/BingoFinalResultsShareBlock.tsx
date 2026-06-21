@@ -2,7 +2,7 @@
 
 import { useRef, type ReactNode } from 'react'
 import type { Game, Player } from '@/types'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResults } from '@/components/ShareResults'
 
 export function BingoFinalResultsShareBlock({
@@ -25,17 +25,20 @@ export function BingoFinalResultsShareBlock({
         <p className="text-3xl sm:text-4xl font-black text-amber-600 dark:text-amber-200">BINGO!</p>
         <p className="text-xl sm:text-2xl font-bold text-body">{winnerName} wins!</p>
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={[]}
-        votes={[]}
-        rounds={[]}
-        players={players}
-        bingoWinnerName={winnerName}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+            bingoWinnerName={winnerName}
+          />
+        }
       />
-      {playAgainButton}
-      <CreateNewGameButton />
     </div>
   )
 }

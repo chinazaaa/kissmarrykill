@@ -2,7 +2,7 @@
 
 import { useRef, type ReactNode } from 'react'
 import type { Game, Participant, Player, Round, TriviaAnswer, Vote } from '@/types'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResults } from '@/components/ShareResults'
 
 /** Wraps final leaderboard UI so Share Results captures a snapshot of what's on screen. */
@@ -15,6 +15,7 @@ export function FinalResultsShareBlock({
   players,
   triviaAnswers,
   showCreateNewGame = true,
+  playAgainButton,
 }: {
   children: ReactNode
   game: Game
@@ -24,6 +25,7 @@ export function FinalResultsShareBlock({
   players: Player[]
   triviaAnswers?: TriviaAnswer[]
   showCreateNewGame?: boolean
+  playAgainButton?: ReactNode
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
 
@@ -32,16 +34,21 @@ export function FinalResultsShareBlock({
       <div ref={captureRef} className="space-y-4">
         {children}
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={participants}
-        votes={votes}
-        rounds={rounds}
-        players={players}
-        triviaAnswers={triviaAnswers}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        showCreateNewGame={showCreateNewGame}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={participants}
+            votes={votes}
+            rounds={rounds}
+            players={players}
+            triviaAnswers={triviaAnswers}
+          />
+        }
       />
-      {showCreateNewGame ? <CreateNewGameButton /> : null}
     </>
   )
 }

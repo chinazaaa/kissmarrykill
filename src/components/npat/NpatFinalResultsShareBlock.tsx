@@ -1,22 +1,25 @@
 'use client'
 
 import { useRef } from 'react'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResults } from '@/components/ShareResults'
 import { npatWinnerLabel } from '@/lib/npat'
 import type { Game, Player } from '@/types'
+import type { ReactNode } from 'react'
 
 export function NpatFinalResultsShareBlock({
   game,
   players,
   leaderboard,
   highlightPlayerId,
+  playAgainButton,
   showCreateNewGame = true,
 }: {
   game: Game
   players: Player[]
   leaderboard: { id: string; name: string; score: number }[]
   highlightPlayerId?: string | null
+  playAgainButton?: ReactNode
   showCreateNewGame?: boolean
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
@@ -52,17 +55,22 @@ export function NpatFinalResultsShareBlock({
           ))}
         </div>
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={[]}
-        votes={[]}
-        rounds={[]}
-        players={players}
-        npatLeaderboard={leaderboard}
-        npatWinnerLabel={winnerLabel}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        showCreateNewGame={showCreateNewGame}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+            npatLeaderboard={leaderboard}
+            npatWinnerLabel={winnerLabel}
+          />
+        }
       />
-      {showCreateNewGame ? <CreateNewGameButton /> : null}
     </div>
   )
 }

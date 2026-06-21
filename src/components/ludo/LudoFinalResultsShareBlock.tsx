@@ -3,7 +3,7 @@
 import { useMemo, useRef, type ReactNode } from 'react'
 import type { Game, LudoPlayerState, LudoSession, Player } from '@/types'
 import { buildLudoStandings, LUDO_COLOR_LABELS } from '@/lib/ludo'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResults } from '@/components/ShareResults'
 
 export function LudoFinalResultsShareBlock({
@@ -76,19 +76,22 @@ export function LudoFinalResultsShareBlock({
           </div>
         )}
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={[]}
-        votes={[]}
-        rounds={[]}
-        players={players}
-        ludoStandings={standings}
-        ludoWinnerName={displayWinner ?? undefined}
-        ludoEndedEarly={endedEarly}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+            ludoStandings={standings}
+            ludoWinnerName={displayWinner ?? undefined}
+            ludoEndedEarly={endedEarly}
+          />
+        }
       />
-      {playAgainButton}
-      <CreateNewGameButton />
     </div>
   )
 }

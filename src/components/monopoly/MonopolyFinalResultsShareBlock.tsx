@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, type ReactNode } from 'react'
 import type { Game, MonopolyBoard, MonopolyPlayerState, Player } from '@/types'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResults } from '@/components/ShareResults'
 import { buildMonopolyStandings, formatMonopolyMoney } from '@/lib/monopoly'
 
@@ -90,18 +90,21 @@ export function MonopolyFinalResultsShareBlock({
           </div>
         )}
       </div>
-      <ShareResults
-        captureRef={captureRef}
-        game={game}
-        participants={[]}
-        votes={[]}
-        rounds={[]}
-        players={players}
-        monopolyStandings={standings}
-        monopolyWinnerName={displayWinner ?? undefined}
+      <HostGameFinishedActions
+        playAgainButton={playAgainButton}
+        shareButton={
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+            monopolyStandings={standings}
+            monopolyWinnerName={displayWinner ?? undefined}
+          />
+        }
       />
-      {playAgainButton}
-      <CreateNewGameButton />
     </div>
   )
 }
