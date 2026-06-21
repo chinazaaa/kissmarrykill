@@ -159,8 +159,9 @@ import {
 } from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
-import { PlayerInviteCard } from '@/components/PlayerInviteCard'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
+import { scrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useToast } from '@/components/ui/Toast'
 
 interface Settings {
@@ -480,6 +481,10 @@ function CreateGameInner() {
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
+
+  useEffect(() => {
+    if (step === 'done') scrollHostViewToTop()
+  }, [step])
 
   useEffect(() => {
     if (isPan) return
@@ -2331,22 +2336,24 @@ function CreateGameInner() {
   }
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  const gameUrl = `${origin}/game/${result?.gameCode}`
   const hostUrl = `${origin}/host/${result?.gameCode}?token=${result?.hostToken}`
 
   return (
-    <PageShell centered>
-      <div className="text-center space-y-2">
-        <div
-          className="inline-flex h-20 w-20 items-center justify-center rounded-3xl text-4xl mx-auto"
-          style={{ background: 'var(--chip-active-bg)' }}
-        >
-          🎉
+    <GameJoinLobbyShell
+      gameCode={result?.gameCode ?? ''}
+      header={
+        <div className="text-center space-y-2">
+          <div
+            className="inline-flex h-20 w-20 items-center justify-center rounded-3xl text-4xl mx-auto"
+            style={{ background: 'var(--chip-active-bg)' }}
+          >
+            🎉
+          </div>
+          <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">You&apos;re live!</h1>
+          <p className="text-muted text-sm">Share the code with players — save your host link.</p>
         </div>
-        <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">You're live!</h1>
-        <p className="text-muted text-sm">Share the code with players — save your host link.</p>
-      </div>
-
+      }
+    >
       <div className="glass-card-strong p-6 text-center space-y-2">
         <span className="label-caps">Game code</span>
         <p className="font-mono text-5xl font-black tracking-[0.2em]">{result?.gameCode}</p>
@@ -2358,15 +2365,14 @@ function CreateGameInner() {
         />
       </div>
 
-      <PlayerInviteCard url={gameUrl} gameCode={result?.gameCode ?? ''} title="Player link" />
       <CopyCard label="Host link — save this" value={hostUrl} accent />
 
       <PrimaryBtn onClick={() => router.push(`/host/${result?.gameCode}?token=${result?.hostToken}`)}>
         Open Host Panel →
       </PrimaryBtn>
 
-      <p className="text-faint text-xs text-center">The host link won't be shown again</p>
-    </PageShell>
+      <p className="text-faint text-xs text-center">The host link won&apos;t be shown again</p>
+    </GameJoinLobbyShell>
   )
 }
 
