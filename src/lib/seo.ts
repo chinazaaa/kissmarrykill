@@ -278,6 +278,12 @@ export const GAME_LANDING_OG_BY_SLUG: Record<string, string> = {
   yahtzee: '/og/yahtzee.png',
   whot: '/og/whot.png',
   ludo: '/og/ludo.png',
+  'date-my-kid': '/og/date-my-kid.png',
+  'would-you-rather': '/og/would-you-rather.png',
+  'never-have-i-ever': '/og/never-have-i-ever.png',
+  'who-said-this': '/og/who-said-this.png',
+  'hot-seat': '/og/hot-seat.png',
+  'custom-game': '/og/custom-game.png',
 }
 
 export function gameLandingOgPath(slug: string): string {
