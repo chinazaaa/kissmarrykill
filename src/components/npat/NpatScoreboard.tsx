@@ -64,6 +64,7 @@ export function NpatScoreboard({
   showDisputeButtons?: boolean
   onDispute?: (targetPlayerId: string, category: NpatCategory) => void
 }) {
+  const activePlayers = players.filter((p) => p.spectator !== true)
   const answersByPlayer = new Map(answers.map((a) => [a.player_id, a]))
   const dupes = duplicateKeysByCategory(answers)
   const marksByTarget = new Map(marks.map((m) => [m.target_player_id, m]))
@@ -74,9 +75,9 @@ export function NpatScoreboard({
     }
   }
 
-  if (players.length === 0) return null
+  if (activePlayers.length === 0) return null
 
-  const lockedInCount = players.filter((p) => answersByPlayer.get(p.id)?.submitted_at).length
+  const lockedInCount = activePlayers.filter((p) => answersByPlayer.get(p.id)?.submitted_at).length
 
   return (
     <div className="glass-card p-4 space-y-3 overflow-x-auto">
@@ -94,7 +95,7 @@ export function NpatScoreboard({
         {hostReview
           ? 'Tap valid or invalid for answers you want to override. Empty, wrong-letter, single-letter, and duplicate answers are locked invalid.'
           : maskAnswers
-            ? `${lockedInCount}/${players.length} locked in — answers stay hidden until marking starts.`
+            ? `${lockedInCount}/${activePlayers.length} locked in — answers stay hidden until marking starts.`
             : 'Duplicates score 5 automatically. Reviewers mark whether each answer fits its category — everyone can see the marks.'}
       </p>
 
@@ -111,7 +112,7 @@ export function NpatScoreboard({
           </tr>
         </thead>
         <tbody>
-          {players.map((player) => {
+          {activePlayers.map((player) => {
             const answer = answersByPlayer.get(player.id)
             const mark = marksByTarget.get(player.id)
             const reviewer = markerNameByTarget.get(player.id)
