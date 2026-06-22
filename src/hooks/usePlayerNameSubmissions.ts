@@ -19,8 +19,16 @@ export function usePlayerNameSubmissions() {
   }
 
   return {
-    pnNameInput, pnGender, pnSubmitting, pnList, pnOpen,
-    setPnNameInput, setPnGender, setPnSubmitting, setPnOpen, setPnList,
+    pnNameInput,
+    pnGender,
+    pnSubmitting,
+    pnList,
+    pnOpen,
+    setPnNameInput,
+    setPnGender,
+    setPnSubmitting,
+    setPnOpen,
+    setPnList,
     resetPlayerNameSubmissionsState,
   }
 }

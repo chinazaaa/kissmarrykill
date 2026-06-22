@@ -22,7 +22,10 @@ export function EditNameInline({
 
   const save = async () => {
     const trimmed = name.trim()
-    if (!trimmed || trimmed === currentName) { setEditing(false); return }
+    if (!trimmed || trimmed === currentName) {
+      setEditing(false)
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch('/api/players', {
@@ -48,11 +51,13 @@ export function EditNameInline({
   if (!editing) {
     return (
       <p className="text-muted text-sm">
-        Playing as <strong>{currentName}</strong>
-        {' '}
+        Playing as <strong>{currentName}</strong>{' '}
         <button
           type="button"
-          onClick={() => { setName(currentName); setEditing(true) }}
+          onClick={() => {
+            setName(currentName)
+            setEditing(true)
+          }}
           className="text-xs underline text-faint hover:text-[var(--foreground)] transition-colors"
         >
           Edit
@@ -67,7 +72,10 @@ export function EditNameInline({
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') save()
+          if (e.key === 'Escape') setEditing(false)
+        }}
         className="input-field flex-1 py-1 text-sm"
         maxLength={40}
         autoFocus
@@ -80,11 +88,7 @@ export function EditNameInline({
       >
         {saving ? '…' : 'Save'}
       </button>
-      <button
-        type="button"
-        onClick={() => setEditing(false)}
-        className="btn-secondary btn-fit px-3 py-1.5 text-xs"
-      >
+      <button type="button" onClick={() => setEditing(false)} className="btn-secondary btn-fit px-3 py-1.5 text-xs">
         Cancel
       </button>
     </div>

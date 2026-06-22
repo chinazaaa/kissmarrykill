@@ -37,7 +37,12 @@ export async function POST(req: NextRequest) {
   const validationError = validateNpatAnswerFields(metadata.letter, trimmed)
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
 
-  const { data: player } = await supabase.from('players').select('id').eq('id', playerId).eq('game_id', code).maybeSingle()
+  const { data: player } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', playerId)
+    .eq('game_id', code)
+    .maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
   const { data: existing } = await supabase

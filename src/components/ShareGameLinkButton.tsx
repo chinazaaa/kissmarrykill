@@ -37,7 +37,9 @@ export function ShareGameLinkButton({ gameCode, className = '', qrLabel = 'QR' }
           onClick={handleCopy}
           className="btn-secondary text-xs sm:text-sm py-1.5 px-2.5 sm:px-4 whitespace-nowrap"
         >
-          {copied ? 'Copied ✓' : (
+          {copied ? (
+            'Copied ✓'
+          ) : (
             <>
               <span className="sm:hidden">Copy link</span>
               <span className="hidden sm:inline">Copy invite link</span>

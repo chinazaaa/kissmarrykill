@@ -1,9 +1,6 @@
 'use client'
 
-import {
-  MONOPOLY_PLAYER_TOKENS,
-  type MonopolyTokenId,
-} from '@/lib/monopoly-tokens'
+import { MONOPOLY_PLAYER_TOKENS, type MonopolyTokenId } from '@/lib/monopoly-tokens'
 import { tokenColorForOrder } from '@/components/monopoly/monopoly-ui'
 
 export function MonopolyTokenPicker({

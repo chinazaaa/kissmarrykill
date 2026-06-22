@@ -13,7 +13,14 @@ import { WhotChoosePanel, WhotHand, WhotTable } from '@/components/whot/WhotBoar
 import { WhotGameTimerBar } from '@/components/whot/WhotGameTimerBar'
 import { WhotFinalResultsShareBlock } from '@/components/whot/WhotFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentPlayerId, getActivePickPenalty, hasActiveWhotCall, hasPlayableCard, isDrawPileDepleted, parseWhotRules } from '@/lib/whot'
+import {
+  currentPlayerId,
+  getActivePickPenalty,
+  hasActiveWhotCall,
+  hasPlayableCard,
+  isDrawPileDepleted,
+  parseWhotRules,
+} from '@/lib/whot'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, WHOT_PLAYER_HANDS_SELECT, WHOT_SESSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -36,7 +43,15 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useWhotTurnTimer } from '@/hooks/useWhotTurnTimer'
 import { useWhotNotifications, playWhotActionSound } from '@/hooks/useWhotNotifications'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'game_started_waiting'
+  | 'game_ended'
+  | 'waiting'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -119,9 +134,21 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
   useEffect(() => {
     const channel = supabase
       .channel(`whot-player-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whot_sessions', filter: `game_id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whot_player_hands', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whot_sessions', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whot_player_hands', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
       .subscribe()
     return () => {
       supabase.removeChannel(channel)
@@ -430,10 +457,7 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
             onPlay={(cardId) => void postAction('/api/whot/play', { cardId })}
           />
           {isMyTurn && !(drawDepleted && myCanPlay) && (
-            <WhotPrimaryButton
-              onClick={() => void postAction('/api/whot/draw', {})}
-              loading={acting}
-            >
+            <WhotPrimaryButton onClick={() => void postAction('/api/whot/draw', {})} loading={acting}>
               {drawDepleted
                 ? 'Pass turn'
                 : pickPenalty.type === 'pick2'

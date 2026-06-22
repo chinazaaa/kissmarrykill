@@ -27,9 +27,7 @@ export function CodewordsGuessLog({
     )
   }
 
-  const sorted = [...guesses].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  )
+  const sorted = [...guesses].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
     <div className="glass-card p-4 space-y-3">
@@ -68,13 +66,7 @@ export function CodewordsGuessLog({
   )
 }
 
-export function CodewordsGuessSummary({
-  guesses,
-  players,
-}: {
-  guesses: CodewordsGuess[]
-  players: Player[]
-}) {
+export function CodewordsGuessSummary({ guesses, players }: { guesses: CodewordsGuess[]; players: Player[] }) {
   const playerName = (id: string) => players.find((p) => p.id === id)?.name ?? '?'
   const byCell = new Map<number, CodewordsGuess>()
   for (const guess of guesses) {

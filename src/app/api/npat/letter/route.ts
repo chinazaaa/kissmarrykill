@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
   }
   if (game.status !== 'active') return NextResponse.json({ error: 'Game not active' }, { status: 400 })
 
-  const { data: round } = await supabase.from('rounds').select('*').eq('id', roundId).eq('game_id', gameId).maybeSingle()
+  const { data: round } = await supabase
+    .from('rounds')
+    .select('*')
+    .eq('id', roundId)
+    .eq('game_id', gameId)
+    .maybeSingle()
   if (!round || round.status !== 'active') {
     return NextResponse.json({ error: 'Round is not active' }, { status: 400 })
   }
@@ -61,7 +66,12 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const { data: players } = await supabase.from('players').select('id').eq('game_id', gameId)
-  await ensureBlankAnswers(supabase, gameId, roundId, (players ?? []).map((p) => p.id))
+  await ensureBlankAnswers(
+    supabase,
+    gameId,
+    roundId,
+    (players ?? []).map((p) => p.id)
+  )
 
   return NextResponse.json({ success: true, letter })
 }

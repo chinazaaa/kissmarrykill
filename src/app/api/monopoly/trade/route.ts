@@ -75,15 +75,22 @@ export async function POST(req: NextRequest) {
     requestProperties,
     requestGetOutCards,
   } = parsed.data
-  const { error } = await processMonopolyTradePropose(supabase, code, playerId, toPlayerId, {
-    cash: offerCash,
-    properties: offerProperties,
-    getOutCards: offerGetOutCards,
-  }, {
-    cash: requestCash,
-    properties: requestProperties,
-    getOutCards: requestGetOutCards,
-  })
+  const { error } = await processMonopolyTradePropose(
+    supabase,
+    code,
+    playerId,
+    toPlayerId,
+    {
+      cash: offerCash,
+      properties: offerProperties,
+      getOutCards: offerGetOutCards,
+    },
+    {
+      cash: requestCash,
+      properties: requestProperties,
+      getOutCards: requestGetOutCards,
+    }
+  )
   if (error) return NextResponse.json({ error }, { status: 400 })
 
   return NextResponse.json({ success: true })

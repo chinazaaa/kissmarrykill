@@ -72,7 +72,7 @@ export function TriviaActiveRound({
   const metadata = currentRound ? parseTriviaMetadata(currentRound.trivia_metadata) : null
   const myAnswer = useMemo(
     () =>
-      currentRound ? answers.find((a) => a.player_id === myPlayerId && a.round_id === currentRound.id) ?? null : null,
+      currentRound ? (answers.find((a) => a.player_id === myPlayerId && a.round_id === currentRound.id) ?? null) : null,
     [answers, currentRound, myPlayerId]
   )
   const leaderboard = useMemo(() => tallyTriviaPlayerScores(answers, players), [answers, players])
@@ -100,8 +100,7 @@ export function TriviaActiveRound({
     answerLockRef.current = false
   }, [currentRound?.id])
 
-  const showCorrectAnswer =
-    !!metadata && (currentRound?.status === 'finished' || timeExpired)
+  const showCorrectAnswer = !!metadata && (currentRound?.status === 'finished' || timeExpired)
 
   useEffect(() => {
     if (!showCorrectAnswer || game.status !== 'active') return
@@ -237,100 +236,97 @@ export function TriviaActiveRound({
   return (
     <LiveLeaderboardLayout sidebar={liveLeaderboard}>
       <div className="space-y-5">
-      <div className="text-center space-y-2">
-        <p className="text-muted text-sm sm:text-base">
-          Playing as <span className="text-body font-semibold">{playerName}</span>
-        </p>
-        {currentRound && game.status === 'active' && (
-          <div className="flex flex-wrap items-center justify-center gap-3 text-sm sm:text-base text-muted">
-            <span>
-              Round {currentRound.round_number} of {game.rounds_count}
-            </span>
-            {roundStillTiming && <span className={TIMER_BADGE}>{timeLeft}s</span>}
+        <div className="text-center space-y-2">
+          <p className="text-muted text-sm sm:text-base">
+            Playing as <span className="text-body font-semibold">{playerName}</span>
+          </p>
+          {currentRound && game.status === 'active' && (
+            <div className="flex flex-wrap items-center justify-center gap-3 text-sm sm:text-base text-muted">
+              <span>
+                Round {currentRound.round_number} of {game.rounds_count}
+              </span>
+              {roundStillTiming && <span className={TIMER_BADGE}>{timeLeft}s</span>}
+            </div>
+          )}
+        </div>
+
+        {screen === 'waiting' && (
+          <div className="glass-card-strong p-8 sm:p-10 text-center space-y-3">
+            <p className="text-xl sm:text-2xl font-bold text-body">
+              {currentRound?.status === 'finished' && game.status === 'active'
+                ? isLastRound
+                  ? 'Wrapping up…'
+                  : 'Starting next question…'
+                : 'Get ready…'}
+            </p>
+            <p className="text-muted text-base">
+              {currentRound?.status === 'finished' && game.status === 'active' && !isLastRound
+                ? 'Hang tight — the next round is loading'
+                : 'Waiting for the next question'}
+            </p>
           </div>
         )}
-      </div>
 
-      {screen === 'waiting' && (
-        <div className="glass-card-strong p-8 sm:p-10 text-center space-y-3">
-          <p className="text-xl sm:text-2xl font-bold text-body">
-            {currentRound?.status === 'finished' && game.status === 'active'
-              ? isLastRound
-                ? 'Wrapping up…'
-                : 'Starting next question…'
-              : 'Get ready…'}
-          </p>
-          <p className="text-muted text-base">
-            {currentRound?.status === 'finished' && game.status === 'active' && !isLastRound
-              ? 'Hang tight — the next round is loading'
-              : 'Waiting for the next question'}
-          </p>
-        </div>
-      )}
-
-      {screen === 'active' && metadata && (
-        <div className="glass-card-strong p-6 sm:p-8 space-y-6">
-          <p className="text-xl sm:text-2xl font-bold text-body leading-snug text-center sm:text-left">
-            {metadata.question}
-          </p>
-          <div className="grid gap-3 sm:gap-4">
-            {metadata.choices.map((choice, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => submitAnswer(i)}
-                disabled={submitting || readOnly}
-                className="rounded-2xl border-2 border-[var(--border-strong)] px-5 py-4 sm:py-5 min-h-[3.25rem] text-left text-base sm:text-lg font-medium hover:border-[var(--primary)] hover:bg-rose-500/5 active:scale-[0.98] active:border-[var(--primary)] transition-transform transition-colors flex items-center gap-3 disabled:opacity-50 touch-manipulation select-none"
-              >
-                <span className={CHOICE_BADGE}>{formatTriviaChoiceLabel(i)}</span>
-                <span className="flex-1">{choice}</span>
-                {submittingChoice === i && <span className="text-muted text-sm shrink-0">Submitting…</span>}
-              </button>
-            ))}
+        {screen === 'active' && metadata && (
+          <div className="glass-card-strong p-6 sm:p-8 space-y-6">
+            <p className="text-xl sm:text-2xl font-bold text-body leading-snug text-center sm:text-left">
+              {metadata.question}
+            </p>
+            <div className="grid gap-3 sm:gap-4">
+              {metadata.choices.map((choice, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => submitAnswer(i)}
+                  disabled={submitting || readOnly}
+                  className="rounded-2xl border-2 border-[var(--border-strong)] px-5 py-4 sm:py-5 min-h-[3.25rem] text-left text-base sm:text-lg font-medium hover:border-[var(--primary)] hover:bg-rose-500/5 active:scale-[0.98] active:border-[var(--primary)] transition-transform transition-colors flex items-center gap-3 disabled:opacity-50 touch-manipulation select-none"
+                >
+                  <span className={CHOICE_BADGE}>{formatTriviaChoiceLabel(i)}</span>
+                  <span className="flex-1">{choice}</span>
+                  {submittingChoice === i && <span className="text-muted text-sm shrink-0">Submitting…</span>}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {(screen === 'locked' || screen === 'revealed') && metadata && currentRound && (
-        <div className="glass-card-strong p-6 sm:p-8 space-y-4 text-center">
-          {myAnswer || lastResult ? (
-            <>
-              <p className={`text-2xl sm:text-3xl font-black ${correct ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted'}`}>
-                {correct ? 'Correct!' : 'Not quite…'}
+        {(screen === 'locked' || screen === 'revealed') && metadata && currentRound && (
+          <div className="glass-card-strong p-6 sm:p-8 space-y-4 text-center">
+            {myAnswer || lastResult ? (
+              <>
+                <p
+                  className={`text-2xl sm:text-3xl font-black ${correct ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted'}`}
+                >
+                  {correct ? 'Correct!' : 'Not quite…'}
+                </p>
+                <p className="text-lg text-muted">+{points} points</p>
+              </>
+            ) : (
+              <p className="text-xl font-bold text-body">Time&apos;s up — no answer submitted</p>
+            )}
+            {showCorrectAnswer && (
+              <p className="text-base sm:text-lg text-body pt-2">
+                Answer:{' '}
+                <span className="font-semibold">
+                  {formatTriviaChoiceLabel(metadata.correct_index)}. {metadata.choices[metadata.correct_index]}
+                </span>
               </p>
-              <p className="text-lg text-muted">+{points} points</p>
-            </>
-          ) : (
-            <p className="text-xl font-bold text-body">Time&apos;s up — no answer submitted</p>
-          )}
-          {showCorrectAnswer && (
-            <p className="text-base sm:text-lg text-body pt-2">
-              Answer:{' '}
-              <span className="font-semibold">
-                {formatTriviaChoiceLabel(metadata.correct_index)}. {metadata.choices[metadata.correct_index]}
-              </span>
-            </p>
-          )}
-          {waitingOnTimer && (myAnswer || lastResult) && (
-            <p className={`${COUNTDOWN_TEXT} text-sm sm:text-base`}>
-              Answer locked — results in {timeLeft}s
-            </p>
-          )}
-          {showCorrectAnswer && game.status === 'active' && inRevealCountdown && revealCountdown > 0 && (
-            <p className={`${COUNTDOWN_TEXT} pt-2`}>
-              {isLastRound
-                ? `Final results in ${revealCountdown}s…`
-                : `Next question in ${revealCountdown}s…`}
-            </p>
-          )}
-          {showCorrectAnswer && game.status === 'active' && revealCountdown <= 0 && (
-            <p className={`${COUNTDOWN_TEXT} pt-2`}>
-              {isLastRound ? 'Showing final results…' : 'Starting next question…'}
-            </p>
-          )}
-        </div>
-      )}
-
+            )}
+            {waitingOnTimer && (myAnswer || lastResult) && (
+              <p className={`${COUNTDOWN_TEXT} text-sm sm:text-base`}>Answer locked — results in {timeLeft}s</p>
+            )}
+            {showCorrectAnswer && game.status === 'active' && inRevealCountdown && revealCountdown > 0 && (
+              <p className={`${COUNTDOWN_TEXT} pt-2`}>
+                {isLastRound ? `Final results in ${revealCountdown}s…` : `Next question in ${revealCountdown}s…`}
+              </p>
+            )}
+            {showCorrectAnswer && game.status === 'active' && revealCountdown <= 0 && (
+              <p className={`${COUNTDOWN_TEXT} pt-2`}>
+                {isLastRound ? 'Showing final results…' : 'Starting next question…'}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </LiveLeaderboardLayout>
   )

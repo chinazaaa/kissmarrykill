@@ -6,13 +6,7 @@ import { dedupeWstPool, mergeWstPoolEntry } from '@/lib/who-said-this'
 import { useToast } from '@/components/ui/Toast'
 import type { WstQuotePoolEntry } from '@/types'
 
-export function useWstQuotePool({
-  gameCode,
-  myPlayerId,
-}: {
-  gameCode: string
-  myPlayerId: string | null
-}) {
+export function useWstQuotePool({ gameCode, myPlayerId }: { gameCode: string; myPlayerId: string | null }) {
   const toast = useToast()
   const [wstPool, setWstPool] = useState<WstQuotePoolEntry[]>([])
   const [quoteInput, setQuoteInput] = useState('')
@@ -99,9 +93,19 @@ export function useWstQuotePool({
   }
 
   return {
-    wstPool, quoteInput, quoteAuthorParticipantId, quoteSubmitting, editingQuoteId,
-    setWstPool, setQuoteInput, setQuoteAuthorParticipantId, setEditingQuoteId,
-    handleSubmitPoolQuote, handleDeletePoolQuote, fetchWstPool, resetWstQuoteState,
+    wstPool,
+    quoteInput,
+    quoteAuthorParticipantId,
+    quoteSubmitting,
+    editingQuoteId,
+    setWstPool,
+    setQuoteInput,
+    setQuoteAuthorParticipantId,
+    setEditingQuoteId,
+    handleSubmitPoolQuote,
+    handleDeletePoolQuote,
+    fetchWstPool,
+    resetWstQuoteState,
   }
 }
 

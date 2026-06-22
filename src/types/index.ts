@@ -36,10 +36,7 @@ export type GameType =
 export type NpatPhase = 'letter_pick' | 'writing' | 'marking' | 'host_review' | 'reveal'
 export type NpatCategory = 'name' | 'animal' | 'place' | 'thing' | 'food'
 
-export type NpatHostOverrides = Record<
-  string,
-  Partial<Record<NpatCategory, boolean>>
->
+export type NpatHostOverrides = Record<string, Partial<Record<NpatCategory, boolean>>>
 
 export interface NpatMetadata {
   letter: string | null

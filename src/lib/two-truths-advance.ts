@@ -24,10 +24,7 @@ export type TtlAdvanceResult = {
 }
 
 async function countPlayers(supabase: SupabaseClient, gameId: string): Promise<number> {
-  const { count } = await supabase
-    .from('players')
-    .select('id', { count: 'exact', head: true })
-    .eq('game_id', gameId)
+  const { count } = await supabase.from('players').select('id', { count: 'exact', head: true }).eq('game_id', gameId)
   return count ?? 0
 }
 
@@ -78,10 +75,7 @@ async function endActiveRound(supabase: SupabaseClient, roundId: string): Promis
 }
 
 async function syncGamePointer(supabase: SupabaseClient, gameId: string, roundNumber: number): Promise<boolean> {
-  const { error } = await supabase
-    .from('games')
-    .update({ current_round_number: roundNumber })
-    .eq('id', gameId)
+  const { error } = await supabase.from('games').update({ current_round_number: roundNumber }).eq('id', gameId)
   return !error
 }
 
@@ -108,11 +102,7 @@ export async function syncTwoTruthsGameState(
   if (game.status === 'finished') return { ok: true, code: 'already_done' }
   if (game.status !== 'active') return { ok: false, code: 'not_active' }
 
-  const { data: rounds } = await supabase
-    .from('rounds')
-    .select('*')
-    .eq('game_id', gameId)
-    .order('round_number')
+  const { data: rounds } = await supabase.from('rounds').select('*').eq('game_id', gameId).order('round_number')
 
   const roundList = rounds ?? []
   const activeRound = roundList.find((r) => r.status === 'active') ?? null

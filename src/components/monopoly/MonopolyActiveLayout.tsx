@@ -11,11 +11,7 @@ import { MonopolyBoardCenter } from '@/components/monopoly/MonopolyBoardCenter'
 import { MonopolyGameTimerBar } from '@/components/monopoly/MonopolyGameTimerBar'
 import { MonopolyManagePanel, MonopolyTurnModals } from '@/components/monopoly/MonopolyGamePanels'
 import { getMonopolyBuildActionCount } from '@/components/monopoly/monopoly-manage-utils'
-import {
-  MonopolyCashBadge,
-  MonopolyStatusBanner,
-  MonopolyTurnStrip,
-} from '@/components/monopoly/MonopolyChrome'
+import { MonopolyCashBadge, MonopolyStatusBanner, MonopolyTurnStrip } from '@/components/monopoly/MonopolyChrome'
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import { formatCashMessageForPlayer } from '@/lib/monopoly-cash-messages'
 import { formatTradeMessageForPlayer } from '@/lib/monopoly-trade-messages'
@@ -57,9 +53,7 @@ export function MonopolyActiveLayout({
   const [panel, setPanel] = useState<SidePanel>(spectator ? 'players' : 'build')
 
   const incomingTrade =
-    board.pending_trade && board.pending_trade.to_player_id === myPlayerId
-      ? board.pending_trade
-      : null
+    board.pending_trade && board.pending_trade.to_player_id === myPlayerId ? board.pending_trade : null
 
   useEffect(() => {
     if (incomingTrade) setPanel('build')
@@ -69,21 +63,18 @@ export function MonopolyActiveLayout({
   const turnPlayerId = currentPlayerId(board)
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const isMyTurn = turnPlayerId === myPlayerId && !myState?.bankrupt
-  const auctionBidderId =
-    board.phase === 'auction' ? board.auction_state?.current_bidder_id ?? null : null
+  const auctionBidderId = board.phase === 'auction' ? (board.auction_state?.current_bidder_id ?? null) : null
   const isMyAuctionTurn = auctionBidderId === myPlayerId
-  const amActor = isMyTurn || isMyAuctionTurn || (board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId)
+  const amActor =
+    isMyTurn || isMyAuctionTurn || (board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId)
   const currentOwner =
-    myState != null
-      ? players.find((p) => p.id === owners[String(myState.position)])?.name ?? null
-      : null
+    myState != null ? (players.find((p) => p.id === owners[String(myState.position)])?.name ?? null) : null
   const ownershipKey = Object.entries(owners)
     .sort(([a], [b]) => Number(a) - Number(b))
     .map(([index, playerId]) => `${index}:${playerId}`)
     .join('|')
 
-  const buildActions =
-    board && myPlayerId ? getMonopolyBuildActionCount(board, myPlayerId) : 0
+  const buildActions = board && myPlayerId ? getMonopolyBuildActionCount(board, myPlayerId) : 0
 
   const { secondsLeft, hasTimer, urgent } = useMonopolyTurnTimer(gameCode, board, true)
 
@@ -94,10 +85,8 @@ export function MonopolyActiveLayout({
 
   const personalTradeMessage =
     board.last_trade_event &&
-    (board.last_trade_event.outcome === 'declined' ||
-      board.last_trade_event.outcome === 'accepted') &&
-    (board.last_trade_event.from_player_id === myPlayerId ||
-      board.last_trade_event.to_player_id === myPlayerId)
+    (board.last_trade_event.outcome === 'declined' || board.last_trade_event.outcome === 'accepted') &&
+    (board.last_trade_event.from_player_id === myPlayerId || board.last_trade_event.to_player_id === myPlayerId)
       ? formatTradeMessageForPlayer(board.last_trade_event, myPlayerId, players)
       : null
 
@@ -160,157 +149,157 @@ export function MonopolyActiveLayout({
   return (
     <>
       <div className="space-y-2 sm:space-y-3">
-      <MonopolyGameTimerBar gameCode={gameCode} game={game} />
+        <MonopolyGameTimerBar gameCode={gameCode} game={game} />
 
-      <div className={`grid gap-2 sm:gap-3 items-stretch ${spectator ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
-        <div className={spectator ? undefined : 'col-span-2 sm:col-span-1 min-w-0'}>
-          <MonopolyTurnStrip
-            compact
-            turnName={turnPlayer?.name ?? '—'}
-            isMyTurn={spectator ? false : isMyTurn}
-            isMyAuctionTurn={spectator ? false : isMyAuctionTurn}
-            phase={board.phase}
-            secondsLeft={secondsLeft}
-            hasTimer={hasTimer && !spectator && amActor}
-            urgent={urgent}
-          />
+        <div
+          className={`grid gap-2 sm:gap-3 items-stretch ${spectator ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}
+        >
+          <div className={spectator ? undefined : 'col-span-2 sm:col-span-1 min-w-0'}>
+            <MonopolyTurnStrip
+              compact
+              turnName={turnPlayer?.name ?? '—'}
+              isMyTurn={spectator ? false : isMyTurn}
+              isMyAuctionTurn={spectator ? false : isMyAuctionTurn}
+              phase={board.phase}
+              secondsLeft={secondsLeft}
+              hasTimer={hasTimer && !spectator && amActor}
+              urgent={urgent}
+            />
+          </div>
+          {!spectator && myState ? (
+            <MonopolyCurrentSpace
+              compact
+              index={myState.position}
+              ownerName={currentOwner}
+              propertyOwners={board.property_owners}
+              propertyBuildings={board.property_buildings}
+              mortgagedProperties={board.mortgaged_properties}
+              lastDiceTotal={board.last_dice?.total ?? 2}
+            />
+          ) : !spectator ? (
+            <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
+          ) : null}
+          {!spectator && myState ? (
+            <MonopolyCashBadge compact amount={myState.cash} label="Cash" bankrupt={myState.bankrupt} />
+          ) : !spectator ? (
+            <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
+          ) : null}
         </div>
-        {!spectator && myState ? (
-          <MonopolyCurrentSpace
-            compact
-            index={myState.position}
-            ownerName={currentOwner}
-            propertyOwners={board.property_owners}
-            propertyBuildings={board.property_buildings}
-            mortgagedProperties={board.mortgaged_properties}
-            lastDiceTotal={board.last_dice?.total ?? 2}
-          />
-        ) : !spectator ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
-        ) : null}
-        {!spectator && myState ? (
-          <MonopolyCashBadge compact amount={myState.cash} label="Cash" bankrupt={myState.bankrupt} />
-        ) : !spectator ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-inset-bg)]/50 min-h-[3.25rem]" />
-        ) : null}
-      </div>
 
-      {!spectator && incomingTrade && panel !== 'build' && (
-        <button
-          type="button"
-          onClick={() => setPanel('build')}
-          className="w-full rounded-xl border border-[color-mix(in_srgb,var(--marry)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--marry)_10%,transparent)] px-4 py-2.5 text-sm font-semibold text-[var(--marry)] text-left"
-        >
-          🤝 Trade offer waiting — open Build &amp; trade to review
-        </button>
-      )}
+        {!spectator && incomingTrade && panel !== 'build' && (
+          <button
+            type="button"
+            onClick={() => setPanel('build')}
+            className="w-full rounded-xl border border-[color-mix(in_srgb,var(--marry)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--marry)_10%,transparent)] px-4 py-2.5 text-sm font-semibold text-[var(--marry)] text-left"
+          >
+            🤝 Trade offer waiting — open Build &amp; trade to review
+          </button>
+        )}
 
-      {!spectator && buildActions > 0 && panel !== 'build' && (
-        <button
-          type="button"
-          onClick={() => setPanel('build')}
-          className="w-full rounded-xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] px-4 py-2.5 text-sm font-semibold text-[var(--primary)] text-left"
-        >
-          🏠 You can build on your properties — open Build &amp; trade
-        </button>
-      )}
+        {!spectator && buildActions > 0 && panel !== 'build' && (
+          <button
+            type="button"
+            onClick={() => setPanel('build')}
+            className="w-full rounded-xl border border-[color-mix(in_srgb,var(--primary)_35%,var(--border-strong))] bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] px-4 py-2.5 text-sm font-semibold text-[var(--primary)] text-left"
+          >
+            🏠 You can build on your properties — open Build &amp; trade
+          </button>
+        )}
 
-      {!spectator && board.phase === 'raise_funds' && board.pending_debt?.player_id === myPlayerId && panel !== 'build' && (
-        <button
-          type="button"
-          onClick={() => setPanel('build')}
-          className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 text-left"
-        >
-          ⚠️ Raise cash — mortgage or sell buildings in Build &amp; trade
-        </button>
-      )}
+        {!spectator &&
+          board.phase === 'raise_funds' &&
+          board.pending_debt?.player_id === myPlayerId &&
+          panel !== 'build' && (
+            <button
+              type="button"
+              onClick={() => setPanel('build')}
+              className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 text-left"
+            >
+              ⚠️ Raise cash — mortgage or sell buildings in Build &amp; trade
+            </button>
+          )}
 
-      {showStatusBanner && (
-        <MonopolyStatusBanner message={bannerMessage!} isMyTurn={isMyTurn} />
-      )}
+        {showStatusBanner && <MonopolyStatusBanner message={bannerMessage!} isMyTurn={isMyTurn} />}
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,22rem)] lg:gap-5 lg:items-start">
-        <div className="min-w-0 space-y-3 lg:space-y-4 lg:sticky lg:top-4">
-          <MonopolyClassicBoard
-            key={ownershipKey}
-            states={states}
-            players={players}
-            propertyOwners={board.property_owners}
-            propertyBuildings={board.property_buildings}
-            mortgagedProperties={board.mortgaged_properties}
-            lastDiceTotal={board.last_dice?.total ?? 2}
-            highlightIndex={myState != null ? Number(myState.position) : null}
-            myPlayerId={myPlayerId}
-            center={
-              spectator ? (
-                <div className="flex flex-col items-center justify-center h-full gap-2 px-2 text-center">
-                  <MonopolyDiceRoll dice={board.last_dice} />
-                  <p className="text-[10px] uppercase tracking-widest text-faint">Watching live</p>
-                  {board.status_message ? (
-                    <p className="text-[11px] text-muted leading-snug line-clamp-4">{board.status_message}</p>
-                  ) : null}
-                </div>
-              ) : (
-                <MonopolyBoardCenter
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,22rem)] lg:gap-5 lg:items-start">
+          <div className="min-w-0 space-y-3 lg:space-y-4 lg:sticky lg:top-4">
+            <MonopolyClassicBoard
+              key={ownershipKey}
+              states={states}
+              players={players}
+              propertyOwners={board.property_owners}
+              propertyBuildings={board.property_buildings}
+              mortgagedProperties={board.mortgaged_properties}
+              lastDiceTotal={board.last_dice?.total ?? 2}
+              highlightIndex={myState != null ? Number(myState.position) : null}
+              myPlayerId={myPlayerId}
+              center={
+                spectator ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-2 px-2 text-center">
+                    <MonopolyDiceRoll dice={board.last_dice} />
+                    <p className="text-[10px] uppercase tracking-widest text-faint">Watching live</p>
+                    {board.status_message ? (
+                      <p className="text-[11px] text-muted leading-snug line-clamp-4">{board.status_message}</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <MonopolyBoardCenter
+                    board={board}
+                    myPlayerId={myPlayerId}
+                    myState={myState}
+                    players={players}
+                    acting={acting}
+                    postAction={postAction}
+                    colorBarClass={colorBarClass}
+                    layout="board"
+                  />
+                )
+              }
+            />
+          </div>
+
+          <div className="mt-4 lg:mt-0 space-y-3">
+            {panelTabs}
+
+            <div role="tabpanel" className="max-h-[min(52vh,28rem)] overflow-y-auto rounded-2xl">
+              {spectator && <p className="label-caps mb-3 px-1">Players</p>}
+              {panel === 'build' && !spectator ? (
+                <MonopolyManagePanel
                   board={board}
                   myPlayerId={myPlayerId}
                   myState={myState}
+                  states={states}
                   players={players}
                   acting={acting}
                   postAction={postAction}
-                  colorBarClass={colorBarClass}
-                  layout="board"
                 />
-              )
-            }
-          />
-        </div>
-
-        <div className="mt-4 lg:mt-0 space-y-3">
-          {panelTabs}
-
-          <div
-            role="tabpanel"
-            className="max-h-[min(52vh,28rem)] overflow-y-auto rounded-2xl"
-          >
-            {spectator && <p className="label-caps mb-3 px-1">Players</p>}
-            {panel === 'build' && !spectator ? (
-              <MonopolyManagePanel
-                board={board}
-                myPlayerId={myPlayerId}
-                myState={myState}
-                states={states}
-                players={players}
-                acting={acting}
-                postAction={postAction}
-              />
-            ) : (
-              <div className="glass-card p-4">
-                <p className="label-caps mb-3">All players</p>
-                <MonopolyPlayerList
-                  states={states}
-                  players={players}
-                  currentPlayerId={turnPlayerId}
-                  propertyOwners={owners}
-                  myPlayerId={myPlayerId}
-                />
-              </div>
-            )}
+              ) : (
+                <div className="glass-card p-4">
+                  <p className="label-caps mb-3">All players</p>
+                  <MonopolyPlayerList
+                    states={states}
+                    players={players}
+                    currentPlayerId={turnPlayerId}
+                    propertyOwners={owners}
+                    myPlayerId={myPlayerId}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-      </div>
 
       {!spectator && (
-      <MonopolyTurnModals
-        board={board}
-        myPlayerId={myPlayerId}
-        myState={myState}
-        players={players}
-        acting={acting}
-        postAction={postAction}
-        colorBarClass={colorBarClass}
-      />
+        <MonopolyTurnModals
+          board={board}
+          myPlayerId={myPlayerId}
+          myState={myState}
+          players={players}
+          acting={acting}
+          postAction={postAction}
+          colorBarClass={colorBarClass}
+        />
       )}
     </>
   )

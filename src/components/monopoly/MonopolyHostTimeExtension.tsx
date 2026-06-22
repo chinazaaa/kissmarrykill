@@ -71,9 +71,7 @@ export function MonopolyHostTimeExtension({
             )
           })}
         </div>
-        {remainingCapacity <= 0 && (
-          <p className="text-[11px] text-muted">Maximum game length reached.</p>
-        )}
+        {remainingCapacity <= 0 && <p className="text-[11px] text-muted">Maximum game length reached.</p>}
       </div>
     </div>
   )

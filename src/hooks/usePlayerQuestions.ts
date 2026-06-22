@@ -31,8 +31,19 @@ export function usePlayerQuestions() {
   }
 
   return {
-    pqWyrA, pqWyrB, pqTotText, pqMltText, pqSubmitting, pqList, pqOpen,
-    setPqWyrA, setPqWyrB, setPqTotText, setPqMltText, setPqOpen, setPqList,
+    pqWyrA,
+    pqWyrB,
+    pqTotText,
+    pqMltText,
+    pqSubmitting,
+    pqList,
+    pqOpen,
+    setPqWyrA,
+    setPqWyrB,
+    setPqTotText,
+    setPqMltText,
+    setPqOpen,
+    setPqList,
     setPqSubmitting,
     resetPlayerQuestionsState,
   }

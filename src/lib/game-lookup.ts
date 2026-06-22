@@ -7,11 +7,7 @@ export async function fetchGameTypeByCode(code: string): Promise<GameType | null
   const gameCode = code.trim().toUpperCase()
   if (gameCode.length < 4) return null
 
-  const { data } = await getSupabaseAdmin()
-    .from('games')
-    .select('game_type')
-    .eq('id', gameCode)
-    .maybeSingle()
+  const { data } = await getSupabaseAdmin().from('games').select('game_type').eq('id', gameCode).maybeSingle()
 
   return data?.game_type ? parseGameType(data.game_type) : null
 }

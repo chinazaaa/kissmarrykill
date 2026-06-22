@@ -1,12 +1,7 @@
 import type { PlayerGender } from '@/types'
 import { parsePlayerGenderFromDb } from '@/lib/participants'
 import { setPollHostMode } from '@/lib/poll-host-mode'
-import {
-  clearPlayerSession,
-  getPlayerSession,
-  normalizeResumeToken,
-  setPlayerSession,
-} from '@/lib/utils'
+import { clearPlayerSession, getPlayerSession, normalizeResumeToken, setPlayerSession } from '@/lib/utils'
 
 export const PLAYER_RESUME_QUERY = 'player'
 

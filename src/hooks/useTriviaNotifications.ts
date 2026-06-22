@@ -61,12 +61,7 @@ export function useTriviaNotifications({
       revealSoundRoundIdRef.current = null
     }
 
-    if (
-      showCorrectAnswer &&
-      !prevShowCorrectAnswer &&
-      roundId &&
-      revealSoundRoundIdRef.current !== roundId
-    ) {
+    if (showCorrectAnswer && !prevShowCorrectAnswer && roundId && revealSoundRoundIdRef.current !== roundId) {
       revealSoundRoundIdRef.current = roundId
       playRoundEndSound()
       if (correct === true) playCorrectAnswerSound()

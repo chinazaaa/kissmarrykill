@@ -79,8 +79,10 @@ export function usePhotoUpload({
   }
 
   return {
-    photoUploading, photoInputRef,
-    handlePhotoUpload, handlePhotoDelete,
+    photoUploading,
+    photoInputRef,
+    handlePhotoUpload,
+    handlePhotoDelete,
   }
 }
 

@@ -60,7 +60,9 @@ export function HomePage() {
 
             <div className="flex items-center gap-2">
               <div className="divider-soft" />
-              <span className="text-faint text-[10px] sm:text-xs font-medium tracking-widest uppercase shrink-0">or join</span>
+              <span className="text-faint text-[10px] sm:text-xs font-medium tracking-widest uppercase shrink-0">
+                or join
+              </span>
               <div className="divider-soft" />
             </div>
 
@@ -74,7 +76,12 @@ export function HomePage() {
                 aria-label="Game room code"
                 className="input-field flex-1 text-center text-lg sm:text-xl tracking-[0.2em] font-mono font-bold py-2.5"
               />
-              <button type="button" onClick={join} disabled={code.length < 4} className="btn-secondary shrink-0 px-4 sm:px-5">
+              <button
+                type="button"
+                onClick={join}
+                disabled={code.length < 4}
+                className="btn-secondary shrink-0 px-4 sm:px-5"
+              >
                 Join
               </button>
             </div>

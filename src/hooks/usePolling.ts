@@ -24,10 +24,7 @@ export function isRetriablePollError(error: unknown): boolean {
   }
   const msg = (e.message ?? '').toLowerCase()
   return (
-    msg.includes('timeout') ||
-    msg.includes('schema cache') ||
-    msg.includes('fetch failed') ||
-    msg.includes('network')
+    msg.includes('timeout') || msg.includes('schema cache') || msg.includes('fetch failed') || msg.includes('network')
   )
 }
 

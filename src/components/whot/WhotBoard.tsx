@@ -54,7 +54,9 @@ export function WhotPlayingCard({
         'relative flex flex-col items-center justify-center gap-0.5 rounded-xl border-2 bg-gradient-to-br font-black transition-all overflow-hidden',
         sizeStyles.box,
         SHAPE_COLORS[card.shape],
-        onClick && playable !== false ? 'cursor-pointer hover:scale-105 hover:shadow-lg active:scale-95 ring-2 ring-[var(--primary)]/70' : '',
+        onClick && playable !== false
+          ? 'cursor-pointer hover:scale-105 hover:shadow-lg active:scale-95 ring-2 ring-[var(--primary)]/70'
+          : '',
         onClick && playable === false ? 'opacity-40 cursor-not-allowed' : '',
         selected ? 'ring-2 ring-[var(--primary)] scale-105' : '',
         !onClick ? 'cursor-default' : '',
@@ -140,9 +142,7 @@ export function WhotTable({
             </span>
           )}
         </div>
-        <span className="text-muted ml-2 shrink-0 tabular-nums">
-          {watching ? '👀' : `${count} 🃏`}
-        </span>
+        <span className="text-muted ml-2 shrink-0 tabular-nums">{watching ? '👀' : `${count} 🃏`}</span>
       </div>
     )
   }

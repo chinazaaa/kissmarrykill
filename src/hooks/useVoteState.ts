@@ -18,11 +18,7 @@ import {
   assignPairSlot,
 } from '@/lib/game-types'
 import { isMltImportGame } from '@/lib/mlt'
-import {
-  getCustomSlotKeys,
-  isCustomAssignmentValid,
-  customAssignmentMode,
-} from '@/lib/custom-game'
+import { getCustomSlotKeys, isCustomAssignmentValid, customAssignmentMode } from '@/lib/custom-game'
 import { panUsedNumbersFromVotes, panRoundRevealed } from '@/lib/pick-a-number'
 import { playVoteSubmittedSound, playConfessionSound } from '@/lib/sounds'
 import { useToast } from '@/components/ui/Toast'
@@ -56,8 +52,17 @@ export interface VoteStateDeps {
 
 export function useVoteState(deps: VoteStateDeps) {
   const {
-    gameCode, game, currentRound, myPlayerId, myPlayerGender, isViewer, view,
-    players, participants, autoSubmitRefs, patchCurrentRound,
+    gameCode,
+    game,
+    currentRound,
+    myPlayerId,
+    myPlayerGender,
+    isViewer,
+    view,
+    players,
+    participants,
+    autoSubmitRefs,
+    patchCurrentRound,
   } = deps
   const toast = useToast()
 
@@ -182,33 +187,36 @@ export function useVoteState(deps: VoteStateDeps) {
         return
       }
     }
-    const voteBody = isBinaryChoiceGame(submitGameType) || isNeverHaveIEver(submitGameType)
-      ? { wyrChoice }
-      : isPickANumber(submitGameType)
-        ? { pickedNumber }
-        : isMostLikelyTo(submitGameType)
-        ? isMltImportGame(game!)
-          ? { targetParticipantId: mltTargetPlayerId }
-          : { targetPlayerId: mltTargetPlayerId }
-        : isWhoSaidThis(submitGameType)
-          ? currentRound?.anime_metadata
-            ? { animeChoice: autoSubmitRefs.animeChoiceRef.current }
-            : { targetParticipantId: mltTargetPlayerId }
-          : isCustomGame(submitGameType)
-            ? { customAssignments }
-            : isBinaryPeoplePollGame(submitGameType)
-              ? {
-                  pairAssignments: Object.fromEntries(
-                    roundIds
-                      .map((id) => [id, pairAssignment[id]] as const)
-                      .filter((entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill')
-                  ),
-                }
-              : {
-                  kiss: assignment.kiss,
-                  marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
-                  kill: assignment.kill,
-                }
+    const voteBody =
+      isBinaryChoiceGame(submitGameType) || isNeverHaveIEver(submitGameType)
+        ? { wyrChoice }
+        : isPickANumber(submitGameType)
+          ? { pickedNumber }
+          : isMostLikelyTo(submitGameType)
+            ? isMltImportGame(game!)
+              ? { targetParticipantId: mltTargetPlayerId }
+              : { targetPlayerId: mltTargetPlayerId }
+            : isWhoSaidThis(submitGameType)
+              ? currentRound?.anime_metadata
+                ? { animeChoice: autoSubmitRefs.animeChoiceRef.current }
+                : { targetParticipantId: mltTargetPlayerId }
+              : isCustomGame(submitGameType)
+                ? { customAssignments }
+                : isBinaryPeoplePollGame(submitGameType)
+                  ? {
+                      pairAssignments: Object.fromEntries(
+                        roundIds
+                          .map((id) => [id, pairAssignment[id]] as const)
+                          .filter(
+                            (entry): entry is [string, 'kiss' | 'kill'] => entry[1] === 'kiss' || entry[1] === 'kill'
+                          )
+                      ),
+                    }
+                  : {
+                      kiss: assignment.kiss,
+                      marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
+                      kill: assignment.kill,
+                    }
     try {
       const res = await fetch('/api/votes', {
         method: 'POST',
@@ -263,13 +271,31 @@ export function useVoteState(deps: VoteStateDeps) {
   }
 
   return {
-    assignment, pairAssignment, wyrChoice, pickedNumber, panUsedNumbers,
-    mltTargetPlayerId, animeChoice, customAssignments, submitted,
-    confessionText, confessionSent,
-    setAssignment, setPairAssignment, setWyrChoice, setPickedNumber,
-    setMltTargetPlayerId, setAnimeChoice, setCustomAssignments,
-    setSubmitted, setConfessionText, setPanUsedNumbers,
-    assign, handleSubmit, sendConfession, resetVoteState,
+    assignment,
+    pairAssignment,
+    wyrChoice,
+    pickedNumber,
+    panUsedNumbers,
+    mltTargetPlayerId,
+    animeChoice,
+    customAssignments,
+    submitted,
+    confessionText,
+    confessionSent,
+    setAssignment,
+    setPairAssignment,
+    setWyrChoice,
+    setPickedNumber,
+    setMltTargetPlayerId,
+    setAnimeChoice,
+    setCustomAssignments,
+    setSubmitted,
+    setConfessionText,
+    setPanUsedNumbers,
+    assign,
+    handleSubmit,
+    sendConfession,
+    resetVoteState,
   }
 }
 

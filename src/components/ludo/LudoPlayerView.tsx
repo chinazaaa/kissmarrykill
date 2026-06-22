@@ -37,7 +37,15 @@ import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/
 
 const ROLL_MIN_MS = 700
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'game_started_waiting'
+  | 'game_ended'
+  | 'waiting'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -132,9 +140,21 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   useEffect(() => {
     const channel = supabase
       .channel(`ludo-player-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, scheduleLoad)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_sessions', filter: `game_id=eq.${gameCode}` }, scheduleLoad)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ludo_player_state', filter: `game_id=eq.${gameCode}` }, scheduleLoad)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        scheduleLoad
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ludo_sessions', filter: `game_id=eq.${gameCode}` },
+        scheduleLoad
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ludo_player_state', filter: `game_id=eq.${gameCode}` },
+        scheduleLoad
+      )
       .subscribe()
     return () => {
       if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
@@ -222,11 +242,7 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   const isViewer = !!(game && activePlayer && playerIsViewer(activePlayer, game))
   const myName = activePlayer?.name ?? ''
 
-  const { secondsLeft, hasTimer, urgent } = useLudoTurnTimer(
-    gameCode,
-    session,
-    game?.status === 'active' && !isViewer
-  )
+  const { secondsLeft, hasTimer, urgent } = useLudoTurnTimer(gameCode, session, game?.status === 'active' && !isViewer)
 
   useLudoNotifications({
     game,
@@ -254,7 +270,12 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
       <GameJoinLobbyShell
         gameCode={gameCode}
         header={
-          <GameJoinHeader emoji={cfg.headerEmoji} title={game?.title ?? cfg.label} gameType="ludo" subtitle={cfg.tagline} />
+          <GameJoinHeader
+            emoji={cfg.headerEmoji}
+            title={game?.title ?? cfg.label}
+            gameType="ludo"
+            subtitle={cfg.tagline}
+          />
         }
       >
         <NameJoinForm
@@ -316,9 +337,7 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
         ) : (
           <LudoCard className="p-6 text-center space-y-3">
             <p className="text-4xl">{winner ? '🏆' : '🏁'}</p>
-            <p className="text-2xl font-black">
-              {winner ? `${winner.name} wins!` : 'Game ended early'}
-            </p>
+            <p className="text-2xl font-black">{winner ? `${winner.name} wins!` : 'Game ended early'}</p>
             <p className="text-sm text-muted">Waiting for the host to start a new round…</p>
           </LudoCard>
         )}

@@ -282,7 +282,11 @@ export default function GameHistoryPage() {
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
           supabase.from('codewords_boards').select('*').eq('game_id', gameCode).maybeSingle(),
-          supabase.from('codewords_guesses').select('*').eq('game_id', gameCode).order('created_at', { ascending: true }),
+          supabase
+            .from('codewords_guesses')
+            .select('*')
+            .eq('game_id', gameCode)
+            .order('created_at', { ascending: true }),
         ])
         setGame(gameData)
         setPlayers(plrs ?? [])
@@ -303,7 +307,11 @@ export default function GameHistoryPage() {
         const [{ data: plrs }, { data: boardData }, { data: stateRows }] = await Promise.all([
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('monopoly_boards').select(MONOPOLY_BOARD_SELECT).eq('game_id', gameCode).maybeSingle(),
-          supabase.from('monopoly_player_state').select(MONOPOLY_PLAYER_STATE_SELECT).eq('game_id', gameCode).order('player_order'),
+          supabase
+            .from('monopoly_player_state')
+            .select(MONOPOLY_PLAYER_STATE_SELECT)
+            .eq('game_id', gameCode)
+            .order('player_order'),
         ])
         setGame(gameData)
         setPlayers(plrs ?? [])
@@ -323,7 +331,11 @@ export default function GameHistoryPage() {
         const [{ data: plrs }, { data: sessionData }, { data: scoreRows }] = await Promise.all([
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('yahtzee_sessions').select(YAHTZEE_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
-          supabase.from('yahtzee_player_scores').select(YAHTZEE_PLAYER_SCORES_SELECT).eq('game_id', gameCode).order('player_order'),
+          supabase
+            .from('yahtzee_player_scores')
+            .select(YAHTZEE_PLAYER_SCORES_SELECT)
+            .eq('game_id', gameCode)
+            .order('player_order'),
         ])
         setGame(gameData)
         setPlayers(plrs ?? [])
@@ -343,7 +355,11 @@ export default function GameHistoryPage() {
         const [{ data: plrs }, { data: sessionData }, { data: handRows }] = await Promise.all([
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('whot_sessions').select(WHOT_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
-          supabase.from('whot_player_hands').select(WHOT_PLAYER_HANDS_SELECT).eq('game_id', gameCode).order('player_order'),
+          supabase
+            .from('whot_player_hands')
+            .select(WHOT_PLAYER_HANDS_SELECT)
+            .eq('game_id', gameCode)
+            .order('player_order'),
         ])
         setGame(gameData)
         setPlayers(plrs ?? [])
@@ -363,7 +379,11 @@ export default function GameHistoryPage() {
         const [{ data: plrs }, { data: sessionData }, { data: stateRows }] = await Promise.all([
           supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
           supabase.from('ludo_sessions').select(LUDO_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
-          supabase.from('ludo_player_state').select(LUDO_PLAYER_STATE_SELECT).eq('game_id', gameCode).order('player_order'),
+          supabase
+            .from('ludo_player_state')
+            .select(LUDO_PLAYER_STATE_SELECT)
+            .eq('game_id', gameCode)
+            .order('player_order'),
         ])
         setGame(gameData)
         setPlayers(plrs ?? [])
@@ -902,7 +922,6 @@ export default function GameHistoryPage() {
           </div>
         </section>
       )}
-
     </HistoryPageShell>
   )
 }

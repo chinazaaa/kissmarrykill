@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   const typedBoard = board as CodewordsBoard
   if (typedBoard.winner) return NextResponse.json({ error: 'Game is over' }, { status: 400 })
   if (typedBoard.current_turn !== role.team) {
-    return NextResponse.json({ error: 'Not your team\'s turn' }, { status: 400 })
+    return NextResponse.json({ error: "Not your team's turn" }, { status: 400 })
   }
   if (!typedBoard.current_clue_word) {
     return NextResponse.json({ error: 'No active clue to end' }, { status: 400 })

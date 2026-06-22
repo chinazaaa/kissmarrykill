@@ -58,7 +58,9 @@ export function TwoTruthsSessionSummary({
       </div>
 
       {game.status === 'waiting' && statements.length === 0 ? (
-        <div className="glass-card p-8 text-center text-muted">This session never started — no statements submitted.</div>
+        <div className="glass-card p-8 text-center text-muted">
+          This session never started — no statements submitted.
+        </div>
       ) : leaderboard.length > 0 ? (
         <TwoTruthsShareBlock game={game}>
           <PaginatedLeaderboard

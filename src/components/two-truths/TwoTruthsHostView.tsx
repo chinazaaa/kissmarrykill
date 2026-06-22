@@ -96,21 +96,33 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   useEffect(() => {
     const channel = supabase
       .channel(`ttl-host-${gameCode}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (p) => {
-        setGame(p.new as Game)
-        void load()
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        (p) => {
+          setGame(p.new as Game)
+          void load()
+        }
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ttl_statements', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ttl_statements', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ttl_guesses', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
+        () => load()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ttl_guesses', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
       .subscribe()
 
@@ -259,184 +271,188 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
 
   return (
     <HostPageShell gameCode={gameCode} {...layout}>
-        <HostGameHeader game={game} />
+      <HostGameHeader game={game} />
 
-        {game.status === 'waiting' && (
-          <div className="glass-card p-4 space-y-3">
-            <p className="label-caps">Host mode</p>
-            <div className="grid grid-cols-2 gap-2">
+      {game.status === 'waiting' && (
+        <div className="glass-card p-4 space-y-3">
+          <p className="label-caps">Host mode</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => changeHostMode('spectator')}
+              className={[
+                'rounded-xl border-2 px-3 py-3 text-left text-sm',
+                hostMode === 'spectator'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block">Host only</span>
+              <span className="text-faint text-xs">Run the game from Manage tab</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeHostMode('player')}
+              className={[
+                'rounded-xl border-2 px-3 py-3 text-left text-sm',
+                hostMode === 'player'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block">Host + play</span>
+              <span className="text-faint text-xs">Play tab + Manage tab</span>
+            </button>
+          </div>
+          {hostMode === 'player' && !hostPlayerId && (
+            <div className="flex items-center gap-2">
+              <div className="w-36 sm:w-44 shrink-0">
+                <input
+                  type="text"
+                  value={hostJoinName}
+                  onChange={(e) => setHostJoinName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                  placeholder="Your name"
+                  className="input-field w-full"
+                  maxLength={40}
+                />
+              </div>
               <button
                 type="button"
-                onClick={() => changeHostMode('spectator')}
-                className={[
-                  'rounded-xl border-2 px-3 py-3 text-left text-sm',
-                  hostMode === 'spectator'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
+                onClick={hostJoinGame}
+                disabled={!hostJoinName.trim() || hostJoining}
+                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
               >
-                <span className="font-bold block">Host only</span>
-                <span className="text-faint text-xs">Run the game from Manage tab</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => changeHostMode('player')}
-                className={[
-                  'rounded-xl border-2 px-3 py-3 text-left text-sm',
-                  hostMode === 'player'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
-              >
-                <span className="font-bold block">Host + play</span>
-                <span className="text-faint text-xs">Play tab + Manage tab</span>
+                {hostJoining ? 'Joining…' : 'Join'}
               </button>
             </div>
-            {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex items-center gap-2">
-                <div className="w-36 sm:w-44 shrink-0">
-                  <input
-                    type="text"
-                    value={hostJoinName}
-                    onChange={(e) => setHostJoinName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                    placeholder="Your name"
-                    className="input-field w-full"
-                    maxLength={40}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={hostJoinGame}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
-              </div>
-            )}
-            {hostMode === 'player' && hostPlayerId && (
-              <p className="text-xs text-muted">
-                Playing as <strong>{hostPlayerName}</strong> — submit your statements in the Play tab.
-              </p>
-            )}
-          </div>
-        )}
+          )}
+          {hostMode === 'player' && hostPlayerId && (
+            <p className="text-xs text-muted">
+              Playing as <strong>{hostPlayerName}</strong> — submit your statements in the Play tab.
+            </p>
+          )}
+        </div>
+      )}
 
-        {showPlayTab && (
-          <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
-            <button
-              type="button"
-              onClick={() => setTab('play')}
-              className={[
-                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-                tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-              ].join(' ')}
-            >
-              Play
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('manage')}
-              className={[
-                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-                tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-              ].join(' ')}
-            >
-              Manage
-            </button>
-          </div>
-        )}
+      {showPlayTab && (
+        <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
+          <button
+            type="button"
+            onClick={() => setTab('play')}
+            className={[
+              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+              tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+            ].join(' ')}
+          >
+            Play
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('manage')}
+            className={[
+              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+              tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+            ].join(' ')}
+          >
+            Manage
+          </button>
+        </div>
+      )}
 
-        {tab === 'play' && showPlayTab && hostPlayerId && (
-          game.status === 'active' ? (
-            <TwoTruthsActiveRound
-              gameCode={gameCode}
-              game={game}
-              players={players}
-              rounds={rounds}
-              guesses={guesses}
-              myPlayerId={hostPlayerId}
-              playerName={hostPlayerName}
-              onReload={load}
-              skipGameSync
-            />
-          ) : game.status === 'waiting' ? (
-            myStatement && !editingStatements ? (
-              <div className="glass-card p-5 space-y-4">
-                <EditNameInline
-                  gameCode={gameCode}
-                  playerId={hostPlayerId}
-                  currentName={hostPlayerName}
-                  onRenamed={(name) => { setHostPlayerName(name); void load() }}
-                />
-                <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-5 text-center space-y-1">
-                  <p className="text-2xl">✓</p>
-                  <p className="font-semibold text-emerald-800 dark:text-emerald-200">Statements submitted</p>
-                  <p className="text-sm text-emerald-700 dark:text-emerald-300">Waiting for you to start the game in Manage…</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingStatements(true)}
-                  className="btn-secondary w-full"
-                >
-                  Edit my statements
-                </button>
-              </div>
-            ) : (
-              <div className="glass-card p-5 space-y-4">
-                <EditNameInline
-                  gameCode={gameCode}
-                  playerId={hostPlayerId}
-                  currentName={hostPlayerName}
-                  onRenamed={(name) => { setHostPlayerName(name); void load() }}
-                />
-                <p className="label-caps">Your statements</p>
-                <TwoTruthsLobbySubmit
-                  gameCode={gameCode}
-                  playerId={hostPlayerId}
-                  existingLieIndex={myStatement?.lie_index}
-                  existingStatements={existingStatements}
-                  onSaved={() => { setEditingStatements(false); void load() }}
-                />
-                {myStatement && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingStatements(false)}
-                    className="btn-secondary w-full"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            )
-          ) : null
-        )}
-
-        {(tab === 'manage' || !showPlayTab) && (
-          <TwoTruthsHostManagePanel
-            game={game}
+      {tab === 'play' &&
+        showPlayTab &&
+        hostPlayerId &&
+        (game.status === 'active' ? (
+          <TwoTruthsActiveRound
             gameCode={gameCode}
-            hostToken={hostToken}
-            playerLink={playerLink}
+            game={game}
             players={players}
-            statements={statements}
             rounds={rounds}
             guesses={guesses}
-            starting={starting}
-            playingAgain={playingAgain}
-            onStartGame={startGame}
-            onPlayAgain={playAgain}
+            myPlayerId={hostPlayerId}
+            playerName={hostPlayerName}
             onReload={load}
-            timerSeconds={timerSeconds}
-            onTimerChange={setTimerSeconds}
-            savingTimer={savingTimer}
-            onSaveTimer={saveTimer}
-            onRemovePlayer={removePlayer}
-            removingPlayerId={removingPlayerId}
-            onGameUpdate={setGame}
+            skipGameSync
           />
-        )}
+        ) : game.status === 'waiting' ? (
+          myStatement && !editingStatements ? (
+            <div className="glass-card p-5 space-y-4">
+              <EditNameInline
+                gameCode={gameCode}
+                playerId={hostPlayerId}
+                currentName={hostPlayerName}
+                onRenamed={(name) => {
+                  setHostPlayerName(name)
+                  void load()
+                }}
+              />
+              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-5 text-center space-y-1">
+                <p className="text-2xl">✓</p>
+                <p className="font-semibold text-emerald-800 dark:text-emerald-200">Statements submitted</p>
+                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                  Waiting for you to start the game in Manage…
+                </p>
+              </div>
+              <button type="button" onClick={() => setEditingStatements(true)} className="btn-secondary w-full">
+                Edit my statements
+              </button>
+            </div>
+          ) : (
+            <div className="glass-card p-5 space-y-4">
+              <EditNameInline
+                gameCode={gameCode}
+                playerId={hostPlayerId}
+                currentName={hostPlayerName}
+                onRenamed={(name) => {
+                  setHostPlayerName(name)
+                  void load()
+                }}
+              />
+              <p className="label-caps">Your statements</p>
+              <TwoTruthsLobbySubmit
+                gameCode={gameCode}
+                playerId={hostPlayerId}
+                existingLieIndex={myStatement?.lie_index}
+                existingStatements={existingStatements}
+                onSaved={() => {
+                  setEditingStatements(false)
+                  void load()
+                }}
+              />
+              {myStatement && (
+                <button type="button" onClick={() => setEditingStatements(false)} className="btn-secondary w-full">
+                  Cancel
+                </button>
+              )}
+            </div>
+          )
+        ) : null)}
+
+      {(tab === 'manage' || !showPlayTab) && (
+        <TwoTruthsHostManagePanel
+          game={game}
+          gameCode={gameCode}
+          hostToken={hostToken}
+          playerLink={playerLink}
+          players={players}
+          statements={statements}
+          rounds={rounds}
+          guesses={guesses}
+          starting={starting}
+          playingAgain={playingAgain}
+          onStartGame={startGame}
+          onPlayAgain={playAgain}
+          onReload={load}
+          timerSeconds={timerSeconds}
+          onTimerChange={setTimerSeconds}
+          savingTimer={savingTimer}
+          onSaveTimer={saveTimer}
+          onRemovePlayer={removePlayer}
+          removingPlayerId={removingPlayerId}
+          onGameUpdate={setGame}
+        />
+      )}
     </HostPageShell>
   )
 }

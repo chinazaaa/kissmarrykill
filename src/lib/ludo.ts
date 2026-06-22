@@ -368,7 +368,7 @@ function applyMoveLocally(
       : []
   const victimKeys = new Set(captureVictims.map((v) => `${v.playerId}:${v.pieceId}`))
 
-  let nextStates = states.map((row) => {
+  const nextStates = states.map((row) => {
     if (row.player_id !== playerId) return row
     return {
       ...row,
@@ -643,7 +643,7 @@ async function persistMove(
   const playerRow = states.find((s) => s.player_id === playerId)
   if (!playerRow) return { error: 'Player state not found' }
 
-  let nextStates = applyMoveLocally(states, playerId, move, playerRow.color)
+  const nextStates = applyMoveLocally(states, playerId, move, playerRow.color)
 
   const myPieces = nextStates.find((s) => s.player_id === playerId)?.pieces ?? []
   const won = allPiecesFinished(myPieces)
@@ -674,7 +674,7 @@ async function persistMove(
   let lastDice: LudoDiceRoll | null = null
   let remainingDice: number[] | null = null
   let consecutiveSixes = session.consecutive_sixes
-  let statusMessage = ''
+  let statusMessage: string
 
   if (won) {
     phase = 'finished'

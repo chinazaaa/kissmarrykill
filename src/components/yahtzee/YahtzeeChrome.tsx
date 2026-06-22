@@ -31,11 +31,9 @@ export function YahtzeeShell({
         ].join(' ')}
       >
         <div
-          className={[
-            'w-full',
-            compact ? 'space-y-2' : 'space-y-5 sm:space-y-6',
-            wide ? 'max-w-3xl' : 'max-w-lg',
-          ].join(' ')}
+          className={['w-full', compact ? 'space-y-2' : 'space-y-5 sm:space-y-6', wide ? 'max-w-3xl' : 'max-w-lg'].join(
+            ' '
+          )}
         >
           {(title || subtitle) && !compact && (
             <header className="text-center space-y-2">
@@ -199,9 +197,7 @@ export function YahtzeeDiceTray({
             {isMyTurn && !spectator ? 'Your turn' : `${turnName ?? 'Player'}'s turn`}
           </p>
           {showHoldHint && (
-            <span className="text-[10px] text-[var(--foreground)]/45 font-medium shrink-0">
-              tap dice to keep
-            </span>
+            <span className="text-[10px] text-[var(--foreground)]/45 font-medium shrink-0">tap dice to keep</span>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -220,21 +216,14 @@ export function YahtzeeDiceTray({
             </span>
           )}
           <YahtzeeRollPips rollsThisTurn={rollsThisTurn} />
-          <span className="text-[10px] font-bold tabular-nums text-[var(--foreground)]/50">
-            {rollsThisTurn}/3
-          </span>
+          <span className="text-[10px] font-bold tabular-nums text-[var(--foreground)]/50">{rollsThisTurn}/3</span>
         </div>
       </div>
 
       {/* Dice + Roll button */}
       <div className="flex items-end gap-3">
         <div className="flex-1 flex justify-center pb-2">
-          <YahtzeeDiceRow
-            dice={dice}
-            held={held}
-            interactive={interactive}
-            onToggleHold={onToggleHold}
-          />
+          <YahtzeeDiceRow dice={dice} held={held} interactive={interactive} onToggleHold={onToggleHold} />
         </div>
 
         {canRoll && onRoll && (
@@ -253,9 +242,7 @@ export function YahtzeeDiceTray({
       </div>
 
       {isMyTurn && rollsThisTurn > 0 && rollsRemaining === 0 && !spectator && (
-        <p className="text-center text-xs font-bold text-[var(--primary)]">
-          Pick a score from the board ↑
-        </p>
+        <p className="text-center text-xs font-bold text-[var(--primary)]">Pick a score from the board ↑</p>
       )}
     </YahtzeeCard>
   )

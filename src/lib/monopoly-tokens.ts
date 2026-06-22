@@ -24,18 +24,13 @@ export function monopolyTokenById(tokenId: string | null | undefined) {
   return MONOPOLY_PLAYER_TOKENS.find((t) => t.id === tokenId)
 }
 
-export function monopolyTokenEmoji(
-  tokenId: string | null | undefined,
-  fallbackOrder = 0
-): string {
+export function monopolyTokenEmoji(tokenId: string | null | undefined, fallbackOrder = 0): string {
   const found = monopolyTokenById(tokenId)
   if (found) return found.emoji
   return MONOPOLY_PLAYER_TOKENS[fallbackOrder % MONOPOLY_PLAYER_TOKENS.length]!.emoji
 }
 
-export function takenMonopolyTokens(
-  players: { monopoly_token?: string | null; spectator?: boolean }[]
-): Set<string> {
+export function takenMonopolyTokens(players: { monopoly_token?: string | null; spectator?: boolean }[]): Set<string> {
   const taken = new Set<string>()
   for (const player of players) {
     if (player.spectator || !player.monopoly_token) continue

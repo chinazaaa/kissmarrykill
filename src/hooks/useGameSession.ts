@@ -5,17 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { resolvePlayerSession } from '@/lib/player-resume'
 import { parseThemeId, THEME_MAP } from '@/lib/themes'
-import {
-  playRoundStartSound,
-  playVoteSubmittedSound,
-  playRoundEndSound,
-  playGameFinishedSound,
-} from '@/lib/sounds'
-import {
-  getRoundParticipantGender,
-  canPlayerVoteInRound,
-  playerVoteGenderForRound,
-} from '@/lib/participants'
+import { playRoundStartSound, playVoteSubmittedSound, playRoundEndSound, playGameFinishedSound } from '@/lib/sounds'
+import { getRoundParticipantGender, canPlayerVoteInRound, playerVoteGenderForRound } from '@/lib/participants'
 import {
   parseGameType,
   isNameOnlyPlayerJoin,
@@ -97,7 +88,9 @@ export interface GameSessionDeps {
   setAllVotes: React.Dispatch<React.SetStateAction<Vote[]>>
   setAllRounds: React.Dispatch<React.SetStateAction<Round[]>>
   setAllConfessions: React.Dispatch<React.SetStateAction<Confession[]>>
-  setAllHotSeatSubmissions: React.Dispatch<React.SetStateAction<{ id: string; round_id: string; text: string; submission_type: string }[]>>
+  setAllHotSeatSubmissions: React.Dispatch<
+    React.SetStateAction<{ id: string; round_id: string; text: string; submission_type: string }[]>
+  >
   // Setters from useWstQuotePool
   setWstPool: React.Dispatch<React.SetStateAction<WstQuotePoolEntry[]>>
   fetchWstPool: () => Promise<WstQuotePoolEntry[]>
@@ -148,13 +141,7 @@ export function useGameSession(deps: GameSessionDeps) {
     triggerAutoSubmit,
   } = deps
 
-  const {
-    currentRoundRef,
-    gameRef,
-    participantsRef,
-    myPlayerIdRef,
-    myPlayerGenderRef,
-  } = autoSubmitRefs
+  const { currentRoundRef, gameRef, participantsRef, myPlayerIdRef, myPlayerGenderRef } = autoSubmitRefs
 
   // ── Core state ──────────────────────────────────────────────────────────
   const [view, setView] = useState<View>('loading')
@@ -179,7 +166,7 @@ export function useGameSession(deps: GameSessionDeps) {
 
   // ── Functions ────────────────────────────────────────────────────────────
   const patchCurrentRound = (patch: Partial<Round>) => {
-    setCurrentRound((prev) => prev ? { ...prev, ...patch } : prev)
+    setCurrentRound((prev) => (prev ? { ...prev, ...patch } : prev))
   }
 
   async function loadAllResults() {
@@ -222,7 +209,11 @@ export function useGameSession(deps: GameSessionDeps) {
   }
 
   const reloadPlayers = useCallback(async () => {
-    const { data: plrs } = await supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at')
+    const { data: plrs } = await supabase
+      .from('players')
+      .select(PLAYER_SELECT)
+      .eq('game_id', gameCode)
+      .order('joined_at')
     if (plrs) setPlayers(plrs)
   }, [gameCode])
 
@@ -467,7 +458,11 @@ export function useGameSession(deps: GameSessionDeps) {
         if (round.status === 'active') {
           const priorId = roundFormIdRef.current
           applyActiveRound(round, { switchView: priorId !== round.id })
-          if (isPickANumber(parseGameType(gameRef.current?.game_type)) && panRoundRevealed(round) && round.submitter_player_id) {
+          if (
+            isPickANumber(parseGameType(gameRef.current?.game_type)) &&
+            panRoundRevealed(round) &&
+            round.submitter_player_id
+          ) {
             const { data: pickerVote } = await supabase
               .from('votes')
               .select('picked_number')
@@ -582,7 +577,10 @@ export function useGameSession(deps: GameSessionDeps) {
       return true
     },
     [gameCode, view],
-    { intervalMs: POLL_INTERVALS.lobby, enabled: view === 'waiting' || view === 'join' || view === 'game_started_waiting' || view === 'late_join_choice' }
+    {
+      intervalMs: POLL_INTERVALS.lobby,
+      enabled: view === 'waiting' || view === 'join' || view === 'game_started_waiting' || view === 'late_join_choice',
+    }
   )
 
   // ── Polling: player-submitted questions ─────────────────────────────────
@@ -621,10 +619,7 @@ export function useGameSession(deps: GameSessionDeps) {
     {
       intervalMs: POLL_INTERVALS.lobby,
       enabled:
-        view === 'waiting' &&
-        !!game &&
-        isPeoplePollGame(game.game_type) &&
-        lobbyAllowsPlayerNameSubmissions(game),
+        view === 'waiting' && !!game && isPeoplePollGame(game.game_type) && lobbyAllowsPlayerNameSubmissions(game),
     }
   )
 
@@ -741,14 +736,22 @@ export function useGameSession(deps: GameSessionDeps) {
 
   return {
     // Core state
-    view, setView,
-    game, setGame,
-    players, setPlayers,
-    participants, setParticipants,
-    currentRound, setCurrentRound,
-    myPlayerId, setMyPlayerId,
-    myPlayerName, setMyPlayerName,
-    myPlayerGender, setMyPlayerGender,
+    view,
+    setView,
+    game,
+    setGame,
+    players,
+    setPlayers,
+    participants,
+    setParticipants,
+    currentRound,
+    setCurrentRound,
+    myPlayerId,
+    setMyPlayerId,
+    myPlayerName,
+    setMyPlayerName,
+    myPlayerGender,
+    setMyPlayerGender,
     // Functions
     applyActiveRound,
     resetPlayerForLobby,

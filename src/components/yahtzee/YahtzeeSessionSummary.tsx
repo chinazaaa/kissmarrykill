@@ -53,12 +53,5 @@ export function YahtzeeSessionSummary({
     )
   }
 
-  return (
-    <YahtzeeFinalResultsShareBlock
-      game={game}
-      players={players}
-      scores={scores}
-      winnerName={winner?.name}
-    />
-  )
+  return <YahtzeeFinalResultsShareBlock game={game} players={players} scores={scores} winnerName={winner?.name} />
 }

@@ -36,7 +36,16 @@ import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { playerIsViewer, preJoinScreen, allowLatePlayers } from '@/lib/viewers'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'game_started_waiting'
+  | 'late_join_choice'
+  | 'game_ended'
+  | 'waiting'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 export function BingoPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -102,7 +111,11 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
     const [gameRes, plrsRes, calledRes, claimRes] = await Promise.all([
       supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
-      supabase.from('bingo_called_numbers').select(BINGO_CALLED_NUMBER_SELECT).eq('game_id', gameCode).order('called_at'),
+      supabase
+        .from('bingo_called_numbers')
+        .select(BINGO_CALLED_NUMBER_SELECT)
+        .eq('game_id', gameCode)
+        .order('called_at'),
       supabase
         .from('bingo_claims')
         .select(BINGO_CLAIM_SELECT)
@@ -148,11 +161,10 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
     load()
   }, [load])
 
-  usePolling(
-    () => (myPlayerId ? loadCard(myPlayerId) : Promise.resolve(true)),
-    [myPlayerId, loadCard],
-    { intervalMs: POLL_INTERVALS.lobby, enabled: screen === 'active' && !!myPlayerId && !card }
-  )
+  usePolling(() => (myPlayerId ? loadCard(myPlayerId) : Promise.resolve(true)), [myPlayerId, loadCard], {
+    intervalMs: POLL_INTERVALS.lobby,
+    enabled: screen === 'active' && !!myPlayerId && !card,
+  })
 
   useEffect(() => {
     const channel = supabase
@@ -315,10 +327,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
   const called = calledNumbers.map((row) => row.number)
   const lastCalled = called.length > 0 ? called[called.length - 1] : null
   const canClaim =
-    !isViewer &&
-    card != null &&
-    hasBingoWin(card.cells, card.marked_indices, 'line') &&
-    game?.status === 'active'
+    !isViewer && card != null && hasBingoWin(card.cells, card.marked_indices, 'line') && game?.status === 'active'
   const winnerPlayer = winner ? players.find((p) => p.id === winner.player_id) : null
   const iWon = winner != null && myPlayerId != null && winner.player_id === myPlayerId
 
@@ -383,9 +392,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
     return (
       <GameJoinLobbyShell
         gameCode={gameCode}
-        header={
-          <GameJoinHeader emoji={cfg.headerEmoji} title={game?.title} gameType="bingo" />
-        }
+        header={<GameJoinHeader emoji={cfg.headerEmoji} title={game?.title} gameType="bingo" />}
       >
         <NameJoinForm
           value={joinName}
@@ -534,7 +541,12 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
         )}
 
         {canClaim && (
-          <button type="button" onClick={claimBingo} disabled={claiming} className="btn-primary w-full text-lg font-black">
+          <button
+            type="button"
+            onClick={claimBingo}
+            disabled={claiming}
+            className="btn-primary w-full text-lg font-black"
+          >
             {claiming ? 'Claiming…' : 'BINGO! 🎉'}
           </button>
         )}

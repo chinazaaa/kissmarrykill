@@ -11,22 +11,12 @@ type Props = {
   className?: string
 }
 
-export function hostPlayLayoutFlags(
-  tab: 'play' | 'manage',
-  showPlayTab: boolean,
-  status: GameStatus | undefined
-) {
+export function hostPlayLayoutFlags(tab: 'play' | 'manage', showPlayTab: boolean, status: GameStatus | undefined) {
   const onPlayScreen = tab === 'play' && showPlayTab && status === 'active'
   return { showInvite: !onPlayScreen, wide: onPlayScreen }
 }
 
-export function HostPageShell({
-  gameCode,
-  children,
-  showInvite = true,
-  wide = false,
-  className = '',
-}: Props) {
+export function HostPageShell({ gameCode, children, showInvite = true, wide = false, className = '' }: Props) {
   const maxWidth = wide ? 'max-w-6xl' : 'max-w-5xl'
 
   return (

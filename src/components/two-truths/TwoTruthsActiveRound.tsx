@@ -59,7 +59,7 @@ export function TwoTruthsActiveRound({
   const isFeatured = currentRound?.submitter_player_id === myPlayerId
   const myGuess = useMemo(
     () =>
-      currentRound ? guesses.find((g) => g.player_id === myPlayerId && g.round_id === currentRound.id) ?? null : null,
+      currentRound ? (guesses.find((g) => g.player_id === myPlayerId && g.round_id === currentRound.id) ?? null) : null,
     [guesses, currentRound, myPlayerId]
   )
   const leaderboard = useMemo(() => tallyTtlScores(guesses, players, rounds), [guesses, players, rounds])
@@ -159,9 +159,7 @@ export function TwoTruthsActiveRound({
   }
 
   if (screen === 'waiting') {
-    const upcomingName = upcomingRound
-      ? playerDisplayName(upcomingRound.submitter_player_id, players)
-      : null
+    const upcomingName = upcomingRound ? playerDisplayName(upcomingRound.submitter_player_id, players) : null
     return (
       <div className="glass-card p-8 text-center space-y-3">
         <p className="text-3xl">⏳</p>
@@ -176,9 +174,7 @@ export function TwoTruthsActiveRound({
             />
           </div>
         )}
-        {upcomingName && (
-          <p className="text-muted text-sm">Up next: {upcomingName}&apos;s statements</p>
-        )}
+        {upcomingName && <p className="text-muted text-sm">Up next: {upcomingName}&apos;s statements</p>}
       </div>
     )
   }
@@ -196,91 +192,89 @@ export function TwoTruthsActiveRound({
         />
       }
     >
-        <div className="glass-card p-5 text-center space-y-3">
-          <p className="label-caps text-xs">
-            Round {currentRound.round_number} of {game.rounds_count}
-          </p>
-          <div className="flex justify-center">
-            <TwoTruthsSubmitterBadge
-              submitterId={currentRound.submitter_player_id}
-              players={players}
-              highlightPlayerId={myPlayerId}
-            />
-          </div>
-          <p className="text-lg font-black">{featuredName}&apos;s two truths & a lie</p>
-          {screen === 'featured' && (
-            <p className="text-muted text-sm">Sit tight — everyone else is guessing which statement is the lie.</p>
-          )}
-          {timerActive && secondsLeft > 0 && (
-            <p className="text-sm font-bold tabular-nums text-[var(--primary-strong)]">{secondsLeft}s left</p>
-          )}
+      <div className="glass-card p-5 text-center space-y-3">
+        <p className="label-caps text-xs">
+          Round {currentRound.round_number} of {game.rounds_count}
+        </p>
+        <div className="flex justify-center">
+          <TwoTruthsSubmitterBadge
+            submitterId={currentRound.submitter_player_id}
+            players={players}
+            highlightPlayerId={myPlayerId}
+          />
         </div>
+        <p className="text-lg font-black">{featuredName}&apos;s two truths & a lie</p>
+        {screen === 'featured' && (
+          <p className="text-muted text-sm">Sit tight — everyone else is guessing which statement is the lie.</p>
+        )}
+        {timerActive && secondsLeft > 0 && (
+          <p className="text-sm font-bold tabular-nums text-[var(--primary-strong)]">{secondsLeft}s left</p>
+        )}
+      </div>
 
-        <div className="space-y-3">
-          {metadata.statements.map((statement, index) => {
-            const isLie = showLie && index === metadata.lie_index
-            const isPicked = pickedIndex === index && (screen === 'locked' || screen === 'revealed')
-            const canPick = screen === 'active' && !submitting && !readOnly
-            return (
-              <button
-                key={index}
-                type="button"
-                disabled={!canPick}
-                onClick={() => void submitGuess(index)}
-                className={[
-                  'w-full text-left glass-card p-4 transition-all border-2',
-                  isLie
-                    ? 'border-violet-500/60 bg-violet-500/10'
-                    : isPicked
-                      ? 'border-[var(--primary)]/50 bg-[var(--primary)]/5'
-                      : showLie
-                        ? 'border-[var(--border-strong)] opacity-80'
-                        : 'border-[var(--border-strong)] hover:border-[var(--primary)]/40',
-                  canPick ? 'cursor-pointer' : 'cursor-default',
-                ].join(' ')}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-white font-black">
-                    {formatTtlChoiceLabel(index)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold leading-snug">{statement}</p>
-                    {isLie && <p className="text-violet-600 dark:text-violet-300 text-xs font-bold mt-1">🤥 The lie</p>}
-                    {isPicked && !isLie && screen === 'locked' && (
-                      <p className="text-faint text-xs mt-1">Your guess</p>
-                    )}
-                    {submittingIndex === index && <p className="text-faint text-xs mt-1">Submitting…</p>}
-                  </div>
+      <div className="space-y-3">
+        {metadata.statements.map((statement, index) => {
+          const isLie = showLie && index === metadata.lie_index
+          const isPicked = pickedIndex === index && (screen === 'locked' || screen === 'revealed')
+          const canPick = screen === 'active' && !submitting && !readOnly
+          return (
+            <button
+              key={index}
+              type="button"
+              disabled={!canPick}
+              onClick={() => void submitGuess(index)}
+              className={[
+                'w-full text-left glass-card p-4 transition-all border-2',
+                isLie
+                  ? 'border-violet-500/60 bg-violet-500/10'
+                  : isPicked
+                    ? 'border-[var(--primary)]/50 bg-[var(--primary)]/5'
+                    : showLie
+                      ? 'border-[var(--border-strong)] opacity-80'
+                      : 'border-[var(--border-strong)] hover:border-[var(--primary)]/40',
+                canPick ? 'cursor-pointer' : 'cursor-default',
+              ].join(' ')}
+            >
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-white font-black">
+                  {formatTtlChoiceLabel(index)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-snug">{statement}</p>
+                  {isLie && <p className="text-violet-600 dark:text-violet-300 text-xs font-bold mt-1">🤥 The lie</p>}
+                  {isPicked && !isLie && screen === 'locked' && <p className="text-faint text-xs mt-1">Your guess</p>}
+                  {submittingIndex === index && <p className="text-faint text-xs mt-1">Submitting…</p>}
                 </div>
-              </button>
-            )
-          })}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {screen === 'locked' && (
+        <div className="glass-card p-4 text-center text-sm text-muted">
+          {myGuess
+            ? 'Guess locked in — results when everyone finishes or time runs out'
+            : "Time's up — waiting for results…"}
         </div>
+      )}
 
-        {screen === 'locked' && (
-          <div className="glass-card p-4 text-center text-sm text-muted">
-            {myGuess
-              ? 'Guess locked in — results when everyone finishes or time runs out'
-              : "Time's up — waiting for results…"}
-          </div>
-        )}
+      {screen === 'revealed' && myGuess && (
+        <div
+          className={[
+            'glass-card p-4 text-center font-semibold',
+            myGuess.is_correct ? 'text-emerald-700 dark:text-emerald-200' : 'text-muted',
+          ].join(' ')}
+        >
+          {myGuess.is_correct ? `Correct! +${myGuess.points} pts` : 'Not the lie — better luck next round'}
+        </div>
+      )}
 
-        {screen === 'revealed' && myGuess && (
-          <div
-            className={[
-              'glass-card p-4 text-center font-semibold',
-              myGuess.is_correct ? 'text-emerald-700 dark:text-emerald-200' : 'text-muted',
-            ].join(' ')}
-          >
-            {myGuess.is_correct ? `Correct! +${myGuess.points} pts` : 'Not the lie — better luck next round'}
-          </div>
-        )}
-
-        {screen === 'revealed' && (
-          <p className="text-center text-sm text-muted">
-            Next round in {revealCountdownSeconds(currentRound.ended_at)}s…
-          </p>
-        )}
+      {screen === 'revealed' && (
+        <p className="text-center text-sm text-muted">
+          Next round in {revealCountdownSeconds(currentRound.ended_at)}s…
+        </p>
+      )}
     </LiveLeaderboardLayout>
   )
 }

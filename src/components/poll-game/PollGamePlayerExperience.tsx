@@ -205,31 +205,56 @@ export function PollGamePlayerExperience({
   const router = useRouter()
   const toast = useToast()
   const { confirm } = useConfirm()
-  const gameCode = (
-    gameCodeProp ?? (Array.isArray(params.code) ? params.code[0] : params.code)
-  ).toUpperCase()
+  const gameCode = (gameCodeProp ?? (Array.isArray(params.code) ? params.code[0] : params.code)).toUpperCase()
 
   // ── 1. State containers (no deps on session) ──────────────────────────────
   const {
-    lastFinishedRound, lastRoundVotes,
-    allVotes, allRounds, allConfessions, allHotSeatSubmissions,
-    setLastFinishedRound, setLastRoundVotes,
-    setAllVotes, setAllRounds, setAllConfessions, setAllHotSeatSubmissions,
+    lastFinishedRound,
+    lastRoundVotes,
+    allVotes,
+    allRounds,
+    allConfessions,
+    allHotSeatSubmissions,
+    setLastFinishedRound,
+    setLastRoundVotes,
+    setAllVotes,
+    setAllRounds,
+    setAllConfessions,
+    setAllHotSeatSubmissions,
     resetRoundResultsState,
   } = useRoundResults()
 
   // Player question submission (WYR/MLT lobby)
   const {
-    pqWyrA, pqWyrB, pqTotText, pqMltText, pqSubmitting, pqList, pqOpen,
-    setPqWyrA, setPqWyrB, setPqTotText, setPqMltText, setPqOpen, setPqList,
+    pqWyrA,
+    pqWyrB,
+    pqTotText,
+    pqMltText,
+    pqSubmitting,
+    pqList,
+    pqOpen,
+    setPqWyrA,
+    setPqWyrB,
+    setPqTotText,
+    setPqMltText,
+    setPqOpen,
+    setPqList,
     setPqSubmitting,
     resetPlayerQuestionsState,
   } = usePlayerQuestions()
 
   // Player name submission (people poll games — RFGF, SMK, etc.)
   const {
-    pnNameInput, pnGender, pnSubmitting, pnList, pnOpen,
-    setPnNameInput, setPnGender, setPnSubmitting, setPnOpen, setPnList,
+    pnNameInput,
+    pnGender,
+    pnSubmitting,
+    pnList,
+    pnOpen,
+    setPnNameInput,
+    setPnGender,
+    setPnSubmitting,
+    setPnOpen,
+    setPnList,
     resetPlayerNameSubmissionsState,
   } = usePlayerNameSubmissions()
 
@@ -263,8 +288,12 @@ export function PollGamePlayerExperience({
     resetRoundResultsState,
     resetWstQuoteStateRef,
     resetJoinStateRef,
-    setLastFinishedRound, setLastRoundVotes,
-    setAllVotes, setAllRounds, setAllConfessions, setAllHotSeatSubmissions,
+    setLastFinishedRound,
+    setLastRoundVotes,
+    setAllVotes,
+    setAllRounds,
+    setAllConfessions,
+    setAllHotSeatSubmissions,
     setWstPool: (action) => setWstPoolRef.current(action),
     fetchWstPool: () => fetchWstPoolRef.current(),
     setPqList,
@@ -282,14 +311,19 @@ export function PollGamePlayerExperience({
   })
 
   const {
-    view, setView,
+    view,
+    setView,
     game,
     players,
-    participants, setParticipants,
+    participants,
+    setParticipants,
     currentRound,
-    myPlayerId, setMyPlayerId,
-    myPlayerName, setMyPlayerName,
-    myPlayerGender, setMyPlayerGender,
+    myPlayerId,
+    setMyPlayerId,
+    myPlayerName,
+    setMyPlayerName,
+    myPlayerGender,
+    setMyPlayerGender,
     applyActiveRound,
     reloadPlayers,
     patchCurrentRound,
@@ -298,46 +332,114 @@ export function PollGamePlayerExperience({
 
   // ── 4. Hooks that depend on session state ────────────────────────────────
   const {
-    hotSeatText, hotSeatType, hotSeatSubmitted, hotSeatSubmissions,
-    setHotSeatText, setHotSeatType, setHotSeatSubmitted, setHotSeatSubmissions,
+    hotSeatText,
+    hotSeatType,
+    hotSeatSubmitted,
+    hotSeatSubmissions,
+    setHotSeatText,
+    setHotSeatType,
+    setHotSeatSubmitted,
+    setHotSeatSubmissions,
     resetHotSeatState,
   } = useHotSeat({ gameCode, game, view, lastFinishedRound })
 
   const {
-    wstPool, quoteInput, quoteAuthorParticipantId, quoteSubmitting, editingQuoteId,
-    setWstPool, setQuoteInput, setQuoteAuthorParticipantId, setEditingQuoteId,
-    handleSubmitPoolQuote, handleDeletePoolQuote, fetchWstPool, resetWstQuoteState,
+    wstPool,
+    quoteInput,
+    quoteAuthorParticipantId,
+    quoteSubmitting,
+    editingQuoteId,
+    setWstPool,
+    setQuoteInput,
+    setQuoteAuthorParticipantId,
+    setEditingQuoteId,
+    handleSubmitPoolQuote,
+    handleDeletePoolQuote,
+    fetchWstPool,
+    resetWstQuoteState,
   } = useWstQuotePool({ gameCode, myPlayerId })
 
   const myPlayer = useMemo(() => players.find((p) => p.id === myPlayerId) ?? null, [players, myPlayerId])
   const isViewer = !!(game && myPlayer && playerIsViewer(myPlayer, game))
 
   const {
-    assignment, pairAssignment, wyrChoice, pickedNumber, panUsedNumbers,
-    mltTargetPlayerId, animeChoice, customAssignments, submitted,
-    confessionText, confessionSent,
-    setAssignment, setPairAssignment, setWyrChoice, setPickedNumber,
-    setMltTargetPlayerId, setAnimeChoice, setCustomAssignments,
-    setSubmitted, setConfessionText, setPanUsedNumbers,
-    assign, handleSubmit, sendConfession, resetVoteState,
+    assignment,
+    pairAssignment,
+    wyrChoice,
+    pickedNumber,
+    panUsedNumbers,
+    mltTargetPlayerId,
+    animeChoice,
+    customAssignments,
+    submitted,
+    confessionText,
+    confessionSent,
+    setAssignment,
+    setPairAssignment,
+    setWyrChoice,
+    setPickedNumber,
+    setMltTargetPlayerId,
+    setAnimeChoice,
+    setCustomAssignments,
+    setSubmitted,
+    setConfessionText,
+    setPanUsedNumbers,
+    assign,
+    handleSubmit,
+    sendConfession,
+    resetVoteState,
   } = useVoteState({
-    gameCode, game, currentRound, myPlayerId, myPlayerGender, isViewer, view,
-    players, participants, autoSubmitRefs, patchCurrentRound,
+    gameCode,
+    game,
+    currentRound,
+    myPlayerId,
+    myPlayerGender,
+    isViewer,
+    view,
+    players,
+    participants,
+    autoSubmitRefs,
+    patchCurrentRound,
   })
   customAssignmentsCallbackRef.current = setCustomAssignments
 
   const {
-    nameInput, selectedParticipantId, joinIdentityGender, voteBothGenders,
-    joining, editingJoin, canSubmitJoin, useFreeNameJoin, joinPlayerGender,
-    namePickerOptions, joinNeedsGender,
-    setNameInput, setJoinIdentityGender, setVoteBothGenders,
-    joinGame, openEditJoin, cancelEditJoin,
-    handlePlayerLeft, handlePlayerRenamed, handleSelectParticipant,
+    nameInput,
+    selectedParticipantId,
+    joinIdentityGender,
+    voteBothGenders,
+    joining,
+    editingJoin,
+    canSubmitJoin,
+    useFreeNameJoin,
+    joinPlayerGender,
+    namePickerOptions,
+    joinNeedsGender,
+    setNameInput,
+    setJoinIdentityGender,
+    setVoteBothGenders,
+    joinGame,
+    openEditJoin,
+    cancelEditJoin,
+    handlePlayerLeft,
+    handlePlayerRenamed,
+    handleSelectParticipant,
     resetJoinState,
   } = useJoinFlow({
-    gameCode, game, players, participants, myPlayerId, myPlayerName, view,
-    setView, setMyPlayerId, setMyPlayerName, setMyPlayerGender,
-    setPlayers: session.setPlayers, setParticipants, applyActiveRound,
+    gameCode,
+    game,
+    players,
+    participants,
+    myPlayerId,
+    myPlayerName,
+    view,
+    setView,
+    setMyPlayerId,
+    setMyPlayerName,
+    setMyPlayerGender,
+    setPlayers: session.setPlayers,
+    setParticipants,
+    applyActiveRound,
   })
 
   // ── Sync refs after hooks are called ────────────────────────────────────
@@ -388,10 +490,7 @@ export function PollGamePlayerExperience({
   const isMltImport = game ? isMltImportGame(game) : false
 
   // Photo upload (people-based modes)
-  const {
-    photoUploading, photoInputRef,
-    handlePhotoUpload, handlePhotoDelete,
-  } = usePhotoUpload({
+  const { photoUploading, photoInputRef, handlePhotoUpload, handlePhotoDelete } = usePhotoUpload({
     gameCode,
     participantId: myPlayer?.participant_id ?? null,
     playerId: myPlayerId,
@@ -473,13 +572,7 @@ export function PollGamePlayerExperience({
   }
 
   if (view === 'game_started_waiting') {
-    return (
-      <GameStartedWaiting
-        gameCode={gameCode}
-        game={game}
-        onLobbyOpen={() => setView('join')}
-      />
-    )
+    return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={() => setView('join')} />
   }
 
   if (view === 'game_ended') {
@@ -636,10 +729,16 @@ export function PollGamePlayerExperience({
     const wstTargets = isWst ? wstVoteTargets(participants) : []
     const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
     const myQuotes =
-      isWst && myPlayerId ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at)) : []
+      isWst && myPlayerId
+        ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at))
+        : []
     const canSubmitPoolQuote = !!me?.participant_id
     const isPeopleMode =
-      !isBinaryChoiceGame(game?.game_type) && !isNeverHaveIEver(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly
+      !isBinaryChoiceGame(game?.game_type) &&
+      !isNeverHaveIEver(game?.game_type) &&
+      !isMostLikelyTo(game?.game_type) &&
+      !isWst &&
+      !isVoterOnly
     const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
     const canUploadPhoto = isPeopleMode && !!me?.participant_id
 
@@ -684,14 +783,15 @@ export function PollGamePlayerExperience({
                 <div className="glass-card p-5 space-y-4">
                   {myQuotes.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-faint text-[10px] uppercase tracking-wider">
-                        Your quotes ({myQuotes.length})
-                      </p>
+                      <p className="text-faint text-[10px] uppercase tracking-wider">Your quotes ({myQuotes.length})</p>
                       {myQuotes.map((entry) => {
                         const authorName =
                           participants.find((p) => p.id === entry.author_participant_id)?.name ?? 'Unknown'
                         return (
-                          <div key={entry.id} className="flex items-start gap-2 rounded-xl border border-theme px-3 py-2">
+                          <div
+                            key={entry.id}
+                            className="flex items-start gap-2 rounded-xl border border-theme px-3 py-2"
+                          >
                             <div className="flex-1 min-w-0 space-y-0.5">
                               <p className="text-sm text-body-muted line-clamp-2">&ldquo;{entry.quote_text}&rdquo;</p>
                               <p className="text-faint text-[10px]">— {authorName}</p>
@@ -724,7 +824,11 @@ export function PollGamePlayerExperience({
                     </div>
                   )}
                   <p className="font-semibold text-body text-center">
-                    {editingQuoteId ? 'Edit quote' : myQuotes.length > 0 ? 'Add another quote' : 'Add your quote to the pool'}
+                    {editingQuoteId
+                      ? 'Edit quote'
+                      : myQuotes.length > 0
+                        ? 'Add another quote'
+                        : 'Add your quote to the pool'}
                   </p>
                   <textarea
                     value={quoteInput}
@@ -869,219 +973,222 @@ export function PollGamePlayerExperience({
           </div>
         </div>
         {/* Player question submission for WYR / MLT */}
-        {game && (isBinaryGame || isNhieGame || isPanGame || isMostLikelyTo(game.game_type)) && lobbyAllowsPlayerQuestions(game) && myPlayerId && (
-          <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">
-            <button
-              type="button"
-              onClick={() => setPqOpen(!pqOpen)}
-              className="w-full flex items-center justify-between"
-            >
-              <p className="text-muted text-xs uppercase tracking-wider">
-                Submit a Question {pqList.length > 0 ? `(${pqList.length})` : ''}
-              </p>
-              <span className="text-faint text-xs">{pqOpen ? '−' : '+'}</span>
-            </button>
-            {pqOpen && (
-              <div className="space-y-3">
-                {isWyrGame ? (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Option A"
-                      value={pqWyrA}
-                      onChange={(e) => setPqWyrA(e.target.value)}
-                      maxLength={200}
-                      className="input-field text-sm"
-                      disabled={pqSubmitting}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Option B"
-                      value={pqWyrB}
-                      onChange={(e) => setPqWyrB(e.target.value)}
-                      maxLength={200}
-                      className="input-field text-sm"
-                      disabled={pqSubmitting}
-                    />
-                    <button
-                      type="button"
-                      disabled={!pqWyrA.trim() || !pqWyrB.trim() || pqSubmitting}
-                      onClick={async () => {
-                        setPqSubmitting(true)
-                        try {
-                          const res = await fetch('/api/player-questions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              gameId: gameCode,
-                              playerId: myPlayerId,
-                              questionType: 'wyr',
-                              optionA: pqWyrA.trim(),
-                              optionB: pqWyrB.trim(),
-                            }),
-                          })
-                          if (res.ok) {
-                            const { question } = await res.json()
-                            setPqList((prev) => [...prev, question])
-                            setPqWyrA('')
-                            setPqWyrB('')
-                          } else {
-                            const { error } = await res.json()
-                            toast.error(error || 'Failed to submit')
+        {game &&
+          (isBinaryGame || isNhieGame || isPanGame || isMostLikelyTo(game.game_type)) &&
+          lobbyAllowsPlayerQuestions(game) &&
+          myPlayerId && (
+            <div className="surface-inset border border-theme rounded-2xl p-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => setPqOpen(!pqOpen)}
+                className="w-full flex items-center justify-between"
+              >
+                <p className="text-muted text-xs uppercase tracking-wider">
+                  Submit a Question {pqList.length > 0 ? `(${pqList.length})` : ''}
+                </p>
+                <span className="text-faint text-xs">{pqOpen ? '−' : '+'}</span>
+              </button>
+              {pqOpen && (
+                <div className="space-y-3">
+                  {isWyrGame ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Option A"
+                        value={pqWyrA}
+                        onChange={(e) => setPqWyrA(e.target.value)}
+                        maxLength={200}
+                        className="input-field text-sm"
+                        disabled={pqSubmitting}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Option B"
+                        value={pqWyrB}
+                        onChange={(e) => setPqWyrB(e.target.value)}
+                        maxLength={200}
+                        className="input-field text-sm"
+                        disabled={pqSubmitting}
+                      />
+                      <button
+                        type="button"
+                        disabled={!pqWyrA.trim() || !pqWyrB.trim() || pqSubmitting}
+                        onClick={async () => {
+                          setPqSubmitting(true)
+                          try {
+                            const res = await fetch('/api/player-questions', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                gameId: gameCode,
+                                playerId: myPlayerId,
+                                questionType: 'wyr',
+                                optionA: pqWyrA.trim(),
+                                optionB: pqWyrB.trim(),
+                              }),
+                            })
+                            if (res.ok) {
+                              const { question } = await res.json()
+                              setPqList((prev) => [...prev, question])
+                              setPqWyrA('')
+                              setPqWyrB('')
+                            } else {
+                              const { error } = await res.json()
+                              toast.error(error || 'Failed to submit')
+                            }
+                          } finally {
+                            setPqSubmitting(false)
                           }
-                        } finally {
-                          setPqSubmitting(false)
+                        }}
+                        className={
+                          pqWyrA.trim() && pqWyrB.trim()
+                            ? 'btn-primary text-sm w-full'
+                            : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
                         }
-                      }}
-                      className={
-                        pqWyrA.trim() && pqWyrB.trim()
-                          ? 'btn-primary text-sm w-full'
-                          : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
-                      }
-                    >
-                      {pqSubmitting ? 'Submitting...' : 'Add Question'}
-                    </button>
-                  </div>
-                ) : isTotGame ? (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Coffee or Tea?"
-                      value={pqTotText}
-                      onChange={(e) => setPqTotText(e.target.value)}
-                      maxLength={200}
-                      className="input-field text-sm"
-                      disabled={pqSubmitting}
-                    />
-                    <button
-                      type="button"
-                      disabled={!pqTotText.trim() || pqSubmitting}
-                      onClick={async () => {
-                        const parsed = parseOrSplitQuestion(pqTotText)
-                        if (!parsed) {
-                          toast.error('Use “Coffee or Tea?” format with “ or ” between options')
-                          return
-                        }
-                        setPqSubmitting(true)
-                        try {
-                          const res = await fetch('/api/player-questions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              gameId: gameCode,
-                              playerId: myPlayerId,
-                              questionType: 'wyr',
-                              optionA: parsed.optionA,
-                              optionB: parsed.optionB,
-                            }),
-                          })
-                          if (res.ok) {
-                            const { question } = await res.json()
-                            setPqList((prev) => [...prev, question])
-                            setPqTotText('')
-                          } else {
-                            const { error } = await res.json()
-                            toast.error(error || 'Failed to submit')
+                      >
+                        {pqSubmitting ? 'Submitting...' : 'Add Question'}
+                      </button>
+                    </div>
+                  ) : isTotGame ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Coffee or Tea?"
+                        value={pqTotText}
+                        onChange={(e) => setPqTotText(e.target.value)}
+                        maxLength={200}
+                        className="input-field text-sm"
+                        disabled={pqSubmitting}
+                      />
+                      <button
+                        type="button"
+                        disabled={!pqTotText.trim() || pqSubmitting}
+                        onClick={async () => {
+                          const parsed = parseOrSplitQuestion(pqTotText)
+                          if (!parsed) {
+                            toast.error('Use “Coffee or Tea?” format with “ or ” between options')
+                            return
                           }
-                        } finally {
-                          setPqSubmitting(false)
-                        }
-                      }}
-                      className={
-                        pqTotText.trim()
-                          ? 'btn-primary text-sm w-full'
-                          : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
-                      }
-                    >
-                      {pqSubmitting ? 'Submitting...' : 'Add Question'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Most likely to..."
-                      value={pqMltText}
-                      onChange={(e) => setPqMltText(e.target.value)}
-                      maxLength={200}
-                      className="input-field text-sm"
-                      disabled={pqSubmitting}
-                    />
-                    <button
-                      type="button"
-                      disabled={!pqMltText.trim() || pqSubmitting}
-                      onClick={async () => {
-                        setPqSubmitting(true)
-                        try {
-                          const res = await fetch('/api/player-questions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              gameId: gameCode,
-                              playerId: myPlayerId,
-                              questionType: 'mlt',
-                              questionText: pqMltText.trim(),
-                            }),
-                          })
-                          if (res.ok) {
-                            const { question } = await res.json()
-                            setPqList((prev) => [...prev, question])
-                            setPqMltText('')
-                          } else {
-                            const { error } = await res.json()
-                            toast.error(error || 'Failed to submit')
+                          setPqSubmitting(true)
+                          try {
+                            const res = await fetch('/api/player-questions', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                gameId: gameCode,
+                                playerId: myPlayerId,
+                                questionType: 'wyr',
+                                optionA: parsed.optionA,
+                                optionB: parsed.optionB,
+                              }),
+                            })
+                            if (res.ok) {
+                              const { question } = await res.json()
+                              setPqList((prev) => [...prev, question])
+                              setPqTotText('')
+                            } else {
+                              const { error } = await res.json()
+                              toast.error(error || 'Failed to submit')
+                            }
+                          } finally {
+                            setPqSubmitting(false)
                           }
-                        } finally {
-                          setPqSubmitting(false)
+                        }}
+                        className={
+                          pqTotText.trim()
+                            ? 'btn-primary text-sm w-full'
+                            : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
                         }
-                      }}
-                      className={
-                        pqMltText.trim()
-                          ? 'btn-primary text-sm w-full'
-                          : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
-                      }
-                    >
-                      {pqSubmitting ? 'Submitting...' : 'Add Question'}
-                    </button>
-                  </div>
-                )}
-                {pqList.filter((q) => q.player_id === myPlayerId).length > 0 && (
-                  <div className="space-y-1.5 pt-2 border-t border-theme">
-                    <p className="text-faint text-[10px] uppercase tracking-wider">Your questions</p>
-                    {pqList
-                      .filter((q) => q.player_id === myPlayerId)
-                      .map((q) => (
-                        <div key={q.id} className="flex items-start gap-2 text-sm">
-                          <span className="flex-1 min-w-0 text-body-muted">
-                            {q.question_type === 'wyr' ? `${q.option_a} vs ${q.option_b}` : q.question_text}
-                          </span>
-                          <button
-                            type="button"
-                            className="text-faint hover:text-red-400 text-xs shrink-0"
-                            onClick={async () => {
-                              await fetch('/api/player-questions', {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ questionId: q.id, playerId: myPlayerId }),
-                              })
-                              setPqList((prev) => prev.filter((x) => x.id !== q.id))
-                            }}
-                          >
-                            x
-                          </button>
-                        </div>
-                      ))}
-                  </div>
-                )}
-                {pqList.length > 0 && (
-                  <p className="text-faint text-[10px] text-center">
-                    {pqList.length} question{pqList.length === 1 ? '' : 's'} submitted by all players
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                      >
+                        {pqSubmitting ? 'Submitting...' : 'Add Question'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Most likely to..."
+                        value={pqMltText}
+                        onChange={(e) => setPqMltText(e.target.value)}
+                        maxLength={200}
+                        className="input-field text-sm"
+                        disabled={pqSubmitting}
+                      />
+                      <button
+                        type="button"
+                        disabled={!pqMltText.trim() || pqSubmitting}
+                        onClick={async () => {
+                          setPqSubmitting(true)
+                          try {
+                            const res = await fetch('/api/player-questions', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                gameId: gameCode,
+                                playerId: myPlayerId,
+                                questionType: 'mlt',
+                                questionText: pqMltText.trim(),
+                              }),
+                            })
+                            if (res.ok) {
+                              const { question } = await res.json()
+                              setPqList((prev) => [...prev, question])
+                              setPqMltText('')
+                            } else {
+                              const { error } = await res.json()
+                              toast.error(error || 'Failed to submit')
+                            }
+                          } finally {
+                            setPqSubmitting(false)
+                          }
+                        }}
+                        className={
+                          pqMltText.trim()
+                            ? 'btn-primary text-sm w-full'
+                            : 'btn-secondary text-sm w-full opacity-60 cursor-not-allowed'
+                        }
+                      >
+                        {pqSubmitting ? 'Submitting...' : 'Add Question'}
+                      </button>
+                    </div>
+                  )}
+                  {pqList.filter((q) => q.player_id === myPlayerId).length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-theme">
+                      <p className="text-faint text-[10px] uppercase tracking-wider">Your questions</p>
+                      {pqList
+                        .filter((q) => q.player_id === myPlayerId)
+                        .map((q) => (
+                          <div key={q.id} className="flex items-start gap-2 text-sm">
+                            <span className="flex-1 min-w-0 text-body-muted">
+                              {q.question_type === 'wyr' ? `${q.option_a} vs ${q.option_b}` : q.question_text}
+                            </span>
+                            <button
+                              type="button"
+                              className="text-faint hover:text-red-400 text-xs shrink-0"
+                              onClick={async () => {
+                                await fetch('/api/player-questions', {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ questionId: q.id, playerId: myPlayerId }),
+                                })
+                                setPqList((prev) => prev.filter((x) => x.id !== q.id))
+                              }}
+                            >
+                              x
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                  {pqList.length > 0 && (
+                    <p className="text-faint text-[10px] text-center">
+                      {pqList.length} question{pqList.length === 1 ? '' : 's'} submitted by all players
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Player name submission for people poll games (RFGF, SMK, etc.) */}
         {game && isPeoplePollGame(game.game_type) && lobbyAllowsPlayerNameSubmissions(game) && myPlayerId && (
@@ -1202,9 +1309,12 @@ export function PollGamePlayerExperience({
         )}
 
         {/* Participant gallery for games with photo cards */}
-        {participants.length > 0 && !isBinaryGame && !isNhieGame && !isMostLikelyTo(game?.game_type) && !isWst && !isVoterOnly && (
-          <ParticipantGallery participants={participants} />
-        )}
+        {participants.length > 0 &&
+          !isBinaryGame &&
+          !isNhieGame &&
+          !isMostLikelyTo(game?.game_type) &&
+          !isWst &&
+          !isVoterOnly && <ParticipantGallery participants={participants} />}
 
         {sessionBar}
 
@@ -1464,11 +1574,7 @@ export function PollGamePlayerExperience({
     const statement = currentRound.mlt_question ?? ''
     const canVote = !!myPlayerId && !isViewer
     const borderCls =
-      wyrChoice === 'a'
-        ? 'border-fuchsia-500/40'
-        : wyrChoice === 'b'
-          ? 'border-sky-500/40'
-          : 'border-theme'
+      wyrChoice === 'a' ? 'border-fuchsia-500/40' : wyrChoice === 'b' ? 'border-sky-500/40' : 'border-theme'
 
     return (
       <div className="page-wrap flex flex-col px-4 py-6 max-w-2xl mx-auto w-full">
@@ -1563,7 +1669,9 @@ export function PollGamePlayerExperience({
         <div className="glass-card border-2 border-violet-500/35 rounded-2xl p-5 mb-6">
           <div className="text-center mb-4">
             <div className="text-4xl mb-2">🔢❓</div>
-            <p className="text-violet-600 dark:text-violet-400 text-xs uppercase tracking-wider mb-1">Picker this round</p>
+            <p className="text-violet-600 dark:text-violet-400 text-xs uppercase tracking-wider mb-1">
+              Picker this round
+            </p>
             <p className="text-2xl font-black text-body">{isPicker ? 'YOU' : pickerName}</p>
           </div>
 
@@ -1586,9 +1694,7 @@ export function PollGamePlayerExperience({
             </div>
           ) : isPicker ? (
             <>
-              <p className="text-center text-body font-medium mb-1">
-                Pick a number between 1 and {poolSize}
-              </p>
+              <p className="text-center text-body font-medium mb-1">Pick a number between 1 and {poolSize}</p>
               <p className="text-center text-faint text-sm mb-4">
                 {panUsedNumbers.size > 0
                   ? `${availableCount} number${availableCount === 1 ? '' : 's'} left — taken picks are greyed out`
@@ -1760,7 +1866,12 @@ export function PollGamePlayerExperience({
     const effectiveGender = myPlayerGender ?? getPlayerSession(gameCode)?.playerGender ?? null
     const canVote = genderFreeVoting
       ? !!myPlayerId && !isViewer
-      : !!(effectiveGender && roundParticipantGender && canPlayerVoteInRound(effectiveGender, roundParticipantGender) && !isViewer)
+      : !!(
+          effectiveGender &&
+          roundParticipantGender &&
+          canPlayerVoteInRound(effectiveGender, roundParticipantGender) &&
+          !isViewer
+        )
     const voteBanner = canVote && !genderFreeVoting ? activeVoteBanner(effectiveGender) : null
     const isBinaryPoll = isBinaryPeoplePollGame(gameType)
     const isUnary = isUnaryPollGame(gameType)
@@ -1813,9 +1924,7 @@ export function PollGamePlayerExperience({
             {voterHint && <p className="text-muted text-xs mt-0.5">{voterHint}</p>}
             {voteBanner && <p className="text-green-400/90 text-xs font-medium mt-1">{voteBanner}</p>}
             {isUnary && (
-              <p className="text-faint text-xs mt-1">
-                Would you let your son or daughter date or marry this person?
-              </p>
+              <p className="text-faint text-xs mt-1">Would you let your son or daughter date or marry this person?</p>
             )}
             {isPairGame(gameType) && isPairOneEachMode(game!) && (
               <p className="text-faint text-xs mt-1">
@@ -2112,9 +2221,7 @@ export function PollGamePlayerExperience({
                 question={lastFinishedRound.mlt_question ?? ''}
               />
             ) : (
-              <p className="text-muted text-center">
-                {pickerName} didn&apos;t pick a number before time ran out.
-              </p>
+              <p className="text-muted text-center">{pickerName} didn&apos;t pick a number before time ran out.</p>
             )}
           </RoundResultsShareBlock>
           <ConfessionsTicker confessions={allConfessions.filter((c) => c.round_id === lastFinishedRound.id)} />
@@ -2591,7 +2698,8 @@ function FinalResultsView({
   const isWst = isWhoSaidThis(gameType)
   const isHotSeatGame = isHotSeat(gameType)
   const isMltImport = isMltImportGame(game)
-  const showPollLeaderboards = !isBinaryGameType && !isNhie && !isPan && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
+  const showPollLeaderboards =
+    !isBinaryGameType && !isNhie && !isPan && !isMlt && !isWst && !isCustomGame(gameType) && !isHotSeatGame
   const genderBasedLeaderboards = showPollLeaderboards && isGameGenderBased(game)
   const namesOnlyLeaderboards = showPollLeaderboards && isGenderFreeVoting(game)
   const wstScores = isWst ? tallyWstPlayerScores(rounds, votes, players) : []
@@ -2600,10 +2708,7 @@ function FinalResultsView({
     [game, participants, rounds, votes, players]
   )
   const hasFinalLeaderboardSnapshot =
-    (isWst && wstScores.length > 0) ||
-    isCustomGame(gameType) ||
-    genderBasedLeaderboards ||
-    namesOnlyLeaderboards
+    (isWst && wstScores.length > 0) || isCustomGame(gameType) || genderBasedLeaderboards || namesOnlyLeaderboards
   const showFinalShareResults =
     !isThisOrThat(gameType) && !isWouldYouRather(gameType) && !isNhie && !isPan && !isMlt && !isHotSeatGame
 
@@ -2635,13 +2740,7 @@ function FinalResultsView({
       </div>
 
       {hasFinalLeaderboardSnapshot ? (
-        <FinalResultsShareBlock
-          game={game}
-          participants={participants}
-          votes={votes}
-          rounds={rounds}
-          players={players}
-        >
+        <FinalResultsShareBlock game={game} participants={participants} votes={votes} rounds={rounds} players={players}>
           {isWst && wstScores.length > 0 && (
             <PaginatedLeaderboard
               title="Best guessers"

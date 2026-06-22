@@ -31,18 +31,30 @@ export function useCodewordsRealtime(gameCode: string, channelId: string, handle
   useEffect(() => {
     const channel = supabase
       .channel(`codewords-sync-${channelId}-${gameCode}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (p) => {
-        handlersRef.current.onGame?.(p.new as Game)
-        void handlersRef.current.onReload?.()
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, (p) => {
-        const player = p.new as Player
-        handlersRef.current.onPlayers?.((prev) => (prev.some((x) => x.id === player.id) ? prev : [...prev, player]))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, (p) => {
-        const player = p.old as Player
-        handlersRef.current.onPlayers?.((prev) => prev.filter((x) => x.id !== player.id))
-      })
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        (p) => {
+          handlersRef.current.onGame?.(p.new as Game)
+          void handlersRef.current.onReload?.()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (p) => {
+          const player = p.new as Player
+          handlersRef.current.onPlayers?.((prev) => (prev.some((x) => x.id === player.id) ? prev : [...prev, player]))
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (p) => {
+          const player = p.old as Player
+          handlersRef.current.onPlayers?.((prev) => prev.filter((x) => x.id !== player.id))
+        }
+      )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'codewords_player_roles', filter: `game_id=eq.${gameCode}` },

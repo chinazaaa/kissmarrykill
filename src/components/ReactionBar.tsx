@@ -13,16 +13,7 @@ const REACTIONS = [
   { emoji: '👀', label: 'Eyes' },
 ] as const
 
-const TEXT_REACTIONS = [
-  'As how?!',
-  'No way',
-  'Called it',
-  "That's wild",
-  'Nahhh',
-  'FR',
-  'Plot twist',
-  'Cap',
-] as const
+const TEXT_REACTIONS = ['As how?!', 'No way', 'Called it', "That's wild", 'Nahhh', 'FR', 'Plot twist', 'Cap'] as const
 
 const ALLOWED_EMOJI = new Set(REACTIONS.map((r) => r.emoji))
 const ALLOWED_TEXT = new Set<string>(TEXT_REACTIONS)
@@ -39,7 +30,10 @@ function randomX() {
 }
 
 function normalizeCustomText(raw: string): string | null {
-  const text = raw.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  const text = raw
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
   if (!text || text.length > MAX_CUSTOM_TEXT) return null
   return text
 }
@@ -81,10 +75,13 @@ export default function ReactionBar({ className = '', gameCode, playerId }: Reac
   const addFloater = useCallback((floater: Omit<Floater, 'id'>) => {
     const id = idRef.current++
     setFloaters((prev) => [...prev, { ...floater, id }])
-    const timer = setTimeout(() => {
-      setFloaters((prev) => prev.filter((f) => f.id !== id))
-      timersRef.current.delete(timer)
-    }, floater.kind === 'text' ? 1100 : 900)
+    const timer = setTimeout(
+      () => {
+        setFloaters((prev) => prev.filter((f) => f.id !== id))
+        timersRef.current.delete(timer)
+      },
+      floater.kind === 'text' ? 1100 : 900
+    )
     timersRef.current.add(timer)
   }, [])
 

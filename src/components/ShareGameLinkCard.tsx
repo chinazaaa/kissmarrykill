@@ -11,24 +11,14 @@ type Props = {
   variant?: 'stacked' | 'aside'
 }
 
-export function ShareGameLinkCard({
-  gameCode,
-  className = '',
-  onResumed,
-  variant = 'stacked',
-}: Props) {
+export function ShareGameLinkCard({ gameCode, className = '', onResumed, variant = 'stacked' }: Props) {
   const url = playerGameUrl(gameCode, shareOrigin())
   const handleResumed = onResumed ?? (() => window.location.reload())
   const isAside = variant === 'aside'
 
   return (
     <div className={`space-y-3 ${className}`}>
-      <PlayerInviteCard
-        url={url}
-        gameCode={gameCode}
-        title="Invite friends"
-        variant={isAside ? 'aside' : 'default'}
-      />
+      <PlayerInviteCard url={url} gameCode={gameCode} title="Invite friends" variant={isAside ? 'aside' : 'default'} />
       <PlayerResumeEntry
         gameCode={gameCode}
         onResumed={handleResumed}

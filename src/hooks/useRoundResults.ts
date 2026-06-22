@@ -24,10 +24,18 @@ export function useRoundResults() {
   }
 
   return {
-    lastFinishedRound, lastRoundVotes,
-    allVotes, allRounds, allConfessions, allHotSeatSubmissions,
-    setLastFinishedRound, setLastRoundVotes,
-    setAllVotes, setAllRounds, setAllConfessions, setAllHotSeatSubmissions,
+    lastFinishedRound,
+    lastRoundVotes,
+    allVotes,
+    allRounds,
+    allConfessions,
+    allHotSeatSubmissions,
+    setLastFinishedRound,
+    setLastRoundVotes,
+    setAllVotes,
+    setAllRounds,
+    setAllConfessions,
+    setAllHotSeatSubmissions,
     resetRoundResultsState,
   }
 }

@@ -35,11 +35,7 @@ import {
   parseHostPoolParticipants,
   replaceHostParticipantList,
 } from '@/lib/host-pool-update'
-import {
-  extractRoundUsage,
-  mergePoolUsageState,
-  parsePoolUsage,
-} from '@/lib/pool-usage'
+import { extractRoundUsage, mergePoolUsageState, parsePoolUsage } from '@/lib/pool-usage'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { resetSpectatorsForLobby } from '@/lib/viewers'
 
@@ -83,9 +79,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const [{ data: rounds }, { data: participantsData }] = await Promise.all([
     supabase
       .from('rounds')
-      .select(
-        'participant_ids, wyr_option_a, wyr_option_b, mlt_question, submitter_player_id, trivia_metadata'
-      )
+      .select('participant_ids, wyr_option_a, wyr_option_b, mlt_question, submitter_player_id, trivia_metadata')
       .eq('game_id', gameId),
     supabase.from('participants').select('id, name, gender').eq('game_id', gameId),
   ])

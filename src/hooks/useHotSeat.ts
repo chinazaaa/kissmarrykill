@@ -45,8 +45,14 @@ export function useHotSeat({
   }
 
   return {
-    hotSeatText, hotSeatType, hotSeatSubmitted, hotSeatSubmissions,
-    setHotSeatText, setHotSeatType, setHotSeatSubmitted, setHotSeatSubmissions,
+    hotSeatText,
+    hotSeatType,
+    hotSeatSubmitted,
+    hotSeatSubmissions,
+    setHotSeatText,
+    setHotSeatType,
+    setHotSeatSubmitted,
+    setHotSeatSubmissions,
     resetHotSeatState,
   }
 }

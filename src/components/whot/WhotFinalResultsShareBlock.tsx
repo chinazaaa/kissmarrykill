@@ -32,8 +32,7 @@ export function WhotFinalResultsShareBlock({
   )
 
   const winnerPlayerId = session?.winner_player_id ?? null
-  const displayWinner =
-    winnerName ?? standings.find((row) => row.rank === 1)?.name ?? null
+  const displayWinner = winnerName ?? standings.find((row) => row.rank === 1)?.name ?? null
 
   const winnerStanding =
     (winnerPlayerId ? standings.find((row) => row.playerId === winnerPlayerId) : null) ??
@@ -54,17 +53,13 @@ export function WhotFinalResultsShareBlock({
         )}
         {standings.length > 1 && (
           <p className="text-center text-xs text-muted">
-            {winnerEmptyHand
-              ? 'First to empty their hand wins'
-              : 'Lowest hand total wins (WHOT = 20)'}
+            {winnerEmptyHand ? 'First to empty their hand wins' : 'Lowest hand total wins (WHOT = 20)'}
           </p>
         )}
         {standings.length > 0 && (
           <div className="space-y-2 pt-2">
             {standings.map((row) => {
-              const isWinner = winnerPlayerId
-                ? row.playerId === winnerPlayerId
-                : row.rank === 1
+              const isWinner = winnerPlayerId ? row.playerId === winnerPlayerId : row.rank === 1
               const isMe = row.playerId === highlightPlayerId
               return (
                 <div
@@ -74,9 +69,7 @@ export function WhotFinalResultsShareBlock({
                     isWinner
                       ? 'border-[color-mix(in_srgb,var(--marry)_45%,var(--border-strong))] bg-[color-mix(in_srgb,var(--marry)_10%,var(--surface-inset-bg))]'
                       : 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
-                    isMe && !isWinner
-                      ? 'ring-1 ring-[color-mix(in_srgb,var(--primary)_25%,transparent)]'
-                      : '',
+                    isMe && !isWinner ? 'ring-1 ring-[color-mix(in_srgb,var(--primary)_25%,transparent)]' : '',
                   ].join(' ')}
                 >
                   <div className="min-w-0">

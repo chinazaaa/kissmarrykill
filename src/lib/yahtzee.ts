@@ -28,14 +28,7 @@ export const YAHTZEE_CATEGORY_LABELS: Record<YahtzeeCategory, string> = {
   chance: 'Chance',
 }
 
-export const YAHTZEE_UPPER_CATEGORIES: YahtzeeCategory[] = [
-  'ones',
-  'twos',
-  'threes',
-  'fours',
-  'fives',
-  'sixes',
-]
+export const YAHTZEE_UPPER_CATEGORIES: YahtzeeCategory[] = ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes']
 
 export const YAHTZEE_LOWER_CATEGORIES: YahtzeeCategory[] = [
   'three_kind',
@@ -109,7 +102,18 @@ export function categoryScore(dice: number[], category: YahtzeeCategory): number
     case 'fours':
     case 'fives':
     case 'sixes': {
-      const face = category === 'ones' ? 1 : category === 'twos' ? 2 : category === 'threes' ? 3 : category === 'fours' ? 4 : category === 'fives' ? 5 : 6
+      const face =
+        category === 'ones'
+          ? 1
+          : category === 'twos'
+            ? 2
+            : category === 'threes'
+              ? 3
+              : category === 'fours'
+                ? 4
+                : category === 'fives'
+                  ? 5
+                  : 6
       return counts[face] * face
     }
     case 'three_kind': {
@@ -130,7 +134,9 @@ export function categoryScore(dice: number[], category: YahtzeeCategory): number
     }
     case 'small_straight': {
       // Standard runs: 1-2-3-4 or 2-3-4-5 or 3-4-5-6.
-      return isConsecutiveRun(dice, [1, 2, 3, 4]) || isConsecutiveRun(dice, [2, 3, 4, 5]) || isConsecutiveRun(dice, [3, 4, 5, 6])
+      return isConsecutiveRun(dice, [1, 2, 3, 4]) ||
+        isConsecutiveRun(dice, [2, 3, 4, 5]) ||
+        isConsecutiveRun(dice, [3, 4, 5, 6])
         ? 30
         : 0
     }
@@ -206,9 +212,7 @@ export function yahtzeeSecondsLeft(deadlineAt: string | null | undefined): numbe
 }
 
 /** Pick the best category to auto-score when time expires (chance first, then first unscored). */
-export function pickAutoScoreCategory(
-  categories: YahtzeeCategoryPoints
-): YahtzeeCategory | null {
+export function pickAutoScoreCategory(categories: YahtzeeCategoryPoints): YahtzeeCategory | null {
   if (categories['chance'] == null) return 'chance'
   for (const cat of YAHTZEE_ALL_CATEGORIES) {
     if (categories[cat] == null) return cat
@@ -256,10 +260,7 @@ export async function initializeYahtzeeGame(
   return {}
 }
 
-export async function clearYahtzeeSessionData(
-  supabase: SupabaseClient,
-  gameId: string
-): Promise<{ error?: string }> {
+export async function clearYahtzeeSessionData(supabase: SupabaseClient, gameId: string): Promise<{ error?: string }> {
   const { error: sessionError } = await supabase.from('yahtzee_sessions').delete().eq('game_id', gameId)
   if (sessionError) return { error: sessionError.message }
 
@@ -320,7 +321,8 @@ export async function processYahtzeeRoll(
       rolls_this_turn,
       turn_deadline_at,
       updated_at: new Date().toISOString(),
-      status_message: rolls_remaining > 0 ? `Roll again (${rolls_remaining} left) or score.` : 'Rolls used — score your turn!',
+      status_message:
+        rolls_remaining > 0 ? `Roll again (${rolls_remaining} left) or score.` : 'Rolls used — score your turn!',
     })
     .eq('game_id', gameId)
 
@@ -385,10 +387,7 @@ export async function processYahtzeeScore(
   const dice = (session.dice as number[]) ?? [1, 1, 1, 1, 1]
   const score = categoryScore(dice, category)
 
-  const { data: scoresRows } = await supabase
-    .from('yahtzee_player_scores')
-    .select('*')
-    .eq('game_id', gameId)
+  const { data: scoresRows } = await supabase.from('yahtzee_player_scores').select('*').eq('game_id', gameId)
 
   if (!scoresRows || scoresRows.length === 0) return { error: 'Scores not found' }
 
@@ -540,7 +539,12 @@ export async function processYahtzeeExpireTurn(
 
     const { error: se } = await supabase
       .from('yahtzee_sessions')
-      .update({ phase: 'finished', winner_player_id: winnerPlayerId, turn_deadline_at: null, updated_at: new Date().toISOString() })
+      .update({
+        phase: 'finished',
+        winner_player_id: winnerPlayerId,
+        turn_deadline_at: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('game_id', gameId)
     if (se) return { error: se.message }
     await markGameFinished(supabase, gameId)
@@ -574,7 +578,6 @@ export async function processYahtzeeExpireTurn(
   if (se) return { error: se.message }
   return {}
 }
-
 
 export type YahtzeeHostMode = 'spectator' | 'player'
 

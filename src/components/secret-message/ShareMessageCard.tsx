@@ -118,10 +118,7 @@ export function ShareMessageCard({
             background: 'linear-gradient(90deg, transparent, rgba(244, 63, 94, 0.5), transparent)',
           }}
         />
-        <span
-          className="font-medium tracking-[0.14em] uppercase"
-          style={{ fontSize: 22, color: '#5c5c78' }}
-        >
+        <span className="font-medium tracking-[0.14em] uppercase" style={{ fontSize: 22, color: '#5c5c78' }}>
           {brand}
         </span>
       </div>

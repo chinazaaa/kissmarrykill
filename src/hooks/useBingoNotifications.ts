@@ -5,13 +5,7 @@ import { playGameFinishedSound, playRoundEndSound, playRoundStartSound } from '@
 import { useToast } from '@/components/ui/Toast'
 import type { BingoClaim, Game } from '@/types'
 
-export function useBingoStartNotification({
-  game,
-  enabled = true,
-}: {
-  game: Game | null
-  enabled?: boolean
-}) {
+export function useBingoStartNotification({ game, enabled = true }: { game: Game | null; enabled?: boolean }) {
   const readyRef = useRef(false)
   const prevStatusRef = useRef<Game['status'] | null>(null)
 

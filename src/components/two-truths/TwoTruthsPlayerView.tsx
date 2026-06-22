@@ -81,9 +81,7 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
 
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
-      setScreen(
-        pre === 'game_started_waiting' ? 'game_started_waiting' : pre === 'game_ended' ? 'game_ended' : 'join'
-      )
+      setScreen(pre === 'game_started_waiting' ? 'game_started_waiting' : pre === 'game_ended' ? 'game_ended' : 'join')
       return true
     }
 
@@ -105,14 +103,20 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () =>
         load()
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ttl_statements', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ttl_statements', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ttl_guesses', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ttl_guesses', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
       .subscribe()
 
@@ -214,12 +218,7 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
         gameCode={gameCode}
         header={<GameJoinHeader emoji={cfg.headerEmoji} title={game?.title} gameType="two_truths" />}
       >
-        <NameJoinForm
-          value={joinName}
-          onChange={setJoinName}
-          onSubmit={joinGame}
-          joining={joining}
-        />
+        <NameJoinForm value={joinName} onChange={setJoinName} onSubmit={joinGame} joining={joining} />
       </GameJoinLobbyShell>
     )
   }
@@ -241,25 +240,17 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
           rulesLink={<GameRulesLink gameType="two_truths" variant="subtle" />}
           activity={
             isViewer ? (
-              <ViewerModeBanner
-                gameCode={gameCode}
-                playerId={myPlayerId}
-                game={game}
-                player={me}
-                onPromoted={load}
-              />
+              <ViewerModeBanner gameCode={gameCode} playerId={myPlayerId} game={game} player={me} onPromoted={load} />
             ) : myStatement && !editingStatements ? (
               <div className="space-y-4">
                 <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-5 text-center space-y-1">
                   <p className="text-2xl">✓</p>
                   <p className="font-semibold text-emerald-800 dark:text-emerald-200">Statements submitted</p>
-                  <p className="text-sm text-emerald-700 dark:text-emerald-300">Waiting for the host to start the game…</p>
+                  <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                    Waiting for the host to start the game…
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingStatements(true)}
-                  className="btn-secondary w-full"
-                >
+                <button type="button" onClick={() => setEditingStatements(true)} className="btn-secondary w-full">
                   Edit my statements
                 </button>
               </div>
@@ -297,19 +288,16 @@ export function TwoTruthsPlayerView({ gameCode }: { gameCode: string }) {
             <h1 className="text-xl font-black gradient-title">{game.title}</h1>
           </div>
           {isViewer && (
-            <ViewerModeBanner
-              gameCode={gameCode}
-              playerId={myPlayerId}
-              game={game}
-              player={me}
-              onPromoted={load}
-            />
+            <ViewerModeBanner gameCode={gameCode} playerId={myPlayerId} game={game} player={me} onPromoted={load} />
           )}
           <PlayerSessionControls
             gameCode={gameCode}
             playerId={myPlayerId}
             currentName={myPlayerName}
-            onRenamed={(name) => { setMyPlayerName(name); void load() }}
+            onRenamed={(name) => {
+              setMyPlayerName(name)
+              void load()
+            }}
             onLeft={handlePlayerLeft}
           />
           <TwoTruthsActiveRound

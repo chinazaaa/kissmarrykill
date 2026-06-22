@@ -33,12 +33,7 @@ export async function renderSecretMessageShareImage({
 
   try {
     root.render(
-      <ShareMessageCard
-        messageText={messageText}
-        gameTitle={gameTitle}
-        headerEmoji={headerEmoji}
-        brand={brand}
-      />
+      <ShareMessageCard messageText={messageText} gameTitle={gameTitle} headerEmoji={headerEmoji} brand={brand} />
     )
 
     await document.fonts.ready

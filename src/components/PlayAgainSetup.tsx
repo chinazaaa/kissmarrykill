@@ -74,15 +74,24 @@ export function playAgainNeedsSetup(game: Game): boolean {
 
 export function hostPoolSetupAvailable(game: Game): boolean {
   const type = parseGameType(game.game_type)
-  if (isAnonymousMessagesGame(type) || type === 'secret_message' || type === 'bingo' || type === 'codewords' || type === 'monopoly' || type === 'yahtzee' || type === 'whot' || type === 'ludo') return false
+  if (
+    isAnonymousMessagesGame(type) ||
+    type === 'secret_message' ||
+    type === 'bingo' ||
+    type === 'codewords' ||
+    type === 'monopoly' ||
+    type === 'yahtzee' ||
+    type === 'whot' ||
+    type === 'ludo'
+  )
+    return false
   return hasQuestionPool(game) || hasParticipantPool(game)
 }
 
 export function hostPoolSetupLabels(game: Game): { title: string; hasQuestions: boolean; hasParticipants: boolean } {
   const hasQuestions = hasQuestionPool(game)
   const hasParticipants = hasParticipantPool(game)
-  const title =
-    hasQuestions && hasParticipants ? 'Questions & name list' : hasQuestions ? 'Questions' : 'Name list'
+  const title = hasQuestions && hasParticipants ? 'Questions & name list' : hasQuestions ? 'Questions' : 'Name list'
   return { title, hasQuestions, hasParticipants }
 }
 
@@ -434,7 +443,11 @@ export function PlayAgainSetup({
                   label: 'Same list',
                   hint: `${customQuestionCount || parseStoredWyrQuestions(game.custom_questions).length || parseStoredMltQuestions(game.custom_questions).length} loaded — unused ones first`,
                 },
-                { value: 'change', label: 'Upload or edit', hint: 'Upload replaces the list — or clear and build a new one' },
+                {
+                  value: 'change',
+                  label: 'Upload or edit',
+                  hint: 'Upload replaces the list — or clear and build a new one',
+                },
               ]}
             />
 

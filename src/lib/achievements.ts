@@ -1,5 +1,12 @@
 import type { Game, Participant, Player, Round, Vote } from '@/types'
-import { parseGameType, isBinaryPeoplePollGame, isBinaryChoiceGame, isMostLikelyTo, isWhoSaidThis, isCustomGame } from '@/lib/game-types'
+import {
+  parseGameType,
+  isBinaryPeoplePollGame,
+  isBinaryChoiceGame,
+  isMostLikelyTo,
+  isWhoSaidThis,
+  isCustomGame,
+} from '@/lib/game-types'
 import { flagForParticipant, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import { isMltImportGame, mltVoteTargets } from '@/lib/mlt'
 import { tallyWstPlayerScores, wstCorrectParticipantIdFromRound } from '@/lib/who-said-this'
@@ -124,11 +131,7 @@ function trioAndPairAchievements(
     for (const [pid, count] of positiveCount) {
       if (count === maxPos) {
         const label =
-          gameType === 'red_flag_green_flag'
-            ? 'green flags'
-            : gameType === 'parent_approval'
-              ? 'yes votes'
-              : 'smashes'
+          gameType === 'red_flag_green_flag' ? 'green flags' : gameType === 'parent_approval' ? 'yes votes' : 'smashes'
         achievements.push({
           id: `heartthrob-${pid}`,
           emoji: '💖',
@@ -148,11 +151,7 @@ function trioAndPairAchievements(
     for (const [pid, count] of negativeCount) {
       if (count === maxNeg) {
         const label =
-          gameType === 'red_flag_green_flag'
-            ? 'red flags'
-            : gameType === 'parent_approval'
-              ? 'no votes'
-              : 'kills'
+          gameType === 'red_flag_green_flag' ? 'red flags' : gameType === 'parent_approval' ? 'no votes' : 'kills'
         achievements.push({
           id: `lightning-rod-${pid}`,
           emoji: '⚡',
@@ -173,11 +172,7 @@ function trioAndPairAchievements(
       (roundsAppeared.get(pid)?.length ?? 0) > (roundsAppeared.get(best)?.length ?? 0) ? pid : best
     )
     const label =
-      gameType === 'red_flag_green_flag'
-        ? 'red-flagged'
-        : gameType === 'parent_approval'
-          ? 'rejected'
-          : 'killed'
+      gameType === 'red_flag_green_flag' ? 'red-flagged' : gameType === 'parent_approval' ? 'rejected' : 'killed'
     achievements.push({
       id: `survivor-${bestSurvivor}`,
       emoji: '🛡️',
@@ -197,11 +192,7 @@ function trioAndPairAchievements(
     for (const pid of untouchedCandidates) {
       if (achievements.some((a) => a.id === `survivor-${pid}`)) continue
       const label =
-      gameType === 'red_flag_green_flag'
-        ? 'red-flagged'
-        : gameType === 'parent_approval'
-          ? 'rejected'
-          : 'killed'
+        gameType === 'red_flag_green_flag' ? 'red-flagged' : gameType === 'parent_approval' ? 'rejected' : 'killed'
       achievements.push({
         id: `untouched-${pid}`,
         emoji: '✨',

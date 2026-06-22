@@ -17,7 +17,12 @@ import { YahtzeeFinalResultsShareBlock } from '@/components/yahtzee/YahtzeeFinal
 import { gameTypeConfig } from '@/lib/game-types'
 import { currentPlayerId } from '@/lib/yahtzee'
 import { supabase } from '@/lib/supabase'
-import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
+import {
+  GAME_SELECT,
+  PLAYER_SELECT,
+  YAHTZEE_PLAYER_SCORES_SELECT,
+  YAHTZEE_SESSION_SELECT,
+} from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, Player, YahtzeeCategory, YahtzeePlayerScore, YahtzeeSession } from '@/types'
@@ -38,7 +43,15 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useYahtzeeNotifications, playYahtzeeScoreSound } from '@/hooks/useYahtzeeNotifications'
 import { useYahtzeeTurnTimer } from '@/hooks/useYahtzeeTurnTimer'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'game_started_waiting'
+  | 'game_ended'
+  | 'waiting'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -87,7 +100,11 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
       supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
       supabase.from('yahtzee_sessions').select(YAHTZEE_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
-      supabase.from('yahtzee_player_scores').select(YAHTZEE_PLAYER_SCORES_SELECT).eq('game_id', gameCode).order('player_order'),
+      supabase
+        .from('yahtzee_player_scores')
+        .select(YAHTZEE_PLAYER_SCORES_SELECT)
+        .eq('game_id', gameCode)
+        .order('player_order'),
     ])
     if (!supabasePollOk(gameRes, plrsRes, sessionRes, scoresRes)) return false
 
@@ -115,8 +132,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
 
     if (sessionData) {
       const turnChanged = turnIndexRef.current !== sessionData.current_turn_index
-      const isMyActiveTurn =
-        playerId != null && currentPlayerId(sessionData) === playerId
+      const isMyActiveTurn = playerId != null && currentPlayerId(sessionData) === playerId
       const midTurn = (sessionData.rolls_this_turn ?? 0) > 0
 
       if (turnChanged || !isMyActiveTurn || !midTurn) {
@@ -135,9 +151,21 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   useEffect(() => {
     const channel = supabase
       .channel(`yahtzee-player-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'yahtzee_sessions', filter: `game_id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'yahtzee_player_scores', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'yahtzee_sessions', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'yahtzee_player_scores', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
       .subscribe()
     return () => {
       supabase.removeChannel(channel)
@@ -234,11 +262,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   useYahtzeeNotifications({ game, session, myPlayerId, enabled: screen === 'active' })
 
   // Turn timer countdown (also fires expire-turn when deadline passes)
-  const { secondsLeft, hasTimer, urgent } = useYahtzeeTurnTimer(
-    gameCode,
-    session,
-    screen === 'active'
-  )
+  const { secondsLeft, hasTimer, urgent } = useYahtzeeTurnTimer(gameCode, session, screen === 'active')
 
   if (screen === 'loading') return <YahtzeeLoadingScreen />
 

@@ -42,9 +42,7 @@ export async function shareImageBlob(blob: Blob, filename = 'secret-message.png'
 
   if (canCopyImage()) {
     try {
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': Promise.resolve(blob) }),
-      ])
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': Promise.resolve(blob) })])
       return 'copied'
     } catch {
       // Clipboard can reject large images — fall through to download.

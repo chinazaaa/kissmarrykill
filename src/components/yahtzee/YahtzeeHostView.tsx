@@ -19,7 +19,12 @@ import {
   type YahtzeeHostMode,
 } from '@/lib/yahtzee'
 import { supabase } from '@/lib/supabase'
-import { GAME_SELECT, PLAYER_SELECT, YAHTZEE_PLAYER_SCORES_SELECT, YAHTZEE_SESSION_SELECT } from '@/lib/supabase-selects'
+import {
+  GAME_SELECT,
+  PLAYER_SELECT,
+  YAHTZEE_PLAYER_SCORES_SELECT,
+  YAHTZEE_SESSION_SELECT,
+} from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
@@ -65,7 +70,11 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
       supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
       supabase.from('yahtzee_sessions').select(YAHTZEE_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
-      supabase.from('yahtzee_player_scores').select(YAHTZEE_PLAYER_SCORES_SELECT).eq('game_id', gameCode).order('player_order'),
+      supabase
+        .from('yahtzee_player_scores')
+        .select(YAHTZEE_PLAYER_SCORES_SELECT)
+        .eq('game_id', gameCode)
+        .order('player_order'),
     ])
     if (!supabasePollOk(gameRes, plrsRes, sessionRes, scoresRes)) return false
     setGame(gameRes.data)
@@ -111,12 +120,30 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
   useEffect(() => {
     const channel = supabase
       .channel(`yahtzee-host-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'yahtzee_sessions', filter: `game_id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'yahtzee_player_scores', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'yahtzee_sessions', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'yahtzee_player_scores', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [gameCode, load])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
@@ -300,68 +327,68 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
 
   return (
     <HostPageShell gameCode={gameCode} {...layout}>
-        <HostGameHeader game={game} />
+      <HostGameHeader game={game} />
 
-        {/* Host mode selector — lobby only */}
-        {game.status === 'waiting' && (
-          <div className="glass-card-strong p-5 space-y-3">
-            <p className="label-caps">Host mode</p>
-            <div className="grid grid-cols-2 gap-3">
+      {/* Host mode selector — lobby only */}
+      {game.status === 'waiting' && (
+        <div className="glass-card-strong p-5 space-y-3">
+          <p className="label-caps">Host mode</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => changeHostMode('spectator')}
+              className={[
+                'rounded-2xl border-2 px-4 py-4 text-left',
+                hostMode === 'spectator'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block text-base">Host only</span>
+              <span className="text-faint text-xs">Spectate from Manage</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeHostMode('player')}
+              className={[
+                'rounded-2xl border-2 px-4 py-4 text-left',
+                hostMode === 'player'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block text-base">Host + play</span>
+              <span className="text-faint text-xs">Play tab + Manage tab</span>
+            </button>
+          </div>
+          {hostMode === 'player' && !hostPlayerId && (
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                value={hostJoinName}
+                onChange={(e) => setHostJoinName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                placeholder="Your name"
+                className="input-field flex-1"
+                maxLength={40}
+              />
               <button
                 type="button"
-                onClick={() => changeHostMode('spectator')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'spectator'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
+                onClick={hostJoinGame}
+                disabled={!hostJoinName.trim() || hostJoining}
+                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
               >
-                <span className="font-bold block text-base">Host only</span>
-                <span className="text-faint text-xs">Spectate from Manage</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => changeHostMode('player')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'player'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
-              >
-                <span className="font-bold block text-base">Host + play</span>
-                <span className="text-faint text-xs">Play tab + Manage tab</span>
+                {hostJoining ? 'Joining…' : 'Join'}
               </button>
             </div>
-            {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field flex-1"
-                  maxLength={40}
-                />
-                <button
-                  type="button"
-                  onClick={hostJoinGame}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
-              </div>
-            )}
-            {hostMode === 'player' && hostPlayerId && (
-              <p className="text-sm text-muted">
-                Playing as <strong className="text-body">{hostPlayerName}</strong> — switch to Play after you start.
-              </p>
-            )}
-          </div>
-        )}
+          )}
+          {hostMode === 'player' && hostPlayerId && (
+            <p className="text-sm text-muted">
+              Playing as <strong className="text-body">{hostPlayerName}</strong> — switch to Play after you start.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Play / Manage tab switcher */}
       {showPlayTab && (
@@ -390,8 +417,11 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
       )}
 
       {/* Play tab — host as Yahtzee player */}
-      {tab === 'play' && hostPlays && hostPlayerId && game.status === 'active' && (
-        session ? (
+      {tab === 'play' &&
+        hostPlays &&
+        hostPlayerId &&
+        game.status === 'active' &&
+        (session ? (
           <div className="space-y-2">
             <YahtzeeScorecard
               players={players}
@@ -423,41 +453,40 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
           </div>
         ) : (
           <div className="glass-card p-8 text-center text-sm text-muted">Loading game…</div>
-        )
-      )}
+        ))}
 
-        {/* Manage tab (or default when no Play tab) */}
-        {(tab === 'manage' || !showPlayTab) && (
-          <>
-            {game.status === 'waiting' && (
-              <>
-                {playerManageBlock}
-                <HostBoardGameLobbyPanel
-                  gameCode={gameCode}
-                  hostToken={hostToken}
-                  game={game}
-                  boardGameType="yahtzee"
-                  playerCount={players.length}
-                  onGameUpdate={setGame}
-                />
-                <HostLobbyWaitingFooter
-                  gameCode={gameCode}
-                  hostToken={hostToken}
-                  onStart={startGame}
-                  onEnded={load}
-                  canStart={canStart}
-                  starting={starting}
-                  startDisabledHint={
-                    canStart ? null : 'Join as a player above to start solo, or wait for others to join.'
-                  }
-                />
-              </>
-            )}
+      {/* Manage tab (or default when no Play tab) */}
+      {(tab === 'manage' || !showPlayTab) && (
+        <>
+          {game.status === 'waiting' && (
+            <>
+              {playerManageBlock}
+              <HostBoardGameLobbyPanel
+                gameCode={gameCode}
+                hostToken={hostToken}
+                game={game}
+                boardGameType="yahtzee"
+                playerCount={players.length}
+                onGameUpdate={setGame}
+              />
+              <HostLobbyWaitingFooter
+                gameCode={gameCode}
+                hostToken={hostToken}
+                onStart={startGame}
+                onEnded={load}
+                canStart={canStart}
+                starting={starting}
+                startDisabledHint={
+                  canStart ? null : 'Join as a player above to start solo, or wait for others to join.'
+                }
+              />
+            </>
+          )}
 
-            {game.status === 'active' && (
-              <>
-                <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-                {session ? (
+          {game.status === 'active' && (
+            <>
+              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+              {session ? (
                 <>
                   {playerManageBlock}
                   <div className="space-y-2">
@@ -480,49 +509,39 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
                       spectator
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={finishGame}
-                    disabled={ending}
-                    className="btn-secondary w-full py-3"
-                  >
+                  <button type="button" onClick={finishGame} disabled={ending} className="btn-secondary w-full py-3">
                     {ending ? 'Ending…' : 'End game early'}
                   </button>
                 </>
               ) : (
                 <div className="glass-card p-8 text-center text-sm text-muted">Loading game…</div>
               )}
-              </>
-            )}
+            </>
+          )}
 
-            {game.status === 'finished' && (
-              <>
-                <YahtzeeFinalResultsShareBlock
-                  game={game}
-                  players={players}
-                  scores={scores}
-                  winnerName={winner?.name}
-                  playAgainButton={
-                    <button
-                      type="button"
-                      onClick={playAgain}
-                      disabled={playingAgain}
-                      className="btn-primary w-full py-3"
-                    >
-                      {playingAgain ? 'Resetting…' : 'Play again'}
-                    </button>
-                  }
-                />
-              </>
-            )}
-          </>
-        )}
+          {game.status === 'finished' && (
+            <>
+              <YahtzeeFinalResultsShareBlock
+                game={game}
+                players={players}
+                scores={scores}
+                winnerName={winner?.name}
+                playAgainButton={
+                  <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full py-3">
+                    {playingAgain ? 'Resetting…' : 'Play again'}
+                  </button>
+                }
+              />
+            </>
+          )}
+        </>
+      )}
 
-        {game.status !== 'finished' && (
-          <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">
-            Back home
-          </button>
-        )}
+      {game.status !== 'finished' && (
+        <button type="button" onClick={() => router.push('/')} className="btn-ghost w-full text-muted">
+          Back home
+        </button>
+      )}
     </HostPageShell>
   )
 }

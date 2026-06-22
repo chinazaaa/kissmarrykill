@@ -44,11 +44,7 @@ export type NpatAdvanceResult = {
 }
 
 async function countActivePlayers(supabase: SupabaseClient, gameId: string): Promise<string[]> {
-  const { data } = await supabase
-    .from('players')
-    .select('id')
-    .eq('game_id', gameId)
-    .eq('spectator', false)
+  const { data } = await supabase.from('players').select('id').eq('game_id', gameId).eq('spectator', false)
   return (data ?? []).map((p) => p.id)
 }
 
@@ -139,11 +135,7 @@ async function startMarkingPhase(
   })
 }
 
-async function autoApproveCallerReview(
-  supabase: SupabaseClient,
-  gameId: string,
-  round: Round
-): Promise<boolean> {
+async function autoApproveCallerReview(supabase: SupabaseClient, gameId: string, round: Round): Promise<boolean> {
   const metadata = parseNpatMetadata(round.npat_metadata)
   if (!metadata || metadata.phase !== 'host_review') return false
 
@@ -156,10 +148,7 @@ async function autoApproveCallerReview(
   return approveNpatRound(supabase, gameId, round.id, hostOverrides)
 }
 
-async function startHostReviewPhase(
-  supabase: SupabaseClient,
-  round: Round
-): Promise<boolean> {
+async function startHostReviewPhase(supabase: SupabaseClient, round: Round): Promise<boolean> {
   const metadata = parseNpatMetadata(round.npat_metadata)
   if (!metadata || metadata.phase !== 'marking') return false
   const now = new Date().toISOString()
@@ -170,11 +159,7 @@ async function startHostReviewPhase(
   })
 }
 
-async function computeAndFinishRound(
-  supabase: SupabaseClient,
-  gameId: string,
-  round: Round
-): Promise<boolean> {
+async function computeAndFinishRound(supabase: SupabaseClient, gameId: string, round: Round): Promise<boolean> {
   const metadata = parseNpatMetadata(round.npat_metadata)
   if (!metadata || metadata.scores_computed) return false
   if (metadata.phase !== 'marking' && metadata.phase !== 'host_review') return false
@@ -259,11 +244,7 @@ async function findExistingNextRound(
   gameId: string,
   nextRoundNumber: number
 ): Promise<{ active: Round | null; pending: Round | null }> {
-  const { data } = await supabase
-    .from('rounds')
-    .select('*')
-    .eq('game_id', gameId)
-    .eq('round_number', nextRoundNumber)
+  const { data } = await supabase.from('rounds').select('*').eq('game_id', gameId).eq('round_number', nextRoundNumber)
   const rows = (data ?? []) as Round[]
   return {
     active: rows.find((r) => r.status === 'active') ?? null,
@@ -298,7 +279,10 @@ async function advanceActiveRoundPhase(
     if (!letterChosen && phaseExpired(metadata, game)) {
       const { data: allRounds } = await supabase.from('rounds').select('npat_metadata').eq('game_id', game.id)
       const remaining = availableLettersForPick(allRounds ?? [])
-      const letter = remaining.length > 0 ? remaining[Math.floor(Math.random() * remaining.length)] : randomUnusedLetter(metadata.used_letters)
+      const letter =
+        remaining.length > 0
+          ? remaining[Math.floor(Math.random() * remaining.length)]
+          : randomUnusedLetter(metadata.used_letters)
       await pickLetterAndStartWriting(supabase, game.id, round, letter, playerIds)
       return 'phase_advanced'
     }
@@ -337,10 +321,7 @@ async function advanceActiveRoundPhase(
 }
 
 async function countPlayedLetters(supabase: SupabaseClient, gameId: string): Promise<number> {
-  const { data: allRounds } = await supabase
-    .from('rounds')
-    .select('npat_metadata, status')
-    .eq('game_id', gameId)
+  const { data: allRounds } = await supabase.from('rounds').select('npat_metadata, status').eq('game_id', gameId)
   return countNpatLettersPlayed(allRounds ?? [])
 }
 
@@ -433,7 +414,12 @@ export async function approveNpatRound(
   roundId: string,
   hostOverrides: NonNullable<NpatMetadata['host_overrides']>
 ): Promise<boolean> {
-  const { data: round } = await supabase.from('rounds').select('*').eq('id', roundId).eq('game_id', gameId).maybeSingle()
+  const { data: round } = await supabase
+    .from('rounds')
+    .select('*')
+    .eq('id', roundId)
+    .eq('game_id', gameId)
+    .maybeSingle()
   if (!round || round.status !== 'active') return false
   const metadata = parseNpatMetadata(round.npat_metadata)
   if (!metadata || metadata.phase !== 'host_review') return false
@@ -483,9 +469,7 @@ export async function syncNpatGameState(
     return { ok: true, code: 'reveal_pending' }
   }
 
-  const pendingAhead = roundList
-    .filter((r) => r.status === 'pending')
-    .sort((a, b) => a.round_number - b.round_number)
+  const pendingAhead = roundList.filter((r) => r.status === 'pending').sort((a, b) => a.round_number - b.round_number)
   const orphanedPending =
     lastFinished != null
       ? (pendingAhead.find((r) => r.round_number === lastFinished.round_number + 1) ??
@@ -497,10 +481,7 @@ export async function syncNpatGameState(
     if (advanced) return { ok: true, code: 'synced_pointer', nextRound: orphanedPending.round_number }
   }
 
-  const cycleAnchor =
-    pointerRound?.status === 'finished'
-      ? pointerRound
-      : lastFinished
+  const cycleAnchor = pointerRound?.status === 'finished' ? pointerRound : lastFinished
   if (cycleAnchor && !revealPending(cycleAnchor)) {
     if (game.current_round_number !== cycleAnchor.round_number) {
       await syncGamePointer(supabase, code, cycleAnchor.round_number)

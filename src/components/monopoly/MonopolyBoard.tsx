@@ -122,12 +122,7 @@ function BoardBuildingBadge({
   const level = buildingLevel(buildings, spaceIndex)
   if (level <= 0) return null
 
-  const positionClass =
-    edge === 'left'
-      ? 'top-0.5 left-1'
-      : edge === 'right'
-        ? 'top-0.5 right-1'
-        : 'top-0.5 left-0.5'
+  const positionClass = edge === 'left' ? 'top-0.5 left-1' : edge === 'right' ? 'top-0.5 right-1' : 'top-0.5 left-0.5'
 
   if (level === MONOPOLY_HOTEL_LEVEL) {
     return (
@@ -154,7 +149,15 @@ function BoardBuildingBadge({
   )
 }
 
-export function MonopolyDiceFace({ value, rolling, compact = false }: { value: number; rolling?: boolean; compact?: boolean }) {
+export function MonopolyDiceFace({
+  value,
+  rolling,
+  compact = false,
+}: {
+  value: number
+  rolling?: boolean
+  compact?: boolean
+}) {
   const pips = DICE_PIPS[value] ?? DICE_PIPS[1]!
   const sizeClass = compact ? 'h-9 w-9 rounded-lg' : 'h-14 w-14 rounded-xl'
   const pipGridClass = compact ? 'h-5 w-5 gap-px' : 'h-9 w-9 gap-0.5'
@@ -603,13 +606,9 @@ export function MonopolyCurrentSpace({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">
-              You landed on
-            </p>
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">You landed on</p>
             <p className="text-sm font-black text-[var(--foreground)] truncate leading-tight mt-0.5">{space.name}</p>
-            {detailLine && (
-              <p className="text-[11px] text-muted truncate leading-snug mt-0.5">{detailLine}</p>
-            )}
+            {detailLine && <p className="text-[11px] text-muted truncate leading-snug mt-0.5">{detailLine}</p>}
           </div>
         </div>
       </div>
@@ -631,9 +630,7 @@ export function MonopolyCurrentSpace({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">
-              You landed on
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">You landed on</p>
             <p className="mt-0.5 text-xl sm:text-2xl font-black text-[var(--foreground)] leading-tight">{space.name}</p>
             {space.price != null && (
               <p className="mt-2 text-sm text-muted">
@@ -641,17 +638,26 @@ export function MonopolyCurrentSpace({
                   <>
                     Owned by <span className="font-bold text-[var(--foreground)]">{ownerName}</span>
                     {rentLabel && rentLabel !== 'Mortgaged' ? (
-                      <> · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                      <>
+                        {' '}
+                        · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span>
+                      </>
                     ) : null}
                     {rentLabel === 'Mortgaged' ? (
-                      <> · <span className="font-bold text-red-500">Mortgaged — no rent</span></>
+                      <>
+                        {' '}
+                        · <span className="font-bold text-red-500">Mortgaged — no rent</span>
+                      </>
                     ) : null}
                   </>
                 ) : (
                   <>
                     For sale · <span className="font-bold text-[var(--marry)]">£{space.price}</span>
                     {rentLabel ? (
-                      <> · Site rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                      <>
+                        {' '}
+                        · Site rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span>
+                      </>
                     ) : null}
                   </>
                 )}
@@ -663,13 +669,21 @@ export function MonopolyCurrentSpace({
                   <>
                     Owned by <span className="font-bold text-[var(--foreground)]">{ownerName}</span>
                     {rentLabel !== 'Mortgaged' ? (
-                      <> · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                      <>
+                        {' '}
+                        · Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span>
+                      </>
                     ) : (
-                      <> · <span className="font-bold text-red-500">Mortgaged</span></>
+                      <>
+                        {' '}
+                        · <span className="font-bold text-red-500">Mortgaged</span>
+                      </>
                     )}
                   </>
                 ) : (
-                  <>Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span></>
+                  <>
+                    Rent <span className="font-bold text-[var(--foreground)]">{rentLabel}</span>
+                  </>
                 )}
               </p>
             )}
@@ -706,9 +720,7 @@ export function MonopolyMyProperties({
               key={space.index}
               className="flex items-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] px-3 py-2"
             >
-              {space.color && (
-                <span className={['h-8 w-1.5 shrink-0 rounded-full', colorBar(space.color)].join(' ')} />
-              )}
+              {space.color && <span className={['h-8 w-1.5 shrink-0 rounded-full', colorBar(space.color)].join(' ')} />}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-[var(--foreground)] truncate">{space.name}</p>
                 <p className="text-[10px] text-faint">
@@ -778,9 +790,7 @@ export function MonopolyPlayerList({
                 <div className="flex flex-wrap items-center gap-1.5">
                   <p className="font-bold truncate text-[var(--foreground)]">
                     {name}
-                    {isMe && (
-                      <span className="ml-1.5 text-xs font-normal text-[var(--primary)]">(you)</span>
-                    )}
+                    {isMe && <span className="ml-1.5 text-xs font-normal text-[var(--primary)]">(you)</span>}
                   </p>
                   {isTurn && (
                     <span className="rounded-full bg-[color-mix(in_srgb,var(--marry)_20%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--marry)]">
@@ -803,10 +813,10 @@ export function MonopolyPlayerList({
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[10px] uppercase tracking-wide text-faint">
-                  Cash
+                <p className="text-[10px] uppercase tracking-wide text-faint">Cash</p>
+                <p className="text-lg font-black tabular-nums text-[var(--primary)]">
+                  £{state.cash.toLocaleString('en-GB')}
                 </p>
-                <p className="text-lg font-black tabular-nums text-[var(--primary)]">£{state.cash.toLocaleString('en-GB')}</p>
               </div>
             </div>
           )

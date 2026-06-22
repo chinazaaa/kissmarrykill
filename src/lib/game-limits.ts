@@ -8,11 +8,7 @@ import { BINGO_DEFAULT_MAX_PLAYERS, BINGO_MAX_PLAYERS, BINGO_MIN_PLAYERS } from 
 import { CODEWORDS_DEFAULT_MAX_PLAYERS, CODEWORDS_MAX_PLAYERS, CODEWORDS_MIN_PLAYERS } from '@/lib/codewords'
 import { TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_MAX_PLAYERS, TRIVIA_MIN_PLAYERS } from '@/lib/trivia'
 import { TTL_DEFAULT_MAX_PLAYERS, TTL_MAX_PLAYERS, TTL_MIN_PLAYERS } from '@/lib/two-truths'
-import {
-  MONOPOLY_DEFAULT_MAX_PLAYERS,
-  MONOPOLY_MAX_PLAYERS,
-  MONOPOLY_MIN_PLAYERS,
-} from '@/lib/monopoly'
+import { MONOPOLY_DEFAULT_MAX_PLAYERS, MONOPOLY_MAX_PLAYERS, MONOPOLY_MIN_PLAYERS } from '@/lib/monopoly'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS, YAHTZEE_MAX_PLAYERS, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
 import { WHOT_DEFAULT_MAX_PLAYERS, WHOT_MAX_PLAYERS, WHOT_MIN_PLAYERS } from '@/lib/whot'
 import { LUDO_DEFAULT_MAX_PLAYERS, LUDO_MAX_PLAYERS, LUDO_MIN_PLAYERS } from '@/lib/ludo'
@@ -151,11 +147,7 @@ export async function fetchGamePlayerLimits(client: SupabaseClient): Promise<Gam
   return limits
 }
 
-export function clampLobbyMaxPlayers(
-  gameType: LobbyLimitGameType,
-  value: number,
-  limits: GamePlayerLimitsMap
-): number {
+export function clampLobbyMaxPlayers(gameType: LobbyLimitGameType, value: number, limits: GamePlayerLimitsMap): number {
   const cfg = limits[gameType]
   return Math.min(cfg.max, Math.max(cfg.min, Math.floor(value)))
 }

@@ -33,7 +33,14 @@ import {
   pollGenderForPlayer,
   syncImportParticipantBallot,
 } from '@/lib/game-admin'
-import { canJoinGame, playerIsViewer, spectatorForActiveJoin, gameOffersLateJoinChoice, allowLateJoin, allowLatePlayers } from '@/lib/viewers'
+import {
+  canJoinGame,
+  playerIsViewer,
+  spectatorForActiveJoin,
+  gameOffersLateJoinChoice,
+  allowLateJoin,
+  allowLatePlayers,
+} from '@/lib/viewers'
 import type { Game } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -330,8 +337,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
-    const isSpectator =
-      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+    const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
     if (!isSpectator) {
       if (!rawMonopolyToken || !isMonopolyTokenId(rawMonopolyToken)) {
@@ -396,8 +402,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
-    const isSpectator =
-      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+    const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
     const { data: player, error } = await supabase
       .from('players')
@@ -441,8 +446,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
-    const isSpectator =
-      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+    const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
     const { data: player, error } = await supabase
       .from('players')
@@ -486,8 +490,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
     }
 
-    const isSpectator =
-      gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+    const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
     const { data: player, error } = await supabase
       .from('players')
@@ -560,9 +563,7 @@ export async function POST(req: NextRequest) {
         await supabase.from('players').delete().eq('id', player.id)
         return NextResponse.json({ error: assignError }, { status: 500 })
       }
-      return NextResponse.json(
-        playerJoinResponse(player, gameRow as Game, role ? { codewordsRole: role } : {})
-      )
+      return NextResponse.json(playerJoinResponse(player, gameRow as Game, role ? { codewordsRole: role } : {}))
     }
 
     return NextResponse.json(playerJoinResponse(player, gameRow as Game))
@@ -1227,13 +1228,19 @@ export async function DELETE(req: NextRequest) {
       id = code
     } else if (isCodewordsGame(parseGameType(hostGame.game_type))) {
       if (!codewordsAllowsPlayerChanges(hostGame.status)) {
-        return NextResponse.json({ error: 'Players can only be removed while the lobby or game is open' }, { status: 400 })
+        return NextResponse.json(
+          { error: 'Players can only be removed while the lobby or game is open' },
+          { status: 400 }
+        )
       }
       game = hostGame
       id = code
     } else if (isTwoTruthsGame(parseGameType(hostGame.game_type))) {
       if (hostGame.status === 'finished') {
-        return NextResponse.json({ error: 'Players can only be removed while the lobby or game is active' }, { status: 400 })
+        return NextResponse.json(
+          { error: 'Players can only be removed while the lobby or game is active' },
+          { status: 400 }
+        )
       }
       game = hostGame
       id = code

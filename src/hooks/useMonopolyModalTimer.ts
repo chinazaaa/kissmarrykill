@@ -7,11 +7,7 @@ function secondsUntil(deadlineAt: string): number {
 }
 
 /** Fixed-length countdown; resets whenever `enabled` becomes true. */
-export function useMonopolyFixedTimer(
-  seconds: number,
-  enabled: boolean,
-  onExpire: () => void
-): number {
+export function useMonopolyFixedTimer(seconds: number, enabled: boolean, onExpire: () => void): number {
   const [left, setLeft] = useState(seconds)
   const expiredRef = useRef(false)
 

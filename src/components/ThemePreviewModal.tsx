@@ -37,9 +37,7 @@ function PreviewModeToggle({ mode, onChange }: { mode: Theme; onChange: (mode: T
           type="button"
           onClick={() => onChange(option)}
           className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${
-            mode === option
-              ? 'bg-[var(--card-strong)] text-body shadow-sm'
-              : 'text-muted hover:text-body'
+            mode === option ? 'bg-[var(--card-strong)] text-body shadow-sm' : 'text-muted hover:text-body'
           }`}
           aria-pressed={mode === option}
         >
@@ -100,10 +98,7 @@ function ThemeSampleRoom({ theme, siteMode }: { theme: ThemeConfig; siteMode: Th
               { emoji: '💍', label: 'Marry', color: 'var(--marry)' },
               { emoji: '💀', label: 'Kill', color: 'var(--kill)' },
             ].map((slot) => (
-              <div
-                key={slot.label}
-                className="surface-inset rounded-xl px-2 py-2.5 text-center space-y-0.5"
-              >
+              <div key={slot.label} className="surface-inset rounded-xl px-2 py-2.5 text-center space-y-0.5">
                 <span className="text-base leading-none">{slot.emoji}</span>
                 <p className="text-[10px] font-bold" style={{ color: slot.color }}>
                   {slot.label}
@@ -203,7 +198,10 @@ export function ThemePreviewCard({
     >
       <button type="button" onClick={onClick} className="flex w-full flex-col items-center gap-1 px-1.5 pt-2 pb-1.5">
         <div className="flex gap-0.5">
-          <span className="block h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: theme.preview.bg }} />
+          <span
+            className="block h-3.5 w-3.5 rounded-full border border-black/10"
+            style={{ background: theme.preview.bg }}
+          />
           <span
             className="block h-3.5 w-3.5 rounded-full border border-black/10"
             style={{ background: theme.preview.accent }}

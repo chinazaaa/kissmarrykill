@@ -46,7 +46,16 @@ import type {
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { useToast } from '@/components/ui/Toast'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'late_join_choice' | 'game_ended' | 'lobby' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'game_started_waiting'
+  | 'late_join_choice'
+  | 'game_ended'
+  | 'lobby'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const { success, error: toastError } = useToast()
@@ -317,11 +326,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const cfg = gameTypeConfig('codewords')
   const me = allPlayers.find((p) => p.id === myPlayerId)
   const isViewer = !!(game && me && playerIsViewer(me, game))
-  const { context: viewerPromoteContext } = useLateJoinContext(
-    gameCode,
-    game,
-    isViewer && screen === 'active'
-  )
+  const { context: viewerPromoteContext } = useLateJoinContext(gameCode, game, isViewer && screen === 'active')
   const playersPickTeams = game ? codewordsPlayerPicks(game) : true
   const randomizeTeams = game ? codewordsRandomizeTeams(game) : false
   const lateJoinAllowed = game ? allowLateJoin(game) : false
@@ -332,10 +337,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     screen === 'late_join_choice'
   )
   const myTeam = myRole?.team
-  const needsTeamPick =
-    !!myPlayerId && !myRole && playersPickTeams && !randomizeTeams && game?.status === 'waiting'
-  const waitingInLobby =
-    !!myPlayerId && !myRole && game?.status === 'waiting' && (!playersPickTeams || randomizeTeams)
+  const needsTeamPick = !!myPlayerId && !myRole && playersPickTeams && !randomizeTeams && game?.status === 'waiting'
+  const waitingInLobby = !!myPlayerId && !myRole && game?.status === 'waiting' && (!playersPickTeams || randomizeTeams)
   const waitingForAssignment =
     !!myPlayerId && !myRole && game?.status === 'active' && !lateJoinAllowed && !playersPickTeams
 
@@ -415,10 +418,9 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
-  const leaveButton =
-    myPlayerId ? (
-      <CodewordsLeaveButton gameCode={gameCode} playerId={myPlayerId} onLeft={leaveGame} />
-    ) : null
+  const leaveButton = myPlayerId ? (
+    <CodewordsLeaveButton gameCode={gameCode} playerId={myPlayerId} onLeft={leaveGame} />
+  ) : null
 
   if (needsTeamPick || waitingInLobby) {
     return (
@@ -513,7 +515,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             </>
           ) : randomizeTeams ? (
             <p className="text-sm text-muted text-center leading-relaxed">
-              The host is picking spymasters. Everyone else will be randomly split into red and blue when the game starts.
+              The host is picking spymasters. Everyone else will be randomly split into red and blue when the game
+              starts.
             </p>
           ) : (
             <p className="text-sm text-muted text-center leading-relaxed">
@@ -522,9 +525,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
           )}
 
           <p className="text-center text-faint text-xs">
-            {game?.status === 'active'
-              ? 'You can play as soon as your team is set.'
-              : 'Waiting for the host to start…'}
+            {game?.status === 'active' ? 'You can play as soon as your team is set.' : 'Waiting for the host to start…'}
           </p>
 
           <div className="rounded-xl border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] p-4 space-y-2">

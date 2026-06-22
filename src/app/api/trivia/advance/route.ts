@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   const code = parsed.data.gameId.toUpperCase()
-  let force = parsed.data.force === true
+  const force = parsed.data.force === true
 
   if (force) {
     if (!parsed.data.hostToken) {

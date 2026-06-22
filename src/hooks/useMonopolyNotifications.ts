@@ -5,12 +5,7 @@ import { formatCardAlertForPlayer } from '@/lib/monopoly-card-messages'
 import { formatCashMessageForPlayer } from '@/lib/monopoly-cash-messages'
 import { formatRentMessageForPlayer } from '@/lib/monopoly-rent-messages'
 import { formatTradeMessageForPlayer, formatIncomingTradeAlert } from '@/lib/monopoly-trade-messages'
-import {
-  playGameFinishedSound,
-  playRoundEndSound,
-  playRoundStartSound,
-  playVoteSubmittedSound,
-} from '@/lib/sounds'
+import { playGameFinishedSound, playRoundEndSound, playRoundStartSound, playVoteSubmittedSound } from '@/lib/sounds'
 import { useToast } from '@/components/ui/Toast'
 import { MONOPOLY_CARD_MODAL_SECONDS } from '@/lib/supabase-selects'
 import { currentPlayerId } from '@/lib/monopoly'
@@ -131,13 +126,10 @@ export function useMonopolyNotifications({
     }
 
     const incomingTrade =
-      board?.pending_trade && board.pending_trade.to_player_id === myPlayerId
-        ? board.pending_trade
-        : null
+      board?.pending_trade && board.pending_trade.to_player_id === myPlayerId ? board.pending_trade : null
 
     if (tradeKey && tradeKey !== prevTradeKeyRef.current && incomingTrade) {
-      const fromName =
-        players.find((p) => p.id === incomingTrade.from_player_id)?.name ?? 'A player'
+      const fromName = players.find((p) => p.id === incomingTrade.from_player_id)?.name ?? 'A player'
       info(formatIncomingTradeAlert(incomingTrade, fromName))
       playVoteSubmittedSound()
     }
@@ -152,11 +144,7 @@ export function useMonopolyNotifications({
       playVoteSubmittedSound()
     }
 
-    if (
-      board?.last_card_event &&
-      cardSeq != null &&
-      cardSeq !== prevCardSeqRef.current
-    ) {
+    if (board?.last_card_event && cardSeq != null && cardSeq !== prevCardSeqRef.current) {
       const alert = formatCardAlertForPlayer(board.last_card_event, myPlayerId, players)
       info(`${alert.emoji} ${alert.title} — ${alert.body}`, MONOPOLY_CARD_MODAL_SECONDS * 1000)
       playVoteSubmittedSound()
@@ -197,15 +185,17 @@ export function useMonopolyNotifications({
       tradeEventSeq != null &&
       tradeEventSeq !== prevTradeEventSeqRef.current &&
       myPlayerId &&
-      (board.last_trade_event.from_player_id === myPlayerId ||
-        board.last_trade_event.to_player_id === myPlayerId)
+      (board.last_trade_event.from_player_id === myPlayerId || board.last_trade_event.to_player_id === myPlayerId)
     ) {
       const msg = formatTradeMessageForPlayer(board.last_trade_event, myPlayerId, players)
       if (board.last_trade_event.outcome === 'declined') {
         info(msg)
       } else if (board.last_trade_event.outcome === 'accepted') {
         success(msg)
-      } else if (board.last_trade_event.outcome === 'proposed' && board.last_trade_event.from_player_id === myPlayerId) {
+      } else if (
+        board.last_trade_event.outcome === 'proposed' &&
+        board.last_trade_event.from_player_id === myPlayerId
+      ) {
         info(msg)
       }
       playVoteSubmittedSound()

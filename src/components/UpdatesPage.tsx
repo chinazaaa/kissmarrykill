@@ -10,7 +10,17 @@ import {
 
 const CATEGORY_ORDER: UpdateCategory[] = ['new', 'changed', 'upcoming']
 
-function UpdateCard({ title, description, month, year }: { title: string; description: string; month: number | null; year: number | null }) {
+function UpdateCard({
+  title,
+  description,
+  month,
+  year,
+}: {
+  title: string
+  description: string
+  month: number | null
+  year: number | null
+}) {
   const dateLabel = formatUpdateMonthYear(month, year)
 
   return (

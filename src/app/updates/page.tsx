@@ -20,11 +20,10 @@ export const revalidate = 60
 
 export default async function Page() {
   let updates: ProductUpdate[] = []
-
   try {
     updates = await fetchProductUpdates()
   } catch {
-    updates = []
+    /* fall back to empty list */
   }
 
   return <UpdatesPage updates={updates} />

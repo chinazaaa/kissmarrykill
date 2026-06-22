@@ -8,11 +8,7 @@ function secondsUntil(deadlineAt: string | null | undefined): number {
   return Math.max(0, Math.ceil((new Date(deadlineAt).getTime() - Date.now()) / 1000))
 }
 
-export function useWhotTurnTimer(
-  gameCode: string,
-  session: WhotSession | null,
-  enabled: boolean
-) {
+export function useWhotTurnTimer(gameCode: string, session: WhotSession | null, enabled: boolean) {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const expiringRef = useRef(false)
   const deadlineAt = session?.turn_deadline_at ?? null

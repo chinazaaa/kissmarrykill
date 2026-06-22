@@ -1,9 +1,4 @@
-import {
-  countOwnedInGroup,
-  ownsColorMonopoly,
-  spacesInGroup,
-  type MonopolyColorGroup,
-} from '@/lib/monopoly-board'
+import { countOwnedInGroup, ownsColorMonopoly, spacesInGroup, type MonopolyColorGroup } from '@/lib/monopoly-board'
 
 export const COLOR_SET_ORDER: MonopolyColorGroup[] = [
   'brown',
@@ -77,10 +72,7 @@ export function buildColorGroupStatuses(
 }
 
 /** Property groups the player has a stake in, in board order. */
-export function ownedColorGroups(
-  owners: Record<string, string>,
-  playerId: string
-): MonopolyColorGroup[] {
+export function ownedColorGroups(owners: Record<string, string>, playerId: string): MonopolyColorGroup[] {
   return COLOR_SET_ORDER.filter((group) => countOwnedInGroup(owners, playerId, group) > 0)
 }
 

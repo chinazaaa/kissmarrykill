@@ -49,9 +49,7 @@ export function ViewerModeBanner({
           {promoting ? 'Joining…' : 'Join as player'}
         </button>
       )}
-      {canPromote && playerDetail && (
-        <p className="text-faint text-[11px] mt-2 leading-snug">{playerDetail}</p>
-      )}
+      {canPromote && playerDetail && <p className="text-faint text-[11px] mt-2 leading-snug">{playerDetail}</p>}
     </div>
   )
 }

@@ -13,18 +13,9 @@ import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
 import { MonopolyPageHeader } from '@/components/monopoly/MonopolyChrome'
 import { gameTypeConfig } from '@/lib/game-types'
 import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
-import {
-  buildMonopolyStandings,
-  MONOPOLY_MIN_PLAYERS,
-  MONOPOLY_STARTING_CASH,
-} from '@/lib/monopoly'
+import { buildMonopolyStandings, MONOPOLY_MIN_PLAYERS, MONOPOLY_STARTING_CASH } from '@/lib/monopoly'
 import { supabase } from '@/lib/supabase'
-import {
-  GAME_SELECT,
-  MONOPOLY_BOARD_SELECT,
-  MONOPOLY_PLAYER_STATE_SELECT,
-  PLAYER_SELECT,
-} from '@/lib/supabase-selects'
+import { GAME_SELECT, MONOPOLY_BOARD_SELECT, MONOPOLY_PLAYER_STATE_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import {
   getPlayerSession,
   setPlayerSession,
@@ -46,7 +37,15 @@ import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'game_started_waiting'
+  | 'game_ended'
+  | 'waiting'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 function colorBarClass(color?: MonopolyColorGroup): string {
   if (!color) return 'bg-neutral-500'
@@ -101,7 +100,11 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
       supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
       supabase.from('monopoly_boards').select(MONOPOLY_BOARD_SELECT).eq('game_id', gameCode).maybeSingle(),
-      supabase.from('monopoly_player_state').select(MONOPOLY_PLAYER_STATE_SELECT).eq('game_id', gameCode).order('player_order'),
+      supabase
+        .from('monopoly_player_state')
+        .select(MONOPOLY_PLAYER_STATE_SELECT)
+        .eq('game_id', gameCode)
+        .order('player_order'),
     ])
     if (!supabasePollOk(gameRes, plrsRes, boardRes, stateRes)) return false
 
@@ -138,8 +141,10 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   useEffect(() => {
     const channel = supabase
       .channel(`monopoly-player-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () =>
-        void load()
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        () => void load()
       )
       .on(
         'postgres_changes',
@@ -259,13 +264,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'game_started_waiting') {
-    return (
-      <GameStartedWaiting
-        gameCode={gameCode}
-        game={game}
-        onLobbyOpen={openLobbyJoin}
-      />
-    )
+    return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={openLobbyJoin} />
   }
 
   if (screen === 'game_ended') {
@@ -320,8 +319,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">You&apos;re in</p>
             <h2 className="text-xl sm:text-2xl font-black">You&apos;re in, {displayName}!</h2>
             <p className="text-muted text-sm leading-relaxed">
-              Waiting for the host to start. You&apos;ll begin with £{MONOPOLY_STARTING_CASH.toLocaleString('en-GB')} when
-              the game begins.
+              Waiting for the host to start. You&apos;ll begin with £{MONOPOLY_STARTING_CASH.toLocaleString('en-GB')}{' '}
+              when the game begins.
             </p>
           </div>
           <GameRulesLink gameType="monopoly" variant="subtle" />
@@ -441,12 +440,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
         </MonopolyPageHeader>
 
         {isViewer && myPlayer && (
-          <ViewerModeBanner
-            gameCode={gameCode}
-            playerId={myPlayerId}
-            game={game}
-            player={myPlayer}
-          />
+          <ViewerModeBanner gameCode={gameCode} playerId={myPlayerId} game={game} player={myPlayer} />
         )}
 
         <MonopolyActiveLayout

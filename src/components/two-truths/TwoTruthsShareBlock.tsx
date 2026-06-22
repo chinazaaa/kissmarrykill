@@ -21,7 +21,10 @@ export function TwoTruthsShareBlock({
 
   const handleShare = async () => {
     const target = captureRef.current
-    if (!target || target.offsetHeight === 0) { error('Nothing to share yet'); return }
+    if (!target || target.offsetHeight === 0) {
+      error('Nothing to share yet')
+      return
+    }
     setSharing(true)
     try {
       const blob = await captureElementAsImage(target)

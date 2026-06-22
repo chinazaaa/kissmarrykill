@@ -417,10 +417,7 @@ export function CodewordsLobbyRoster({
                   {player.name}
                 </div>
               ) : readOnly ? (
-                <div
-                  key={player.id}
-                  className="flex items-center justify-between gap-2 px-2 py-2 min-h-[2.75rem]"
-                >
+                <div key={player.id} className="flex items-center justify-between gap-2 px-2 py-2 min-h-[2.75rem]">
                   <span className="min-w-0 text-sm font-semibold truncate" title={player.name}>
                     {player.name}
                   </span>
@@ -461,9 +458,7 @@ export function CodewordsLobbyRoster({
             </p>
           )}
           {readOnly && !onBenchPlayer && (
-            <p className="text-faint text-[11px] px-3 pb-2 leading-relaxed">
-              Return to lobby to assign these players.
-            </p>
+            <p className="text-faint text-[11px] px-3 pb-2 leading-relaxed">Return to lobby to assign these players.</p>
           )}
         </div>
       )}

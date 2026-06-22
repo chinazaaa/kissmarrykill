@@ -24,7 +24,15 @@ import { supabase } from '@/lib/supabase'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
-import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, CodewordsRole, CodewordsTeam, Game, Player } from '@/types'
+import type {
+  CodewordsBoard,
+  CodewordsGuess,
+  CodewordsPlayerRole,
+  CodewordsRole,
+  CodewordsTeam,
+  Game,
+  Player,
+} from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
@@ -375,165 +383,165 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
 
   return (
     <HostPageShell gameCode={gameCode} {...layout}>
-        <HostGameHeader game={game} />
+      <HostGameHeader game={game} />
 
-        {game.status === 'waiting' && (
-          <div className="glass-card p-4 space-y-3">
-            <p className="label-caps">Host mode</p>
-            <div className="grid grid-cols-2 gap-2">
+      {game.status === 'waiting' && (
+        <div className="glass-card p-4 space-y-3">
+          <p className="label-caps">Host mode</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => changeHostMode('spectator')}
+              className={[
+                'rounded-xl border-2 px-3 py-3 text-left text-sm',
+                hostMode === 'spectator'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block">Host only</span>
+              <span className="text-faint text-xs">Run the game from Manage tab</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeHostMode('player')}
+              className={[
+                'rounded-xl border-2 px-3 py-3 text-left text-sm',
+                hostMode === 'player'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block">Host + play</span>
+              <span className="text-faint text-xs">Play tab + Manage tab</span>
+            </button>
+          </div>
+          {hostMode === 'player' && !hostPlayerId && (
+            <div className="flex items-center gap-2">
+              <div className="w-36 sm:w-44 shrink-0">
+                <input
+                  type="text"
+                  value={hostJoinName}
+                  onChange={(e) => setHostJoinName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                  placeholder="Your name"
+                  className="input-field w-full"
+                  maxLength={40}
+                />
+              </div>
               <button
                 type="button"
-                onClick={() => changeHostMode('spectator')}
-                className={[
-                  'rounded-xl border-2 px-3 py-3 text-left text-sm',
-                  hostMode === 'spectator'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
+                onClick={hostJoinGame}
+                disabled={!hostJoinName.trim() || hostJoining}
+                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
               >
-                <span className="font-bold block">Host only</span>
-                <span className="text-faint text-xs">Run the game from Manage tab</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => changeHostMode('player')}
-                className={[
-                  'rounded-xl border-2 px-3 py-3 text-left text-sm',
-                  hostMode === 'player'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
-              >
-                <span className="font-bold block">Host + play</span>
-                <span className="text-faint text-xs">Play tab + Manage tab</span>
+                {hostJoining ? 'Joining…' : 'Join'}
               </button>
             </div>
-            {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex items-center gap-2">
-                <div className="w-36 sm:w-44 shrink-0">
-                  <input
-                    type="text"
-                    value={hostJoinName}
-                    onChange={(e) => setHostJoinName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                    placeholder="Your name"
-                    className="input-field w-full"
-                    maxLength={40}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={hostJoinGame}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
-              </div>
-            )}
-            {hostMode === 'player' && hostPlayerId && (
-              <p className="text-xs text-muted">
-                Playing as <strong>{hostPlayerName}</strong> —{' '}
-                {randomizeTeams
-                  ? 'pick spymasters in Manage → Teams, then shuffle or start.'
-                  : playersPickTeams
-                    ? 'pick your team in Manage → Teams, or assign yourself there.'
-                    : 'assign yourself in Manage → Teams.'}
-              </p>
-            )}
-          </div>
-        )}
+          )}
+          {hostMode === 'player' && hostPlayerId && (
+            <p className="text-xs text-muted">
+              Playing as <strong>{hostPlayerName}</strong> —{' '}
+              {randomizeTeams
+                ? 'pick spymasters in Manage → Teams, then shuffle or start.'
+                : playersPickTeams
+                  ? 'pick your team in Manage → Teams, or assign yourself there.'
+                  : 'assign yourself in Manage → Teams.'}
+            </p>
+          )}
+        </div>
+      )}
 
-        <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+      <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
 
-        {showPlayTab && (
-          <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
-            <button
-              type="button"
-              onClick={() => setTab('play')}
-              className={[
-                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-                tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-              ].join(' ')}
-            >
-              Play
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('manage')}
-              className={[
-                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-                tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-              ].join(' ')}
-            >
-              Manage
-            </button>
-          </div>
-        )}
+      {showPlayTab && (
+        <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
+          <button
+            type="button"
+            onClick={() => setTab('play')}
+            className={[
+              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+              tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+            ].join(' ')}
+          >
+            Play
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('manage')}
+            className={[
+              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+              tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+            ].join(' ')}
+          >
+            Manage
+          </button>
+        </div>
+      )}
 
-        {tab === 'play' && showPlayTab && hostMyRole && (
-          inActivePlay && board ? (
-            <CodewordsActiveRound
-              gameCode={gameCode}
-              game={game}
-              board={board}
-              myPlayerId={hostPlayerId!}
-              myPlayerName={hostPlayerName}
-              myRole={hostMyRole}
-              players={players}
-              roles={roles}
-              guesses={guesses}
-              onBoardChange={setBoard}
-              onReload={load}
-            />
-          ) : (
-            <CodewordsWaitingPanel
-              playerName={hostPlayerName}
-              myRole={hostMyRole}
-              players={players}
-              myPlayerId={hostPlayerId}
-              variant={game.status === 'active' ? 'starting' : 'lobby'}
-              manageHint="Head to Manage → Teams to assign players, then start the game when ready."
-            />
-          )
-        )}
-
-        {(tab === 'manage' || !showPlayTab) && (
-          <CodewordsHostManagePanel
-            game={game}
+      {tab === 'play' &&
+        showPlayTab &&
+        hostMyRole &&
+        (inActivePlay && board ? (
+          <CodewordsActiveRound
             gameCode={gameCode}
-            hostToken={hostToken}
-            playerLink={playerLink}
+            game={game}
+            board={board}
+            myPlayerId={hostPlayerId!}
+            myPlayerName={hostPlayerName}
+            myRole={hostMyRole}
             players={players}
             roles={roles}
-            board={board}
             guesses={guesses}
-            spymasterTimer={spymasterTimer}
-            operativeTimer={operativeTimer}
-            savingTimers={savingTimers}
-            savingRoleFor={savingRoleFor}
-            starting={starting}
-            playingAgain={playingAgain}
-            ending={ending}
-            onSpymasterTimerChange={setSpymasterTimer}
-            onOperativeTimerChange={setOperativeTimer}
-            onSaveTimers={saveTimers}
-            onSetSpymaster={setSpymaster}
-            onMoveTeam={moveTeam}
-            onStartGame={startGame}
-            onRandomizeTeams={shuffleTeams}
-            randomizingTeams={randomizingTeams}
-            onPlayAgain={playAgain}
-            onEndSession={endSession}
+            onBoardChange={setBoard}
             onReload={load}
-            onBenchPlayer={benchPlayer}
-            onRemovePlayer={removePlayer}
-            benchingPlayerId={benchingPlayerId}
-            removingPlayerId={removingPlayerId}
-            showSpectatorBoard={hostMode === 'spectator'}
           />
-        )}
+        ) : (
+          <CodewordsWaitingPanel
+            playerName={hostPlayerName}
+            myRole={hostMyRole}
+            players={players}
+            myPlayerId={hostPlayerId}
+            variant={game.status === 'active' ? 'starting' : 'lobby'}
+            manageHint="Head to Manage → Teams to assign players, then start the game when ready."
+          />
+        ))}
 
+      {(tab === 'manage' || !showPlayTab) && (
+        <CodewordsHostManagePanel
+          game={game}
+          gameCode={gameCode}
+          hostToken={hostToken}
+          playerLink={playerLink}
+          players={players}
+          roles={roles}
+          board={board}
+          guesses={guesses}
+          spymasterTimer={spymasterTimer}
+          operativeTimer={operativeTimer}
+          savingTimers={savingTimers}
+          savingRoleFor={savingRoleFor}
+          starting={starting}
+          playingAgain={playingAgain}
+          ending={ending}
+          onSpymasterTimerChange={setSpymasterTimer}
+          onOperativeTimerChange={setOperativeTimer}
+          onSaveTimers={saveTimers}
+          onSetSpymaster={setSpymaster}
+          onMoveTeam={moveTeam}
+          onStartGame={startGame}
+          onRandomizeTeams={shuffleTeams}
+          randomizingTeams={randomizingTeams}
+          onPlayAgain={playAgain}
+          onEndSession={endSession}
+          onReload={load}
+          onBenchPlayer={benchPlayer}
+          onRemovePlayer={removePlayer}
+          benchingPlayerId={benchingPlayerId}
+          removingPlayerId={removingPlayerId}
+          showSpectatorBoard={hostMode === 'spectator'}
+        />
+      )}
     </HostPageShell>
   )
 }

@@ -19,9 +19,7 @@ import type { Game, GameType, Player } from '@/types'
 
 export type LateJoinPolicy = 'lobby_only' | 'viewers_only' | 'viewers_and_players'
 
-export function lateJoinPolicyFromGame(
-  game: Pick<Game, 'allow_viewers' | 'allow_late_players'>
-): LateJoinPolicy {
+export function lateJoinPolicyFromGame(game: Pick<Game, 'allow_viewers' | 'allow_late_players'>): LateJoinPolicy {
   if (game.allow_viewers === false) return 'lobby_only'
   if (game.allow_late_players === false) return 'viewers_only'
   return 'viewers_and_players'
@@ -42,10 +40,7 @@ export function lateJoinPolicyToFields(policy: LateJoinPolicy): {
 }
 
 /** Board games only support lobby-only or watch-only late join. */
-export function clampLateJoinPolicyForGameType(
-  policy: LateJoinPolicy,
-  gameType: GameType
-): LateJoinPolicy {
+export function clampLateJoinPolicyForGameType(policy: LateJoinPolicy, gameType: GameType): LateJoinPolicy {
   if (!gameAllowsLatePlayerJoin(gameType) && policy === 'viewers_and_players') {
     return 'viewers_only'
   }
@@ -96,7 +91,9 @@ export function allowLatePlayers(
 }
 
 /** @deprecated Use allowLateJoin */
-export function allowViewers(game: Pick<Game, 'allow_viewers' | 'allow_late_players' | 'codewords_late_join' | 'game_type'>): boolean {
+export function allowViewers(
+  game: Pick<Game, 'allow_viewers' | 'allow_late_players' | 'codewords_late_join' | 'game_type'>
+): boolean {
   return allowLateJoin(game)
 }
 
@@ -122,7 +119,10 @@ export function playerCanParticipate(
 /** True when a spectator can switch to an active player mid-game. */
 export function canSwitchViewerToPlayer(
   player: Pick<Player, 'joined_at' | 'spectator'>,
-  game: Pick<Game, 'status' | 'session_started_at' | 'allow_viewers' | 'allow_late_players' | 'codewords_late_join' | 'game_type'>
+  game: Pick<
+    Game,
+    'status' | 'session_started_at' | 'allow_viewers' | 'allow_late_players' | 'codewords_late_join' | 'game_type'
+  >
 ): boolean {
   if (game.status !== 'active') return false
   if (!playerIsViewer(player, game)) return false

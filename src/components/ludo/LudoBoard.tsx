@@ -123,11 +123,7 @@ function CenterTriangles() {
   )
 }
 
-function cellStyle(
-  kind: ReturnType<typeof boardCellKind>,
-  row: number,
-  col: number
-): React.CSSProperties {
+function cellStyle(kind: ReturnType<typeof boardCellKind>, row: number, col: number): React.CSSProperties {
   if (kind.kind === 'void') {
     return { background: BOARD_BG, borderColor: '#1e293b' }
   }
@@ -279,9 +275,7 @@ export function LudoBoard({
           key={`${r}-${c}`}
           className={[
             'relative aspect-square flex items-center justify-center gap-0.5 flex-wrap p-0.5',
-            kind.kind === 'base' || kind.kind === 'center'
-              ? 'border-0 z-0'
-              : 'border border-slate-700/70 z-[6]',
+            kind.kind === 'base' || kind.kind === 'center' ? 'border-0 z-0' : 'border border-slate-700/70 z-[6]',
             isHighlight ? 'ring-2 ring-[var(--primary)] z-10' : '',
             isMyStart ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 shadow-lg' : '',
           ].join(' ')}
@@ -312,8 +306,8 @@ export function LudoBoard({
             {LUDO_COLOR_LABELS[myColor]}
           </span>
           . Roll a 6 on either die to leave your yard onto your{' '}
-          <span className="font-bold text-[var(--foreground)]">★</span> start square, then follow the
-          arrows clockwise around the board into your coloured home column.
+          <span className="font-bold text-[var(--foreground)]">★</span> start square, then follow the arrows clockwise
+          around the board into your coloured home column.
         </p>
       )}
       <div
@@ -507,8 +501,7 @@ export function LudoGamePanel({
       if (dest) cells.add(`${dest.row},${dest.col}`)
 
       if (move.from.zone === 'track' && move.to.zone === 'track') {
-        const steps =
-          (move.from.pos - START_POS[myState.color] + TRACK_LENGTH) % TRACK_LENGTH
+        const steps = (move.from.pos - START_POS[myState.color] + TRACK_LENGTH) % TRACK_LENGTH
         for (const cell of trackCellsAlongSteps(myState.color, steps, move.diceValue)) {
           cells.add(`${cell.row},${cell.col}`)
         }
@@ -517,16 +510,10 @@ export function LudoGamePanel({
     return cells
   }, [legalMoves, myState])
 
-  const diceDisplay =
-    session.phase === 'move'
-      ? parsedLastDice
-      : rolling
-        ? null
-        : (displayDice ?? parsedLastDice)
+  const diceDisplay = session.phase === 'move' ? parsedLastDice : rolling ? null : (displayDice ?? parsedLastDice)
 
   const hasBaseSixMove = displayMoves.some((m) => m.from.zone === 'base' && m.diceValue === 6)
-  const allSixes =
-    remainingDice.length > 0 && remainingDice.every((value) => value === 6)
+  const allSixes = remainingDice.length > 0 && remainingDice.every((value) => value === 6)
 
   return (
     <LudoCard className="p-3 sm:p-4 space-y-3">

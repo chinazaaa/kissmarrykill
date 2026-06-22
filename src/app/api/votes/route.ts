@@ -59,11 +59,17 @@ export async function POST(req: NextRequest) {
   } = parsed.data
 
   const [{ data: player }, { data: round }, { data: game }] = await Promise.all([
-    supabase.from('players').select('id, gender, identity_gender, name, joined_at, spectator').eq('id', playerId).maybeSingle(),
+    supabase
+      .from('players')
+      .select('id, gender, identity_gender, name, joined_at, spectator')
+      .eq('id', playerId)
+      .maybeSingle(),
     supabase.from('rounds').select('participant_ids, submitter_player_id, quote_text').eq('id', roundId).maybeSingle(),
     supabase
       .from('games')
-      .select('game_type, participant_mode, pair_vote_mode, custom_slots, gender_based, status, session_started_at, custom_questions')
+      .select(
+        'game_type, participant_mode, pair_vote_mode, custom_slots, gender_based, status, session_started_at, custom_questions'
+      )
       .eq('id', gameId.toUpperCase())
       .maybeSingle(),
   ])
@@ -155,10 +161,7 @@ export async function POST(req: NextRequest) {
       typeof rawPickedNumber === 'number' && Number.isInteger(rawPickedNumber) ? rawPickedNumber : null
     const pool = parsePickANumberPool(game.custom_questions)
     if (!pickedNumber || pickedNumber < 1 || pickedNumber > pool.length) {
-      return NextResponse.json(
-        { error: `Pick a number between 1 and ${pool.length}` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Pick a number between 1 and ${pool.length}` }, { status: 400 })
     }
 
     const { data: priorPicks } = await supabase
@@ -202,7 +205,7 @@ export async function POST(req: NextRequest) {
   } else if (isNeverHaveIEver(gameType)) {
     const wyrChoice = rawWyrChoice === 'a' || rawWyrChoice === 'b' ? rawWyrChoice : null
     if (!wyrChoice) {
-      return NextResponse.json({ error: 'Pick I have or I haven\'t' }, { status: 400 })
+      return NextResponse.json({ error: "Pick I have or I haven't" }, { status: 400 })
     }
     row = {
       kiss_participant_id: null,

@@ -97,14 +97,9 @@ export function TriviaPlayAgainSetup({
   }, [open, game])
 
   const storedCustomCount = parseStoredTriviaQuestions(game.custom_questions).length
-  const customPoolSize =
-    customQuestions.length > 0 ? customQuestions.length : storedCustomCount
+  const customPoolSize = customQuestions.length > 0 ? customQuestions.length : storedCustomCount
   const questionCap =
-    questionSource === 'platform'
-      ? TRIVIA_QUESTION_COUNT
-      : customPoolSize > 0
-        ? customPoolSize
-        : TRIVIA_MAX_ROUNDS
+    questionSource === 'platform' ? TRIVIA_QUESTION_COUNT : customPoolSize > 0 ? customPoolSize : TRIVIA_MAX_ROUNDS
   const roundOptions = useMemo(
     () => questionRoundPickerOptions(questionCap).filter((n) => n >= TRIVIA_MIN_ROUNDS && n <= TRIVIA_MAX_ROUNDS),
     [questionCap]
@@ -126,10 +121,7 @@ export function TriviaPlayAgainSetup({
     }
   }, [customQuestions.length, questionSource, roundsCount])
 
-  const addQuestionsFromRows = (
-    result: ReturnType<typeof parseTriviaQuestionImport>,
-    replace = false
-  ) => {
+  const addQuestionsFromRows = (result: ReturnType<typeof parseTriviaQuestionImport>, replace = false) => {
     if (result.questions.length === 0) return
     setCustomQuestions(replace ? result.questions : (prev) => mergeTriviaQuestions(prev, result.questions))
     setQuestionsUploadError(null)
@@ -212,10 +204,9 @@ export function TriviaPlayAgainSetup({
     }
 
     if (questionSource === 'custom') {
-      const shouldSendCustom =
-        isLobby
-          ? customQuestions.length > 0
-          : questionMode === 'change' && customQuestions.length > 0
+      const shouldSendCustom = isLobby
+        ? customQuestions.length > 0
+        : questionMode === 'change' && customQuestions.length > 0
       if (shouldSendCustom) {
         payload.custom_questions = customQuestions
       }
@@ -290,8 +281,8 @@ export function TriviaPlayAgainSetup({
 
             {showCustomKeepMode && questionMode === 'same' && (
               <p className="text-muted text-sm">
-                {storedCustomCount} question{storedCustomCount === 1 ? '' : 's'} in your pool — unused ones are
-                picked first. Switch to <strong className="text-body">Upload new</strong> to replace them.
+                {storedCustomCount} question{storedCustomCount === 1 ? '' : 's'} in your pool — unused ones are picked
+                first. Switch to <strong className="text-body">Upload new</strong> to replace them.
               </p>
             )}
 

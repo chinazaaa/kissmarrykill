@@ -25,7 +25,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not a codewords game' }, { status: 400 })
   }
   if (game.codewords_randomize_teams === true) {
-    return NextResponse.json({ error: 'The host picks spymasters for this game — teams are shuffled at start' }, { status: 403 })
+    return NextResponse.json(
+      { error: 'The host picks spymasters for this game — teams are shuffled at start' },
+      { status: 403 }
+    )
   }
   if (game.codewords_player_picks === false) {
     return NextResponse.json({ error: 'The host assigns teams and roles for this game' }, { status: 403 })
@@ -63,16 +66,16 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (existingSpymaster && existingSpymaster.player_id !== playerId) {
-      return NextResponse.json({ error: `${team === 'red' ? 'Red' : 'Blue'} team already has a spymaster` }, { status: 400 })
+      return NextResponse.json(
+        { error: `${team === 'red' ? 'Red' : 'Blue'} team already has a spymaster` },
+        { status: 400 }
+      )
     }
   }
 
   const { data: roleRow, error } = await supabase
     .from('codewords_player_roles')
-    .upsert(
-      { game_id: code, player_id: playerId, team, role },
-      { onConflict: 'game_id,player_id' }
-    )
+    .upsert({ game_id: code, player_id: playerId, team, role }, { onConflict: 'game_id,player_id' })
     .select()
     .single()
 

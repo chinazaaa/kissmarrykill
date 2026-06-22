@@ -12,8 +12,7 @@ type BingoCardGridProps = {
   showLegend?: boolean
 }
 
-const LEGEND_SWATCH =
-  'inline-block h-3.5 w-3.5 shrink-0 rounded border-2 align-middle'
+const LEGEND_SWATCH = 'inline-block h-3.5 w-3.5 shrink-0 rounded border-2 align-middle'
 
 export function BingoCardLegend({ className = '' }: { className?: string }) {
   const items = [

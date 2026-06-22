@@ -2,15 +2,8 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import {
-  getPlayerSession,
-  setPlayerSession,
-  clearPlayerSession,
-} from '@/lib/utils'
-import {
-  parseGameType,
-  isNameOnlyPlayerJoin,
-} from '@/lib/game-types'
+import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
+import { parseGameType, isNameOnlyPlayerJoin } from '@/lib/game-types'
 import {
   genderLabel,
   parsePlayerGenderFromDb,
@@ -46,9 +39,20 @@ export interface JoinFlowDeps {
 
 export function useJoinFlow(deps: JoinFlowDeps) {
   const {
-    gameCode, game, players, participants, myPlayerId, myPlayerName, view,
-    setView, setMyPlayerId, setMyPlayerName, setMyPlayerGender,
-    setPlayers, setParticipants, applyActiveRound,
+    gameCode,
+    game,
+    players,
+    participants,
+    myPlayerId,
+    myPlayerName,
+    view,
+    setView,
+    setMyPlayerId,
+    setMyPlayerName,
+    setMyPlayerGender,
+    setPlayers,
+    setParticipants,
+    applyActiveRound,
   } = deps
   const toast = useToast()
 
@@ -238,7 +242,8 @@ export function useJoinFlow(deps: JoinFlowDeps) {
   const handlePlayerRenamed = (name: string) => {
     setMyPlayerName(name)
     const existing = getPlayerSession(gameCode)
-    if (existing) setPlayerSession(gameCode, existing.playerId, name, existing.playerGender ?? 'both', existing.resumeToken)
+    if (existing)
+      setPlayerSession(gameCode, existing.playerId, name, existing.playerGender ?? 'both', existing.resumeToken)
   }
 
   function resetJoinState() {
@@ -252,12 +257,26 @@ export function useJoinFlow(deps: JoinFlowDeps) {
   }
 
   return {
-    nameInput, selectedParticipantId, joinIdentityGender, voteBothGenders,
-    joining, editingJoin, canSubmitJoin, useFreeNameJoin, joinPlayerGender,
-    namePickerOptions, joinNeedsGender,
-    setNameInput, setJoinIdentityGender: setJoinIdentity, setVoteBothGenders,
-    joinGame, openEditJoin, cancelEditJoin,
-    handlePlayerLeft, handlePlayerRenamed, handleSelectParticipant,
+    nameInput,
+    selectedParticipantId,
+    joinIdentityGender,
+    voteBothGenders,
+    joining,
+    editingJoin,
+    canSubmitJoin,
+    useFreeNameJoin,
+    joinPlayerGender,
+    namePickerOptions,
+    joinNeedsGender,
+    setNameInput,
+    setJoinIdentityGender: setJoinIdentity,
+    setVoteBothGenders,
+    joinGame,
+    openEditJoin,
+    cancelEditJoin,
+    handlePlayerLeft,
+    handlePlayerRenamed,
+    handleSelectParticipant,
     resetJoinState,
   }
 }

@@ -27,9 +27,7 @@ export function WhotGameTimerBar({
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted">Game time left</p>
-        <p className={`text-lg sm:text-xl font-black tabular-nums ${urgent ? 'text-[var(--marry)]' : ''}`}>
-          {label}
-        </p>
+        <p className={`text-lg sm:text-xl font-black tabular-nums ${urgent ? 'text-[var(--marry)]' : ''}`}>{label}</p>
       </div>
       <div className="mt-1.5 h-1 rounded-full bg-[var(--surface-inset-bg)] overflow-hidden">
         <div
@@ -40,9 +38,7 @@ export function WhotGameTimerBar({
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className="mt-1.5 text-[10px] text-muted text-center">
-        When time runs out, lowest hand total wins
-      </p>
+      <p className="mt-1.5 text-[10px] text-muted text-center">When time runs out, lowest hand total wins</p>
     </div>
   )
 }

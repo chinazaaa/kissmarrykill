@@ -23,12 +23,7 @@ export function GameRulesLink({ gameType, className = '', variant = 'inline' }: 
         : 'text-xs font-semibold text-[var(--primary)] hover:opacity-80 transition-opacity'
 
   return (
-    <Link
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`${variantClass} ${className}`.trim()}
-    >
+    <Link href={href} target="_blank" rel="noopener noreferrer" className={`${variantClass} ${className}`.trim()}>
       View game rules
     </Link>
   )

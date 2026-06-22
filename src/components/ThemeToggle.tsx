@@ -16,8 +16,7 @@ export function ThemeToggle({ variant = 'fixed', className = '' }: ThemeTogglePr
   const onGamePlayerPage = /^\/game\/[^/]+/.test(pathname ?? '')
   if (variant === 'fixed' && onGamePlayerPage) return null
 
-  const positionClass =
-    variant === 'fixed' ? 'fixed top-4 right-4 z-50' : 'shrink-0'
+  const positionClass = variant === 'fixed' ? 'fixed top-4 right-4 z-50' : 'shrink-0'
 
   return (
     <button

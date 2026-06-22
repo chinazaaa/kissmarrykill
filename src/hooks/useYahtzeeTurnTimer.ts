@@ -12,11 +12,7 @@ function secondsUntil(deadlineAt: string | null | undefined): number {
  * Counts down from turn_deadline_at every second.
  * When it hits zero, calls POST /api/yahtzee/expire-turn once (idempotent on server).
  */
-export function useYahtzeeTurnTimer(
-  gameCode: string,
-  session: YahtzeeSession | null,
-  enabled: boolean
-) {
+export function useYahtzeeTurnTimer(gameCode: string, session: YahtzeeSession | null, enabled: boolean) {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const expiringRef = useRef(false)
   const deadlineAt = session?.turn_deadline_at ?? null
@@ -42,7 +38,9 @@ export function useYahtzeeTurnTimer(
           })
         } finally {
           // Reset after 3 s so it can re-fire if the realtime update arrives late
-          setTimeout(() => { expiringRef.current = false }, 3000)
+          setTimeout(() => {
+            expiringRef.current = false
+          }, 3000)
         }
       }
     }

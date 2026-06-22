@@ -38,9 +38,7 @@ export function HostAllowViewersField({
       ...game,
       allow_viewers: next !== 'lobby_only',
       allow_late_players: next === 'viewers_and_players',
-      ...(game.game_type === 'codewords'
-        ? { codewords_late_join: next === 'viewers_and_players' }
-        : {}),
+      ...(game.game_type === 'codewords' ? { codewords_late_join: next === 'viewers_and_players' } : {}),
     }
     onGameUpdate(optimistic)
     setSaving(true)

@@ -153,16 +153,16 @@ export function useAutoSubmit(
     const hasStartedVoting = isPickANumber(gameType)
       ? !!picked
       : isBinaryChoiceGame(gameType) || isNeverHaveIEver(gameType)
-      ? !!wyr
-      : isAnimeWst
-        ? !!animeCh
-        : isMostLikelyTo(gameType) || isWhoSaidThis(gameType)
-          ? !!mltTarget
-          : isCustomGame(gameType)
-            ? Object.keys(customCa).length > 0
-            : isBinaryPeoplePollGame(gameType)
-              ? Object.values(pa).some(Boolean)
-              : Object.values(a).some(Boolean)
+        ? !!wyr
+        : isAnimeWst
+          ? !!animeCh
+          : isMostLikelyTo(gameType) || isWhoSaidThis(gameType)
+            ? !!mltTarget
+            : isCustomGame(gameType)
+              ? Object.keys(customCa).length > 0
+              : isBinaryPeoplePollGame(gameType)
+                ? Object.values(pa).some(Boolean)
+                : Object.values(a).some(Boolean)
 
     if (useRandom && hasStartedVoting) {
       if (isBinaryChoiceGame(gameType) || isNeverHaveIEver(gameType)) {

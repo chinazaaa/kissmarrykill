@@ -8,7 +8,7 @@ type FateRoundLogoProps = {
 export function FateRoundLogo({ className = 'h-9 w-auto' }: FateRoundLogoProps) {
   return (
     <>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {}
       <img
         src="/fateround-logo-horizontal.svg"
         alt="Fate Round"
@@ -16,7 +16,7 @@ export function FateRoundLogo({ className = 'h-9 w-auto' }: FateRoundLogoProps) 
         width={640}
         height={160}
       />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {}
       <img
         src="/fateround-logo-mono-dark.svg"
         alt=""

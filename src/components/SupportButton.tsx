@@ -148,7 +148,9 @@ export function SupportButton() {
           visibility: pos ? 'visible' : 'hidden',
         }}
       >
-        <span className="text-base leading-none" aria-hidden>☕</span>
+        <span className="text-base leading-none" aria-hidden>
+          ☕
+        </span>
         <span className="hidden sm:inline">Buy us a coffee</span>
       </button>
 

@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
 
   const statements = [statementA.trim(), statementB.trim(), statementC.trim()]
   if (statements.some((s) => s.length > TTL_MAX_STATEMENT_LENGTH)) {
-    return NextResponse.json({ error: `Each statement must be ${TTL_MAX_STATEMENT_LENGTH} characters or less` }, { status: 400 })
+    return NextResponse.json(
+      { error: `Each statement must be ${TTL_MAX_STATEMENT_LENGTH} characters or less` },
+      { status: 400 }
+    )
   }
   if (new Set(statements.map((s) => s.toLowerCase())).size < 3) {
     return NextResponse.json({ error: 'All three statements must be different' }, { status: 400 })

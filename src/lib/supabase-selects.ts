@@ -35,8 +35,7 @@ export const MONOPOLY_PLAYER_STATE_SELECT =
 export const YAHTZEE_SESSION_SELECT =
   'id,game_id,turn_order,current_turn_index,phase,dice,held,rolls_remaining,rolls_this_turn,status_message,winner_player_id,turn_deadline_at,created_at,updated_at'
 
-export const YAHTZEE_PLAYER_SCORES_SELECT =
-  'id,game_id,player_id,scores,player_order,created_at'
+export const YAHTZEE_PLAYER_SCORES_SELECT = 'id,game_id,player_id,scores,player_order,created_at'
 
 export const WHOT_SESSION_SELECT =
   'id,game_id,turn_order,current_turn_index,phase,draw_pile,discard_pile,top_card,required_shape,required_number,pick_two_stack,pick_five_stack,status_message,winner_player_id,turn_deadline_at,created_at,updated_at'
@@ -60,8 +59,7 @@ export const TRIVIA_ANSWER_SELECT =
 export const TTL_STATEMENT_SELECT =
   'id,game_id,player_id,statement_a,statement_b,statement_c,lie_index,created_at,updated_at'
 
-export const TTL_GUESS_SELECT =
-  'id,game_id,round_id,player_id,guessed_index,is_correct,points,guessed_at'
+export const TTL_GUESS_SELECT = 'id,game_id,round_id,player_id,guessed_index,is_correct,points,guessed_at'
 
 export const NPAT_ANSWER_SELECT =
   'id,game_id,round_id,player_id,name,animal,place,thing,food,submitted_at,score_name,score_animal,score_place,score_thing,score_food'
@@ -69,8 +67,6 @@ export const NPAT_ANSWER_SELECT =
 export const NPAT_MARK_SELECT =
   'id,game_id,round_id,marker_player_id,target_player_id,valid_name,valid_animal,valid_place,valid_thing,valid_food,marked_at'
 
-export const WST_QUOTE_POOL_SELECT =
-  'id,game_id,player_id,quote_text,author_participant_id,created_at,updated_at'
+export const WST_QUOTE_POOL_SELECT = 'id,game_id,player_id,quote_text,author_participant_id,created_at,updated_at'
 
-export const PLAYER_QUESTION_SELECT =
-  'id,player_id,question_type,option_a,option_b,question_text'
+export const PLAYER_QUESTION_SELECT = 'id,player_id,question_type,option_a,option_b,question_text'

@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { boardGameLobbySettingsSchema } from '@/lib/validation'
-import {
-  isLudoGame,
-  isMonopolyGame,
-  isWhotGame,
-  isYahtzeeGame,
-  parseGameType,
-} from '@/lib/game-types'
+import { isLudoGame, isMonopolyGame, isWhotGame, isYahtzeeGame, parseGameType } from '@/lib/game-types'
 import { clampBoardGameTurnTimer, type BoardGameLobbyType } from '@/lib/board-game-lobby-settings'
 import { clampMonopolyGameDuration } from '@/lib/monopoly'
 import { clampWhotGameDuration } from '@/lib/whot'
@@ -58,7 +52,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'waiting') {
-    return NextResponse.json({ error: 'Settings can only be changed in the lobby before the game starts' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Settings can only be changed in the lobby before the game starts' },
+      { status: 400 }
+    )
   }
 
   const lobbyType = boardGameLobbyType(game.game_type)
@@ -113,12 +110,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'House rules only apply to Whot games' }, { status: 400 })
   }
 
-  const { data: updated, error } = await supabase
-    .from('games')
-    .update(gameUpdate)
-    .eq('id', gameCode)
-    .select()
-    .single()
+  const { data: updated, error } = await supabase.from('games').update(gameUpdate).eq('id', gameCode).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, game: updated })

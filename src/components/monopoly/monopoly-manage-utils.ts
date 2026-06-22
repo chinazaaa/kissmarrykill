@@ -1,7 +1,4 @@
-import {
-  canAddHotel,
-  canAddHouse,
-} from '@/lib/monopoly-build'
+import { canAddHotel, canAddHouse } from '@/lib/monopoly-build'
 import { parseBuildings, parseMortgaged } from '@/lib/monopoly-rent'
 import { parsePropertyOwners, playerProperties } from '@/lib/monopoly'
 import type { MonopolyBoard } from '@/types'
