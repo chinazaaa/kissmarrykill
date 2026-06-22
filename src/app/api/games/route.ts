@@ -34,6 +34,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS, HOT_SEAT_MAX_ROUNDS_CAP } from '@/lib/hot-seat'
@@ -209,7 +210,7 @@ export async function POST(req: NextRequest) {
   }
 
   const participant_mode: ParticipantMode =
-    isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type) || isICallOnGame(game_type) || isMonopolyGame(game_type) || isYahtzeeGame(game_type) || isWhotGame(game_type) || isLudoGame(game_type)
+    isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type) || isICallOnGame(game_type) || isMonopolyGame(game_type) || isYahtzeeGame(game_type) || isWhotGame(game_type) || isLudoGame(game_type) || isSudokuGame(game_type)
     ? 'joiners'
     : isWhoSaidThis(game_type)
       ? 'import'
@@ -259,7 +260,8 @@ export async function POST(req: NextRequest) {
     isMonopolyGame(game_type) ||
     isYahtzeeGame(game_type) ||
     isWhotGame(game_type) ||
-    isLudoGame(game_type)
+    isLudoGame(game_type) ||
+    isSudokuGame(game_type)
     ? 1
     : isWhoSaidThis(game_type)
       ? wstAutoRoundCount(participants.length)
@@ -332,6 +334,8 @@ export async function POST(req: NextRequest) {
                           rawMaxPlayers,
                           lobbyDefaultMaxPlayers('i_call_on', lobbyLimits)
                         )
+                      : isSudokuGame(game_type)
+                        ? resolveMaxPlayers('sudoku', rawMaxPlayers, lobbyDefaultMaxPlayers('sudoku', lobbyLimits))
             : null
   const isSecret = isSecretMessageGame(game_type)
   const lateJoinFields = gameSupportsViewerSetting(game_type)

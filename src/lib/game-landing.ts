@@ -50,6 +50,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   whot: 'whot',
   ludo: 'ludo',
   i_call_on: 'i-call-on',
+  sudoku: 'sudoku',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -955,6 +956,53 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
   }),
 
+  sudoku: landing('sudoku', {
+    seoTitle: 'Sudoku — Multiplayer Puzzle Race Online',
+    seoDescription:
+      'Play multiplayer Sudoku online. Race your friends to claim 3×3 blocks — first to solve a block scores 10 pts, wrong answers cost you points and lock you out.',
+    keywords: ['multiplayer sudoku', 'sudoku online', 'puzzle race game', 'party game sudoku'],
+    heroSubtitle:
+      'Everyone solves the same 9×9 puzzle. Claim 3×3 blocks before your friends — first correct gets 10 pts, wrong answers lock you out.',
+    highlights: ['Race to claim blocks', 'Risk/reward scoring', 'Live real-time puzzle'],
+    features: [
+      {
+        title: 'Claim blocks',
+        description: 'Submit the correct numbers for any 3×3 block before anyone else and score big.',
+        emoji: '🔢',
+      },
+      {
+        title: 'Risk vs reward',
+        description: 'A wrong answer costs 3 points and permanently locks you out of that block.',
+        emoji: '⚠️',
+      },
+      {
+        title: 'Live scoring',
+        description: 'See who\'s claimed each block in real time — race or be strategic about which block to target.',
+        emoji: '⚡',
+      },
+      {
+        title: 'No sign-up',
+        description: 'Join with a name, start playing instantly.',
+        emoji: '🚀',
+      },
+    ],
+    steps: [
+      { title: 'Join the room', description: 'Enter your name and wait for the host to start the puzzle.' },
+      { title: 'Solve the puzzle', description: 'Fill in numbers on the shared 9×9 grid and lock in a 3×3 block when you\'re confident.' },
+      { title: 'Race to the top', description: '1st correct on a block = 10 pts, 2nd = 6, 3rd = 3, rest = 1. Wrong answer = −3 pts, locked out.' },
+    ],
+    perfectFor: ['Puzzle fans', 'Game nights', 'Brain teasers', 'Classrooms'],
+    extraFaqs: [
+      {
+        question: 'What happens if I submit a wrong answer?',
+        answer: 'You lose 3 points and are permanently locked out of that block for the rest of the game. You can still attempt all other blocks.',
+      },
+      {
+        question: 'Can multiple players solve the same block?',
+        answer: 'Yes — the first correct submission gets 10 pts, second gets 6, third gets 3, and everyone after that gets 1.',
+      },
+    ],
+  }),
   i_call_on: landing('i_call_on', {
     seoTitle: 'I Call On — Free Online Party Game',
     seoDescription:

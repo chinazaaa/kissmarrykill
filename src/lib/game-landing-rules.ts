@@ -736,4 +736,42 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       ],
     },
   ],
+  sudoku: [
+    {
+      title: 'Objective',
+      points: [
+        'Everyone races to solve the same 9×9 Sudoku puzzle.',
+        'Score points by being the first to correctly fill in a 3×3 block.',
+        'The player with the most points when the game ends wins.',
+      ],
+    },
+    {
+      title: 'How it works',
+      points: [
+        'The host shares a game code — everyone joins with their name.',
+        'When the host starts, all players see the same partially-filled 9×9 grid.',
+        'Fill in the numbers for any 3×3 block in your local view, then tap “Lock in Block” to submit.',
+        'The server validates your submission instantly against the unique solution.',
+      ],
+    },
+    {
+      title: 'Scoring',
+      points: [
+        '1st correct submission for a block = 10 points.',
+        '2nd correct = 6 points.',
+        '3rd correct = 3 points.',
+        '4th+ correct = 1 point.',
+        'Wrong submission = −3 points AND permanently locked out of that block.',
+        'You can still attempt every other block you haven\'t submitted yet.',
+      ],
+    },
+    {
+      title: 'Game end',
+      points: [
+        'The game ends when the host taps “End Game” or the timer runs out.',
+        'The player with the highest total score wins.',
+        'Players who didn\'t ready up for a rematch are excluded from the next game\'s leaderboard.',
+      ],
+    },
+  ],
 }

@@ -57,6 +57,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -251,6 +252,7 @@ function CreateGameInner() {
   const [whotNumberCallsEnabled, setWhotNumberCallsEnabled] = useState(true)
   const [ludoMaxPlayers, setLudoMaxPlayers] = useState(LUDO_DEFAULT_MAX_PLAYERS)
   const [npatMaxPlayers, setNpatMaxPlayers] = useState(NPAT_DEFAULT_MAX_PLAYERS)
+  const [sudokuMaxPlayers, setSudokuMaxPlayers] = useState(20)
   const [npatGameDuration, setNpatGameDuration] = useState(NPAT_DEFAULT_GAME_DURATION)
   const [npatMarkingTimer, setNpatMarkingTimer] = useState(NPAT_DEFAULT_MARKING_TIMER)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
@@ -398,6 +400,7 @@ function CreateGameInner() {
   }, [whotCardsEnabled])
   const isLudo = isLudoGame(settings.game_type)
   const isNpat = isICallOnGame(settings.game_type)
+  const isSudoku = isSudokuGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -476,7 +479,7 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo || isNpat
+  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo || isNpat || isSudoku
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
@@ -593,6 +596,13 @@ function CreateGameInner() {
               timer_seconds: NPAT_DEFAULT_TIMER,
             }
           : {}),
+      ...(isSudokuGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+          }
+        : {}),
       ...(isWhoSaidThis(type)
         ? {
             participant_mode: 'import' as const,
@@ -938,6 +948,8 @@ function CreateGameInner() {
                               ? ludoMaxPlayers
                               : isNpat
                                 ? npatMaxPlayers
+                                : isSudoku
+                                  ? sudokuMaxPlayers
                           : undefined,
           operative_timer_seconds: isCodewords
             ? codewordsOperativeTimer
@@ -1517,6 +1529,26 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Two teams of spymasters and operatives. Spymasters give one-word clues — operatives guess words on the
                   5×5 grid. First team to find all their words wins. Avoid the assassin!
+                </p>
+              </SettingsGroup>
+            ) : isSudoku ? (
+              <SettingsGroup title="Sudoku room">
+                <Field label={`Max players (${effectiveLimits.sudoku.min}–${effectiveLimits.sudoku.max})`}>
+                  <select
+                    value={sudokuMaxPlayers}
+                    onChange={(e) => setSudokuMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.sudoku.min, effectiveLimits.sudoku.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Race to solve the 9×9 puzzle block by block. First to claim a block gets 10 pts, second 6, third 3,
+                  rest 1. Wrong answer? −3 pts and you're locked out of that block.
                 </p>
               </SettingsGroup>
             ) : (

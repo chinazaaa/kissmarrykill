@@ -84,6 +84,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
@@ -96,6 +97,7 @@ import { MonopolyPlayerView } from '@/components/monopoly/MonopolyPlayerView'
 import { YahtzeePlayerView } from '@/components/yahtzee/YahtzeePlayerView'
 import { WhotPlayerView } from '@/components/whot/WhotPlayerView'
 import { LudoPlayerView } from '@/components/ludo/LudoPlayerView'
+import { SudokuPlayerView } from '@/components/sudoku/SudokuPlayerView'
 import {
   ParticipantRoundResults,
   VoteCountStat,
@@ -1478,6 +1480,9 @@ export function PollGamePlayerExperience({
   }
   if (game && isLudoGame(game.game_type)) {
     return <LudoPlayerView gameCode={gameCode} />
+  }
+  if (game && isSudokuGame(game.game_type)) {
+    return <SudokuPlayerView gameCode={gameCode} />
   }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />

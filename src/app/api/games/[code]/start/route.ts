@@ -23,6 +23,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { getCustomSlotCount } from '@/lib/custom-game'
@@ -86,6 +87,7 @@ import { initializeYahtzeeGame, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
 import { initializeWhotGame, WHOT_MIN_PLAYERS } from '@/lib/whot'
 import { initializeLudoGame, LUDO_MIN_PLAYERS } from '@/lib/ludo'
 import { buildNpatInitialRound, NPAT_MIN_PLAYERS, shufflePlayerOrder as npatShufflePlayerOrder } from '@/lib/npat'
+import { buildSudokuRoundRow, SUDOKU_MIN_PLAYERS } from '@/lib/sudoku'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -547,6 +549,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       playerOrder,
       now,
     })
+
+    const { error: roundError } = await supabase.from('rounds').insert(roundRow)
+    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({
+        status: 'active',
+        session_started_at: sessionStartedAt,
+        current_round_number: 1,
+        rounds_count: 1,
+      })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isSudokuGame(gameType)) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < SUDOKU_MIN_PLAYERS) {
+      return NextResponse.json(
+        { error: `Need at least ${SUDOKU_MIN_PLAYERS} players to start` },
+        { status: 400 }
+      )
+    }
+
+    const seed = Date.now() ^ Math.floor(Math.random() * 0xffffffff)
+    const roundRow = buildSudokuRoundRow(code.toUpperCase(), seed)
 
     const { error: roundError } = await supabase.from('rounds').insert(roundRow)
     if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })

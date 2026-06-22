@@ -14,6 +14,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { clearAnonymousRoomSessionData, reopenSecretMessageBoard } from '@/lib/anonymous-messages'
 import { clearBingoSessionData } from '@/lib/bingo'
@@ -23,6 +24,7 @@ import { clearYahtzeeSessionData } from '@/lib/yahtzee'
 import { clearWhotSessionData } from '@/lib/whot'
 import { clearLudoSessionData } from '@/lib/ludo'
 import { clearNpatSessionData } from '@/lib/npat'
+import { clearSudokuSessionData } from '@/lib/sudoku'
 import { clearTriviaSessionData } from '@/lib/trivia'
 import { clearTwoTruthsSessionData } from '@/lib/two-truths'
 import {
@@ -74,7 +76,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     game.status === 'finished' ||
     (isCodewordsGame(gameType) && game.status === 'active') ||
     (isTwoTruthsGame(gameType) && game.status === 'active') ||
-    (isICallOnGame(gameType) && game.status === 'active')
+    (isICallOnGame(gameType) && game.status === 'active') ||
+    (isSudokuGame(gameType) && game.status === 'active')
   if (!canReturnToLobby) {
     return NextResponse.json({ error: 'Game must be finished before playing again' }, { status: 400 })
   }
@@ -251,6 +254,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isICallOnGame(gameType)) {
     const { error: clearError } = await clearNpatSessionData(supabase, gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isSudokuGame(gameType)) {
+    const { error: clearError } = await clearSudokuSessionData(supabase, gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 

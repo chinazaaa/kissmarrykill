@@ -64,6 +64,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
@@ -78,6 +79,7 @@ import { YahtzeeHostView } from '@/components/yahtzee/YahtzeeHostView'
 import { WhotHostView } from '@/components/whot/WhotHostView'
 import { LudoHostView } from '@/components/ludo/LudoHostView'
 import { NpatHostView } from '@/components/npat/NpatHostView'
+import { SudokuHostView } from '@/components/sudoku/SudokuHostView'
 import {
   getCustomSlots,
   tallyCustomVotes,
@@ -1465,6 +1467,10 @@ export default function HostPage() {
 
   if (game && isLudoGame(game.game_type)) {
     return <LudoHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isSudokuGame(game.game_type)) {
+    return <SudokuHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {
