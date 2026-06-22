@@ -289,18 +289,24 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'waiting') {
-    const myName = players.find((p) => p.id === myPlayerId)?.name ?? ''
+    const me = players.find((p) => p.id === myPlayerId)
     return (
       <GameJoinLobbyShell gameCode={gameCode}>
         <GameLobbyWaitingPanel
           gameCode={gameCode}
           players={players}
           myPlayerId={myPlayerId}
-          myPlayerName={myName}
+          myPlayerName={me?.name ?? ''}
           onRenamed={() => void load()}
           onLeft={handlePlayerLeft}
           title="Waiting for the host to start"
           rulesLink={<GameRulesLink gameType="yahtzee" variant="subtle" />}
+          isSpectator={me?.spectator === true}
+          onReady={async () => {
+            if (!myPlayerId) return
+            await fetch('/api/players/ready', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }) })
+            await load()
+          }}
         />
       </GameJoinLobbyShell>
     )

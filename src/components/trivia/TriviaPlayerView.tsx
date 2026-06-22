@@ -282,6 +282,19 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
         />
         {game.status === 'waiting' && (
           <>
+            {me?.spectator === true && (
+              <button
+                type="button"
+                className="btn-primary w-full py-3 text-base font-bold"
+                onClick={async () => {
+                  if (!myPlayerId) return
+                  await fetch('/api/players/ready', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }) })
+                  await load()
+                }}
+              >
+                I&apos;m in — ready to play
+              </button>
+            )}
             <p className="text-center">
               <GameRulesLink gameType="trivia" variant="subtle" />
             </p>

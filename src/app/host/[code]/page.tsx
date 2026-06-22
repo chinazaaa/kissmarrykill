@@ -2220,9 +2220,16 @@ export default function HostPage() {
             <p className="text-muted text-xs uppercase tracking-wider">
               {isVoterOnly ? 'Voters joined' : isJoinersMode ? 'In the game' : 'Players joined'}
             </p>
-            <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              {players.length}
-            </span>
+            <div className="flex items-center gap-2">
+              {players.some((p) => p.spectator === true) && (
+                <span className="text-xs text-emerald-500 font-semibold">
+                  {players.filter((p) => p.spectator !== true).length} ready
+                </span>
+              )}
+              <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {players.length}
+              </span>
+            </div>
           </div>
           {!isJoinersMode && !isVoterOnly && !isWyr && !isNhie && !isMlt && !isWst && (
             <div className="space-y-1">

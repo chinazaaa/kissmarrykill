@@ -281,6 +281,7 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'waiting') {
+    const me = players.find((p) => p.id === myPlayerId)
     return (
       <GameJoinLobbyShell gameCode={gameCode}>
         <GameLobbyWaitingPanel
@@ -292,6 +293,12 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
           onLeft={handlePlayerLeft}
           title="Waiting for host to start"
           rulesLink={<GameRulesLink gameType="ludo" variant="subtle" />}
+          isSpectator={me?.spectator === true}
+          onReady={async () => {
+            if (!myPlayerId) return
+            await fetch('/api/players/ready', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }) })
+            await load()
+          }}
         />
       </GameJoinLobbyShell>
     )

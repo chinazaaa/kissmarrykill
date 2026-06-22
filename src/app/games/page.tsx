@@ -4,6 +4,7 @@ import { FateRoundLogo } from '@/components/FateRoundLogo'
 import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
 import { GAME_LANDING_CONTENT, gameLandingSlug } from '@/lib/game-landing'
 import { SITE_NAME, OG_IMAGE } from '@/lib/seo'
+import { GamesGrid } from '@/components/GamesGrid'
 
 export const metadata: Metadata = {
   title: 'All Party Games',
@@ -56,35 +57,7 @@ export default function GamesIndexPage() {
             </Link>
           </div>
 
-          <div className="relative grid sm:grid-cols-2 gap-3">
-            {games.map(({ slug, content, cfg }) => (
-              <Link
-                key={slug}
-                href={`/games/${slug}`}
-                className="glass-card glass-card-interactive p-5 space-y-3 group"
-                style={{ '--accent': cfg.card.accent } as React.CSSProperties}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl"
-                    style={{ background: cfg.card.accentSoft }}
-                  >
-                    {cfg.card.emoji}
-                  </span>
-                  <div className="min-w-0 space-y-1">
-                    <h2 className="font-bold text-body leading-tight group-hover:text-[var(--primary)] transition-colors">
-                      {content.heroTitle}
-                    </h2>
-                    <p className="text-faint text-xs">
-                      {cfg.card.players} · {cfg.card.vibe}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-muted text-sm leading-relaxed line-clamp-2">{content.heroSubtitle}</p>
-                <span className="text-xs font-semibold text-[var(--primary)]">Learn more →</span>
-              </Link>
-            ))}
-          </div>
+          <GamesGrid games={games} />
         </div>
       </div>
     </>

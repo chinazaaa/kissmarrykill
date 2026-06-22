@@ -2,7 +2,7 @@
 
 import type { Player } from '@/types'
 
-type LobbyPlayer = Pick<Player, 'id' | 'name'>
+type LobbyPlayer = Pick<Player, 'id' | 'name' | 'spectator'>
 
 type Props = {
   players: LobbyPlayer[]
@@ -42,16 +42,18 @@ export function GameLobbyPlayerList({
         <div className="space-y-1.5 max-h-52 overflow-y-auto">
           {players.map((player) => {
             const isMe = myPlayerId != null && player.id === myPlayerId
+            const notReady = player.spectator === true
             return (
               <div key={player.id} className="flex items-center gap-2">
                 <div
-                  className={`w-2 h-2 rounded-full shrink-0 ${isMe ? 'bg-[var(--primary)]' : 'bg-[var(--border-strong)]'}`}
+                  className={`w-2 h-2 rounded-full shrink-0 ${notReady ? 'bg-[var(--border-strong)]' : isMe ? 'bg-[var(--primary)]' : 'bg-emerald-500'}`}
                 />
                 <span
-                  className={`text-sm flex-1 min-w-0 truncate ${isMe ? 'text-[var(--primary)] font-semibold' : 'text-body-muted'}`}
+                  className={`text-sm flex-1 min-w-0 truncate ${notReady ? 'text-faint' : isMe ? 'text-[var(--primary)] font-semibold' : 'text-body-muted'}`}
                 >
                   {player.name}
                   {isMe ? ' (you)' : ''}
+                  {notReady ? <span className="text-faint text-xs"> · not ready</span> : null}
                 </span>
               </div>
             )
