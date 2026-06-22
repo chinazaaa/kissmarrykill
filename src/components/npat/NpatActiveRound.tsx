@@ -32,6 +32,7 @@ import {
   roundCallerPlayerId,
   tallyNpatScores,
 } from '@/lib/npat'
+import { isInCatalogue } from '@/lib/npat-catalogue'
 import { useNpatAdvance } from '@/hooks/useNpatAdvance'
 import { playVoteSubmittedSound } from '@/lib/sounds'
 import { useToast } from '@/components/ui/Toast'
@@ -94,6 +95,7 @@ export function NpatActiveRound({
   const { error: toastError } = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [pickingLetter, setPickingLetter] = useState(false)
+  const [disputing, setDisputing] = useState(false)
   const emptyAnswerForm = useMemo(
     () => Object.fromEntries(NPAT_CATEGORIES.map((c) => [c, ''])) as Record<NpatCategory, string>,
     []
@@ -396,6 +398,25 @@ export function NpatActiveRound({
     }
   }
 
+  const submitDispute = async (targetPlayerId: string, category: NpatCategory) => {
+    if (!currentRound || readOnly || disputing) return
+    setDisputing(true)
+    try {
+      const res = await fetch('/api/npat/dispute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, roundId: currentRound.id, targetPlayerId, category }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to submit dispute')
+      await onReload?.()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to submit dispute')
+    } finally {
+      setDisputing(false)
+    }
+  }
+
   if (screen === 'finished') {
     return (
       <NpatFinalResultsShareBlock
@@ -448,6 +469,7 @@ export function NpatActiveRound({
       metadata={metadata}
       showScores={showFinalScores}
       maskAnswers={maskScoreboardAnswers}
+      disputes={metadata.disputes}
     />
   ) : null
 
@@ -573,6 +595,11 @@ export function NpatActiveRound({
                 Only the person who called letter {metadata.letter ?? '?'} can approve this round. Scores reveal
                 automatically after 45s if they don&apos;t tap approve.
               </p>
+              {!isCaller && (
+                <p className="text-sm text-muted">
+                  Tap <span className="font-semibold text-orange-500">⚑ Dispute</span> on any answer below you think is invalid — {callerName} will see your flags.
+                </p>
+              )}
             </div>
             {showTransparency && (
               <NpatScoreboard
@@ -582,6 +609,10 @@ export function NpatActiveRound({
                 marks={roundMarks}
                 metadata={metadata}
                 showScores={false}
+                disputes={metadata.disputes}
+                myPlayerId={myPlayerId}
+                showDisputeButtons={!isCaller}
+                onDispute={(targetId, category) => void submitDispute(targetId, category)}
               />
             )}
           </div>
@@ -608,6 +639,14 @@ export function NpatActiveRound({
               <div key={category} className="rounded-lg border border-[var(--border-strong)] p-3 space-y-2">
                 <p className="text-sm font-semibold">{NPAT_CATEGORY_LABELS[category]}</p>
                 <p className="font-medium">{text || '—'}</p>
+                {!forcedInvalid && text.trim() && (() => {
+                  const inCatalogue = isInCatalogue(category, text)
+                  return inCatalogue ? (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">📚 Known answer</p>
+                  ) : (
+                    <p className="text-[11px] text-orange-500 dark:text-orange-300 font-semibold">⚠️ Not in catalogue — use your judgement</p>
+                  )
+                })()}
                 {forcedInvalid && (
                   <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
                     {!text.trim()

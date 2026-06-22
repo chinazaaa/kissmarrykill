@@ -560,6 +560,16 @@ export const npatAdvanceSchema = z.object({
 
 export type NpatAdvanceInput = z.infer<typeof npatAdvanceSchema>
 
+export const npatDisputeSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  targetPlayerId: uuidString('targetPlayerId'),
+  category: z.enum(['name', 'animal', 'place', 'thing', 'food']),
+})
+
+export type NpatDisputeInput = z.infer<typeof npatDisputeSchema>
+
 export const monopolyActionSchema = z.object({
   gameId: gameCodeString(),
   playerId: uuidString('playerId'),

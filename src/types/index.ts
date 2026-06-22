@@ -41,6 +41,12 @@ export type NpatHostOverrides = Record<
   Partial<Record<NpatCategory, boolean>>
 >
 
+export interface NpatDispute {
+  challenger_id: string
+  target_player_id: string
+  category: NpatCategory
+}
+
 export interface NpatMetadata {
   letter: string | null
   phase: NpatPhase
@@ -51,6 +57,7 @@ export interface NpatMetadata {
   caller_order: string[]
   caller_index: number
   host_overrides?: NpatHostOverrides
+  disputes?: NpatDispute[]
 }
 
 export interface NpatAnswer {
