@@ -12,19 +12,69 @@ export function isSoundMuted(): boolean {
   return localStorage.getItem(SOUND_MUTED_STORAGE_KEY) === 'true'
 }
 
-export function unlockAudio() {
-  if (typeof window === 'undefined') return
-  if (!audioCtx) audioCtx = new AudioContext()
-  if (audioCtx.state === 'suspended') void audioCtx.resume()
+/**
+ * Ensure the AudioContext exists and is running.
+ * Must be called (awaited) before scheduling any audio nodes.
+ * Returns true if the context is running and ready to use.
+ *
+ * On mobile, resume() only works within a user-gesture callback.
+ * Call `setupAudioUnlock()` once on page load so the first tap
+ * pre-warms the context for subsequent programmatic sounds.
+ */
+async function ensureContext(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  // Recreate if missing or garbage-collected into closed state
+  if (!audioCtx || audioCtx.state === 'closed') {
+    try {
+      audioCtx = new AudioContext()
+    } catch {
+      return false
+    }
+  }
+  if (audioCtx.state === 'suspended') {
+    try {
+      await audioCtx.resume()
+    } catch {
+      return false
+    }
+  }
+  return audioCtx.state === 'running'
+}
+
+/**
+ * Eagerly unlock the AudioContext during a user gesture.
+ * Call this from any click/touch handler so subsequent sounds
+ * triggered by polling/realtime events work on mobile.
+ */
+export function unlockAudio(): void {
+  void ensureContext()
+}
+
+/**
+ * Attach a one-time document listener that pre-warms the AudioContext
+ * on the first user interaction. Call once on game/host pages.
+ */
+export function setupAudioUnlock(): () => void {
+  if (typeof window === 'undefined') return () => {}
+  const unlock = () => {
+    void ensureContext()
+    document.removeEventListener('pointerdown', unlock, true)
+    document.removeEventListener('keydown', unlock, true)
+  }
+  document.addEventListener('pointerdown', unlock, true)
+  document.addEventListener('keydown', unlock, true)
+  return () => {
+    document.removeEventListener('pointerdown', unlock, true)
+    document.removeEventListener('keydown', unlock, true)
+  }
 }
 
 /** Warm chime when the lobby reopens (play again / host reset). */
-export function playLobbyOpenSound() {
+export async function playLobbyOpenSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -51,12 +101,11 @@ export function playLobbyOpenSound() {
 }
 
 /** Short ascending chime when a new round starts. */
-export function playRoundStartSound() {
+export async function playRoundStartSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -83,12 +132,11 @@ export function playRoundStartSound() {
 }
 
 /** Short satisfying "ding" when a vote is submitted (rising chime). */
-export function playVoteSubmittedSound() {
+export async function playVoteSubmittedSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -110,12 +158,11 @@ export function playVoteSubmittedSound() {
 }
 
 /** Descending tone when a round ends (pleasant buzzer). */
-export function playRoundEndSound() {
+export async function playRoundEndSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -142,12 +189,11 @@ export function playRoundEndSound() {
 }
 
 /** Celebratory fanfare for game completion (ascending notes with final chord). */
-export function playGameFinishedSound() {
+export async function playGameFinishedSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -179,12 +225,11 @@ export function playGameFinishedSound() {
 }
 
 /** Subtle whoosh when a confession is sent. */
-export function playConfessionSound() {
+export async function playConfessionSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -220,12 +265,11 @@ export function playConfessionSound() {
 }
 
 /** Quick dice rattle while dice are rolling. */
-export function playDiceRollSound() {
+export async function playDiceRollSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -269,13 +313,12 @@ export function playDiceRollSound() {
 }
 
 /** Short clock tick/tock for countdown urgency (last few seconds). */
-export function playTickTockSound(secondsRemaining: number) {
+export async function playTickTockSound(secondsRemaining: number) {
   if (typeof window === 'undefined' || isSoundMuted()) return
   if (secondsRemaining <= 0 || secondsRemaining > TIMER_TICK_THRESHOLD) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
     const isTock = secondsRemaining % 2 === 0
@@ -297,12 +340,11 @@ export function playTickTockSound(secondsRemaining: number) {
 }
 
 /** Quick bright chime when a trivia answer is correct. */
-export function playCorrectAnswerSound() {
+export async function playCorrectAnswerSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -328,12 +370,11 @@ export function playCorrectAnswerSound() {
 }
 
 /** Soft low tone when a trivia answer is wrong. */
-export function playWrongAnswerSound() {
+export async function playWrongAnswerSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -362,7 +403,7 @@ let timerLfo: OscillatorNode | null = null
 let timerLfoGain: GainNode | null = null
 
 /** Continuous background drone that intensifies as time runs out. */
-export function playTimerMusic(secondsRemaining: number, totalSeconds: number) {
+export async function playTimerMusic(secondsRemaining: number, totalSeconds: number) {
   if (typeof window === 'undefined') return
   if (isSoundMuted()) {
     stopTimerMusic()
@@ -374,8 +415,7 @@ export function playTimerMusic(secondsRemaining: number, totalSeconds: number) {
   }
 
   try {
-    unlockAudio()
-    if (!audioCtx) audioCtx = new AudioContext()
+    if (!await ensureContext() || !audioCtx) return
     const ctx = audioCtx
     const progress = 1 - secondsRemaining / totalSeconds
 

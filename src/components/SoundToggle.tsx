@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { isSoundMuted, SOUND_MUTED_STORAGE_KEY, stopTimerMusic } from '@/lib/sounds'
+import { isSoundMuted, SOUND_MUTED_STORAGE_KEY, stopTimerMusic, unlockAudio } from '@/lib/sounds'
 
 type SoundToggleProps = {
   variant?: 'fixed' | 'inline'
@@ -24,7 +24,11 @@ export function SoundToggle({ variant = 'fixed', className = '' }: SoundTogglePr
     const next = !muted
     setMuted(next)
     localStorage.setItem(SOUND_MUTED_STORAGE_KEY, String(next))
-    if (next) stopTimerMusic()
+    if (next) {
+      stopTimerMusic()
+    } else {
+      unlockAudio() // pre-warm context on unmute (user gesture)
+    }
   }
 
   const positionClass = variant === 'fixed' ? 'fixed bottom-4 left-4 z-50' : 'shrink-0'
