@@ -200,6 +200,7 @@ export function TriviaActiveRound({
       rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
       highlightId={myPlayerId}
       scoreLabel={(n) => `${n} pts`}
+      totalQuestions={game.rounds_count ?? undefined}
     />
   )
 
@@ -219,6 +220,7 @@ export function TriviaActiveRound({
             rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
             highlightId={myPlayerId}
             scoreLabel={(n) => `${n} pts`}
+            totalQuestions={game.rounds_count ?? undefined}
           />
           <div className="glass-card-strong p-8 text-center space-y-2">
             <p className="text-4xl">🏆</p>

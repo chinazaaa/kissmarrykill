@@ -126,6 +126,7 @@ export function TriviaHostManagePanel({
       title="Live leaderboard"
       rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
       scoreLabel={(n) => `${n} pts`}
+      totalQuestions={game.rounds_count ?? undefined}
     />
   )
 
@@ -284,6 +285,7 @@ export function TriviaHostManagePanel({
               title="Final leaderboard"
               rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
               scoreLabel={(n) => `${n} pts`}
+              totalQuestions={game.rounds_count ?? undefined}
             />
             <div className="glass-card-strong p-8 text-center space-y-2">
               <p className="text-4xl">🏆</p>
