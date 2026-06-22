@@ -6,7 +6,7 @@ import { GameHostChrome } from '@/components/GameHostChrome'
 import { SudokuBoard } from '@/components/sudoku/SudokuBoard'
 import { SudokuPlayerView } from '@/components/sudoku/SudokuPlayerView'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
-import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
+import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { parseSudokuMetadata, tallySudokuScores } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
 import { markGameFinished } from '@/lib/game-finish'
@@ -311,17 +311,10 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
             )}
           </div>
 
-          <div className="glass-card p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="label-caps text-xs">Players ({players.length})</p>
-              {showReady && (
-                <span className="text-xs text-emerald-500 font-semibold">{readyCount} ready</span>
-              )}
-            </div>
-            <GameLobbyPlayerList
-              players={players.map((p) => ({ id: p.id, name: p.name, spectator: p.spectator }))}
-            />
-          </div>
+          <HostLobbyPlayersSection
+            players={players}
+            label={showReady ? `Players — ${readyCount} ready` : 'Players'}
+          />
 
           <button
             type="button"
