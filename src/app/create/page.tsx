@@ -1924,7 +1924,8 @@ function CreateGameInner() {
                                 value={libraryPackSearch}
                                 onChange={(e) => setLibraryPackSearch(e.target.value)}
                                 placeholder="Search packs…"
-                                className="input-field w-full pl-8 text-sm py-2"
+                                className="input-field w-full text-sm"
+                                style={{ paddingLeft: '2.25rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}
                               />
                               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none text-xs">
                                 🔍

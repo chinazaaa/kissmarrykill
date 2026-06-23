@@ -463,6 +463,7 @@ export function NpatActiveRound({
       showScores={showFinalScores}
       maskAnswers={maskScoreboardAnswers}
       disputes={metadata.disputes}
+      myPlayerId={myPlayerId}
     />
   ) : null
 

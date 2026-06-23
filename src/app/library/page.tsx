@@ -127,7 +127,8 @@ export default function LibraryPage() {
           value={searchInput}
           onChange={(e) => handleSearchInput(e.target.value)}
           placeholder="Search packs by title, author, or description…"
-          className="input-field w-full pl-9"
+          className="input-field w-full"
+          style={{ paddingLeft: '2.5rem' }}
         />
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none text-sm">
           🔍

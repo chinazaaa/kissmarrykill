@@ -118,11 +118,25 @@ export function NpatScoreboard({
             const reviewer = markerNameByTarget.get(player.id)
             const isLockedIn = !!answer?.submitted_at
             const roundTotal = showScores && answer?.score_name != null ? answerTotal(answer) : null
+            const isMe = myPlayerId != null && player.id === myPlayerId
 
             return (
-              <tr key={player.id} className="border-b border-[var(--border-strong)]/60 align-top">
+              <tr
+                key={player.id}
+                className={[
+                  'border-b border-[var(--border-strong)]/60 align-top',
+                  isMe ? 'bg-sky-500/5' : '',
+                ].join(' ')}
+              >
                 <td className="py-3 pr-2">
-                  <p className="font-semibold">{player.name}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-semibold">{player.name}</p>
+                    {isMe && (
+                      <span className="rounded-full bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 text-[10px] font-bold text-sky-600 dark:text-sky-300">
+                        You
+                      </span>
+                    )}
+                  </div>
                   {maskAnswers && (
                     <p
                       className={[
