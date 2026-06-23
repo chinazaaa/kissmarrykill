@@ -63,6 +63,7 @@ const gameTypeEnum = z.enum([
   'whot',
   'ludo',
   'i_call_on',
+  'sudoku',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -193,6 +194,7 @@ export const monopolyExtendTimeSchema = hostActionSchema.extend({
 })
 
 export const playAgainSchema = hostActionSchema.extend({
+  hostPlayerId: uuidString('hostPlayerId').optional(),
   custom_questions: z.array(z.unknown()).optional(),
   participants: z
     .array(
@@ -559,6 +561,16 @@ export const npatAdvanceSchema = z.object({
 })
 
 export type NpatAdvanceInput = z.infer<typeof npatAdvanceSchema>
+
+export const npatDisputeSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  roundId: uuidString('roundId'),
+  targetPlayerId: uuidString('targetPlayerId'),
+  category: z.enum(['name', 'animal', 'place', 'thing', 'food']),
+})
+
+export type NpatDisputeInput = z.infer<typeof npatDisputeSchema>
 
 export const monopolyActionSchema = z.object({
   gameId: gameCodeString(),

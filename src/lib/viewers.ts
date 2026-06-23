@@ -182,15 +182,11 @@ export function spectatorForActiveJoin(
   return joinAsViewer === true
 }
 
-/** Clear spectator flags when returning to lobby so late joiners can play the next round. */
+/** Mark all existing players as spectators when the lobby reopens so they must opt in. */
 export async function resetSpectatorsForLobby(
   supabase: SupabaseClient,
   gameId: string
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from('players')
-    .update({ spectator: false })
-    .eq('game_id', gameId)
-    .eq('spectator', true)
+  const { error } = await supabase.from('players').update({ spectator: true }).eq('game_id', gameId)
   return { error: error?.message ?? null }
 }

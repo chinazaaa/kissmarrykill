@@ -421,6 +421,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'waiting') {
+    const me = players.find((p) => p.id === myPlayerId)
     return (
       <GameJoinLobbyShell gameCode={gameCode}>
         <GameLobbyWaitingPanel
@@ -439,6 +440,16 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
           }
           rulesLink={<GameRulesLink gameType="bingo" variant="subtle" />}
           activity={<BingoCardLegend />}
+          isSpectator={me?.spectator === true}
+          onReady={async () => {
+            if (!myPlayerId) return
+            await fetch('/api/players/ready', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+            })
+            await load()
+          }}
         />
       </GameJoinLobbyShell>
     )

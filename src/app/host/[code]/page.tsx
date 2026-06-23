@@ -64,6 +64,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
@@ -78,6 +79,7 @@ import { YahtzeeHostView } from '@/components/yahtzee/YahtzeeHostView'
 import { WhotHostView } from '@/components/whot/WhotHostView'
 import { LudoHostView } from '@/components/ludo/LudoHostView'
 import { NpatHostView } from '@/components/npat/NpatHostView'
+import { SudokuHostView } from '@/components/sudoku/SudokuHostView'
 import {
   getCustomSlots,
   tallyCustomVotes,
@@ -934,7 +936,7 @@ export default function HostPage() {
       const res = await fetch(`/api/games/${gameCode}/play-again`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken, ...payload }),
+        body: JSON.stringify({ hostToken, hostPlayerId: hostPlayerId ?? undefined, ...payload }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -1484,6 +1486,10 @@ export default function HostPage() {
 
   if (game && isLudoGame(game.game_type)) {
     return <LudoHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isSudokuGame(game.game_type)) {
+    return <SudokuHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {
@@ -2244,9 +2250,16 @@ export default function HostPage() {
               <p className="text-muted text-xs uppercase tracking-wider">
                 {isVoterOnly ? 'Voters joined' : isJoinersMode ? 'In the game' : 'Players joined'}
               </p>
-              <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                {players.length}
-              </span>
+              <div className="flex items-center gap-2">
+                {players.some((p) => p.spectator === true) && (
+                  <span className="text-xs text-emerald-500 font-semibold">
+                    {players.filter((p) => p.spectator !== true).length} ready
+                  </span>
+                )}
+                <span className="bg-[var(--primary-strong)] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {players.length}
+                </span>
+              </div>
             </div>
             {!isJoinersMode && !isVoterOnly && !isWyr && !isNhie && !isMlt && !isWst && (
               <div className="space-y-1">
@@ -2471,15 +2484,24 @@ export default function HostPage() {
                 <p className="text-faint text-sm">Waiting for people to join...</p>
               ) : (
                 <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {filteredPlayers.map((player) => (
-                    <div
-                      key={player.id}
-                      className="surface-inset border border-theme rounded-xl px-3 py-2 flex items-center gap-2"
-                    >
-                      <Avatar name={player.name} size="sm" />
-                      <span className="text-body text-sm font-medium truncate flex-1">{player.name}</span>
-                    </div>
-                  ))}
+                  {filteredPlayers.map((player) => {
+                    const ready = player.spectator !== true
+                    const showReady = players.some((p) => p.spectator === true)
+                    return (
+                      <div
+                        key={player.id}
+                        className="surface-inset border border-theme rounded-xl px-3 py-2 flex items-center gap-2"
+                      >
+                        <Avatar name={player.name} size="sm" />
+                        <span className="text-body text-sm font-medium truncate flex-1">{player.name}</span>
+                        {showReady && (
+                          <span className={`text-sm font-bold shrink-0 ${ready ? 'text-emerald-500' : 'text-red-400'}`}>
+                            {ready ? '✓' : '✗'}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )
             ) : isJoinersMode ? (
@@ -2494,11 +2516,20 @@ export default function HostPage() {
                     if (!player) return null
                     const busy = adminBusy === part.id || adminBusy === player.id
                     const identity = resolvePlayerIdentity(player, participants)
+                    const ready = player.spectator !== true
+                    const showReady = players.some((pl) => pl.spectator === true)
                     return (
                       <div key={part.id} className="surface-inset border border-theme rounded-xl p-3 space-y-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <Avatar name={part.name} photoUrl={part.photo_url} size="sm" />
                           <span className="text-body text-sm font-medium truncate flex-1">{part.name}</span>
+                          {showReady && (
+                            <span
+                              className={`text-sm font-bold shrink-0 ${ready ? 'text-emerald-500' : 'text-red-400'}`}
+                            >
+                              {ready ? '✓' : '✗'}
+                            </span>
+                          )}
                           <button
                             type="button"
                             disabled={busy}
@@ -2557,6 +2588,8 @@ export default function HostPage() {
               <div className="space-y-2 max-h-52 overflow-y-auto">
                 {filteredPlayers.map((p) => {
                   const identity = resolvePlayerIdentity(p, participants)
+                  const ready = p.spectator !== true
+                  const showReady = players.some((pl) => pl.spectator === true)
                   return (
                     <div
                       key={p.id}
@@ -2564,6 +2597,11 @@ export default function HostPage() {
                     >
                       <Avatar name={p.name} size="sm" />
                       <span className="text-body-muted text-sm truncate flex-1">{p.name}</span>
+                      {showReady && (
+                        <span className={`text-sm font-bold shrink-0 ${ready ? 'text-emerald-500' : 'text-red-400'}`}>
+                          {ready ? '✓' : '✗'}
+                        </span>
+                      )}
                       {gameGenderBased && (
                         <div className="flex gap-1 shrink-0">
                           {(['female', 'male'] as const).map((g) => (

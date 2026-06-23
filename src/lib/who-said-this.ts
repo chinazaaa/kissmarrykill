@@ -299,7 +299,8 @@ export function tallyWstPlayerScores(
   players: Player[]
 ): WstPlayerScore[] {
   const scores = new Map<string, number>()
-  for (const p of players) scores.set(p.id, 0)
+  const activePlayers = players.filter((p) => p.spectator !== true)
+  for (const p of activePlayers) scores.set(p.id, 0)
 
   for (const round of rounds) {
     const roundVotes = votes.filter((v) => v.round_id === round.id)
@@ -325,7 +326,7 @@ export function tallyWstPlayerScores(
   return [...scores.entries()]
     .map(([playerId, correctGuesses]) => ({
       playerId,
-      name: players.find((p) => p.id === playerId)?.name ?? 'Unknown',
+      name: activePlayers.find((p) => p.id === playerId)?.name ?? 'Unknown',
       correctGuesses,
     }))
     .sort(

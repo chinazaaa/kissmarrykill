@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { secondsUntilDeadline } from '@/lib/round-timing'
 import type { Game, NpatAnswer, NpatCategory, NpatMark, NpatMetadata, NpatPhase, Player, Round } from '@/types'
+import { catalogueAutoValid } from '@/lib/npat-catalogue'
 
 export type NpatHostMode = 'spectator' | 'player'
 
@@ -167,6 +168,25 @@ export function parseNpatMetadata(raw: unknown): NpatMetadata | null {
     }
   }
 
+  const disputes: NpatMetadata['disputes'] = []
+  if (Array.isArray(m.disputes)) {
+    for (const d of m.disputes) {
+      if (
+        d &&
+        typeof d === 'object' &&
+        typeof d.challenger_id === 'string' &&
+        typeof d.target_player_id === 'string' &&
+        NPAT_CATEGORIES.includes(d.category as NpatCategory)
+      ) {
+        disputes.push({
+          challenger_id: d.challenger_id,
+          target_player_id: d.target_player_id,
+          category: d.category as NpatCategory,
+        })
+      }
+    }
+  }
+
   return {
     letter: typeof m.letter === 'string' ? m.letter.toUpperCase().slice(0, 1) : null,
     phase,
@@ -177,6 +197,7 @@ export function parseNpatMetadata(raw: unknown): NpatMetadata | null {
     caller_order,
     caller_index: typeof m.caller_index === 'number' ? m.caller_index : 0,
     host_overrides: Object.keys(host_overrides).length > 0 ? host_overrides : undefined,
+    disputes: disputes.length > 0 ? disputes : undefined,
   }
 }
 
@@ -216,10 +237,15 @@ export function resolveActiveNpatRound(rounds: Round[], currentRoundNumber: numb
   return byPointer ?? active
 }
 
-export function buildReviewerAssignments(playerIds: string[]): Record<string, string> {
+export function buildReviewerAssignments(playerIds: string[], roundNumber = 1): Record<string, string> {
+  const n = playerIds.length
   const assignments: Record<string, string> = {}
-  for (let i = 0; i < playerIds.length; i += 1) {
-    assignments[playerIds[i]] = playerIds[(i + 1) % playerIds.length]
+  if (n <= 1) return assignments
+  // Rotate the target by roundNumber positions so each round players mark a different person.
+  // Clamp to [1, n-1] so no one ever marks themselves.
+  const shift = ((roundNumber % n) + n) % n || 1
+  for (let i = 0; i < n; i += 1) {
+    assignments[playerIds[i]] = playerIds[(i + shift) % n]
   }
   return assignments
 }
@@ -229,7 +255,7 @@ export function buildNpatInitialRound(opts: {
   playerOrder: string[]
   now: string
 }): Record<string, unknown> {
-  const assignments = buildReviewerAssignments(opts.playerOrder)
+  const assignments = buildReviewerAssignments(opts.playerOrder, 1)
   return {
     game_id: opts.gameId,
     round_number: 1,
@@ -322,7 +348,7 @@ export function buildNpatNextRound(opts: {
       letter: null,
       phase: 'letter_pick' as NpatPhase,
       phase_started_at: null,
-      reviewer_assignments: buildReviewerAssignments(reviewerIds),
+      reviewer_assignments: buildReviewerAssignments(reviewerIds, opts.roundNumber),
       scores_computed: false,
       used_letters,
       caller_order,
@@ -716,18 +742,28 @@ export async function ensureDefaultMarks(
   const { data: existing } = await supabase.from('npat_marks').select('marker_player_id').eq('round_id', round.id)
   const have = new Set((existing ?? []).map((r) => r.marker_player_id))
 
+  const now = new Date().toISOString()
   const inserts = playerIds
     .filter((id) => !have.has(id))
     .map((markerId) => {
-      const targetId = metadata.reviewer_assignments[markerId] ?? markerId
+      const assignedTarget = metadata.reviewer_assignments[markerId]
+      const isSolo = !assignedTarget || assignedTarget === markerId
+      const targetId = assignedTarget ?? markerId
       const targetAnswer = answersByPlayer.get(targetId)
+
       const validFor = (category: NpatCategory) => {
         if (!targetAnswer) return false
         const text = targetAnswer[category]
         const normalized = normalizeAnswer(text)
         const isDuplicate = normalized ? dupes[category].has(normalized) : false
-        return !isForcedInvalidAnswer(text, letter, isDuplicate)
+        const forcedInvalid = isForcedInvalidAnswer(text, letter, isDuplicate)
+        if (isSolo) {
+          // No peer reviewer — use catalogue as automated marker
+          return catalogueAutoValid(category, text, letter, isDuplicate, forcedInvalid)
+        }
+        return !forcedInvalid
       }
+
       return {
         game_id: gameId,
         round_id: round.id,
@@ -738,10 +774,10 @@ export async function ensureDefaultMarks(
         valid_place: validFor('place'),
         valid_thing: validFor('thing'),
         valid_food: validFor('food'),
-        marked_at: null,
+        // Solo catalogue marks are immediately finalised; peer marks are left open (null)
+        marked_at: isSolo ? now : null,
       }
     })
-    .filter((row) => row.target_player_id !== row.marker_player_id)
 
   if (inserts.length > 0) await supabase.from('npat_marks').insert(inserts)
 }

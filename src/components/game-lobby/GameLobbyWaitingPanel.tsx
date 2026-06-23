@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
+import { WhatsAppChannelLink } from '@/components/WhatsAppChannelLink'
 import type { Player } from '@/types'
 
 type Props = {
@@ -16,6 +18,8 @@ type Props = {
   rulesLink?: React.ReactNode
   activity?: React.ReactNode
   playerListLabel?: string
+  isSpectator?: boolean
+  onReady?: () => Promise<void>
 }
 
 export function GameLobbyWaitingPanel({
@@ -30,13 +34,50 @@ export function GameLobbyWaitingPanel({
   rulesLink,
   activity,
   playerListLabel = 'In lobby',
+  isSpectator = false,
+  onReady,
 }: Props) {
+  const [readying, setReadying] = useState(false)
+
+  const handleReady = async () => {
+    if (!onReady || readying) return
+    setReadying(true)
+    try {
+      await onReady()
+    } finally {
+      setReadying(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_18%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_6%,transparent)] px-4 py-4 text-center space-y-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">You&apos;re in</p>
-        <h2 className="text-xl sm:text-2xl font-black">{title}</h2>
-        {description ? <div className="text-muted text-sm leading-relaxed">{description}</div> : null}
+        {isSpectator ? (
+          <>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">New round</p>
+            <h2 className="text-xl sm:text-2xl font-black">{title}</h2>
+            <p className="text-muted text-sm">Tap below to join the next round</p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleReady}
+                disabled={readying}
+                className="btn-primary w-full py-3 text-base font-bold"
+              >
+                {readying ? 'Joining…' : "I'm in — ready to play"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">You&apos;re in</p>
+            <h2 className="text-xl sm:text-2xl font-black">{title}</h2>
+            {description ? <div className="text-muted text-sm leading-relaxed">{description}</div> : null}
+          </>
+        )}
+        <div className="flex justify-center pt-2">
+          <WhatsAppChannelLink />
+        </div>
       </div>
 
       {myPlayerId ? (

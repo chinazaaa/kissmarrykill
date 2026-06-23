@@ -57,6 +57,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -232,9 +233,16 @@ function CreateGameInner() {
   const [whotNumberCallsEnabled, setWhotNumberCallsEnabled] = useState(true)
   const [ludoMaxPlayers, setLudoMaxPlayers] = useState(LUDO_DEFAULT_MAX_PLAYERS)
   const [npatMaxPlayers, setNpatMaxPlayers] = useState(NPAT_DEFAULT_MAX_PLAYERS)
+  const [sudokuMaxPlayers, setSudokuMaxPlayers] = useState(20)
   const [npatGameDuration, setNpatGameDuration] = useState(NPAT_DEFAULT_GAME_DURATION)
   const [npatMarkingTimer, setNpatMarkingTimer] = useState(NPAT_DEFAULT_MARKING_TIMER)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
+  const [libraryPackQuestions, setLibraryPackQuestions] = useState<unknown[]>([])
+  const [libraryPacks, setLibraryPacks] = useState<
+    { id: string; title: string; author_name: string; question_count: number }[]
+  >([])
+  const [libraryPacksLoading, setLibraryPacksLoading] = useState(false)
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
 
@@ -246,6 +254,34 @@ function CreateGameInner() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (questionSource !== 'library') return
+    const gameTypeMap: Record<string, string> = {
+      would_you_rather: 'would_you_rather',
+      most_likely_to: 'most_likely_to',
+      trivia: 'trivia',
+    }
+    const gt = gameTypeMap[settings.game_type]
+    if (!gt) return
+    setLibraryPacksLoading(true)
+    fetch(`/api/library?game_type=${gt}`)
+      .then((r) => r.json())
+      .then((d) => setLibraryPacks(d.packs ?? []))
+      .finally(() => setLibraryPacksLoading(false))
+  }, [questionSource, settings.game_type])
+
+  const selectLibraryPack = async (id: string) => {
+    setSelectedPackId(id)
+    const res = await fetch(`/api/library/${id}`)
+    const data = await res.json()
+    if (data.pack?.questions) {
+      setLibraryPackQuestions(data.pack.questions)
+      if (isTriviaGame(settings.game_type)) setCustomTriviaQuestions(data.pack.questions as TriviaQuestion[])
+      else if (isWouldYouRather(settings.game_type)) setCustomWyrQuestions(data.pack.questions as WyrQuestion[])
+      else setCustomMltQuestions(data.pack.questions as string[])
+    }
+  }
 
   useEffect(() => {
     if (!lobbyLimits) return
@@ -353,6 +389,22 @@ function CreateGameInner() {
               : {}),
       }))
     }
+    const packParam = searchParams.get('pack')
+    if (packParam) {
+      setQuestionSource('library')
+      setSelectedPackId(packParam)
+      fetch(`/api/library/${packParam}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (!d.pack?.questions) return
+          const gt = d.pack.game_type
+          if (gt === 'trivia') setCustomTriviaQuestions(d.pack.questions as TriviaQuestion[])
+          else if (gt === 'would_you_rather') setCustomWyrQuestions(d.pack.questions as WyrQuestion[])
+          else setCustomMltQuestions(d.pack.questions as string[])
+          setLibraryPackQuestions(d.pack.questions)
+        })
+        .catch(() => {})
+    }
   }, [searchParams])
 
   const genderCounts = countByGender(participants)
@@ -377,6 +429,7 @@ function CreateGameInner() {
   }, [whotCardsEnabled])
   const isLudo = isLudoGame(settings.game_type)
   const isNpat = isICallOnGame(settings.game_type)
+  const isSudoku = isSudokuGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -410,7 +463,7 @@ function CreateGameInner() {
         ? customMltQuestions.length
         : 0
   const questionCap =
-    questionSource === 'custom' && customQuestionCount > 0
+    (questionSource === 'custom' || questionSource === 'library') && customQuestionCount > 0
       ? customQuestionCount
       : isTot
         ? customQuestionCount
@@ -444,7 +497,10 @@ function CreateGameInner() {
     (questionSource === 'platform' && !isTot && !isPan) ||
     (isPan && questionSource === 'platform') ||
     (isPan && questionSource === 'custom' && customQuestionCount >= PAN_MIN_POOL && customQuestionCount > 0) ||
-    (isLobbyQuestions && !isTot && !isPan && customQuestionCount >= settings.rounds_count && customQuestionCount > 0)
+    (isLobbyQuestions && !isTot && !isPan && customQuestionCount >= settings.rounds_count && customQuestionCount > 0) ||
+    (questionSource === 'library' &&
+      libraryPackQuestions.length >= settings.rounds_count &&
+      libraryPackQuestions.length > 0)
   const canCreateQuickLobby = !!settings.title.trim() && hasEnoughCustomQuestions
 
   const customSlotsValid =
@@ -456,7 +512,16 @@ function CreateGameInner() {
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
   const isQuickLobby =
-    isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo || isNpat
+    isMessageBoard ||
+    isBingo ||
+    isCodewords ||
+    isTwoTruths ||
+    isMonopoly ||
+    isYahtzee ||
+    isWhot ||
+    isLudo ||
+    isNpat ||
+    isSudoku
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep =
     !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
@@ -469,7 +534,11 @@ function CreateGameInner() {
 
   useEffect(() => {
     if (isPan) return
-    if (questionSource === 'custom' && customQuestionCount > 0 && settings.rounds_count > customQuestionCount) {
+    if (
+      (questionSource === 'custom' || questionSource === 'library') &&
+      customQuestionCount > 0 &&
+      settings.rounds_count > customQuestionCount
+    ) {
       setSettings((prev) => ({ ...prev, rounds_count: customQuestionCount }))
     }
   }, [customQuestionCount, questionSource, settings.rounds_count, isPan])
@@ -483,6 +552,8 @@ function CreateGameInner() {
     setCustomWyrQuestions([])
     setCustomMltQuestions([])
     setCustomTriviaQuestions([])
+    setSelectedPackId(null)
+    setLibraryPackQuestions([])
     setTriviaCategory('general')
     setQuestionsUploadError(null)
     if (isICallOnGame(type)) {
@@ -568,6 +639,13 @@ function CreateGameInner() {
             anonymous: true,
             rounds_count: 1,
             timer_seconds: NPAT_DEFAULT_TIMER,
+          }
+        : {}),
+      ...(isSudokuGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
           }
         : {}),
       ...(isWhoSaidThis(type)
@@ -879,9 +957,15 @@ function CreateGameInner() {
         body: JSON.stringify({
           ...settings,
           rounds_count: isWst ? Math.max(participants.length, 2) : settings.rounds_count,
-          question_source: isTot ? 'custom' : isLobbyQuestions ? questionSource : 'platform',
+          question_source: isTot
+            ? 'custom'
+            : isLobbyQuestions
+              ? questionSource === 'library'
+                ? 'custom'
+                : questionSource
+              : 'platform',
           custom_questions:
-            isLobbyQuestions && (isTot || questionSource === 'custom')
+            isLobbyQuestions && (isTot || questionSource === 'custom' || questionSource === 'library')
               ? isWyr || isTot
                 ? customWyrQuestions
                 : isTrivia
@@ -915,7 +999,9 @@ function CreateGameInner() {
                             ? ludoMaxPlayers
                             : isNpat
                               ? npatMaxPlayers
-                              : undefined,
+                              : isSudoku
+                                ? sudokuMaxPlayers
+                                : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : isNpat ? npatMarkingTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? lateJoinPolicy === 'viewers_and_players' : undefined,
@@ -1486,6 +1572,26 @@ function CreateGameInner() {
                   5×5 grid. First team to find all their words wins. Avoid the assassin!
                 </p>
               </SettingsGroup>
+            ) : isSudoku ? (
+              <SettingsGroup title="Sudoku room">
+                <Field label={`Max players (${effectiveLimits.sudoku.min}–${effectiveLimits.sudoku.max})`}>
+                  <select
+                    value={sudokuMaxPlayers}
+                    onChange={(e) => setSudokuMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.sudoku.min, effectiveLimits.sudoku.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Race to solve the 9×9 puzzle block by block. First to claim a block gets 10 pts, second 6, third 3,
+                  rest 1. Wrong answer? −3 pts and you're locked out of that block.
+                </p>
+              </SettingsGroup>
             ) : (
               <>
                 <SettingsGroup title="Round settings">
@@ -1609,6 +1715,17 @@ function CreateGameInner() {
                       {isLobbyQuestions && questionSource === 'custom' && customQuestionCount > 0 && (
                         <p className="text-faint text-xs mb-2">
                           {customQuestionCount} custom questions loaded — up to {customQuestionCount} rounds.
+                        </p>
+                      )}
+                      {isLobbyQuestions && questionSource === 'library' && libraryPackQuestions.length === 0 && (
+                        <p className="text-faint text-xs mb-2">
+                          Select a library pack below to set how many rounds you can play.
+                        </p>
+                      )}
+                      {isLobbyQuestions && questionSource === 'library' && libraryPackQuestions.length > 0 && (
+                        <p className="text-faint text-xs mb-2">
+                          {libraryPackQuestions.length} library questions loaded — up to {libraryPackQuestions.length}{' '}
+                          rounds.
                         </p>
                       )}
                       {isLobbyQuestions && questionCap > 0 && (
@@ -1760,11 +1877,20 @@ function CreateGameInner() {
                         value={questionSource}
                         onChange={(v) => {
                           setQuestionSource(v)
+                          if (v === 'platform' || v === 'custom') {
+                            setSelectedPackId(null)
+                            setLibraryPackQuestions([])
+                          }
                           if (v === 'platform') {
                             setCustomWyrQuestions([])
                             setCustomMltQuestions([])
                             setCustomTriviaQuestions([])
                             setQuestionsUploadError(null)
+                          }
+                          if (v === 'library') {
+                            setCustomWyrQuestions([])
+                            setCustomMltQuestions([])
+                            setCustomTriviaQuestions([])
                           }
                         }}
                         options={questionSourceOptions(settings.game_type)}
@@ -1772,6 +1898,54 @@ function CreateGameInner() {
                     )}
 
                     {questionCustomHint && <CustomContentAiTip hint={questionCustomHint} />}
+
+                    {isLobbyQuestions && questionSource === 'library' && (
+                      <div className="space-y-2 pt-1">
+                        {libraryPacksLoading ? (
+                          <div className="space-y-2">
+                            {[0, 1].map((i) => (
+                              <div key={i} className="surface-inset px-4 py-3 animate-pulse">
+                                <div className="h-3 bg-[var(--border-strong)] rounded-full w-2/3 mb-2" />
+                                <div className="h-2.5 bg-[var(--border)] rounded-full w-1/3" />
+                              </div>
+                            ))}
+                          </div>
+                        ) : libraryPacks.length === 0 ? (
+                          <p className="text-muted text-sm text-center py-4">
+                            No approved packs for this game type yet.
+                          </p>
+                        ) : (
+                          libraryPacks.map((pack) => (
+                            <button
+                              key={pack.id}
+                              type="button"
+                              onClick={() => selectLibraryPack(pack.id)}
+                              className={`surface-inset w-full px-4 py-3 text-left transition-all ${
+                                selectedPackId === pack.id
+                                  ? 'border-[var(--chip-active-border)] bg-[var(--chip-active-bg)]'
+                                  : 'hover:border-[var(--border-strong)]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p
+                                    className={`font-semibold text-sm truncate ${selectedPackId === pack.id ? 'text-[var(--chip-active-text)]' : ''}`}
+                                  >
+                                    {pack.title}
+                                  </p>
+                                  <p className="text-faint text-xs mt-0.5">
+                                    by {pack.author_name} · {pack.question_count} questions
+                                  </p>
+                                </div>
+                                {selectedPackId === pack.id && (
+                                  <span className="text-[var(--chip-active-text)] text-sm font-bold shrink-0">✓</span>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
 
                     {isLobbyQuestions && (isTot || questionSource === 'custom') && (
                       <div className="space-y-4 pt-1">

@@ -14,7 +14,8 @@ import {
   playerDisplayName,
   type NpatScoreReason,
 } from '@/lib/npat'
-import type { NpatAnswer, NpatCategory, NpatMark, NpatMetadata, Player } from '@/types'
+import type { NpatAnswer, NpatCategory, NpatDispute, NpatMark, NpatMetadata, Player } from '@/types'
+import { isInCatalogue } from '@/lib/npat-catalogue'
 
 function scoreReasonLabel(reason: NpatScoreReason): string {
   if (reason === 'duplicate') return 'Duplicate'
@@ -43,6 +44,10 @@ export function NpatScoreboard({
   hostReview = false,
   hostOverrides,
   onSetValid,
+  disputes,
+  myPlayerId,
+  showDisputeButtons = false,
+  onDispute,
 }: {
   letter: string | null
   players: Player[]
@@ -54,7 +59,12 @@ export function NpatScoreboard({
   hostReview?: boolean
   hostOverrides?: NpatMetadata['host_overrides']
   onSetValid?: (playerId: string, category: NpatCategory, answerText: string, valid: boolean) => void
+  disputes?: NpatDispute[]
+  myPlayerId?: string
+  showDisputeButtons?: boolean
+  onDispute?: (targetPlayerId: string, category: NpatCategory) => void
 }) {
+  const activePlayers = players.filter((p) => p.spectator !== true)
   const answersByPlayer = new Map(answers.map((a) => [a.player_id, a]))
   const dupes = duplicateKeysByCategory(answers)
   const marksByTarget = new Map(marks.map((m) => [m.target_player_id, m]))
@@ -65,9 +75,9 @@ export function NpatScoreboard({
     }
   }
 
-  if (players.length === 0) return null
+  if (activePlayers.length === 0) return null
 
-  const lockedInCount = players.filter((p) => answersByPlayer.get(p.id)?.submitted_at).length
+  const lockedInCount = activePlayers.filter((p) => answersByPlayer.get(p.id)?.submitted_at).length
 
   return (
     <div className="glass-card p-4 space-y-3 overflow-x-auto">
@@ -85,7 +95,7 @@ export function NpatScoreboard({
         {hostReview
           ? 'Tap valid or invalid for answers you want to override. Empty, wrong-letter, single-letter, and duplicate answers are locked invalid.'
           : maskAnswers
-            ? `${lockedInCount}/${players.length} locked in — answers stay hidden until marking starts.`
+            ? `${lockedInCount}/${activePlayers.length} locked in — answers stay hidden until marking starts.`
             : 'Duplicates score 5 automatically. Reviewers mark whether each answer fits its category — everyone can see the marks.'}
       </p>
 
@@ -102,7 +112,7 @@ export function NpatScoreboard({
           </tr>
         </thead>
         <tbody>
-          {players.map((player) => {
+          {activePlayers.map((player) => {
             const answer = answersByPlayer.get(player.id)
             const mark = marksByTarget.get(player.id)
             const reviewer = markerNameByTarget.get(player.id)
@@ -192,6 +202,21 @@ export function NpatScoreboard({
                         {isDuplicate && normalized && (
                           <p className="text-[11px] text-red-500 font-semibold">Duplicate</p>
                         )}
+                        {normalized &&
+                          !forcedInvalid &&
+                          !isDuplicate &&
+                          (() => {
+                            const inCatalogue = isInCatalogue(category, text)
+                            return inCatalogue ? (
+                              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                                📚 Known
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-orange-500 dark:text-orange-300 font-semibold">
+                                ⚠️ Not in catalogue
+                              </p>
+                            )
+                          })()}
                         {hostReview && !forcedInvalid && (
                           <div className="grid grid-cols-2 gap-1 pt-1">
                             <button
@@ -235,6 +260,53 @@ export function NpatScoreboard({
                         {!hostReview && !hasMark && metadata?.phase === 'marking' && normalized && (
                           <p className="text-[11px] text-faint">Awaiting mark…</p>
                         )}
+                        {(() => {
+                          if (!normalized || forcedInvalid) return null
+                          const cellDisputes = (disputes ?? []).filter(
+                            (d) => d.target_player_id === player.id && d.category === category
+                          )
+                          const iDisputedThis = cellDisputes.some((d) => d.challenger_id === myPlayerId)
+                          const disputeCount = cellDisputes.length
+
+                          if (hostReview && disputeCount > 0) {
+                            return (
+                              <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-300">
+                                ⚑ {disputeCount} dispute{disputeCount !== 1 ? 's' : ''}
+                              </p>
+                            )
+                          }
+
+                          if (showDisputeButtons && player.id !== myPlayerId) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => onDispute?.(player.id, category)}
+                                className={[
+                                  'mt-1 rounded-md px-2 py-0.5 text-[11px] font-semibold border transition-colors',
+                                  iDisputedThis
+                                    ? 'border-orange-400 bg-orange-400/15 text-orange-600 dark:text-orange-300'
+                                    : 'border-[var(--border-strong)] text-faint hover:border-orange-400 hover:text-orange-500',
+                                ].join(' ')}
+                              >
+                                {iDisputedThis
+                                  ? `⚑ Disputed${disputeCount > 1 ? ` (${disputeCount})` : ''}`
+                                  : disputeCount > 0
+                                    ? `⚑ Dispute (${disputeCount})`
+                                    : '⚑ Dispute'}
+                              </button>
+                            )
+                          }
+
+                          if (!showDisputeButtons && !hostReview && disputeCount > 0) {
+                            return (
+                              <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-300">
+                                ⚑ {disputeCount} dispute{disputeCount !== 1 ? 's' : ''}
+                              </p>
+                            )
+                          }
+
+                          return null
+                        })()}
                         {showScores && (
                           <p className={`text-[11px] font-bold ${scoreReasonClass(reason, points)}`}>
                             {points}/{NPAT_CATEGORY_POINTS} · {scoreReasonLabel(reason)}

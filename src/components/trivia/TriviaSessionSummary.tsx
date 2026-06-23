@@ -57,6 +57,7 @@ export function TriviaSessionSummary({
             title="Final leaderboard"
             rows={leaderboard.map((row, i) => ({ ...row, rank: i + 1 }))}
             scoreLabel={(n) => `${n} pts`}
+            totalQuestions={game.rounds_count ?? undefined}
           />
         </FinalResultsShareBlock>
       ) : (

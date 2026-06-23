@@ -1019,6 +1019,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  sudoku: {
+    id: 'sudoku',
+    label: 'Sudoku',
+    tagline: 'Race to claim blocks — first to solve a block scores big',
+    headerEmoji: '🔢🧩',
+    card: {
+      accent: '#8b5cf6',
+      accentSoft: 'rgba(139, 92, 246, 0.15)',
+      emoji: '🔢',
+      players: '2–20 players',
+      vibe: 'Puzzle race',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🥇',
+        label: '1st',
+        color: '#22c55e',
+        leaderboardLabel: '1st claims',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '🔢',
+        label: 'Points',
+        color: '#8b5cf6',
+        leaderboardLabel: 'Total points',
+        activeClass: 'bg-violet-500/20 text-violet-100 border-violet-400',
+        borderClass: 'border-violet-500/50 bg-violet-500/10',
+        textColor: '#c4b5fd',
+      },
+      kill: {
+        emoji: '✗',
+        label: 'Wrong',
+        color: '#ef4444',
+        leaderboardLabel: 'Wrong guesses',
+        activeClass: 'bg-red-500/20 text-red-100 border-red-400',
+        borderClass: 'border-red-500/50 bg-red-500/10',
+        textColor: '#fca5a5',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -1055,6 +1098,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'whot',
   'ludo',
   'i_call_on',
+  'sudoku',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -1080,6 +1124,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'whot') return 'whot'
   if (raw === 'ludo') return 'ludo'
   if (raw === 'i_call_on') return 'i_call_on'
+  if (raw === 'sudoku') return 'sudoku'
   return 'smash_marry_kill'
 }
 
@@ -1363,7 +1408,8 @@ export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): b
     type === 'yahtzee' ||
     type === 'whot' ||
     type === 'ludo' ||
-    type === 'i_call_on'
+    type === 'i_call_on' ||
+    type === 'sudoku'
   )
 }
 
@@ -1458,6 +1504,10 @@ export function isLudoGame(gameType: GameType | string | undefined): boolean {
 
 export function isICallOnGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'i_call_on'
+}
+
+export function isSudokuGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'sudoku'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

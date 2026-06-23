@@ -133,8 +133,9 @@ export interface TtlPlayerScore {
 }
 
 export function tallyTtlScores(guesses: TtlGuess[], players: Player[], rounds: Round[]): TtlPlayerScore[] {
+  const activePlayers = players.filter((p) => p.spectator !== true)
   const totals = new Map<string, { score: number; correct: number; fooled: number }>()
-  for (const p of players) {
+  for (const p of activePlayers) {
     totals.set(p.id, { score: 0, correct: 0, fooled: 0 })
   }
 
@@ -157,7 +158,7 @@ export function tallyTtlScores(guesses: TtlGuess[], players: Player[], rounds: R
     }
   }
 
-  return players
+  return activePlayers
     .map((p) => {
       const row = totals.get(p.id) ?? { score: 0, correct: 0, fooled: 0 }
       return {

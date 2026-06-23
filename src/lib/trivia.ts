@@ -123,8 +123,9 @@ export interface TriviaPlayerScore {
 }
 
 export function tallyTriviaPlayerScores(answers: TriviaAnswer[], players: Player[]): TriviaPlayerScore[] {
+  const activePlayers = players.filter((p) => p.spectator !== true)
   const totals = new Map<string, { score: number; correct: number; totalMs: number; answerCount: number }>()
-  for (const p of players) {
+  for (const p of activePlayers) {
     totals.set(p.id, { score: 0, correct: 0, totalMs: 0, answerCount: 0 })
   }
 
@@ -137,7 +138,7 @@ export function tallyTriviaPlayerScores(answers: TriviaAnswer[], players: Player
     if (a.is_correct) row.correct += 1
   }
 
-  return players
+  return activePlayers
     .map((p) => {
       const row = totals.get(p.id) ?? { score: 0, correct: 0, totalMs: 0, answerCount: 0 }
       return {

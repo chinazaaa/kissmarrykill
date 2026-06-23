@@ -78,6 +78,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
@@ -90,6 +91,7 @@ import { MonopolyPlayerView } from '@/components/monopoly/MonopolyPlayerView'
 import { YahtzeePlayerView } from '@/components/yahtzee/YahtzeePlayerView'
 import { WhotPlayerView } from '@/components/whot/WhotPlayerView'
 import { LudoPlayerView } from '@/components/ludo/LudoPlayerView'
+import { SudokuPlayerView } from '@/components/sudoku/SudokuPlayerView'
 import {
   ParticipantRoundResults,
   VoteCountStat,
@@ -567,6 +569,9 @@ export function PollGamePlayerExperience({
   if (game && isLudoGame(game.game_type)) {
     return <LudoPlayerView gameCode={gameCode} />
   }
+  if (game && isSudokuGame(game.game_type)) {
+    return <SudokuPlayerView gameCode={gameCode} />
+  }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />
   }
@@ -728,6 +733,7 @@ export function PollGamePlayerExperience({
     const isWst = isWhoSaidThis(game?.game_type)
     const wstTargets = isWst ? wstVoteTargets(participants) : []
     const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
+    const isSpectatorInLobby = me?.spectator === true
     const myQuotes =
       isWst && myPlayerId
         ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -745,14 +751,35 @@ export function PollGamePlayerExperience({
     return (
       <CenteredCard>
         <div className="text-center space-y-1">
-          <div className="text-4xl">⏳</div>
+          <div className="text-4xl">{isSpectatorInLobby ? '🎮' : '⏳'}</div>
           <h1 className="text-2xl font-black tracking-tight gradient-title">{game?.title}</h1>
           <GameTypeBadge gameType={game?.game_type} />
           {game && <GameLobbySummary game={game} />}
           <p className="text-muted text-sm">
             {game?.rounds_count} rounds · {game?.timer_seconds}s each
           </p>
-          <p className="text-muted">Waiting for the host to start...</p>
+          {isSpectatorInLobby ? (
+            <div className="pt-2 space-y-2">
+              <p className="text-muted text-sm">Tap below to join the next round</p>
+              <button
+                type="button"
+                className="btn-primary w-full py-3 text-base font-bold"
+                onClick={async () => {
+                  if (!myPlayerId) return
+                  await fetch('/api/players/ready', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+                  })
+                  await reloadPlayers()
+                }}
+              >
+                I&apos;m in — ready to play
+              </button>
+            </div>
+          ) : (
+            <p className="text-muted">Waiting for the host to start...</p>
+          )}
           {game ? (
             <p>
               <GameRulesLink gameType={game.game_type} variant="subtle" />

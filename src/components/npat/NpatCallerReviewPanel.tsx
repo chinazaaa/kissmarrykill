@@ -143,7 +143,8 @@ export function NpatCallerReviewPanel({
         <p className="text-sm text-muted leading-relaxed">
           You called letter <strong className="text-body">{letter ?? '?'}</strong> — review everyone&apos;s answers
           before scores are revealed. Empty answers, wrong starting letters, single-letter answers, and duplicates are
-          invalid automatically. Toggle anything else, then approve.
+          invalid automatically. Answers flagged <span className="text-orange-500 font-semibold">⚑ disputed</span> by
+          other players are highlighted — toggle anything you disagree with, then approve.
         </p>
         <button type="button" onClick={() => void approveRound()} disabled={approving} className="btn-primary w-full">
           {approving ? 'Approving…' : 'Approve & reveal scores'}
@@ -160,6 +161,7 @@ export function NpatCallerReviewPanel({
         hostReview
         hostOverrides={reviewOverrides}
         onSetValid={setValid}
+        disputes={metadata?.disputes}
       />
     </div>
   )

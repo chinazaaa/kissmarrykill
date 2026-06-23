@@ -4,8 +4,8 @@ export type AutoSubmitBehavior = 'random' | 'no_answer'
 export type ParticipantMode = 'import' | 'joiners' | 'voters'
 /** Pair games: `any` = 2 smash OK; `one_each` = must pick one of each option. */
 export type PairVoteMode = 'any' | 'one_each'
-/** WYR / MLT: built-in pool vs host-uploaded CSV questions. */
-export type QuestionSource = 'platform' | 'custom'
+/** WYR / MLT: built-in pool vs host-uploaded CSV questions, or community library pack. */
+export type QuestionSource = 'platform' | 'custom' | 'library'
 /** How player-submitted lobby questions are mixed with uploaded/platform questions. */
 export type PlayerQuestionsOrder = 'players_first' | 'uploaded_first' | 'mixed'
 export type GameType =
@@ -32,11 +32,18 @@ export type GameType =
   | 'whot'
   | 'ludo'
   | 'i_call_on'
+  | 'sudoku'
 
 export type NpatPhase = 'letter_pick' | 'writing' | 'marking' | 'host_review' | 'reveal'
 export type NpatCategory = 'name' | 'animal' | 'place' | 'thing' | 'food'
 
 export type NpatHostOverrides = Record<string, Partial<Record<NpatCategory, boolean>>>
+
+export interface NpatDispute {
+  challenger_id: string
+  target_player_id: string
+  category: NpatCategory
+}
 
 export interface NpatMetadata {
   letter: string | null
@@ -48,6 +55,7 @@ export interface NpatMetadata {
   caller_order: string[]
   caller_index: number
   host_overrides?: NpatHostOverrides
+  disputes?: NpatDispute[]
 }
 
 export interface NpatAnswer {

@@ -34,6 +34,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isSudokuGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import {
@@ -240,7 +241,8 @@ export async function POST(req: NextRequest) {
     isMonopolyGame(game_type) ||
     isYahtzeeGame(game_type) ||
     isWhotGame(game_type) ||
-    isLudoGame(game_type)
+    isLudoGame(game_type) ||
+    isSudokuGame(game_type)
       ? 'joiners'
       : isWhoSaidThis(game_type)
         ? 'import'
@@ -290,7 +292,8 @@ export async function POST(req: NextRequest) {
     isMonopolyGame(game_type) ||
     isYahtzeeGame(game_type) ||
     isWhotGame(game_type) ||
-    isLudoGame(game_type)
+    isLudoGame(game_type) ||
+    isSudokuGame(game_type)
       ? 1
       : isWhoSaidThis(game_type)
         ? wstAutoRoundCount(participants.length)
@@ -364,7 +367,9 @@ export async function POST(req: NextRequest) {
                     ? resolveMaxPlayers('ludo', rawMaxPlayers, lobbyDefaultMaxPlayers('ludo', lobbyLimits))
                     : isICallOnGame(game_type)
                       ? resolveMaxPlayers('i_call_on', rawMaxPlayers, lobbyDefaultMaxPlayers('i_call_on', lobbyLimits))
-                      : null
+                      : isSudokuGame(game_type)
+                        ? resolveMaxPlayers('sudoku', rawMaxPlayers, lobbyDefaultMaxPlayers('sudoku', lobbyLimits))
+                        : null
   const isSecret = isSecretMessageGame(game_type)
   const lateJoinFields = gameSupportsViewerSetting(game_type)
     ? rawLateJoinPolicy

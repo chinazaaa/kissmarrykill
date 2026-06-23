@@ -25,6 +25,7 @@ export const LOBBY_LIMIT_GAME_TYPES = [
   'whot',
   'ludo',
   'i_call_on',
+  'sudoku',
 ] as const
 
 export type LobbyLimitGameType = (typeof LOBBY_LIMIT_GAME_TYPES)[number]
@@ -91,6 +92,11 @@ export const GAME_LIMIT_CODE_DEFAULTS: GamePlayerLimitsMap = {
     max: NPAT_MAX_PLAYERS,
     default: NPAT_DEFAULT_MAX_PLAYERS,
   },
+  sudoku: {
+    min: 2,
+    max: 20,
+    default: 20,
+  },
 }
 
 export function isLobbyLimitGameType(value: string): value is LobbyLimitGameType {
@@ -109,6 +115,7 @@ export function getCodeDefaultLimits(): GamePlayerLimitsMap {
     whot: { ...GAME_LIMIT_CODE_DEFAULTS.whot },
     ludo: { ...GAME_LIMIT_CODE_DEFAULTS.ludo },
     i_call_on: { ...GAME_LIMIT_CODE_DEFAULTS.i_call_on },
+    sudoku: { ...GAME_LIMIT_CODE_DEFAULTS.sudoku },
   }
 }
 

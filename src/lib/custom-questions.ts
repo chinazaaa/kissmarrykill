@@ -357,7 +357,9 @@ export function parseQuestionSource(raw: unknown, gameType?: GameType | string):
     isNeverHaveIEver(gameType) ||
     isPickANumber(gameType)
   ) {
-    return raw === 'custom' ? 'custom' : 'platform'
+    if (raw === 'custom') return 'custom'
+    if (raw === 'library') return 'library'
+    return 'platform'
   }
   return 'platform'
 }
@@ -640,7 +642,8 @@ export function questionSourceOptions(gameType: GameType | string): {
         : isMostLikelyTo(gameType)
           ? MLT_QUESTION_COUNT
           : WYR_QUESTION_COUNT
-  return [
+  const supportsLibrary = isTriviaGame(gameType) || isWouldYouRather(gameType) || isMostLikelyTo(gameType)
+  const base: { value: QuestionSource; label: string; hint: string }[] = [
     {
       value: 'platform',
       label: 'Platform',
@@ -652,4 +655,12 @@ export function questionSourceOptions(gameType: GameType | string): {
       hint: 'Upload a CSV or Excel file with your questions.',
     },
   ]
+  if (supportsLibrary) {
+    base.splice(1, 0, {
+      value: 'library',
+      label: 'Library',
+      hint: 'Pick a community-submitted question pack.',
+    })
+  }
+  return base
 }
