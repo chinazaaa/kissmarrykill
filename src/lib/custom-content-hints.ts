@@ -47,7 +47,7 @@ export function getQuestionCustomContentHint(gameType: GameType): CustomContentH
   return {
     headline: 'Any theme you want',
     body: hasPlatform
-      ? `Use our built-in prompts or upload your own. Pick any theme your group cares about — a fandom, a holiday, inside jokes — ask ChatGPT, Claude, or any AI assistant to write ${label} questions in our CSV format, then upload the file here.`
+      ? `Use our built-in prompts, or library, or upload your own. Pick any theme your group cares about — a fandom, a holiday, inside jokes — ask ChatGPT, Claude, or any AI assistant to write ${label} questions in our CSV format, then upload the file here.`
       : `Pick any theme your group cares about — a fandom, a holiday, inside jokes. Ask ChatGPT, Claude, or any AI assistant to write ${label} questions in our CSV format, then upload the file below.`,
     promptExample: `"Create 30 ${label} questions about [your theme] as a CSV using the format in ${sample.download}."`,
     sampleHref: sample.href,

@@ -640,7 +640,7 @@ async function handlePlayerOutHand(
     gameId,
     {
       current_turn_index: nextIndex,
-      status_message: `${name} is out — now watching. ${remaining.length} player${remaining.length === 1 ? '' : 's'} left. ${playerName(playerNames, nextId)}'s turn${matchHint}`,
+      status_message: `${playerName(playerNames, nextId)}'s turn${matchHint} — ${name} is out (${remaining.length} left)`,
     },
     timerSeconds
   )
@@ -828,10 +828,10 @@ export async function processWhotPlay(
     : `${playerName(playerNames, nextPlayerId)}'s turn — match ${cardLabel(card)}`
 
   if (special && !advance.holdOn) {
-    status = `${special}. ${status}`
+    status = `${status} · ${special}`
   }
-  if (pickTwo > 0) status = `Pick 2 active (${pickTwo} cards). ${status}`
-  else if (pickFive > 0) status = `Pick 3 active (${pickFive} cards). ${status}`
+  if (pickTwo > 0) status = `${status} · Pick 2 active (${pickTwo} cards to draw)`
+  else if (pickFive > 0) status = `${status} · Pick 3 active (${pickFive} cards to draw)`
 
   await persistSession(
     supabase,
@@ -955,7 +955,7 @@ export async function processWhotDraw(
       pick_two_stack: 0,
       pick_five_stack: 0,
       current_turn_index: nextIndexAfterDraw,
-      status_message: `${reshuffleNote}${penaltyMsg}. ${playerName(playerNames, nextPlayerIdAfterDraw)}'s turn`,
+      status_message: `${playerName(playerNames, nextPlayerIdAfterDraw)}'s turn — ${penaltyMsg}${reshuffled ? ' · deck reshuffled' : ''}`,
     },
     timerSeconds
   )
@@ -992,8 +992,8 @@ export async function processWhotChoose(
   const pickFive = session.pick_five_stack ?? 0
   const stacks = normalizePickStacks(pickTwo, pickFive)
   let status = `${playerName(playerNames, nextPlayerId)}'s turn — ${requirement}`
-  if (stacks.pickTwo > 0) status = `Pick 2 active (${stacks.pickTwo} cards). ${status}`
-  else if (stacks.pickFive > 0) status = `Pick 3 active (${stacks.pickFive} cards). ${status}`
+  if (stacks.pickTwo > 0) status = `${status} · Pick 2 active (${stacks.pickTwo} cards to draw)`
+  else if (stacks.pickFive > 0) status = `${status} · Pick 3 active (${stacks.pickFive} cards to draw)`
 
   await persistSession(
     supabase,
