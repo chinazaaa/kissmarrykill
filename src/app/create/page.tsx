@@ -243,6 +243,7 @@ function CreateGameInner() {
     { id: string; title: string; author_name: string; question_count: number }[]
   >([])
   const [libraryPacksLoading, setLibraryPacksLoading] = useState(false)
+  const [libraryPackSearch, setLibraryPackSearch] = useState('')
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
 
@@ -264,8 +265,9 @@ function CreateGameInner() {
     }
     const gt = gameTypeMap[settings.game_type]
     if (!gt) return
+    setLibraryPackSearch('')
     setLibraryPacksLoading(true)
-    fetch(`/api/library?game_type=${gt}`)
+    fetch(`/api/library?game_type=${gt}&page_size=100`)
       .then((r) => r.json())
       .then((d) => setLibraryPacks(d.packs ?? []))
       .finally(() => setLibraryPacksLoading(false))
@@ -1915,34 +1917,66 @@ function CreateGameInner() {
                             No approved packs for this game type yet.
                           </p>
                         ) : (
-                          libraryPacks.map((pack) => (
-                            <button
-                              key={pack.id}
-                              type="button"
-                              onClick={() => selectLibraryPack(pack.id)}
-                              className={`surface-inset w-full px-4 py-3 text-left transition-all ${
-                                selectedPackId === pack.id
-                                  ? 'border-[var(--chip-active-border)] bg-[var(--chip-active-bg)]'
-                                  : 'hover:border-[var(--border-strong)]'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p
-                                    className={`font-semibold text-sm truncate ${selectedPackId === pack.id ? 'text-[var(--chip-active-text)]' : ''}`}
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <input
+                                type="search"
+                                value={libraryPackSearch}
+                                onChange={(e) => setLibraryPackSearch(e.target.value)}
+                                placeholder="Search packs…"
+                                className="input-field w-full pl-8 text-sm py-2"
+                              />
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none text-xs">
+                                🔍
+                              </span>
+                            </div>
+                            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                              {libraryPacks
+                                .filter((p) => {
+                                  const q = libraryPackSearch.toLowerCase().trim()
+                                  if (!q) return true
+                                  return (
+                                    p.title.toLowerCase().includes(q) ||
+                                    p.author_name.toLowerCase().includes(q)
+                                  )
+                                })
+                                .map((pack) => (
+                                  <button
+                                    key={pack.id}
+                                    type="button"
+                                    onClick={() => selectLibraryPack(pack.id)}
+                                    className={`surface-inset w-full px-4 py-3 text-left transition-all ${
+                                      selectedPackId === pack.id
+                                        ? 'border-[var(--chip-active-border)] bg-[var(--chip-active-bg)]'
+                                        : 'hover:border-[var(--border-strong)]'
+                                    }`}
                                   >
-                                    {pack.title}
-                                  </p>
-                                  <p className="text-faint text-xs mt-0.5">
-                                    by {pack.author_name} · {pack.question_count} questions
-                                  </p>
-                                </div>
-                                {selectedPackId === pack.id && (
-                                  <span className="text-[var(--chip-active-text)] text-sm font-bold shrink-0">✓</span>
-                                )}
-                              </div>
-                            </button>
-                          ))
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p
+                                          className={`font-semibold text-sm truncate ${selectedPackId === pack.id ? 'text-[var(--chip-active-text)]' : ''}`}
+                                        >
+                                          {pack.title}
+                                        </p>
+                                        <p className="text-faint text-xs mt-0.5">
+                                          by {pack.author_name} · {pack.question_count} questions
+                                        </p>
+                                      </div>
+                                      {selectedPackId === pack.id && (
+                                        <span className="text-[var(--chip-active-text)] text-sm font-bold shrink-0">✓</span>
+                                      )}
+                                    </div>
+                                  </button>
+                                ))}
+                              {libraryPacks.filter((p) => {
+                                const q = libraryPackSearch.toLowerCase().trim()
+                                if (!q) return true
+                                return p.title.toLowerCase().includes(q) || p.author_name.toLowerCase().includes(q)
+                              }).length === 0 && (
+                                <p className="text-muted text-sm text-center py-3">No packs match your search.</p>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

@@ -219,7 +219,7 @@ export default function LibraryPage() {
                   <div className="flex items-center justify-between gap-3 pt-1">
                     <span className="text-faint text-xs">{pack.question_count} questions</span>
                     <Link
-                      href={`/create?pack=${pack.id}&game_type=${pack.game_type}`}
+                      href={`/create?pack=${pack.id}&type=${pack.game_type}`}
                       className="btn-secondary btn-fit px-4 py-1.5 text-sm no-underline"
                     >
                       Use this pack →

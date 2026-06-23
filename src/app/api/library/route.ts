@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
-const PAGE_SIZE = 12
+const DEFAULT_PAGE_SIZE = 12
+const MAX_PAGE_SIZE = 100
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const gameType = searchParams.get('game_type')
   const tag = searchParams.get('tag')
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get('page_size') ?? String(DEFAULT_PAGE_SIZE), 10)))
 
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
     .select('id, title, game_type, author_name, description, question_count, approved_at, tags', { count: 'exact' })
     .eq('status', 'approved')
     .order('approved_at', { ascending: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
+    .range((page - 1) * pageSize, page * pageSize - 1)
 
   if (gameType) query = query.eq('game_type', gameType)
   if (tag) query = query.contains('tags', [tag])
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
     packs: data,
     total: count ?? 0,
     page,
-    pages: Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE)),
+    pages: Math.max(1, Math.ceil((count ?? 0) / pageSize)),
   })
 }
 

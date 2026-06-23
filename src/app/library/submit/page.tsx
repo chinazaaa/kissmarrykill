@@ -173,7 +173,7 @@ export default function SubmitPackPage() {
   }
 
   const handleSubmit = async () => {
-    if (!gameType || !validation?.ok || !title.trim() || !authorName.trim()) return
+    if (!gameType || !validation?.ok || !title.trim()) return
     setSubmitting(true)
     setSubmitError(null)
     const tags = [...(difficulty ? [difficulty] : []), ...Array.from(vibeTags)]
@@ -184,7 +184,7 @@ export default function SubmitPackPage() {
         body: JSON.stringify({
           title: title.trim(),
           game_type: gameType,
-          author_name: authorName.trim(),
+          author_name: authorName.trim() || 'Anonymous',
           description: description.trim() || undefined,
           questions: validation.questions,
           tags,
@@ -215,17 +215,38 @@ export default function SubmitPackPage() {
               Your pack is under review. We&apos;ll publish it once approved.
             </p>
           </div>
-          <div className="flex gap-2 justify-center pt-1">
+          <div className="flex flex-col gap-2 pt-1">
             <button
               type="button"
-              onClick={() => router.push('/library')}
-              className="btn-secondary btn-fit px-4 py-2 text-sm"
+              onClick={() => {
+                setSubmitted(false)
+                setGameType(null)
+                setTitle('')
+                setAuthorName('')
+                setDescription('')
+                setDifficulty(null)
+                setVibeTags(new Set())
+                setValidation(null)
+                setFileName('')
+                setSubmitError(null)
+                if (fileRef.current) fileRef.current.value = ''
+              }}
+              className="btn-primary btn-fit px-4 py-2 text-sm mx-auto"
             >
-              Browse library
+              + Create a new pack
             </button>
-            <button type="button" onClick={() => router.push('/')} className="btn-secondary btn-fit px-4 py-2 text-sm">
-              Home
-            </button>
+            <div className="flex gap-2 justify-center">
+              <button
+                type="button"
+                onClick={() => router.push('/library')}
+                className="btn-secondary btn-fit px-4 py-2 text-sm"
+              >
+                Browse library
+              </button>
+              <button type="button" onClick={() => router.push('/')} className="btn-secondary btn-fit px-4 py-2 text-sm">
+                Home
+              </button>
+            </div>
           </div>
         </div>
       </PageShell>
@@ -296,13 +317,13 @@ export default function SubmitPackPage() {
             />
           </Field>
 
-          <Field label="Your name">
+          <Field label="Your name (optional)">
             <input
               type="text"
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
               maxLength={60}
-              placeholder="Shown publicly on the pack"
+              placeholder="Shown publicly — leave blank to appear as Anonymous"
               className="input-field"
             />
           </Field>
@@ -455,7 +476,7 @@ export default function SubmitPackPage() {
 
           <PrimaryBtn
             onClick={handleSubmit}
-            disabled={!validation?.ok || !title.trim() || !authorName.trim() || submitting}
+            disabled={!validation?.ok || !title.trim() || submitting}
           >
             {submitting ? 'Submitting…' : 'Submit pack'}
           </PrimaryBtn>
