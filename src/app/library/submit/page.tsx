@@ -7,7 +7,7 @@ import { parseCsvRows } from '@/lib/csv-parse'
 import type { TriviaQuestion } from '@/types'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 
-type GameType = 'trivia' | 'would_you_rather' | 'most_likely_to'
+type GameType = 'trivia' | 'would_you_rather' | 'most_likely_to' | 'this_or_that'
 
 interface ValidationResult {
   ok: boolean
@@ -113,6 +113,12 @@ const GAME_TYPES: { value: GameType; label: string; description: string; columns
     description: 'Prompts voted on by the group',
     columns: 'prompt',
   },
+  {
+    value: 'this_or_that',
+    label: 'This or That',
+    description: 'Two-option choices players pick between',
+    columns: 'option_a, option_b',
+  },
 ]
 
 const DIFFICULTY_TAGS = ['easy', 'intermediate', 'advanced'] as const
@@ -166,7 +172,7 @@ export default function SubmitPackPage() {
       const text = ev.target?.result as string
       const rows = parseCsvRows(text)
       if (gameType === 'trivia') setValidation(validateTrivia(rows))
-      else if (gameType === 'would_you_rather') setValidation(validateWyr(rows))
+      else if (gameType === 'would_you_rather' || gameType === 'this_or_that') setValidation(validateWyr(rows))
       else setValidation(validateMlt(rows))
     }
     reader.readAsText(file)
@@ -431,7 +437,7 @@ export default function SubmitPackPage() {
                           {i + 1}. {q.question}
                         </p>
                       ))}
-                    {gameType === 'would_you_rather' &&
+                    {(gameType === 'would_you_rather' || gameType === 'this_or_that') &&
                       (validation.questions as WyrQuestion[]).slice(0, 3).map((q, i) => (
                         <p key={i} className="text-xs text-muted truncate leading-relaxed">
                           {i + 1}. {q.optionA} <span className="text-faint">or</span> {q.optionB}

@@ -262,6 +262,7 @@ function CreateGameInner() {
       would_you_rather: 'would_you_rather',
       most_likely_to: 'most_likely_to',
       trivia: 'trivia',
+      this_or_that: 'this_or_that',
     }
     const gt = gameTypeMap[settings.game_type]
     if (!gt) return
@@ -280,7 +281,7 @@ function CreateGameInner() {
     if (data.pack?.questions) {
       setLibraryPackQuestions(data.pack.questions)
       if (isTriviaGame(settings.game_type)) setCustomTriviaQuestions(data.pack.questions as TriviaQuestion[])
-      else if (isWouldYouRather(settings.game_type)) setCustomWyrQuestions(data.pack.questions as WyrQuestion[])
+      else if (isWouldYouRather(settings.game_type) || isThisOrThat(settings.game_type)) setCustomWyrQuestions(data.pack.questions as WyrQuestion[])
       else setCustomMltQuestions(data.pack.questions as string[])
     }
   }
