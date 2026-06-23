@@ -57,20 +57,18 @@ export async function POST(req: NextRequest) {
   const metadata = parseSudokuMetadata(round.sudoku_metadata)
   if (!metadata) return NextResponse.json({ error: 'Puzzle data missing' }, { status: 500 })
 
-  // Check for existing submission from this player for this block
-  const { data: existing } = await supabase
+  // Only block re-submission if the player already solved this block correctly
+  const { data: alreadySolved } = await supabase
     .from('sudoku_submissions')
-    .select('id,is_correct')
+    .select('id')
     .eq('round_id', round.id)
     .eq('player_id', playerId)
     .eq('block_index', blockIndex)
+    .eq('is_correct', true)
     .maybeSingle()
 
-  if (existing) {
-    return NextResponse.json(
-      { error: existing.is_correct ? 'Already solved this block' : 'Already locked out of this block' },
-      { status: 409 }
-    )
+  if (alreadySolved) {
+    return NextResponse.json({ error: 'Already solved this block' }, { status: 409 })
   }
 
   const isCorrect = validateBlock(cells, metadata.solution, blockIndex)
@@ -100,9 +98,9 @@ export async function POST(req: NextRequest) {
   })
 
   if (insertError) {
-    // Unique constraint violation — concurrent submission, treat as duplicate
+    // Partial unique index on correct answers — concurrent correct submission
     if (insertError.code === '23505') {
-      return NextResponse.json({ error: 'Already submitted for this block' }, { status: 409 })
+      return NextResponse.json({ error: 'Already solved this block' }, { status: 409 })
     }
     return NextResponse.json({ error: insertError.message }, { status: 500 })
   }

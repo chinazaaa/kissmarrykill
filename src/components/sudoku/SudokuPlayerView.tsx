@@ -204,12 +204,11 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     }
   }
 
-  // Derive per-block status for this player
+  // Derive per-block status for this player (wrong answers don't lock out — can retry)
   const mySubmissions = myPlayerId ? submissions.filter((s) => s.player_id === myPlayerId) : []
   const blockStatuses: BlockStatus[] = Array.from({ length: 9 }, (_, i) => {
-    const mine = mySubmissions.find((s) => s.block_index === i)
-    if (!mine) return 'idle'
-    return mine.is_correct ? 'claimed' : 'locked_out'
+    const correct = mySubmissions.find((s) => s.block_index === i && s.is_correct)
+    return correct ? 'claimed' : 'idle'
   })
 
   // Per-block scorers (names of correct submitters, ordered)

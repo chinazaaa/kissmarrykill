@@ -2,7 +2,7 @@
 
 import { cellBlockIndex } from '@/lib/sudoku'
 
-export type BlockStatus = 'idle' | 'claimed' | 'locked_out' | 'pending'
+export type BlockStatus = 'idle' | 'claimed' | 'pending'
 
 interface SudokuBoardProps {
   puzzle: number[][]         // 9×9, 0 = editable cell
@@ -57,11 +57,9 @@ export function SudokuBoard({
             const blockBg =
               status === 'claimed'
                 ? 'bg-emerald-500/10'
-                : status === 'locked_out'
-                  ? 'bg-red-500/10'
-                  : status === 'pending'
-                    ? 'bg-amber-500/10'
-                    : ''
+                : status === 'pending'
+                  ? 'bg-amber-500/10'
+                  : ''
 
             return (
               <div key={`${row}-${col}`} className={`relative ${borderRight} ${borderBottom} ${blockBg}`} style={{ aspectRatio: '1' }}>
@@ -77,7 +75,7 @@ export function SudokuBoard({
                     inputMode="numeric"
                     maxLength={1}
                     value={userGrid?.[row]?.[col] || ''}
-                    disabled={status === 'claimed' || status === 'locked_out'}
+                    disabled={status === 'claimed'}
                     onChange={(e) => {
                       const raw = e.target.value.replace(/[^1-9]/g, '')
                       const num = raw ? parseInt(raw.slice(-1)) : 0
@@ -87,7 +85,7 @@ export function SudokuBoard({
                       'w-full h-full text-center text-lg font-bold bg-transparent outline-none',
                       'focus:bg-violet-500/10',
                       given ? 'text-[var(--foreground)] cursor-default' : 'text-violet-600 dark:text-violet-400',
-                      status === 'claimed' || status === 'locked_out' ? 'cursor-not-allowed opacity-60' : '',
+                      status === 'claimed' ? 'cursor-not-allowed opacity-60' : '',
                     ].join(' ')}
                   />
                 )}
@@ -112,14 +110,6 @@ export function SudokuBoard({
                   {scorers.length > 0 && (
                     <p className="text-[9px] text-emerald-700 dark:text-emerald-300 truncate">{scorers[0]}</p>
                   )}
-                </div>
-              )
-            }
-
-            if (status === 'locked_out') {
-              return (
-                <div key={blockIdx} className="rounded-lg bg-red-500/10 border border-red-500/30 px-2 py-1.5 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-500">✗ Locked</p>
                 </div>
               )
             }
