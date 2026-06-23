@@ -10,11 +10,7 @@ function secondsUntil(deadlineAt: string | null | undefined): number {
 
 const TIMED_PHASES: MonopolyPhase[] = ['roll', 'jail', 'buy', 'pay_rent', 'raise_funds', 'auction']
 
-export function useMonopolyTurnTimer(
-  gameCode: string,
-  board: MonopolyBoard | null,
-  enabled: boolean
-) {
+export function useMonopolyTurnTimer(gameCode: string, board: MonopolyBoard | null, enabled: boolean) {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const expiringRef = useRef(false)
   const deadlineAt = board?.turn_deadline_at ?? null

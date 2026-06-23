@@ -14,8 +14,8 @@ export const SUDOKU_WRONG_PENALTY = -3
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface SudokuMetadata {
-  puzzle: number[][]    // 9×9, 0 = empty cell
-  solution: number[][]  // 9×9, complete solution
+  puzzle: number[][] // 9×9, 0 = empty cell
+  solution: number[][] // 9×9, complete solution
 }
 
 export interface SudokuSubmission {
@@ -50,8 +50,8 @@ function xorshift(seed: number) {
 function shuffle<T>(arr: T[], rng: () => number): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
+    const j = Math.floor(rng() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
   }
   return a
 }
@@ -120,7 +120,10 @@ export function generateSudokuPuzzle(seed: number): SudokuMetadata {
   fillGrid(solution, rng)
 
   const puzzle = solution.map((r) => [...r])
-  const positions = shuffle(Array.from({ length: 81 }, (_, i) => i), rng)
+  const positions = shuffle(
+    Array.from({ length: 81 }, (_, i) => i),
+    rng
+  )
 
   for (const pos of positions) {
     const row = Math.floor(pos / 9)
@@ -171,11 +174,7 @@ export function cellBlockIndex(row: number, col: number): number {
  * Validate a 3×3 block submission against the full solution.
  * `submission` is row-major within the block (3×3 grid of numbers).
  */
-export function validateBlock(
-  submission: number[][],
-  solution: number[][],
-  blockIndex: number
-): boolean {
+export function validateBlock(submission: number[][], solution: number[][], blockIndex: number): boolean {
   const br = Math.floor(blockIndex / 3) * 3
   const bc = (blockIndex % 3) * 3
   for (let r = 0; r < 3; r++) {

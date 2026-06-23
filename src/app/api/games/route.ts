@@ -37,14 +37,24 @@ import {
   isSudokuGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
-import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS, HOT_SEAT_MAX_ROUNDS_CAP } from '@/lib/hot-seat'
+import {
+  clampHotSeatMaxCap,
+  hotSeatMaxCapUpperBound,
+  HOT_SEAT_MIN_PLAYERS,
+  HOT_SEAT_MAX_ROUNDS_CAP,
+} from '@/lib/hot-seat'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { NHIE_QUESTION_COUNT } from '@/lib/never-have-i-ever-questions'
 import { PAN_MIN_POOL, PAN_QUESTION_COUNT } from '@/lib/pick-a-number-questions'
 import { clampPanRounds, PAN_MAX_ROUNDS } from '@/lib/pick-a-number'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
-import { parseQuestionSource, parseStoredWyrQuestions, parseStoredMltQuestions, parseStoredTriviaQuestions } from '@/lib/custom-questions'
+import {
+  parseQuestionSource,
+  parseStoredWyrQuestions,
+  parseStoredMltQuestions,
+  parseStoredTriviaQuestions,
+} from '@/lib/custom-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import type { ParticipantMode, QuestionSource, TriviaQuestion } from '@/types'
 import { createGameSchema, stripHtml } from '@/lib/validation'
@@ -56,7 +66,14 @@ import { isPeoplePollGame, supportsPlayerNameSubmissions } from '@/lib/player-pa
 import { parseBingoCallMode, clampBingoCallInterval } from '@/lib/bingo'
 import { TRIVIA_DEFAULT_ROUNDS, clampTriviaTimer } from '@/lib/trivia'
 import { clampTtlTimer, TTL_DEFAULT_TIMER } from '@/lib/two-truths'
-import { clampNpatMarkingTimer, clampNpatTimer, clampNpatGameDuration, NPAT_DEFAULT_GAME_DURATION, NPAT_DEFAULT_MARKING_TIMER, NPAT_DEFAULT_TIMER } from '@/lib/npat'
+import {
+  clampNpatMarkingTimer,
+  clampNpatTimer,
+  clampNpatGameDuration,
+  NPAT_DEFAULT_GAME_DURATION,
+  NPAT_DEFAULT_MARKING_TIMER,
+  NPAT_DEFAULT_TIMER,
+} from '@/lib/npat'
 import {
   clampCodewordsTimer,
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
@@ -201,7 +218,14 @@ export async function POST(req: NextRequest) {
   const question_source = parseQuestionSource(rawQuestionSource, game_type)
   let custom_questions: unknown[] | null = null
 
-  if (question_source === 'custom' && (isBinaryChoiceGame(game_type) || isMostLikelyTo(game_type) || isNeverHaveIEver(game_type) || isPickANumber(game_type) || isTriviaGame(game_type))) {
+  if (
+    question_source === 'custom' &&
+    (isBinaryChoiceGame(game_type) ||
+      isMostLikelyTo(game_type) ||
+      isNeverHaveIEver(game_type) ||
+      isPickANumber(game_type) ||
+      isTriviaGame(game_type))
+  ) {
     const cqParsed = parseCustomQuestionsBody(rawCustomQuestions, game_type)
     if (!cqParsed) {
       return NextResponse.json({ error: 'Upload at least one custom question' }, { status: 400 })
@@ -210,11 +234,19 @@ export async function POST(req: NextRequest) {
   }
 
   const participant_mode: ParticipantMode =
-    isLobbyGame(game_type) || isTriviaGame(game_type) || isTwoTruthsGame(game_type) || isICallOnGame(game_type) || isMonopolyGame(game_type) || isYahtzeeGame(game_type) || isWhotGame(game_type) || isLudoGame(game_type) || isSudokuGame(game_type)
-    ? 'joiners'
-    : isWhoSaidThis(game_type)
-      ? 'import'
-      : parseParticipantMode(rawMode)
+    isLobbyGame(game_type) ||
+    isTriviaGame(game_type) ||
+    isTwoTruthsGame(game_type) ||
+    isICallOnGame(game_type) ||
+    isMonopolyGame(game_type) ||
+    isYahtzeeGame(game_type) ||
+    isWhotGame(game_type) ||
+    isLudoGame(game_type) ||
+    isSudokuGame(game_type)
+      ? 'joiners'
+      : isWhoSaidThis(game_type)
+        ? 'import'
+        : parseParticipantMode(rawMode)
 
   let participants: ParticipantInput[] = []
   if (usesHostParticipantList(participant_mode)) {
@@ -262,16 +294,16 @@ export async function POST(req: NextRequest) {
     isWhotGame(game_type) ||
     isLudoGame(game_type) ||
     isSudokuGame(game_type)
-    ? 1
-    : isWhoSaidThis(game_type)
-      ? wstAutoRoundCount(participants.length)
-      : isHotSeat(game_type)
-        ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
-        : isPickANumber(game_type)
-          ? clampPanRounds(rounds_count ?? 5)
-          : isTriviaGame(game_type)
-          ? Math.min(Math.max(Number(rounds_count) || TRIVIA_DEFAULT_ROUNDS, 1), maxRounds)
-          : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
+      ? 1
+      : isWhoSaidThis(game_type)
+        ? wstAutoRoundCount(participants.length)
+        : isHotSeat(game_type)
+          ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
+          : isPickANumber(game_type)
+            ? clampPanRounds(rounds_count ?? 5)
+            : isTriviaGame(game_type)
+              ? Math.min(Math.max(Number(rounds_count) || TRIVIA_DEFAULT_ROUNDS, 1), maxRounds)
+              : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
 
   if (
     question_source === 'custom' &&
@@ -285,7 +317,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  if (question_source === 'custom' && custom_questions && isPickANumber(game_type) && custom_questions.length < PAN_MIN_POOL) {
+  if (
+    question_source === 'custom' &&
+    custom_questions &&
+    isPickANumber(game_type) &&
+    custom_questions.length < PAN_MIN_POOL
+  ) {
     return NextResponse.json(
       { error: `Need at least ${PAN_MIN_POOL} custom questions for the numbered list` },
       { status: 400 }
@@ -329,14 +366,10 @@ export async function POST(req: NextRequest) {
                   : isLudoGame(game_type)
                     ? resolveMaxPlayers('ludo', rawMaxPlayers, lobbyDefaultMaxPlayers('ludo', lobbyLimits))
                     : isICallOnGame(game_type)
-                      ? resolveMaxPlayers(
-                          'i_call_on',
-                          rawMaxPlayers,
-                          lobbyDefaultMaxPlayers('i_call_on', lobbyLimits)
-                        )
+                      ? resolveMaxPlayers('i_call_on', rawMaxPlayers, lobbyDefaultMaxPlayers('i_call_on', lobbyLimits))
                       : isSudokuGame(game_type)
                         ? resolveMaxPlayers('sudoku', rawMaxPlayers, lobbyDefaultMaxPlayers('sudoku', lobbyLimits))
-            : null
+                        : null
   const isSecret = isSecretMessageGame(game_type)
   const lateJoinFields = gameSupportsViewerSetting(game_type)
     ? rawLateJoinPolicy
@@ -363,10 +396,10 @@ export async function POST(req: NextRequest) {
           : isICallOnGame(game_type)
             ? clampNpatTimer(timer_seconds)
             : isMonopolyGame(game_type)
-            ? clampMonopolyTurnTimer(timer_seconds)
-            : [15, 30, 60].includes(Number(timer_seconds))
-              ? Number(timer_seconds)
-              : 30,
+              ? clampMonopolyTurnTimer(timer_seconds)
+              : [15, 30, 60].includes(Number(timer_seconds))
+                ? Number(timer_seconds)
+                : 30,
     ...(isCodewordsGame(game_type)
       ? {
           operative_timer_seconds: clampCodewordsTimer(
@@ -381,15 +414,16 @@ export async function POST(req: NextRequest) {
             operative_timer_seconds: clampNpatMarkingTimer(
               Number(rawOperativeTimerSeconds) || NPAT_DEFAULT_MARKING_TIMER
             ),
-            game_duration_seconds: clampNpatGameDuration(
-              rawGameDurationSeconds ?? NPAT_DEFAULT_GAME_DURATION
-            ),
+            game_duration_seconds: clampNpatGameDuration(rawGameDurationSeconds ?? NPAT_DEFAULT_GAME_DURATION),
           }
-      : {}),
+        : {}),
     ...(gameSupportsViewerSetting(game_type)
       ? { allow_viewers: viewersAllowed, allow_late_players: latePlayersAllowed }
       : {}),
-    anonymous: isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isAnonymousGame(game_type) ? true : anonymous !== false,
+    anonymous:
+      isAnonymousMessagesGame(game_type) || isSecretMessageGame(game_type) || isAnonymousGame(game_type)
+        ? true
+        : anonymous !== false,
     auto_reveal: auto_reveal !== false,
     auto_submit_behavior: auto_submit_behavior === 'random' ? 'random' : 'no_answer',
     participant_mode,
@@ -406,13 +440,15 @@ export async function POST(req: NextRequest) {
         ? parsePairVoteMode(rawPairVoteMode)
         : 'any',
     question_source:
-      isWouldYouRather(game_type) || isNeverHaveIEver(game_type) || isPickANumber(game_type) || isMostLikelyTo(game_type) || isTriviaGame(game_type) ? question_source : 'platform',
+      isWouldYouRather(game_type) ||
+      isNeverHaveIEver(game_type) ||
+      isPickANumber(game_type) ||
+      isMostLikelyTo(game_type) ||
+      isTriviaGame(game_type)
+        ? question_source
+        : 'platform',
     custom_questions,
-    trivia_category: isTriviaGame(game_type)
-      ? rawTriviaCategory === 'tech'
-        ? 'tech'
-        : 'general'
-      : null,
+    trivia_category: isTriviaGame(game_type) ? (rawTriviaCategory === 'tech' ? 'tech' : 'general') : null,
     game_type,
     theme,
     status: isSecret ? 'active' : 'waiting',
@@ -421,7 +457,10 @@ export async function POST(req: NextRequest) {
     wst_quote_source: parsed.data.wst_quote_source ?? 'player',
     gender_based: supportsGenderToggle(game_type) ? gender_based : true,
     player_questions_enabled:
-      isBinaryChoiceGame(game_type) || isMostLikelyTo(game_type) || isNeverHaveIEver(game_type) || isPickANumber(game_type)
+      isBinaryChoiceGame(game_type) ||
+      isMostLikelyTo(game_type) ||
+      isNeverHaveIEver(game_type) ||
+      isPickANumber(game_type)
         ? parsePlayerQuestionsEnabled(rawPlayerQuestionsEnabled)
         : supportsPlayerNameSubmissions({ game_type, participant_mode })
           ? parsePlayerQuestionsEnabled(rawPlayerQuestionsEnabled)
@@ -429,7 +468,10 @@ export async function POST(req: NextRequest) {
             ? false
             : true,
     player_questions_order:
-      isBinaryChoiceGame(game_type) || isMostLikelyTo(game_type) || isNeverHaveIEver(game_type) || isPickANumber(game_type)
+      isBinaryChoiceGame(game_type) ||
+      isMostLikelyTo(game_type) ||
+      isNeverHaveIEver(game_type) ||
+      isPickANumber(game_type)
         ? parsePlayerQuestionsOrder(rawPlayerQuestionsOrder)
         : supportsPlayerNameSubmissions({ game_type, participant_mode })
           ? parsePlayerQuestionsOrder(rawPlayerQuestionsOrder)

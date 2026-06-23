@@ -10,10 +10,7 @@ import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } fr
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player } from '@/types'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 interface SudokuSubmission {
   id: string
@@ -55,11 +52,17 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
     ])
 
-    if (!gameData) { setView('loading'); return }
+    if (!gameData) {
+      setView('loading')
+      return
+    }
     setGame(gameData as Game)
     setPlayers((playersData ?? []) as Player[])
 
-    if (!session?.playerId) { setView('join'); return }
+    if (!session?.playerId) {
+      setView('join')
+      return
+    }
     myPlayerIdRef.current = session.playerId
 
     if (gameData.status === 'waiting') {
@@ -69,67 +72,113 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
 
     if (gameData.status === 'finished') {
       // Load submissions for leaderboard
-      const { data: subs } = await supabase.from('sudoku_submissions').select(SUDOKU_SUBMISSION_SELECT).eq('game_id', gameCode)
+      const { data: subs } = await supabase
+        .from('sudoku_submissions')
+        .select(SUDOKU_SUBMISSION_SELECT)
+        .eq('game_id', gameCode)
       setSubmissions((subs ?? []) as SudokuSubmission[])
       setView('finished')
       return
     }
 
     // Active — load round + submissions
-    const { data: roundData } = await supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('round_number', 1).maybeSingle()
-    if (!roundData) { setView('waiting'); return }
+    const { data: roundData } = await supabase
+      .from('rounds')
+      .select(ROUND_SELECT)
+      .eq('game_id', gameCode)
+      .eq('round_number', 1)
+      .maybeSingle()
+    if (!roundData) {
+      setView('waiting')
+      return
+    }
 
     const meta = parseSudokuMetadata((roundData as Record<string, unknown>).sudoku_metadata)
-    if (!meta) { setView('waiting'); return }
+    if (!meta) {
+      setView('waiting')
+      return
+    }
 
     setPuzzle(meta.puzzle)
     setRoundId(roundData.id as string)
 
-    const { data: subs } = await supabase.from('sudoku_submissions').select(SUDOKU_SUBMISSION_SELECT).eq('round_id', roundData.id)
+    const { data: subs } = await supabase
+      .from('sudoku_submissions')
+      .select(SUDOKU_SUBMISSION_SELECT)
+      .eq('round_id', roundData.id)
     setSubmissions((subs ?? []) as SudokuSubmission[])
 
     setView('playing')
   }, [gameCode])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   // Real-time: game status changes
   useEffect(() => {
-    const ch = supabase.channel(`sudoku_game_${gameCode}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (payload) => {
-        setGame(payload.new as Game)
-        const status = (payload.new as Game).status
-        if (status === 'waiting') setView('waiting')
-        if (status === 'active') load()
-        if (status === 'finished') load()
-      })
+    const ch = supabase
+      .channel(`sudoku_game_${gameCode}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        (payload) => {
+          setGame(payload.new as Game)
+          const status = (payload.new as Game).status
+          if (status === 'waiting') setView('waiting')
+          if (status === 'active') load()
+          if (status === 'finished') load()
+        }
+      )
       .subscribe()
-    return () => { void supabase.removeChannel(ch) }
+    return () => {
+      void supabase.removeChannel(ch)
+    }
   }, [gameCode, load])
 
   // Real-time: submissions
   useEffect(() => {
     if (!roundId) return
-    const ch = supabase.channel(`sudoku_subs_${roundId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sudoku_submissions', filter: `round_id=eq.${roundId}` }, (payload) => {
-        setSubmissions((prev) => {
-          const exists = prev.some((s) => s.id === (payload.new as SudokuSubmission).id)
-          return exists ? prev : [...prev, payload.new as SudokuSubmission]
-        })
-      })
+    const ch = supabase
+      .channel(`sudoku_subs_${roundId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sudoku_submissions', filter: `round_id=eq.${roundId}` },
+        (payload) => {
+          setSubmissions((prev) => {
+            const exists = prev.some((s) => s.id === (payload.new as SudokuSubmission).id)
+            return exists ? prev : [...prev, payload.new as SudokuSubmission]
+          })
+        }
+      )
       .subscribe()
-    return () => { void supabase.removeChannel(ch) }
+    return () => {
+      void supabase.removeChannel(ch)
+    }
   }, [roundId])
 
   // Real-time: players joining
   useEffect(() => {
-    const ch = supabase.channel(`sudoku_players_${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, () => {
-        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at')
-          .then(({ data }) => { if (data) setPlayers(data as Player[]) })
-      })
+    const ch = supabase
+      .channel(`sudoku_players_${gameCode}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        () => {
+          supabase
+            .from('players')
+            .select(PLAYER_SELECT)
+            .eq('game_id', gameCode)
+            .order('joined_at')
+            .then(({ data }) => {
+              if (data) setPlayers(data as Player[])
+            })
+        }
+      )
       .subscribe()
-    return () => { void supabase.removeChannel(ch) }
+    return () => {
+      void supabase.removeChannel(ch)
+    }
   }, [gameCode])
 
   async function handleJoin(name: string) {
@@ -139,7 +188,10 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
       body: JSON.stringify({ gameCode, playerName: name }),
     })
     const json = await res.json()
-    if (!res.ok) { showToast(json.error ?? 'Failed to join', false); return }
+    if (!res.ok) {
+      showToast(json.error ?? 'Failed to join', false)
+      return
+    }
     myPlayerIdRef.current = json.playerId
     setPlayerSession(gameCode, json.playerId, name, json.playerGender ?? 'no_pref', json.resumeToken ?? null)
     setView('waiting')
@@ -174,7 +226,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
         const row = br + r
         const col = bc + c
         const given = puzzle?.[row]?.[col] ?? 0
-        return given !== 0 ? given : userGrid[row]?.[col] ?? 0
+        return given !== 0 ? given : (userGrid[row]?.[col] ?? 0)
       })
     )
 
@@ -263,7 +315,10 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
               <>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">You're in</p>
                 <p className="text-muted text-sm">Waiting for the host to start the puzzle…</p>
-                <p className="text-muted text-xs">{players.filter((p) => p.spectator !== true).length} player{players.filter((p) => p.spectator !== true).length !== 1 ? 's' : ''} ready</p>
+                <p className="text-muted text-xs">
+                  {players.filter((p) => p.spectator !== true).length} player
+                  {players.filter((p) => p.spectator !== true).length !== 1 ? 's' : ''} ready
+                </p>
               </>
             )}
           </div>
@@ -281,7 +336,9 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
             <p className="text-4xl">🏆</p>
             <p className="text-2xl font-black">Puzzle complete!</p>
             {leaderboard[0] && (
-              <p className="text-muted text-base">{leaderboard[0].name} wins with {leaderboard[0].points} pts</p>
+              <p className="text-muted text-base">
+                {leaderboard[0].name} wins with {leaderboard[0].points} pts
+              </p>
             )}
           </div>
           <PaginatedLeaderboard
@@ -300,7 +357,9 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     <div className="min-h-screen flex flex-col">
       <GamePlayerChrome />
       {toast && (
-        <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-semibold shadow-lg ${toast.ok ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-semibold shadow-lg ${toast.ok ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}
+        >
           {toast.msg}
         </div>
       )}
@@ -315,19 +374,27 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
           </div>
           <div className="text-right">
             <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Blocks claimed</p>
-            <p className="text-2xl font-black">
-              {mySubmissions.filter((s) => s.is_correct).length}/9
-            </p>
+            <p className="text-2xl font-black">{mySubmissions.filter((s) => s.is_correct).length}/9</p>
           </div>
         </div>
 
         {/* Scoring guide */}
         <div className="glass-card px-3 py-2 flex items-center gap-3 text-xs text-[var(--muted)] flex-wrap">
-          <span>1st <span className="font-bold text-emerald-500">+{SUDOKU_SCORING[0]}</span></span>
-          <span>2nd <span className="font-bold text-emerald-400">+{SUDOKU_SCORING[1]}</span></span>
-          <span>3rd <span className="font-bold text-emerald-300">+{SUDOKU_SCORING[2]}</span></span>
-          <span>4th+ <span className="font-bold text-emerald-200">+{SUDOKU_SCORING[3]}</span></span>
-          <span>Wrong <span className="font-bold text-red-400">{SUDOKU_WRONG_PENALTY}</span> + locked out</span>
+          <span>
+            1st <span className="font-bold text-emerald-500">+{SUDOKU_SCORING[0]}</span>
+          </span>
+          <span>
+            2nd <span className="font-bold text-emerald-400">+{SUDOKU_SCORING[1]}</span>
+          </span>
+          <span>
+            3rd <span className="font-bold text-emerald-300">+{SUDOKU_SCORING[2]}</span>
+          </span>
+          <span>
+            4th+ <span className="font-bold text-emerald-200">+{SUDOKU_SCORING[3]}</span>
+          </span>
+          <span>
+            Wrong <span className="font-bold text-red-400">{SUDOKU_WRONG_PENALTY}</span> + locked out
+          </span>
         </div>
 
         {puzzle && (
@@ -347,8 +414,13 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
           <div className="glass-card p-3 space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Live scores</p>
             {leaderboard.slice(0, 5).map((row, i) => (
-              <div key={row.player_id} className={`flex items-center justify-between text-sm py-0.5 ${row.player_id === myPlayerId ? 'font-bold text-violet-500 dark:text-violet-400' : ''}`}>
-                <span>{i + 1}. {row.name}</span>
+              <div
+                key={row.player_id}
+                className={`flex items-center justify-between text-sm py-0.5 ${row.player_id === myPlayerId ? 'font-bold text-violet-500 dark:text-violet-400' : ''}`}
+              >
+                <span>
+                  {i + 1}. {row.name}
+                </span>
                 <span>{row.points} pts</span>
               </div>
             ))}

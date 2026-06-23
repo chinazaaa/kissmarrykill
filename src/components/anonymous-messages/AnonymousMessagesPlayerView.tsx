@@ -36,7 +36,15 @@ import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { allowLateJoin, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'waiting' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'game_started_waiting'
+  | 'game_ended'
+  | 'waiting'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -295,7 +303,13 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
           )}
         </p>
         <button type="button" onClick={join} disabled={joining || lobbyFull} className="btn-primary w-full">
-          {joining ? 'Joining…' : lobbyFull ? 'Lobby full — check back when live' : sessionInProgress ? 'Join as viewer' : 'Join anonymously'}
+          {joining
+            ? 'Joining…'
+            : lobbyFull
+              ? 'Lobby full — check back when live'
+              : sessionInProgress
+                ? 'Join as viewer'
+                : 'Join anonymously'}
         </button>
         <ShareGameLinkCard gameCode={gameCode} />
       </CenteredShell>

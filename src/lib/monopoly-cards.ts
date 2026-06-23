@@ -46,11 +46,24 @@ export const CHANCE_CARD_DEFS: MonopolyCardDef[] = [
   { id: 5, kind: 'chance', message: 'Bank pays you dividend of £50', effect: 'collect', amount: 50 },
   { id: 6, kind: 'chance', message: 'Go back three spaces', effect: 'move_back', moveBy: -3 },
   { id: 7, kind: 'chance', message: 'Go to Jail — do not pass GO, do not collect £200', effect: 'go_to_jail' },
-  { id: 8, kind: 'chance', message: 'Make general repairs — pay £25 per house and £100 per hotel', effect: 'general_repairs', perHouse: 25, perHotel: 100 },
+  {
+    id: 8,
+    kind: 'chance',
+    message: 'Make general repairs — pay £25 per house and £100 per hotel',
+    effect: 'general_repairs',
+    perHouse: 25,
+    perHotel: 100,
+  },
   { id: 9, kind: 'chance', message: 'Get Out of Jail Free', effect: 'get_out_of_jail' },
   { id: 10, kind: 'chance', message: 'Speeding fine — pay £15', effect: 'pay', amount: 15 },
   { id: 11, kind: 'chance', message: 'Take a trip to Marylebone Station', effect: 'advance_to', moveTo: 15 },
-  { id: 12, kind: 'chance', message: 'You have been elected Chairman of the Board — pay each player £50', effect: 'pay_each', amount: 50 },
+  {
+    id: 12,
+    kind: 'chance',
+    message: 'You have been elected Chairman of the Board — pay each player £50',
+    effect: 'pay_each',
+    amount: 50,
+  },
   { id: 13, kind: 'chance', message: 'Your building loan matures — collect £150', effect: 'collect', amount: 150 },
   { id: 14, kind: 'chance', message: 'Advance to the nearest Station', effect: 'advance_nearest_station' },
   { id: 15, kind: 'chance', message: 'Advance to the nearest Utility', effect: 'advance_nearest_utility' },
@@ -64,15 +77,34 @@ export const COMMUNITY_CARD_DEFS: MonopolyCardDef[] = [
   { id: 3, kind: 'community', message: 'From sale of stock you get £50', effect: 'collect', amount: 50 },
   { id: 4, kind: 'community', message: 'Get Out of Jail Free', effect: 'get_out_of_jail' },
   { id: 5, kind: 'community', message: 'Go to Jail — do not pass GO, do not collect £200', effect: 'go_to_jail' },
-  { id: 6, kind: 'community', message: 'Grand Opera Night — collect £50 from every player', effect: 'collect_from_each', amount: 50 },
+  {
+    id: 6,
+    kind: 'community',
+    message: 'Grand Opera Night — collect £50 from every player',
+    effect: 'collect_from_each',
+    amount: 50,
+  },
   { id: 7, kind: 'community', message: 'Holiday fund matures — collect £100', effect: 'collect', amount: 100 },
   { id: 8, kind: 'community', message: 'Income tax refund — collect £20', effect: 'collect', amount: 20 },
-  { id: 9, kind: 'community', message: "It's your birthday — collect £10 from every player", effect: 'collect_from_each', amount: 10 },
+  {
+    id: 9,
+    kind: 'community',
+    message: "It's your birthday — collect £10 from every player",
+    effect: 'collect_from_each',
+    amount: 10,
+  },
   { id: 10, kind: 'community', message: 'Life insurance matures — collect £100', effect: 'collect', amount: 100 },
   { id: 11, kind: 'community', message: 'Pay hospital fees of £100', effect: 'pay', amount: 100 },
   { id: 12, kind: 'community', message: 'Pay school fees of £50', effect: 'pay', amount: 50 },
   { id: 13, kind: 'community', message: 'Receive £25 consultancy fee', effect: 'collect', amount: 25 },
-  { id: 14, kind: 'community', message: 'You are assessed for street repairs — £40 per house and £115 per hotel', effect: 'street_repairs', perHouse: 40, perHotel: 115 },
+  {
+    id: 14,
+    kind: 'community',
+    message: 'You are assessed for street repairs — £40 per house and £115 per hotel',
+    effect: 'street_repairs',
+    perHouse: 40,
+    perHotel: 115,
+  },
   { id: 15, kind: 'community', message: 'You inherit £100', effect: 'collect', amount: 100 },
 ]
 
@@ -161,8 +193,7 @@ export function resolveCardMovement(
     return { moveTo, passedGo }
   }
   if (card.effect === 'move_back' && card.moveBy !== undefined) {
-    const next =
-      ((position + card.moveBy) % MONOPOLY_BOARD_SIZE + MONOPOLY_BOARD_SIZE) % MONOPOLY_BOARD_SIZE
+    const next = (((position + card.moveBy) % MONOPOLY_BOARD_SIZE) + MONOPOLY_BOARD_SIZE) % MONOPOLY_BOARD_SIZE
     return { moveBy: card.moveBy, moveTo: next, passedGo: false }
   }
   return { passedGo: false }
@@ -234,11 +265,7 @@ export function applyCardEffect(
   }
 }
 
-export function goSalaryForCard(
-  card: MonopolyCardDef,
-  passedGo: boolean,
-  alreadyPassedGoOnce: boolean
-): number {
+export function goSalaryForCard(card: MonopolyCardDef, passedGo: boolean, alreadyPassedGoOnce: boolean): number {
   if (!alreadyPassedGoOnce) return 0
   if (card.effect === 'advance_go') return MONOPOLY_GO_SALARY
   if (passedGo) return MONOPOLY_GO_SALARY

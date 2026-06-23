@@ -24,10 +24,7 @@ export async function POST(req: NextRequest) {
   }
   if (game.status !== 'active') return NextResponse.json({ error: 'Game not active' }, { status: 400 })
 
-  const { data: existingCalled } = await supabase
-    .from('bingo_called_numbers')
-    .select('number')
-    .eq('game_id', code)
+  const { data: existingCalled } = await supabase.from('bingo_called_numbers').select('number').eq('game_id', code)
 
   const called = (existingCalled ?? []).map((row) => row.number)
 

@@ -8,13 +8,7 @@ import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { NpatActiveRound } from '@/components/npat/NpatActiveRound'
 import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
-import {
-  GAME_SELECT,
-  NPAT_ANSWER_SELECT,
-  NPAT_MARK_SELECT,
-  PLAYER_SELECT,
-  ROUND_SELECT,
-} from '@/lib/supabase-selects'
+import { GAME_SELECT, NPAT_ANSWER_SELECT, NPAT_MARK_SELECT, PLAYER_SELECT, ROUND_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { resolvePlayerSession } from '@/lib/player-resume'
 import type { Game, NpatAnswer, NpatMark, Player, Round } from '@/types'
@@ -78,9 +72,7 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
 
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
-      setScreen(
-        pre === 'game_started_waiting' ? 'game_started_waiting' : pre === 'game_ended' ? 'game_ended' : 'join'
-      )
+      setScreen(pre === 'game_started_waiting' ? 'game_started_waiting' : pre === 'game_ended' ? 'game_ended' : 'join')
       return true
     }
 
@@ -98,14 +90,20 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () =>
         load()
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'npat_answers', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'npat_answers', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'npat_marks', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'npat_marks', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
       .subscribe()
 
@@ -196,12 +194,7 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
         gameCode={gameCode}
         header={<GameJoinHeader emoji={cfg.headerEmoji} title={game?.title} gameType="i_call_on" />}
       >
-        <NameJoinForm
-          value={joinName}
-          onChange={setJoinName}
-          onSubmit={joinGame}
-          joining={joining}
-        />
+        <NameJoinForm value={joinName} onChange={setJoinName} onSubmit={joinGame} joining={joining} />
       </GameJoinLobbyShell>
     )
   }
@@ -223,7 +216,11 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
           rulesLink={<GameRulesLink gameType="i_call_on" variant="subtle" />}
           isSpectator={me?.spectator === true}
           onReady={async () => {
-            await fetch('/api/players/ready', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }) })
+            await fetch('/api/players/ready', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+            })
             await load()
           }}
           activity={

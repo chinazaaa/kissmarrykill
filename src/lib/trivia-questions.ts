@@ -6,7 +6,12 @@ export const TRIVIA_QUESTION_COUNT = 40
 export const TRIVIA_TECH_QUESTIONS: TriviaQuestion[] = [
   {
     question: 'What does HTTP stand for?',
-    choices: ['HyperText Transfer Protocol', 'High Transfer Text Protocol', 'Hyperlink Text Transmission', 'Host Transfer Terminal Protocol'],
+    choices: [
+      'HyperText Transfer Protocol',
+      'High Transfer Text Protocol',
+      'Hyperlink Text Transmission',
+      'Host Transfer Terminal Protocol',
+    ],
     correctIndex: 0,
     category: 'tech',
   },
@@ -42,7 +47,12 @@ export const TRIVIA_TECH_QUESTIONS: TriviaQuestion[] = [
   },
   {
     question: 'What does API stand for?',
-    choices: ['Application Programming Interface', 'Automated Process Integration', 'Advanced Protocol Internet', 'Application Protocol Index'],
+    choices: [
+      'Application Programming Interface',
+      'Automated Process Integration',
+      'Advanced Protocol Internet',
+      'Application Protocol Index',
+    ],
     correctIndex: 0,
     category: 'tech',
   },

@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import {
-  parseSudokuMetadata,
-  validateBlock,
-  sudokuBlockPoints,
-  SUDOKU_WRONG_PENALTY,
-} from '@/lib/sudoku'
+import { parseSudokuMetadata, validateBlock, sudokuBlockPoints, SUDOKU_WRONG_PENALTY } from '@/lib/sudoku'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 const submitSchema = z.object({
   gameId: z.string().min(1).max(10).toUpperCase(),
@@ -24,20 +16,13 @@ export async function POST(req: NextRequest) {
   const raw = await req.json()
   const parsed = submitSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
   const { gameId, playerId, blockIndex, cells } = parsed.data
 
   // Load game and verify it's active
-  const { data: game } = await supabase
-    .from('games')
-    .select('id,status')
-    .eq('id', gameId)
-    .maybeSingle()
+  const { data: game } = await supabase.from('games').select('id,status').eq('id', gameId).maybeSingle()
 
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.status !== 'active') {

@@ -1,12 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import {
-  playRoundStartSound,
-  playRoundEndSound,
-  playVoteSubmittedSound,
-  playGameFinishedSound,
-} from '@/lib/sounds'
+import { playRoundStartSound, playRoundEndSound, playVoteSubmittedSound, playGameFinishedSound } from '@/lib/sounds'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, WhotSession } from '@/types'
 import { currentPlayerId } from '@/lib/whot'
@@ -49,11 +44,7 @@ export function useWhotNotifications({
     const prevHandCount = prevHandCountRef.current
     const currentTurnIndex = session?.current_turn_index ?? null
 
-    if (
-      prevHandCount !== null &&
-      myHandCount > prevHandCount &&
-      session?.status_message?.includes('General Market')
-    ) {
+    if (prevHandCount !== null && myHandCount > prevHandCount && session?.status_message?.includes('General Market')) {
       const gained = myHandCount - prevHandCount
       info(`General Market — you drew ${gained} card${gained === 1 ? '' : 's'} 🛒`)
       playVoteSubmittedSound()

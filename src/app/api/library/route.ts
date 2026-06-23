@@ -10,10 +10,7 @@ export async function GET(req: NextRequest) {
   const tag = searchParams.get('tag')
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
   const search = searchParams.get('q')?.trim()
 
@@ -49,10 +46,13 @@ export async function POST(req: NextRequest) {
 
   if (title.length > 100) return NextResponse.json({ error: 'Title too long' }, { status: 400 })
   if (author_name.length > 60) return NextResponse.json({ error: 'Author name too long' }, { status: 400 })
-  if (description && description.length > 500) return NextResponse.json({ error: 'Description too long' }, { status: 400 })
+  if (description && description.length > 500)
+    return NextResponse.json({ error: 'Description too long' }, { status: 400 })
 
   const validTags = ['easy', 'intermediate', 'advanced', 'family-friendly', '18+', 'party', 'spicy']
-  const cleanTags = Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === 'string' && validTags.includes(t)) : []
+  const cleanTags = Array.isArray(tags)
+    ? tags.filter((t: unknown) => typeof t === 'string' && validTags.includes(t))
+    : []
 
   const supabase = getSupabaseAdmin()
 

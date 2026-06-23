@@ -19,10 +19,11 @@ export function GamesGrid({ games }: { games: GamesGridItem[] }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return games
-    return games.filter(({ content, cfg }) =>
-      content.heroTitle.toLowerCase().includes(q) ||
-      cfg.card.vibe.toLowerCase().includes(q) ||
-      content.heroSubtitle.toLowerCase().includes(q)
+    return games.filter(
+      ({ content, cfg }) =>
+        content.heroTitle.toLowerCase().includes(q) ||
+        cfg.card.vibe.toLowerCase().includes(q) ||
+        content.heroSubtitle.toLowerCase().includes(q)
     )
   }, [query, games])
 

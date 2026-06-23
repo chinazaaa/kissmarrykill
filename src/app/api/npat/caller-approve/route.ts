@@ -39,7 +39,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Round is not awaiting approval' }, { status: 400 })
   }
 
-  const { data: player } = await supabase.from('players').select('id').eq('id', playerId).eq('game_id', code).maybeSingle()
+  const { data: player } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', playerId)
+    .eq('game_id', code)
+    .maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
   const callerOverrides: NonNullable<NpatMetadata['host_overrides']> = {}

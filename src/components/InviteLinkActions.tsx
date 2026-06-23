@@ -18,12 +18,7 @@ export function InviteLinkActions({
 }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${className}`}>
-      <CopyLinkButton
-        value={url}
-        label={copyLabel}
-        copiedLabel={copiedLabel}
-        successMessage={successMessage}
-      />
+      <CopyLinkButton value={url} label={copyLabel} copiedLabel={copiedLabel} successMessage={successMessage} />
       <GameLinkQrButton url={url} label="Show QR code" />
     </div>
   )

@@ -5,8 +5,5 @@ export async function markGameFinished(
   gameId: string,
   finishedAt = new Date().toISOString()
 ) {
-  return supabase
-    .from('games')
-    .update({ status: 'finished', finished_at: finishedAt })
-    .eq('id', gameId)
+  return supabase.from('games').update({ status: 'finished', finished_at: finishedAt }).eq('id', gameId)
 }

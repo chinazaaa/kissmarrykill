@@ -30,13 +30,7 @@ export function PlayerSessionControls({
   className?: string
 }) {
   return (
-    <div
-      className={[
-        'flex flex-col gap-2',
-        align === 'center' ? 'items-center text-center' : '',
-        className,
-      ].join(' ')}
-    >
+    <div className={['flex flex-col gap-2', align === 'center' ? 'items-center text-center' : '', className].join(' ')}>
       {!leaveOnly &&
         (onChangeName ? (
           <button type="button" onClick={onChangeName} className="btn-secondary text-sm py-2.5">
@@ -44,12 +38,7 @@ export function PlayerSessionControls({
           </button>
         ) : (
           <div className="text-center">
-            <EditNameInline
-              gameCode={gameCode}
-              playerId={playerId}
-              currentName={currentName}
-              onRenamed={onRenamed}
-            />
+            <EditNameInline gameCode={gameCode} playerId={playerId} currentName={currentName} onRenamed={onRenamed} />
           </div>
         ))}
       <LeaveGameButton

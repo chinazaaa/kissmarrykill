@@ -117,8 +117,7 @@ export function NpatScoreboard({
             const mark = marksByTarget.get(player.id)
             const reviewer = markerNameByTarget.get(player.id)
             const isLockedIn = !!answer?.submitted_at
-            const roundTotal =
-              showScores && answer?.score_name != null ? answerTotal(answer) : null
+            const roundTotal = showScores && answer?.score_name != null ? answerTotal(answer) : null
 
             return (
               <tr key={player.id} className="border-b border-[var(--border-strong)]/60 align-top">
@@ -165,8 +164,8 @@ export function NpatScoreboard({
                       ? hostOverride
                       : markedValid !== false
 
-                  let reason: NpatScoreReason = 'empty'
-                  let points = 0
+                  let reason: NpatScoreReason
+                  let points: number
                   if (showScores && answer?.score_name != null) {
                     const scoreKey = `score_${category}` as keyof NpatAnswer
                     points = (answer[scoreKey] as number | null) ?? 0
@@ -198,21 +197,26 @@ export function NpatScoreboard({
                           </p>
                         )}
                         {normalized && isSingleLetterAnswer(text) && (
-                          <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
-                            Single letter
-                          </p>
+                          <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">Single letter</p>
                         )}
                         {isDuplicate && normalized && (
                           <p className="text-[11px] text-red-500 font-semibold">Duplicate</p>
                         )}
-                        {normalized && !forcedInvalid && !isDuplicate && (() => {
-                          const inCatalogue = isInCatalogue(category, text)
-                          return inCatalogue ? (
-                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">📚 Known</p>
-                          ) : (
-                            <p className="text-[11px] text-orange-500 dark:text-orange-300 font-semibold">⚠️ Not in catalogue</p>
-                          )
-                        })()}
+                        {normalized &&
+                          !forcedInvalid &&
+                          !isDuplicate &&
+                          (() => {
+                            const inCatalogue = isInCatalogue(category, text)
+                            return inCatalogue ? (
+                              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                                📚 Known
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-orange-500 dark:text-orange-300 font-semibold">
+                                ⚠️ Not in catalogue
+                              </p>
+                            )
+                          })()}
                         {hostReview && !forcedInvalid && (
                           <div className="grid grid-cols-2 gap-1 pt-1">
                             <button
@@ -241,12 +245,18 @@ export function NpatScoreboard({
                             </button>
                           </div>
                         )}
-                        {!hostReview && (hasMark || typeof hostOverride === 'boolean') && !effectiveValid && !forcedInvalid && (
-                          <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">Invalid</p>
-                        )}
-                        {!hostReview && (hasMark || typeof hostOverride === 'boolean') && effectiveValid && normalized && !isDuplicate && !forcedInvalid && (
-                          <p className="text-[11px] text-emerald-600 dark:text-emerald-300">Valid</p>
-                        )}
+                        {!hostReview &&
+                          (hasMark || typeof hostOverride === 'boolean') &&
+                          !effectiveValid &&
+                          !forcedInvalid && (
+                            <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">Invalid</p>
+                          )}
+                        {!hostReview &&
+                          (hasMark || typeof hostOverride === 'boolean') &&
+                          effectiveValid &&
+                          normalized &&
+                          !isDuplicate &&
+                          !forcedInvalid && <p className="text-[11px] text-emerald-600 dark:text-emerald-300">Valid</p>}
                         {!hostReview && !hasMark && metadata?.phase === 'marking' && normalized && (
                           <p className="text-[11px] text-faint">Awaiting mark…</p>
                         )}
@@ -306,9 +316,7 @@ export function NpatScoreboard({
                     </td>
                   )
                 })}
-                {showScores && (
-                  <td className="py-3 pl-2 text-right font-black tabular-nums">{roundTotal ?? '—'}</td>
-                )}
+                {showScores && <td className="py-3 pl-2 text-right font-black tabular-nums">{roundTotal ?? '—'}</td>}
               </tr>
             )
           })}

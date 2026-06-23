@@ -73,21 +73,28 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
 
   useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
-  const loadHostCard = useCallback(async (playerId: string) => {
-    const res = await supabase
-      .from('bingo_cards')
-      .select(BINGO_CARD_SELECT)
-      .eq('game_id', gameCode)
-      .eq('player_id', playerId)
-      .maybeSingle()
-    if (res.data) setHostCard(res.data as BingoCard)
-  }, [gameCode])
+  const loadHostCard = useCallback(
+    async (playerId: string) => {
+      const res = await supabase
+        .from('bingo_cards')
+        .select(BINGO_CARD_SELECT)
+        .eq('game_id', gameCode)
+        .eq('player_id', playerId)
+        .maybeSingle()
+      if (res.data) setHostCard(res.data as BingoCard)
+    },
+    [gameCode]
+  )
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, calledRes, claimRes] = await Promise.all([
       supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
-      supabase.from('bingo_called_numbers').select(BINGO_CALLED_NUMBER_SELECT).eq('game_id', gameCode).order('called_at'),
+      supabase
+        .from('bingo_called_numbers')
+        .select(BINGO_CALLED_NUMBER_SELECT)
+        .eq('game_id', gameCode)
+        .order('called_at'),
       supabase
         .from('bingo_claims')
         .select(BINGO_CLAIM_SELECT)
@@ -131,29 +138,51 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
   useEffect(() => {
     const channel = supabase
       .channel(`bingo-host-${gameCode}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (payload) => {
-        const next = payload.new as Game
-        setGame(next)
-        setLobbyCallMode(bingoCallModeFromGame(next))
-        setLobbyCallInterval(bingoCallIntervalFromGame(next))
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, (payload) => {
-        const player = payload.new as Player
-        setPlayers((prev) => (prev.some((p) => p.id === player.id) ? prev : [...prev, player]))
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bingo_called_numbers', filter: `game_id=eq.${gameCode}` }, (payload) => {
-        const row = payload.new as BingoCalledNumber
-        setCalledNumbers((prev) => (prev.some((c) => c.id === row.id) ? prev : [...prev, row]))
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bingo_claims', filter: `game_id=eq.${gameCode}` }, (payload) => setWinner(payload.new as BingoClaim))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bingo_cards', filter: `game_id=eq.${gameCode}` }, (payload) => {
-        if (hostPlayerId && (payload.new as BingoCard).player_id === hostPlayerId) {
-          setHostCard(payload.new as BingoCard)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        (payload) => {
+          const next = payload.new as Game
+          setGame(next)
+          setLobbyCallMode(bingoCallModeFromGame(next))
+          setLobbyCallInterval(bingoCallIntervalFromGame(next))
         }
-      })
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const player = payload.new as Player
+          setPlayers((prev) => (prev.some((p) => p.id === player.id) ? prev : [...prev, player]))
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bingo_called_numbers', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          const row = payload.new as BingoCalledNumber
+          setCalledNumbers((prev) => (prev.some((c) => c.id === row.id) ? prev : [...prev, row]))
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bingo_claims', filter: `game_id=eq.${gameCode}` },
+        (payload) => setWinner(payload.new as BingoClaim)
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'bingo_cards', filter: `game_id=eq.${gameCode}` },
+        (payload) => {
+          if (hostPlayerId && (payload.new as BingoCard).player_id === hostPlayerId) {
+            setHostCard(payload.new as BingoCard)
+          }
+        }
+      )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [gameCode, load, hostPlayerId])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
@@ -229,7 +258,7 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to mark')
       if (data.marked_indices) {
-        setHostCard((prev) => prev ? { ...prev, marked_indices: data.marked_indices } : prev)
+        setHostCard((prev) => (prev ? { ...prev, marked_indices: data.marked_indices } : prev))
       }
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to mark')
@@ -374,141 +403,142 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
 
   return (
     <HostPageShell gameCode={gameCode} {...layout}>
-        <HostGameHeader game={game} />
+      <HostGameHeader game={game} />
 
-        {/* Host mode selector — lobby only */}
-        {game.status === 'waiting' && (
-          <div className="glass-card-strong p-5 space-y-3">
-            <p className="label-caps">Host mode</p>
-            <div className="grid grid-cols-2 gap-3">
+      {/* Host mode selector — lobby only */}
+      {game.status === 'waiting' && (
+        <div className="glass-card-strong p-5 space-y-3">
+          <p className="label-caps">Host mode</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => changeHostMode('spectator')}
+              className={[
+                'rounded-2xl border-2 px-4 py-4 text-left',
+                hostMode === 'spectator'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block text-base">Host only</span>
+              <span className="text-faint text-xs">Call numbers from Manage</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeHostMode('player')}
+              className={[
+                'rounded-2xl border-2 px-4 py-4 text-left',
+                hostMode === 'player'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block text-base">Host + play</span>
+              <span className="text-faint text-xs">Play tab + Manage tab</span>
+            </button>
+          </div>
+          {hostMode === 'player' && !hostPlayerId && (
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                value={hostJoinName}
+                onChange={(e) => setHostJoinName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                placeholder="Your name"
+                className="input-field flex-1"
+                maxLength={40}
+              />
               <button
                 type="button"
-                onClick={() => changeHostMode('spectator')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'spectator'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
+                onClick={hostJoinGame}
+                disabled={!hostJoinName.trim() || hostJoining}
+                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
               >
-                <span className="font-bold block text-base">Host only</span>
-                <span className="text-faint text-xs">Call numbers from Manage</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => changeHostMode('player')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'player'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
-              >
-                <span className="font-bold block text-base">Host + play</span>
-                <span className="text-faint text-xs">Play tab + Manage tab</span>
+                {hostJoining ? 'Joining…' : 'Join'}
               </button>
             </div>
-            {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field flex-1"
-                  maxLength={40}
+          )}
+          {hostMode === 'player' && hostPlayerId && (
+            <p className="text-sm text-muted">
+              Playing as <strong className="text-body">{hostPlayerName}</strong> — you&apos;ll get a card when the game
+              starts.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Play / Manage tab switcher */}
+      {showPlayTab && (
+        <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
+          <button
+            type="button"
+            onClick={() => setTab('play')}
+            className={[
+              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+              tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+            ].join(' ')}
+          >
+            Play
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('manage')}
+            className={[
+              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
+              tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
+            ].join(' ')}
+          >
+            Manage
+          </button>
+        </div>
+      )}
+
+      {/* Play tab — host's bingo card */}
+      {tab === 'play' && hostPlays && game.status === 'active' && (
+        <div className="space-y-4">
+          {hostCard ? (
+            <>
+              <div className="glass-card p-4">
+                <BingoCardGrid
+                  cells={hostCard.cells}
+                  markedIndices={hostCard.marked_indices}
+                  calledNumbers={called}
+                  onMark={markHostNumber}
+                  disabled={hostMarking}
                 />
+              </div>
+              {hostCanBingo && (
                 <button
                   type="button"
-                  onClick={hostJoinGame}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
+                  onClick={claimHostBingo}
+                  disabled={hostClaiming}
+                  className="btn-primary w-full text-lg font-black"
                 >
-                  {hostJoining ? 'Joining…' : 'Join'}
+                  {hostClaiming ? 'Claiming…' : '🎉 BINGO!'}
                 </button>
-              </div>
-            )}
-            {hostMode === 'player' && hostPlayerId && (
-              <p className="text-sm text-muted">
-                Playing as <strong className="text-body">{hostPlayerName}</strong> — you&apos;ll get a card when the game starts.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Play / Manage tab switcher */}
-        {showPlayTab && (
-          <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
-            <button
-              type="button"
-              onClick={() => setTab('play')}
-              className={[
-                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-                tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-              ].join(' ')}
-            >
-              Play
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('manage')}
-              className={[
-                'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-                tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-              ].join(' ')}
-            >
-              Manage
-            </button>
-          </div>
-        )}
-
-        {/* Play tab — host's bingo card */}
-        {tab === 'play' && hostPlays && game.status === 'active' && (
-          <div className="space-y-4">
-            {hostCard ? (
-              <>
-                <div className="glass-card p-4">
-                  <BingoCardGrid
-                    cells={hostCard.cells}
-                    markedIndices={hostCard.marked_indices}
-                    calledNumbers={called}
-                    onMark={markHostNumber}
-                    disabled={hostMarking}
-                  />
+              )}
+              {winner && (
+                <div className="glass-card p-4 text-center font-semibold text-emerald-700 dark:text-emerald-200">
+                  {winnerPlayer ? `${winnerPlayer.name} called Bingo!` : 'Bingo claimed!'}
                 </div>
-                {hostCanBingo && (
-                  <button
-                    type="button"
-                    onClick={claimHostBingo}
-                    disabled={hostClaiming}
-                    className="btn-primary w-full text-lg font-black"
-                  >
-                    {hostClaiming ? 'Claiming…' : '🎉 BINGO!'}
-                  </button>
-                )}
-                {winner && (
-                  <div className="glass-card p-4 text-center font-semibold text-emerald-700 dark:text-emerald-200">
-                    {winnerPlayer ? `${winnerPlayer.name} called Bingo!` : 'Bingo claimed!'}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="glass-card p-6 text-center text-muted text-sm">Loading your card…</div>
-            )}
-            <div className="glass-card p-4">
-              <CalledNumbersBoard calledNumbers={called} lastCalled={lastCalled} />
-            </div>
+              )}
+            </>
+          ) : (
+            <div className="glass-card p-6 text-center text-muted text-sm">Loading your card…</div>
+          )}
+          <div className="glass-card p-4">
+            <CalledNumbersBoard calledNumbers={called} lastCalled={lastCalled} />
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Manage tab (or default when no Play tab) */}
-        {(tab === 'manage' || !showPlayTab) && (
-          <>
-            {game.status === 'waiting' && (
-              <>
-                {playerManageBlock}
-                <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-5 space-y-4">
+      {/* Manage tab (or default when no Play tab) */}
+      {(tab === 'manage' || !showPlayTab) && (
+        <>
+          {game.status === 'waiting' && (
+            <>
+              {playerManageBlock}
+              <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-5 space-y-4">
                 <div className="space-y-3">
                   <p className="label-caps">Game settings</p>
                   <label className="block text-sm text-muted">
@@ -519,7 +549,9 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                       className="input-field w-full mt-1"
                     >
                       {Array.from({ length: 30 - BINGO_MIN_PLAYERS + 1 }, (_, i) => i + BINGO_MIN_PLAYERS).map((n) => (
-                        <option key={n} value={n}>{n} players</option>
+                        <option key={n} value={n}>
+                          {n} players
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -567,7 +599,9 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                         className="input-field w-full mt-1"
                       >
                         {BINGO_CALL_INTERVAL_OPTIONS.map((s) => (
-                          <option key={s} value={s}>{s} seconds</option>
+                          <option key={s} value={s}>
+                            {s} seconds
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -596,72 +630,77 @@ export function BingoHostView({ gameCode, hostToken }: { gameCode: string; hostT
                   }
                 />
               </div>
-              </>
-            )}
+            </>
+          )}
 
-            {game.status === 'active' && (
-              <>
-                {playerManageBlock}
-                <div className="glass-card p-5 space-y-4">
-                  <p className="label-caps">{isAuto ? 'Automatic calling' : 'Call numbers'}</p>
-                  {isAuto ? (
-                    <p className="text-center text-muted text-sm sm:text-base">
-                      Numbers are called automatically every <span className="font-bold text-body">{callInterval}s</span>.
-                      Keep this tab open or let players stay connected — anyone in the game keeps it running.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => callNumber(true)}
-                        disabled={calling || called.length >= 75}
-                        className="btn-primary flex-1 min-w-[140px]"
-                      >
-                        {calling ? 'Calling…' : 'Call random'}
-                      </button>
-                    </div>
-                  )}
-                  {lastCalled != null && (
-                    <p className="text-center text-muted text-sm">
-                      Last: <span className="font-bold text-blue-300">{formatBingoNumber(lastCalled)}</span> ·{' '}
-                      {called.length}/75 called
-                    </p>
-                  )}
-                </div>
-                <div className="glass-card p-5">
-                  <CalledNumbersBoard calledNumbers={called} lastCalled={lastCalled} />
-                </div>
-                <HostEndGameButton gameCode={gameCode} hostToken={hostToken} onEnded={load} className="btn-secondary w-full" />
-              </>
-            )}
-
-            {game.status === 'finished' && winnerPlayer && (
-              <BingoFinalResultsShareBlock
-                game={game}
-                players={players}
-                winnerName={winnerPlayer.name}
-                playAgainButton={
-                  <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-secondary w-full">
-                    {playingAgain ? 'Resetting…' : 'Play again'}
-                  </button>
-                }
+          {game.status === 'active' && (
+            <>
+              {playerManageBlock}
+              <div className="glass-card p-5 space-y-4">
+                <p className="label-caps">{isAuto ? 'Automatic calling' : 'Call numbers'}</p>
+                {isAuto ? (
+                  <p className="text-center text-muted text-sm sm:text-base">
+                    Numbers are called automatically every <span className="font-bold text-body">{callInterval}s</span>.
+                    Keep this tab open or let players stay connected — anyone in the game keeps it running.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => callNumber(true)}
+                      disabled={calling || called.length >= 75}
+                      className="btn-primary flex-1 min-w-[140px]"
+                    >
+                      {calling ? 'Calling…' : 'Call random'}
+                    </button>
+                  </div>
+                )}
+                {lastCalled != null && (
+                  <p className="text-center text-muted text-sm">
+                    Last: <span className="font-bold text-blue-300">{formatBingoNumber(lastCalled)}</span> ·{' '}
+                    {called.length}/75 called
+                  </p>
+                )}
+              </div>
+              <div className="glass-card p-5">
+                <CalledNumbersBoard calledNumbers={called} lastCalled={lastCalled} />
+              </div>
+              <HostEndGameButton
+                gameCode={gameCode}
+                hostToken={hostToken}
+                onEnded={load}
+                className="btn-secondary w-full"
               />
-            )}
+            </>
+          )}
 
-            {game.status === 'finished' && !winnerPlayer && (
-              <>
+          {game.status === 'finished' && winnerPlayer && (
+            <BingoFinalResultsShareBlock
+              game={game}
+              players={players}
+              winnerName={winnerPlayer.name}
+              playAgainButton={
                 <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-secondary w-full">
                   {playingAgain ? 'Resetting…' : 'Play again'}
                 </button>
-                <CreateNewGameButton />
-              </>
-            )}
-          </>
-        )}
+              }
+            />
+          )}
 
-        <button type="button" onClick={() => router.push('/games')} className="btn-ghost w-full text-muted">
-          Browse all games
-        </button>
+          {game.status === 'finished' && !winnerPlayer && (
+            <>
+              <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-secondary w-full">
+                {playingAgain ? 'Resetting…' : 'Play again'}
+              </button>
+              <CreateNewGameButton />
+            </>
+          )}
+        </>
+      )}
+
+      <button type="button" onClick={() => router.push('/games')} className="btn-ghost w-full text-muted">
+        Browse all games
+      </button>
     </HostPageShell>
   )
 }

@@ -20,7 +20,8 @@ function validateTrivia(rows: Record<string, string>[]): ValidationResult {
   const required = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct']
   if (rows.length === 0) return { ok: false, errors: ['No rows found'], questions: [], rowCount: 0 }
   const missing = required.filter((col) => !(col in rows[0]))
-  if (missing.length > 0) return { ok: false, errors: [`Missing columns: ${missing.join(', ')}`], questions: [], rowCount: 0 }
+  if (missing.length > 0)
+    return { ok: false, errors: [`Missing columns: ${missing.join(', ')}`], questions: [], rowCount: 0 }
 
   const errors: string[] = []
   const questions: TriviaQuestion[] = []
@@ -28,13 +29,18 @@ function validateTrivia(rows: Record<string, string>[]): ValidationResult {
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
     const rowNum = i + 2
-    if (!r.question) { errors.push(`Row ${rowNum}: question is empty`); continue }
+    if (!r.question) {
+      errors.push(`Row ${rowNum}: question is empty`)
+      continue
+    }
     if (!r.option_a || !r.option_b || !r.option_c || !r.option_d) {
-      errors.push(`Row ${rowNum}: all options (a–d) are required`); continue
+      errors.push(`Row ${rowNum}: all options (a–d) are required`)
+      continue
     }
     const correctRaw = r.correct.toLowerCase().trim()
     if (!['a', 'b', 'c', 'd'].includes(correctRaw)) {
-      errors.push(`Row ${rowNum}: 'correct' must be a, b, c, or d`); continue
+      errors.push(`Row ${rowNum}: 'correct' must be a, b, c, or d`)
+      continue
     }
     questions.push({
       question: r.question,
@@ -58,7 +64,10 @@ function validateWyr(rows: Record<string, string>[]): ValidationResult {
   const questions: WyrQuestion[] = []
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
-    if (!r.option_a || !r.option_b) { errors.push(`Row ${i + 2}: option_a and option_b are required`); continue }
+    if (!r.option_a || !r.option_b) {
+      errors.push(`Row ${i + 2}: option_a and option_b are required`)
+      continue
+    }
     questions.push({ optionA: r.option_a, optionB: r.option_b })
   }
   if (questions.length < 5) errors.push('Must have at least 5 valid rows')
@@ -68,14 +77,16 @@ function validateWyr(rows: Record<string, string>[]): ValidationResult {
 
 function validateMlt(rows: Record<string, string>[]): ValidationResult {
   if (rows.length === 0) return { ok: false, errors: ['No rows found'], questions: [], rowCount: 0 }
-  if (!('prompt' in rows[0]))
-    return { ok: false, errors: ['Missing column: prompt'], questions: [], rowCount: 0 }
+  if (!('prompt' in rows[0])) return { ok: false, errors: ['Missing column: prompt'], questions: [], rowCount: 0 }
 
   const errors: string[] = []
   const questions: string[] = []
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
-    if (!r.prompt) { errors.push(`Row ${i + 2}: prompt is empty`); continue }
+    if (!r.prompt) {
+      errors.push(`Row ${i + 2}: prompt is empty`)
+      continue
+    }
     questions.push(r.prompt)
   }
   if (questions.length < 5) errors.push('Must have at least 5 valid rows')
@@ -107,8 +118,8 @@ const GAME_TYPES: { value: GameType; label: string; description: string; columns
 const DIFFICULTY_TAGS = ['easy', 'intermediate', 'advanced'] as const
 const VIBE_TAGS = ['family-friendly', '18+', 'party', 'spicy'] as const
 
-type DifficultyTag = typeof DIFFICULTY_TAGS[number]
-type VibeTag = typeof VIBE_TAGS[number]
+type DifficultyTag = (typeof DIFFICULTY_TAGS)[number]
+type VibeTag = (typeof VIBE_TAGS)[number]
 
 const DIFFICULTY_META: Record<DifficultyTag, { label: string; description: string }> = {
   easy: { label: 'Easy', description: 'Suitable for everyone' },
@@ -141,7 +152,8 @@ export default function SubmitPackPage() {
   const toggleVibe = (v: VibeTag) =>
     setVibeTags((prev) => {
       const next = new Set(prev)
-      next.has(v) ? next.delete(v) : next.add(v)
+      if (next.has(v)) next.delete(v)
+      else next.add(v)
       return next
     })
 
@@ -204,7 +216,11 @@ export default function SubmitPackPage() {
             </p>
           </div>
           <div className="flex gap-2 justify-center pt-1">
-            <button type="button" onClick={() => router.push('/library')} className="btn-secondary btn-fit px-4 py-2 text-sm">
+            <button
+              type="button"
+              onClick={() => router.push('/library')}
+              className="btn-secondary btn-fit px-4 py-2 text-sm"
+            >
               Browse library
             </button>
             <button type="button" onClick={() => router.push('/')} className="btn-secondary btn-fit px-4 py-2 text-sm">
@@ -247,7 +263,9 @@ export default function SubmitPackPage() {
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
-                  <p className={`font-semibold text-sm ${gameType === type.value ? 'text-[var(--chip-active-text)]' : ''}`}>
+                  <p
+                    className={`font-semibold text-sm ${gameType === type.value ? 'text-[var(--chip-active-text)]' : ''}`}
+                  >
                     {type.label}
                   </p>
                   <p className="text-faint text-xs">{type.description}</p>
@@ -346,9 +364,7 @@ export default function SubmitPackPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-muted">Upload CSV</p>
-              {selectedType && (
-                <p className="text-faint text-xs font-mono">{selectedType.columns}</p>
-              )}
+              {selectedType && <p className="text-faint text-xs font-mono">{selectedType.columns}</p>}
             </div>
 
             <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
@@ -376,9 +392,7 @@ export default function SubmitPackPage() {
 
           {validation && (
             <div
-              className={`surface-inset p-4 space-y-3 ${
-                validation.ok ? 'border-emerald-500/40' : 'border-red-500/40'
-              }`}
+              className={`surface-inset p-4 space-y-3 ${validation.ok ? 'border-emerald-500/40' : 'border-red-500/40'}`}
             >
               {validation.ok ? (
                 <>
@@ -420,7 +434,9 @@ export default function SubmitPackPage() {
                   </div>
                   <div className="space-y-1">
                     {validation.errors.slice(0, 5).map((e, i) => (
-                      <p key={i} className="text-xs text-muted leading-relaxed">{e}</p>
+                      <p key={i} className="text-xs text-muted leading-relaxed">
+                        {e}
+                      </p>
                     ))}
                     {validation.errors.length > 5 && (
                       <p className="text-xs text-faint">…and {validation.errors.length - 5} more</p>

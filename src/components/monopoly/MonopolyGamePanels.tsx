@@ -7,18 +7,8 @@ import {
   MonopolySecondaryButton,
   MonopolyJailCardInventory,
 } from '@/components/monopoly/MonopolyChrome'
-import {
-  canAddHotel,
-  canAddHouse,
-  canRemoveHotel,
-  canRemoveHouse,
-} from '@/lib/monopoly-build'
-import {
-  buildingLevel,
-  computeRent,
-  parseBuildings,
-  parseMortgaged,
-} from '@/lib/monopoly-rent'
+import { canAddHotel, canAddHouse, canRemoveHotel, canRemoveHouse } from '@/lib/monopoly-build'
+import { buildingLevel, computeRent, parseBuildings, parseMortgaged } from '@/lib/monopoly-rent'
 import {
   MonopolyColorBar,
   MonopolyColorPortfolio,
@@ -68,7 +58,9 @@ function TradeSideItems({
   }
 
   return (
-    <ul className={`space-y-0.5 ${compact ? 'text-xs' : 'text-sm'} font-semibold text-[var(--foreground)] leading-snug`}>
+    <ul
+      className={`space-y-0.5 ${compact ? 'text-xs' : 'text-sm'} font-semibold text-[var(--foreground)] leading-snug`}
+    >
       {items.map((item) => {
         if (item.kind === 'cash') {
           return (
@@ -122,7 +114,8 @@ function TradeExchangeReview({
   getJailCards?: number
   compact?: boolean
 }) {
-  const oneSidedGift = tradeSideHasValue(giveCash, giveProps, giveJailCards) && !tradeSideHasValue(getCash, getProps, getJailCards)
+  const oneSidedGift =
+    tradeSideHasValue(giveCash, giveProps, giveJailCards) && !tradeSideHasValue(getCash, getProps, getJailCards)
   const oneSidedReceive =
     tradeSideHasValue(getCash, getProps, getJailCards) && !tradeSideHasValue(giveCash, giveProps, giveJailCards)
   const giveCountLabel = tradeSideCountLabel(giveCash, giveProps, giveJailCards)
@@ -134,17 +127,10 @@ function TradeExchangeReview({
         <div className="rounded-xl border border-red-500/30 bg-red-500/8 p-2.5 sm:p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/90">{giveLabel}</p>
-            {giveCountLabel && (
-              <p className="text-[10px] font-semibold text-red-300/90 shrink-0">{giveCountLabel}</p>
-            )}
+            {giveCountLabel && <p className="text-[10px] font-semibold text-red-300/90 shrink-0">{giveCountLabel}</p>}
           </div>
           <div className="mt-1">
-            <TradeSideItems
-              cash={giveCash}
-              propertyIndexes={giveProps}
-              jailCards={giveJailCards}
-              compact={compact}
-            />
+            <TradeSideItems cash={giveCash} propertyIndexes={giveProps} jailCards={giveJailCards} compact={compact} />
           </div>
         </div>
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-2.5 sm:p-3">
@@ -159,12 +145,7 @@ function TradeExchangeReview({
             )}
           </div>
           <div className="mt-1">
-            <TradeSideItems
-              cash={getCash}
-              propertyIndexes={getProps}
-              jailCards={getJailCards}
-              compact={compact}
-            />
+            <TradeSideItems cash={getCash} propertyIndexes={getProps} jailCards={getJailCards} compact={compact} />
           </div>
         </div>
       </div>
@@ -205,17 +186,17 @@ export function MonopolyTurnModals({
     ? buildTradeSideItems(trade.offer_cash, trade.offer_properties, trade.offer_get_out_cards).length
     : 0
   const payCount = trade
-    ? buildTradeSideItems(
-        trade.request_cash,
-        trade.request_properties,
-        trade.request_get_out_cards ?? 0
-      ).length
+    ? buildTradeSideItems(trade.request_cash, trade.request_properties, trade.request_get_out_cards ?? 0).length
     : 0
 
   return (
     <>
       {showTradeModal && trade && (
-        <MonopolyModal open subtitle="Review every item before you accept" title={`Trade from ${tradeFrom?.name ?? 'player'}`}>
+        <MonopolyModal
+          open
+          subtitle="Review every item before you accept"
+          title={`Trade from ${tradeFrom?.name ?? 'player'}`}
+        >
           <p className="text-sm text-muted leading-relaxed">
             If you accept, everything listed below happens immediately. Decline if the count or items look wrong.
           </p>
@@ -286,9 +267,7 @@ export function MonopolyManagePanel({
   const [confirmOneWayGift, setConfirmOneWayGift] = useState(false)
 
   const pendingTrade = board?.pending_trade ? normalizePendingTrade(board.pending_trade) : null
-  const pendingTradeKey = pendingTrade
-    ? `${pendingTrade.from_player_id}:${pendingTrade.to_player_id}`
-    : null
+  const pendingTradeKey = pendingTrade ? `${pendingTrade.from_player_id}:${pendingTrade.to_player_id}` : null
   const stalePendingTrade =
     !!pendingTrade &&
     (!players.some((p) => p.id === pendingTrade.from_player_id) ||
@@ -316,9 +295,7 @@ export function MonopolyManagePanel({
   const mine = playerProperties(owners, myPlayerId)
   const theirs = tradeTarget ? playerProperties(owners, tradeTarget) : []
   const myJailCards = myState.get_out_of_jail_free ?? 0
-  const targetJailCards = tradeTarget
-    ? states.find((s) => s.player_id === tradeTarget)?.get_out_of_jail_free ?? 0
-    : 0
+  const targetJailCards = tradeTarget ? (states.find((s) => s.player_id === tradeTarget)?.get_out_of_jail_free ?? 0) : 0
   const housesInBank = board.houses_in_bank ?? 32
   const hotelsInBank = board.hotels_in_bank ?? 12
 
@@ -328,7 +305,7 @@ export function MonopolyManagePanel({
     setConfirmOneWayGift(false)
   }
 
-  const targetName = tradeTarget ? players.find((p) => p.id === tradeTarget)?.name ?? 'player' : ''
+  const targetName = tradeTarget ? (players.find((p) => p.id === tradeTarget)?.name ?? 'player') : ''
   const parsedOfferCash = Number(offerCash) || 0
   const parsedRequestCash = Number(requestCash) || 0
   const givingSomething = tradeSideHasValue(parsedOfferCash, offerProps, offerJailCards)
@@ -449,8 +426,8 @@ export function MonopolyManagePanel({
             <p className="text-xs font-semibold text-[var(--foreground)]">Propose a trade</p>
             <p className="text-xs text-muted leading-relaxed">
               Pick what <strong className="text-body">you give</strong> and what{' '}
-              <strong className="text-body">you get back</strong> — cash, properties, or Get Out of Jail cards.
-              Both sides must be filled in for a normal swap.
+              <strong className="text-body">you get back</strong> — cash, properties, or Get Out of Jail cards. Both
+              sides must be filled in for a normal swap.
             </p>
           </div>
           <select
@@ -465,11 +442,13 @@ export function MonopolyManagePanel({
             className="input-field w-full text-sm"
           >
             <option value="">Trade with…</option>
-            {players.filter((p) => p.id !== myPlayerId).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
+            {players
+              .filter((p) => p.id !== myPlayerId)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
           </select>
 
           {tradeTarget && (
@@ -767,9 +746,9 @@ export function MonopolyManagePanel({
           <div className="space-y-2">
             <p className="label-caps">Build &amp; trade</p>
             <p className="text-sm text-muted leading-relaxed">
-              Land on unowned properties and tap <strong className="text-body">Buy</strong> when prompted.
-              Once you own every street in a colour group, come back here to add{' '}
-              <strong className="text-body">houses</strong> and <strong className="text-body">hotels</strong>.
+              Land on unowned properties and tap <strong className="text-body">Buy</strong> when prompted. Once you own
+              every street in a colour group, come back here to add <strong className="text-body">houses</strong> and{' '}
+              <strong className="text-body">hotels</strong>.
             </p>
           </div>
         ) : (

@@ -93,7 +93,12 @@ export function CodewordsTeamChat({
           maxLength={200}
           className="input-field flex-1 min-w-0"
         />
-        <button type="button" onClick={() => void sendMessage()} disabled={sending || !draft.trim()} className="btn-primary shrink-0">
+        <button
+          type="button"
+          onClick={() => void sendMessage()}
+          disabled={sending || !draft.trim()}
+          className="btn-primary shrink-0"
+        >
           {sending ? '…' : 'Send'}
         </button>
       </div>

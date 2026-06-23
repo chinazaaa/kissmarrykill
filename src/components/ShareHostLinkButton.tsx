@@ -37,7 +37,9 @@ export function ShareHostLinkButton({ gameCode, hostToken, className = '' }: Pro
           onClick={handleCopy}
           className="btn-secondary text-xs sm:text-sm py-1.5 px-2.5 sm:px-4 whitespace-nowrap"
         >
-          {copied ? 'Copied ✓' : (
+          {copied ? (
+            'Copied ✓'
+          ) : (
             <>
               <span className="sm:hidden">Host link</span>
               <span className="hidden sm:inline">Copy host link</span>

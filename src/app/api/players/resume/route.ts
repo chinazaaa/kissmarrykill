@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
   ])
 
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
-  if (!player) return NextResponse.json({ error: 'Player code not found — check the code and try again' }, { status: 404 })
+  if (!player)
+    return NextResponse.json({ error: 'Player code not found — check the code and try again' }, { status: 404 })
 
   return NextResponse.json({
     playerId: player.id,

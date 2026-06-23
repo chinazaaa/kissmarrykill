@@ -100,15 +100,10 @@ import { StepIndicator, SettingsGroup, StickyActionBar, SegmentedControl, ChipGr
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { LateJoinPolicyToggle } from '@/components/AllowViewersToggle'
 import { gameSupportsViewerSetting, clampLateJoinPolicyForGameType, type LateJoinPolicy } from '@/lib/viewers'
-import {
-  getParticipantCustomContentHint,
-  getQuestionCustomContentHint,
-} from '@/lib/custom-content-hints'
+import { getParticipantCustomContentHint, getQuestionCustomContentHint } from '@/lib/custom-content-hints'
 import { CustomContentAiTip } from '@/components/ui/CustomContentAiTip'
 import { clampHotSeatMaxCap, hotSeatMaxCapUpperBound, HOT_SEAT_MIN_PLAYERS } from '@/lib/hot-seat'
-import {
-  ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS,
-} from '@/lib/anonymous-messages'
+import { ANONYMOUS_ROOM_DEFAULT_MAX_PLAYERS } from '@/lib/anonymous-messages'
 import {
   BINGO_CALL_INTERVAL_OPTIONS,
   BINGO_DEFAULT_CALL_INTERVAL,
@@ -122,27 +117,17 @@ import {
   CODEWORDS_DEFAULT_OPERATIVE_TIMER,
   CODEWORDS_TIMER_OPTIONS,
 } from '@/lib/codewords'
+import { TRIVIA_DEFAULT_MAX_PLAYERS, TRIVIA_DEFAULT_ROUNDS, TRIVIA_DEFAULT_TIMER } from '@/lib/trivia'
+import { TTL_DEFAULT_MAX_PLAYERS, TTL_DEFAULT_TIMER, TTL_TIMER_OPTIONS } from '@/lib/two-truths'
 import {
-  TRIVIA_DEFAULT_MAX_PLAYERS,
-  TRIVIA_DEFAULT_ROUNDS,
-  TRIVIA_DEFAULT_TIMER,
-} from '@/lib/trivia'
-import {
-  TTL_DEFAULT_MAX_PLAYERS,
-  TTL_DEFAULT_TIMER,
-  TTL_TIMER_OPTIONS,
-} from '@/lib/two-truths'
-import { MONOPOLY_DEFAULT_MAX_PLAYERS, MONOPOLY_GAME_DURATION_OPTIONS, formatMonopolyGameDuration } from '@/lib/monopoly'
+  MONOPOLY_DEFAULT_MAX_PLAYERS,
+  MONOPOLY_GAME_DURATION_OPTIONS,
+  formatMonopolyGameDuration,
+} from '@/lib/monopoly'
 import { MONOPOLY_DEFAULT_TURN_TIMER } from '@/lib/supabase-selects'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
-import {
-  WHOT_DEFAULT_MAX_PLAYERS,
-  WHOT_GAME_DURATION_OPTIONS,
-  formatWhotGameDuration,
-} from '@/lib/whot'
-import {
-  LUDO_DEFAULT_MAX_PLAYERS,
-} from '@/lib/ludo'
+import { WHOT_DEFAULT_MAX_PLAYERS, WHOT_GAME_DURATION_OPTIONS, formatWhotGameDuration } from '@/lib/whot'
+import { LUDO_DEFAULT_MAX_PLAYERS } from '@/lib/ludo'
 import {
   formatNpatGameDuration,
   NPAT_DEFAULT_GAME_DURATION,
@@ -153,11 +138,7 @@ import {
   NPAT_MARKING_TIMER_OPTIONS,
   NPAT_TIMER_OPTIONS,
 } from '@/lib/npat'
-import {
-  getCodeDefaultLimits,
-  playerCountOptions,
-  type GamePlayerLimitsMap,
-} from '@/lib/game-limits'
+import { getCodeDefaultLimits, playerCountOptions, type GamePlayerLimitsMap } from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
@@ -258,7 +239,9 @@ function CreateGameInner() {
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
   const [libraryPackQuestions, setLibraryPackQuestions] = useState<unknown[]>([])
-  const [libraryPacks, setLibraryPacks] = useState<{ id: string; title: string; author_name: string; question_count: number }[]>([])
+  const [libraryPacks, setLibraryPacks] = useState<
+    { id: string; title: string; author_name: string; question_count: number }[]
+  >([])
   const [libraryPacksLoading, setLibraryPacksLoading] = useState(false)
   const [lobbyLimits, setLobbyLimits] = useState<GamePlayerLimitsMap | null>(null)
   const effectiveLimits = lobbyLimits ?? getCodeDefaultLimits()
@@ -334,9 +317,7 @@ function CreateGameInner() {
         ...(isSecretMessageGame(type)
           ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
           : {}),
-        ...(isBingoGame(type)
-          ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
-          : {}),
+        ...(isBingoGame(type) ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 } : {}),
         ...(isCodewordsGame(type)
           ? {
               participant_mode: 'joiners' as const,
@@ -494,30 +475,32 @@ function CreateGameInner() {
               ? NHIE_QUESTION_COUNT
               : isPan
                 ? PAN_QUESTION_COUNT
-            : isMlt
-              ? MLT_QUESTION_COUNT
-              : 10
+                : isMlt
+                  ? MLT_QUESTION_COUNT
+                  : 10
   const mltRoundOptions = questionRoundPickerOptions(questionCap)
   const wyrRoundOptions = questionRoundPickerOptions(questionCap)
   const wstRoundOptions = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20].filter((n) => n <= Math.max(participants.length, 2))
   const roundOptions = isPan
     ? panRoundOptions
     : isBinaryLobby
-    ? wyrRoundOptions
-    : isMlt
-      ? mltRoundOptions
-      : isTrivia
-        ? questionRoundPickerOptions(questionCap)
-        : isWst
-          ? wstRoundOptions
-          : [2, 3, 4, 5, 6, 8, 10]
+      ? wyrRoundOptions
+      : isMlt
+        ? mltRoundOptions
+        : isTrivia
+          ? questionRoundPickerOptions(questionCap)
+          : isWst
+            ? wstRoundOptions
+            : [2, 3, 4, 5, 6, 8, 10]
   const hasEnoughCustomQuestions =
     (isTot && customQuestionCount >= settings.rounds_count && customQuestionCount > 0) ||
     (questionSource === 'platform' && !isTot && !isPan) ||
     (isPan && questionSource === 'platform') ||
     (isPan && questionSource === 'custom' && customQuestionCount >= PAN_MIN_POOL && customQuestionCount > 0) ||
     (isLobbyQuestions && !isTot && !isPan && customQuestionCount >= settings.rounds_count && customQuestionCount > 0) ||
-    (questionSource === 'library' && libraryPackQuestions.length >= settings.rounds_count && libraryPackQuestions.length > 0)
+    (questionSource === 'library' &&
+      libraryPackQuestions.length >= settings.rounds_count &&
+      libraryPackQuestions.length > 0)
   const canCreateQuickLobby = !!settings.title.trim() && hasEnoughCustomQuestions
 
   const customSlotsValid =
@@ -528,9 +511,20 @@ function CreateGameInner() {
   const isBingo = isBingoGame(settings.game_type)
   const isCodewords = isCodewordsGame(settings.game_type)
   const isMessageBoard = isAnonymousRoom || isSecretMessage
-  const isQuickLobby = isMessageBoard || isBingo || isCodewords || isTwoTruths || isMonopoly || isYahtzee || isWhot || isLudo || isNpat || isSudoku
+  const isQuickLobby =
+    isMessageBoard ||
+    isBingo ||
+    isCodewords ||
+    isTwoTruths ||
+    isMonopoly ||
+    isYahtzee ||
+    isWhot ||
+    isLudo ||
+    isNpat ||
+    isSudoku
   const isTriviaQuickCreate = isTrivia
-  const needsParticipantStep = !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
+  const needsParticipantStep =
+    !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
   const wizardSteps = needsParticipantStep ? ['Setup', 'People'] : ['Setup']
   const stepIndex = step === 'participants' ? 2 : 1
 
@@ -540,7 +534,11 @@ function CreateGameInner() {
 
   useEffect(() => {
     if (isPan) return
-    if ((questionSource === 'custom' || questionSource === 'library') && customQuestionCount > 0 && settings.rounds_count > customQuestionCount) {
+    if (
+      (questionSource === 'custom' || questionSource === 'library') &&
+      customQuestionCount > 0 &&
+      settings.rounds_count > customQuestionCount
+    ) {
       setSettings((prev) => ({ ...prev, rounds_count: customQuestionCount }))
     }
   }, [customQuestionCount, questionSource, settings.rounds_count, isPan])
@@ -569,12 +567,8 @@ function CreateGameInner() {
       ...(isAnonymousMessagesGame(type)
         ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
         : {}),
-      ...(isSecretMessageGame(type)
-        ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
-        : {}),
-      ...(isBingoGame(type)
-        ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 }
-        : {}),
+      ...(isSecretMessageGame(type) ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 } : {}),
+      ...(isBingoGame(type) ? { participant_mode: 'joiners' as const, anonymous: true, rounds_count: 1 } : {}),
       ...(isCodewordsGame(type)
         ? {
             participant_mode: 'joiners' as const,
@@ -607,14 +601,14 @@ function CreateGameInner() {
             timer_seconds: MONOPOLY_DEFAULT_TURN_TIMER,
           }
         : {}),
-        ...(isYahtzeeGame(type)
-          ? {
-              participant_mode: 'joiners' as const,
-              anonymous: true,
-              rounds_count: 1,
-              timer_seconds: 0,
-            }
-          : {}),
+      ...(isYahtzeeGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: 0,
+          }
+        : {}),
       ...(isWhotGame(type)
         ? {
             participant_mode: 'joiners' as const,
@@ -639,14 +633,14 @@ function CreateGameInner() {
             timer_seconds: NPAT_DEFAULT_TIMER,
           }
         : {}),
-        ...(isICallOnGame(type)
-          ? {
-              participant_mode: 'joiners' as const,
-              anonymous: true,
-              rounds_count: 1,
-              timer_seconds: NPAT_DEFAULT_TIMER,
-            }
-          : {}),
+      ...(isICallOnGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: NPAT_DEFAULT_TIMER,
+          }
+        : {}),
       ...(isSudokuGame(type)
         ? {
             participant_mode: 'joiners' as const,
@@ -667,15 +661,15 @@ function CreateGameInner() {
               rounds_count: 5,
             }
           : isHotSeat(type)
-          ? {
-              participant_mode: 'joiners' as const,
-              anonymous: true,
-              participant_filter: 'all' as const,
-              rounds_count: HOT_SEAT_MIN_PLAYERS,
-            }
-          : isMostLikelyTo(type)
-            ? { participant_mode: 'voters' as const }
-            : {}),
+            ? {
+                participant_mode: 'joiners' as const,
+                anonymous: true,
+                participant_filter: 'all' as const,
+                rounds_count: HOT_SEAT_MIN_PLAYERS,
+              }
+            : isMostLikelyTo(type)
+              ? { participant_mode: 'voters' as const }
+              : {}),
       ...(isCustomGame(type)
         ? { participant_mode: 'import' as const, gender_based: defaultGenderBasedForType(type) }
         : {}),
@@ -963,7 +957,13 @@ function CreateGameInner() {
         body: JSON.stringify({
           ...settings,
           rounds_count: isWst ? Math.max(participants.length, 2) : settings.rounds_count,
-          question_source: isTot ? 'custom' : isLobbyQuestions ? (questionSource === 'library' ? 'custom' : questionSource) : 'platform',
+          question_source: isTot
+            ? 'custom'
+            : isLobbyQuestions
+              ? questionSource === 'library'
+                ? 'custom'
+                : questionSource
+              : 'platform',
           custom_questions:
             isLobbyQuestions && (isTot || questionSource === 'custom' || questionSource === 'library')
               ? isWyr || isTot
@@ -989,30 +989,24 @@ function CreateGameInner() {
                   ? triviaMaxPlayers
                   : isTwoTruths
                     ? ttlMaxPlayers
-                      : isMonopoly
-                        ? monopolyMaxPlayers
-                        : isYahtzee
-                          ? yahtzeeMaxPlayers
-                          : isWhot
-                            ? whotMaxPlayers
-                            : isLudo
-                              ? ludoMaxPlayers
-                              : isNpat
-                                ? npatMaxPlayers
-                                : isSudoku
-                                  ? sudokuMaxPlayers
-                          : undefined,
-          operative_timer_seconds: isCodewords
-            ? codewordsOperativeTimer
-            : isNpat
-              ? npatMarkingTimer
-              : undefined,
+                    : isMonopoly
+                      ? monopolyMaxPlayers
+                      : isYahtzee
+                        ? yahtzeeMaxPlayers
+                        : isWhot
+                          ? whotMaxPlayers
+                          : isLudo
+                            ? ludoMaxPlayers
+                            : isNpat
+                              ? npatMaxPlayers
+                              : isSudoku
+                                ? sudokuMaxPlayers
+                                : undefined,
+          operative_timer_seconds: isCodewords ? codewordsOperativeTimer : isNpat ? npatMarkingTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? lateJoinPolicy === 'viewers_and_players' : undefined,
           codewords_randomize_teams: isCodewords ? codewordsRandomizeTeams : undefined,
-          allow_viewers: gameSupportsViewerSetting(settings.game_type)
-            ? lateJoinPolicy !== 'lobby_only'
-            : undefined,
+          allow_viewers: gameSupportsViewerSetting(settings.game_type) ? lateJoinPolicy !== 'lobby_only' : undefined,
           allow_late_players: gameSupportsViewerSetting(settings.game_type)
             ? lateJoinPolicy === 'viewers_and_players'
             : undefined,
@@ -1025,7 +1019,7 @@ function CreateGameInner() {
               ? whotGameDuration
               : isNpat
                 ? npatGameDuration
-              : undefined,
+                : undefined,
           whot_pick3_enabled: isWhot ? whotPick3Enabled : undefined,
           whot_cards_enabled: isWhot ? whotCardsEnabled : undefined,
           whot_number_calls_enabled: isWhot ? whotNumberCallsEnabled : undefined,
@@ -1101,7 +1095,9 @@ function CreateGameInner() {
               </SettingsGroup>
             ) : isAnonymousRoom ? (
               <SettingsGroup title="Session">
-                <Field label={`Max players (${effectiveLimits.anonymous_messages.min}–${effectiveLimits.anonymous_messages.max})`}>
+                <Field
+                  label={`Max players (${effectiveLimits.anonymous_messages.min}–${effectiveLimits.anonymous_messages.max})`}
+                >
                   <select
                     value={anonymousMaxPlayers}
                     onChange={(e) => setAnonymousMaxPlayers(Number(e.target.value))}
@@ -1122,9 +1118,10 @@ function CreateGameInner() {
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with one tap and get a random lobby name shown on their messages. The cap applies to the
-                  lobby before start. With &quot;Allow viewers&quot;, people can watch after the session starts (read-only).
-                  players can read but not send. Once over 1,000 messages, the oldest 100 are removed every 5 minutes
-                  during the session. Sessions last up to 15 minutes — all messages are deleted when the session ends.
+                  lobby before start. With &quot;Allow viewers&quot;, people can watch after the session starts
+                  (read-only). players can read but not send. Once over 1,000 messages, the oldest 100 are removed every
+                  5 minutes during the session. Sessions last up to 15 minutes — all messages are deleted when the
+                  session ends.
                 </p>
               </SettingsGroup>
             ) : isBingo ? (
@@ -1284,8 +1281,8 @@ function CreateGameInner() {
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Players join with their name and start on GO with £1,500. Take turns rolling dice, buying properties,
-                  paying rent, and drawing cards. Last player standing wins! If someone stalls, their turn auto-resolves.
-                  Set a game length to end automatically — the richest player wins when time runs out.
+                  paying rent, and drawing cards. Last player standing wins! If someone stalls, their turn
+                  auto-resolves. Set a game length to end automatically — the richest player wins when time runs out.
                 </p>
               </SettingsGroup>
             ) : isYahtzee ? (
@@ -1320,8 +1317,8 @@ function CreateGameInner() {
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="yahtzee" />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Play solo or with up to six friends. Take turns rolling 5 dice, holding what you want, and
-                  scoring an unused category on your sheet. Highest total score at the end wins!
+                  Play solo or with up to six friends. Take turns rolling 5 dice, holding what you want, and scoring an
+                  unused category on your sheet. Highest total score at the end wins!
                 </p>
               </SettingsGroup>
             ) : isWhot ? (
@@ -1395,9 +1392,9 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Nigerian card classic — match shape or number
                   {whotCardsEnabled ? ', play WHOT to call the next match' : ''}. Pick 2
-                  {whotPick3Enabled ? ' and Pick 3 stacks are separate' : ' is active'}. First to empty their hand
-                  wins! With a game length set, time running out ends the game — whoever has the lowest total on the
-                  cards left in their hand wins.
+                  {whotPick3Enabled ? ' and Pick 3 stacks are separate' : ' is active'}. First to empty their hand wins!
+                  With a game length set, time running out ends the game — whoever has the lowest total on the cards
+                  left in their hand wins.
                 </p>
               </SettingsGroup>
             ) : isLudo ? (
@@ -1437,18 +1434,13 @@ function CreateGameInner() {
               </SettingsGroup>
             ) : isNpat ? (
               <SettingsGroup title="I Call On room">
-                <Field
-                  label={`Max players (${effectiveLimits.i_call_on.min}–${effectiveLimits.i_call_on.max})`}
-                >
+                <Field label={`Max players (${effectiveLimits.i_call_on.min}–${effectiveLimits.i_call_on.max})`}>
                   <select
                     value={npatMaxPlayers}
                     onChange={(e) => setNpatMaxPlayers(Number(e.target.value))}
                     className="input-field w-full"
                   >
-                    {playerCountOptions(
-                      effectiveLimits.i_call_on.min,
-                      effectiveLimits.i_call_on.max
-                    ).map((n) => (
+                    {playerCountOptions(effectiveLimits.i_call_on.min, effectiveLimits.i_call_on.max).map((n) => (
                       <option key={n} value={n}>
                         {n} players
                       </option>
@@ -1495,9 +1487,9 @@ function CreateGameInner() {
                   </select>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Players take turns calling a letter, then fill Name, Animal, Place, Thing, and Food. Reviewers mark answers,
-                  the letter caller approves each round, and unique valid answers score points. Play until time runs out or all
-                  26 letters are used.
+                  Players take turns calling a letter, then fill Name, Animal, Place, Thing, and Food. Reviewers mark
+                  answers, the letter caller approves each round, and unique valid answers score points. Play until time
+                  runs out or all 26 letters are used.
                 </p>
               </SettingsGroup>
             ) : isCodewords ? (
@@ -1543,9 +1535,7 @@ function CreateGameInner() {
                 </Field>
                 <Field label="Team & role assignment">
                   <SegmentedControl
-                    value={
-                      codewordsRandomizeTeams ? 'randomize' : codewordsPlayerPicks ? 'players' : 'host'
-                    }
+                    value={codewordsRandomizeTeams ? 'randomize' : codewordsPlayerPicks ? 'players' : 'host'}
                     onChange={(v) => {
                       if (v === 'randomize') {
                         setCodewordsRandomizeTeams(true)
@@ -1734,7 +1724,8 @@ function CreateGameInner() {
                       )}
                       {isLobbyQuestions && questionSource === 'library' && libraryPackQuestions.length > 0 && (
                         <p className="text-faint text-xs mb-2">
-                          {libraryPackQuestions.length} library questions loaded — up to {libraryPackQuestions.length} rounds.
+                          {libraryPackQuestions.length} library questions loaded — up to {libraryPackQuestions.length}{' '}
+                          rounds.
                         </p>
                       )}
                       {isLobbyQuestions && questionCap > 0 && (
@@ -1906,9 +1897,7 @@ function CreateGameInner() {
                       />
                     )}
 
-                    {questionCustomHint && (
-                      <CustomContentAiTip hint={questionCustomHint} />
-                    )}
+                    {questionCustomHint && <CustomContentAiTip hint={questionCustomHint} />}
 
                     {isLobbyQuestions && questionSource === 'library' && (
                       <div className="space-y-2 pt-1">
@@ -1922,7 +1911,9 @@ function CreateGameInner() {
                             ))}
                           </div>
                         ) : libraryPacks.length === 0 ? (
-                          <p className="text-muted text-sm text-center py-4">No approved packs for this game type yet.</p>
+                          <p className="text-muted text-sm text-center py-4">
+                            No approved packs for this game type yet.
+                          </p>
                         ) : (
                           libraryPacks.map((pack) => (
                             <button
@@ -1937,10 +1928,14 @@ function CreateGameInner() {
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <div className="min-w-0">
-                                  <p className={`font-semibold text-sm truncate ${selectedPackId === pack.id ? 'text-[var(--chip-active-text)]' : ''}`}>
+                                  <p
+                                    className={`font-semibold text-sm truncate ${selectedPackId === pack.id ? 'text-[var(--chip-active-text)]' : ''}`}
+                                  >
                                     {pack.title}
                                   </p>
-                                  <p className="text-faint text-xs mt-0.5">by {pack.author_name} · {pack.question_count} questions</p>
+                                  <p className="text-faint text-xs mt-0.5">
+                                    by {pack.author_name} · {pack.question_count} questions
+                                  </p>
                                 </div>
                                 {selectedPackId === pack.id && (
                                   <span className="text-[var(--chip-active-text)] text-sm font-bold shrink-0">✓</span>
@@ -2103,17 +2098,17 @@ function CreateGameInner() {
                                     </div>
                                   ))
                                 : customMltQuestions.map((q, i) => (
-                                  <div key={i} className="flex items-start gap-2 text-sm">
-                                    <p className="text-body flex-1 min-w-0">{q}</p>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeCustomQuestion(i)}
-                                      className="text-faint hover:text-red-300 text-xs shrink-0"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                ))}
+                                    <div key={i} className="flex items-start gap-2 text-sm">
+                                      <p className="text-body flex-1 min-w-0">{q}</p>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeCustomQuestion(i)}
+                                        className="text-faint hover:text-red-300 text-xs shrink-0"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ))}
                           </div>
                         )}
 
@@ -2130,13 +2125,8 @@ function CreateGameInner() {
                 )}
 
                 {!isAnonymousRoom &&
-                  ((!isBinaryLobby &&
-                    !isWst &&
-                    !isWhoSaidThis(settings.game_type) &&
-                    !isTrivia &&
-                    !isPan &&
-                    !isNpat) ||
-                    isHotSeatGame ? (
+                  ((!isBinaryLobby && !isWst && !isWhoSaidThis(settings.game_type) && !isTrivia && !isPan && !isNpat) ||
+                  isHotSeatGame ? (
                     <SettingsGroup title={isHotSeatGame ? "Who's in the game" : "Who's in the poll"}>
                       <SegmentedControl
                         value={settings.participant_mode}

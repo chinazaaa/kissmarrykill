@@ -3,24 +3,10 @@
 import { useMemo } from 'react'
 import { CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
-import {
-  tallyCodewordsOperativeStats,
-  tallyCodewordsSpymasterStats,
-  teamLabel,
-} from '@/lib/codewords'
+import { tallyCodewordsOperativeStats, tallyCodewordsSpymasterStats, teamLabel } from '@/lib/codewords'
 import type { CodewordsGuess, CodewordsPlayerRole, Player } from '@/types'
 
-function MvpCard({
-  emoji,
-  title,
-  name,
-  detail,
-}: {
-  emoji: string
-  title: string
-  name: string
-  detail: string
-}) {
+function MvpCard({ emoji, title, name, detail }: { emoji: string; title: string; name: string; detail: string }) {
   return (
     <div className="glass-card p-5 text-center space-y-1 border-amber-400/25">
       <p className="text-3xl">{emoji}</p>
@@ -44,14 +30,8 @@ export function CodewordsEndGameStats({
   highlightPlayerId?: string | null
   winner?: 'red' | 'blue' | null
 }) {
-  const operativeStats = useMemo(
-    () => tallyCodewordsOperativeStats(guesses, roles, players),
-    [guesses, roles, players]
-  )
-  const spymasterStats = useMemo(
-    () => tallyCodewordsSpymasterStats(guesses, roles, players),
-    [guesses, roles, players]
-  )
+  const operativeStats = useMemo(() => tallyCodewordsOperativeStats(guesses, roles, players), [guesses, roles, players])
+  const spymasterStats = useMemo(() => tallyCodewordsSpymasterStats(guesses, roles, players), [guesses, roles, players])
 
   const bestOperative = operativeStats[0] ?? null
   const bestSpymaster = spymasterStats[0] ?? null

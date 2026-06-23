@@ -16,10 +16,7 @@ export function staleGameCutoffIso(olderThanHours: number): string {
   return cutoff.toISOString()
 }
 
-export async function adminEndGame(
-  supabase: SupabaseClient,
-  game: AdminGameToEnd
-): Promise<{ error: string | null }> {
+export async function adminEndGame(supabase: SupabaseClient, game: AdminGameToEnd): Promise<{ error: string | null }> {
   if (game.status !== 'active' && game.status !== 'waiting') {
     return { error: 'Only waiting or active games can be ended' }
   }

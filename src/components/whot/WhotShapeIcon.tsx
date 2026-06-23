@@ -69,13 +69,7 @@ export function WhotShapeIcon({
   const color = variant === 'on-card' ? '#ffffff' : WHOT_SHAPE_COLORS[shape]
 
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={px}
-      height={px}
-      className={`shrink-0 ${className}`}
-      aria-hidden
-    >
+    <svg viewBox="0 0 24 24" width={px} height={px} className={`shrink-0 ${className}`} aria-hidden>
       <ShapeGraphic shape={shape} color={color} />
     </svg>
   )

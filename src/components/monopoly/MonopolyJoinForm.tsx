@@ -65,7 +65,10 @@ export function MonopolyJoinForm({
           />
           {selected && !taken.has(selected.id) && (
             <p className="text-xs text-center text-muted">
-              Your token: <span className="font-bold text-[var(--foreground)]">{selected.emoji} {selected.label}</span>
+              Your token:{' '}
+              <span className="font-bold text-[var(--foreground)]">
+                {selected.emoji} {selected.label}
+              </span>
             </p>
           )}
         </section>
@@ -98,17 +101,10 @@ export function MonopolyJoinForm({
       )}
 
       {!joiningAsViewer && tokenId && taken.has(tokenId) && (
-        <p className="text-sm font-medium text-red-500 text-center">
-          That token was just taken — please pick another.
-        </p>
+        <p className="text-sm font-medium text-red-500 text-center">That token was just taken — please pick another.</p>
       )}
 
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={!canSubmit || joining}
-        className="btn-primary w-full"
-      >
+      <button type="button" onClick={onSubmit} disabled={!canSubmit || joining} className="btn-primary w-full">
         {joining ? 'Joining…' : submitLabel}
       </button>
     </div>

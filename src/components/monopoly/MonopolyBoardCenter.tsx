@@ -118,19 +118,19 @@ export function MonopolyBoardCenter({
 
   const debt = board.pending_debt
   const isMyDebt = debt?.player_id === myPlayerId
-  const debtAmount = debt ? (debt.debt_type === 'rent' && debt.space_index != null
-    ? computeRent(
-        spaceAt(debt.space_index),
-        owners,
-        debt.creditor_player_id ?? '',
-        board.last_dice?.total ?? 2,
-        buildings,
-        mortgaged
-      )
-    : debt.amount) : 0
-  const debtCreditor = debt?.creditor_player_id
-    ? players.find((p) => p.id === debt.creditor_player_id)
-    : null
+  const debtAmount = debt
+    ? debt.debt_type === 'rent' && debt.space_index != null
+      ? computeRent(
+          spaceAt(debt.space_index),
+          owners,
+          debt.creditor_player_id ?? '',
+          board.last_dice?.total ?? 2,
+          buildings,
+          mortgaged
+        )
+      : debt.amount
+    : 0
+  const debtCreditor = debt?.creditor_player_id ? players.find((p) => p.id === debt.creditor_player_id) : null
 
   const showRaiseFunds = !!(isMyDebt && board.phase === 'raise_funds' && debt)
   const showBuy = !!(isMyTurn && board.phase === 'buy' && pendingSpace)
@@ -219,15 +219,9 @@ export function MonopolyBoardCenter({
 
       {myPlayerId && myState && !myState.bankrupt && !isDock && (
         <div className="mb-1 sm:mb-2 shrink-0 space-y-1 max-w-full">
-          <MonopolyYourTokenChip
-            players={players}
-            playerId={myPlayerId}
-            playerOrder={myState.player_order}
-            compact
-          />
+          <MonopolyYourTokenChip players={players} playerId={myPlayerId} playerOrder={myState.player_order} compact />
           <p className="hidden sm:block text-[10px] text-emerald-200/80 leading-snug">
-            Currently on{' '}
-            <span className="font-bold text-white">{spaceAt(Number(myState.position)).name}</span>
+            Currently on <span className="font-bold text-white">{spaceAt(Number(myState.position)).name}</span>
           </p>
         </div>
       )}
@@ -271,7 +265,12 @@ export function MonopolyBoardCenter({
             🎲 Roll
           </BoardPrimaryButton>
           {myState && !(myState.passed_go_once ?? false) && (
-            <p className={['text-emerald-200/65 leading-snug text-center', isDock ? 'text-xs text-muted' : 'text-[9px]'].join(' ')}>
+            <p
+              className={[
+                'text-emerald-200/65 leading-snug text-center',
+                isDock ? 'text-xs text-muted' : 'text-[9px]',
+              ].join(' ')}
+            >
               Pass GO once before buying, paying tax, drawing cards, or collecting GO salary
             </p>
           )}
@@ -283,9 +282,7 @@ export function MonopolyBoardCenter({
           <p className={labelClass}>For sale</p>
           <p className={titleClass}>{pendingSpace.name}</p>
           <p className={priceClass}>{formatMonopolyMoney(pendingSpace.price ?? 0)}</p>
-          {pendingSpace.rent != null && (
-            <p className={subtleClass}>Rent {formatMonopolyMoney(pendingSpace.rent)}</p>
-          )}
+          {pendingSpace.rent != null && <p className={subtleClass}>Rent {formatMonopolyMoney(pendingSpace.rent)}</p>}
           <div className="grid grid-cols-2 gap-1.5 pt-0.5">
             <BoardPrimaryButton
               onClick={() => postAction('/api/monopoly/buy', { buy: true })}
@@ -294,10 +291,7 @@ export function MonopolyBoardCenter({
             >
               Buy
             </BoardPrimaryButton>
-            <BoardSecondaryButton
-              onClick={() => postAction('/api/monopoly/buy', { buy: false })}
-              disabled={acting}
-            >
+            <BoardSecondaryButton onClick={() => postAction('/api/monopoly/buy', { buy: false })} disabled={acting}>
               Auction
             </BoardSecondaryButton>
           </div>
@@ -306,7 +300,13 @@ export function MonopolyBoardCenter({
 
       {showRaiseFunds && debt && (
         <div className={widePanelClass}>
-          <p className={isDock ? 'text-[10px] uppercase tracking-wider text-red-500' : 'text-[10px] uppercase tracking-wider text-red-200/90'}>
+          <p
+            className={
+              isDock
+                ? 'text-[10px] uppercase tracking-wider text-red-500'
+                : 'text-[10px] uppercase tracking-wider text-red-200/90'
+            }
+          >
             Need to pay
           </p>
           <p className={titleClass}>{debt.reason}</p>
@@ -345,7 +345,9 @@ export function MonopolyBoardCenter({
       {showJail && (
         <div className={panelClass}>
           <p className="text-lg leading-none">🔒</p>
-          <p className={isDock ? 'text-sm font-bold text-[var(--foreground)]' : 'text-xs font-bold text-white'}>In jail</p>
+          <p className={isDock ? 'text-sm font-bold text-[var(--foreground)]' : 'text-xs font-bold text-white'}>
+            In jail
+          </p>
           <p className={subtleClass}>
             Attempt {(myState?.jail_turns ?? 0) + 1}/3 — roll once for doubles, or pay £50 before rolling.
           </p>
@@ -375,9 +377,7 @@ export function MonopolyBoardCenter({
         <div className={panelClass}>
           <p className={labelClass}>Auction</p>
           <p className={titleClass}>{auctionSpace.name}</p>
-          <p className={subtleClass}>
-            High: {auction.high_bid > 0 ? formatMonopolyMoney(auction.high_bid) : 'None'}
-          </p>
+          <p className={subtleClass}>High: {auction.high_bid > 0 ? formatMonopolyMoney(auction.high_bid) : 'None'}</p>
           <input
             type="number"
             min={auction.high_bid + 1}

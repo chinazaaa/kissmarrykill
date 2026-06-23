@@ -183,7 +183,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Objective',
       points: [
-        'Each round reads a "Never have I ever…" prompt. Tap I have if you\'ve done it, or I haven\'t if you haven\'t.',
+        "Each round reads a \"Never have I ever…\" prompt. Tap I have if you've done it, or I haven't if you haven't.",
         'See how many in the group confess — votes stay anonymous until reveal.',
       ],
     },
@@ -197,7 +197,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'How a round works',
       points: [
-        'Read the prompt and tap I have or I haven\'t before the timer ends.',
+        "Read the prompt and tap I have or I haven't before the timer ends.",
         'The host reveals how many people have done it — nobody knows who picked what.',
         'Play through all rounds and compare confessions.',
       ],
@@ -509,7 +509,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Rent',
       points: [
-        'Landing on another player\'s property requires paying rent before the next player rolls.',
+        "Landing on another player's property requires paying rent before the next player rolls.",
         'Railroad rent increases with each Station owned: £25, £50, £100, or £200 for one through four.',
         'Utility rent is 4× your dice roll if the owner has one Utility, or 10× if they own both.',
         'Build houses and hotels on complete colour-groups (evenly) to increase rent. Mortgaged properties collect no rent.',
@@ -620,7 +620,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'How to play',
       points: [
-        'On your turn, play a card that matches the top card\'s shape or number.',
+        "On your turn, play a card that matches the top card's shape or number.",
         'If you cannot play, draw from the pile — or draw the full Pick 2 / Pick 3 penalty when those stacks are active.',
         'When the draw pile runs out, played cards (except the current top card) are shuffled back in as a new draw pile.',
         'If no cards can be drawn and nobody can play, the game ends — lowest hand total wins.',
@@ -636,7 +636,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
         '5 — Pick 3: next player must play another 5 or draw the full stack (stacks +3 if they play a 5). Pick 2 and Pick 3 cannot be mixed — only one penalty applies at a time.',
         '8 — Suspension: skip the next player.',
         '14 — General Market: every other player automatically draws 1 card (no button tap needed).',
-        '20 — WHOT: call the next shape or number. Can override another player\'s WHOT call, but not Pick 2 or Pick 3.',
+        "20 — WHOT: call the next shape or number. Can override another player's WHOT call, but not Pick 2 or Pick 3.",
       ],
     },
     {
@@ -762,7 +762,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
         '3rd correct = 3 points.',
         '4th+ correct = 1 point.',
         'Wrong submission = −3 points AND permanently locked out of that block.',
-        'You can still attempt every other block you haven\'t submitted yet.',
+        "You can still attempt every other block you haven't submitted yet.",
       ],
     },
     {
@@ -770,7 +770,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       points: [
         'The game ends when the host taps “End Game” or the timer runs out.',
         'The player with the highest total score wins.',
-        'Players who didn\'t ready up for a rematch are excluded from the next game\'s leaderboard.',
+        "Players who didn't ready up for a rematch are excluded from the next game's leaderboard.",
       ],
     },
   ],

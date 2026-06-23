@@ -12,7 +12,10 @@ export function generateResumeToken(): string {
 }
 
 export function normalizeResumeToken(raw: string): string {
-  return raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return raw
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
 }
 
 export function generateToken(): string {
@@ -49,9 +52,7 @@ export function generateRounds(
   if (participantIds.length < 3 || roundCount <= 0) return []
 
   const ids = [...participantIds]
-  const appearanceCount = new Map<string, number>(
-    ids.map((id) => [id, initialAppearanceCounts?.get(id) ?? 0])
-  )
+  const appearanceCount = new Map<string, number>(ids.map((id) => [id, initialAppearanceCounts?.get(id) ?? 0]))
   const lastRound = new Map<string, number>(ids.map((id) => [id, Number.NEGATIVE_INFINITY]))
   const usedTrios = new Set<string>()
   const rounds: string[][] = []
@@ -130,9 +131,7 @@ export function generatePairRounds(
   if (participantIds.length < 2 || roundCount <= 0) return []
 
   const ids = [...participantIds]
-  const appearanceCount = new Map<string, number>(
-    ids.map((id) => [id, initialAppearanceCounts?.get(id) ?? 0])
-  )
+  const appearanceCount = new Map<string, number>(ids.map((id) => [id, initialAppearanceCounts?.get(id) ?? 0]))
   const lastRound = new Map<string, number>(ids.map((id) => [id, Number.NEGATIVE_INFINITY]))
   const usedPairs = new Set<string>()
   const rounds: string[][] = []
@@ -347,8 +346,7 @@ export function setPlayerSession(
   resumeToken?: string | null
 ): void {
   if (typeof window === 'undefined') return
-  const token =
-    typeof resumeToken === 'string' && resumeToken.trim() ? normalizeResumeToken(resumeToken) : null
+  const token = typeof resumeToken === 'string' && resumeToken.trim() ? normalizeResumeToken(resumeToken) : null
   localStorage.setItem(
     `kmk_player_${gameCode.toUpperCase()}`,
     JSON.stringify({ playerId, playerName, playerGender, resumeToken: token })

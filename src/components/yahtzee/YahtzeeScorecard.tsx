@@ -63,11 +63,7 @@ function ScoreCell({
         </button>
       )
     }
-    return (
-      <span className="text-xs font-semibold italic tabular-nums text-[var(--primary)]/50">
-        {preview}
-      </span>
-    )
+    return <span className="text-xs font-semibold italic tabular-nums text-[var(--primary)]/50">{preview}</span>
   }
 
   return <span className="text-xs text-[var(--foreground)]/20 select-none">—</span>
@@ -110,9 +106,7 @@ export function YahtzeeScorecard({
       <td
         className={[
           'sticky left-0 z-10 px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap',
-          isYahtzeeRow
-            ? 'text-[var(--marry)] font-black tracking-wide'
-            : 'text-[var(--foreground)]/80',
+          isYahtzeeRow ? 'text-[var(--marry)] font-black tracking-wide' : 'text-[var(--foreground)]/80',
         ].join(' ')}
       >
         {categoryLabel(category)}
@@ -154,10 +148,9 @@ export function YahtzeeScorecard({
                 return (
                   <th
                     key={player.id}
-                    className={[
-                      'px-1 py-2 min-w-[4rem] text-center',
-                      isActive ? 'yahtzee-score-col-active' : '',
-                    ].join(' ')}
+                    className={['px-1 py-2 min-w-[4rem] text-center', isActive ? 'yahtzee-score-col-active' : ''].join(
+                      ' '
+                    )}
                   >
                     <div className="flex flex-col items-center gap-0.5">
                       <span
@@ -204,9 +197,7 @@ export function YahtzeeScorecard({
             <tr className="yahtzee-score-subtotal">
               <td className="sticky left-0 z-10 px-2 py-1.5 text-[10px] font-bold text-[var(--foreground)]/60">
                 Bonus
-                <span className="block text-[8px] font-medium text-[var(--foreground)]/35 leading-none">
-                  +35 at 63
-                </span>
+                <span className="block text-[8px] font-medium text-[var(--foreground)]/35 leading-none">+35 at 63</span>
               </td>
               {orderedScores.map(({ player, score }) => {
                 const sub = score ? upperScore(score) : 0
@@ -244,15 +235,11 @@ export function YahtzeeScorecard({
               </td>
             </tr>
 
-            {YAHTZEE_LOWER_CATEGORIES.map((cat) =>
-              renderCategoryRow(cat, cat === 'yahtzee')
-            )}
+            {YAHTZEE_LOWER_CATEGORIES.map((cat) => renderCategoryRow(cat, cat === 'yahtzee'))}
 
             {/* ── Total row ── */}
             <tr className="yahtzee-score-total">
-              <td className="sticky left-0 z-10 px-2 py-1.5 text-[11px] font-black text-[var(--foreground)]">
-                Total
-              </td>
+              <td className="sticky left-0 z-10 px-2 py-1.5 text-[11px] font-black text-[var(--foreground)]">Total</td>
               {orderedScores.map(({ player, score }) => (
                 <td key={player.id} className={playerColClass(player.id)}>
                   <span className="text-sm font-black tabular-nums text-[var(--primary)]">
@@ -282,9 +269,7 @@ export function YahtzeeLeaderboard({
   players: { id: string; name: string }[]
   highlightPlayerId?: string | null
 }) {
-  const sorted = [...rows].sort(
-    (a, b) => totalScore(b.scores.categories) - totalScore(a.scores.categories)
-  )
+  const sorted = [...rows].sort((a, b) => totalScore(b.scores.categories) - totalScore(a.scores.categories))
 
   return (
     <div className="grid grid-cols-1 gap-2">
@@ -313,9 +298,7 @@ export function YahtzeeLeaderboard({
               {index + 1}
             </span>
             <span className="font-bold text-sm flex-1 truncate">{player?.name ?? 'Player'}</span>
-            {isYou && (
-              <span className="text-[9px] font-black uppercase text-[var(--primary)]">You</span>
-            )}
+            {isYou && <span className="text-[9px] font-black uppercase text-[var(--primary)]">You</span>}
             <span className="font-black text-lg tabular-nums text-[var(--primary)]">{total}</span>
           </div>
         )

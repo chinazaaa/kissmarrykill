@@ -30,9 +30,7 @@ export function HostGameFinishedActions({
         <div className="[&>button]:w-full [&>button]:py-3 [&>button]:text-sm sm:[&>button]:text-base min-w-0">
           {shareButton}
         </div>
-        {showCreateNewGame ? (
-          <CreateNewGameButton className="btn-secondary w-full py-3 text-sm sm:text-base" />
-        ) : null}
+        {showCreateNewGame ? <CreateNewGameButton className="btn-secondary w-full py-3 text-sm sm:text-base" /> : null}
       </div>
 
       {showBackHome ? (

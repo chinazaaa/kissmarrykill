@@ -115,7 +115,5 @@ export function groupHasBuildings(
   owners: Record<string, string>,
   buildings: Record<string, number>
 ): boolean {
-  return spacesInGroup(group).some(
-    (s) => owners[String(s.index)] === ownerId && buildingLevel(buildings, s.index) > 0
-  )
+  return spacesInGroup(group).some((s) => owners[String(s.index)] === ownerId && buildingLevel(buildings, s.index) > 0)
 }

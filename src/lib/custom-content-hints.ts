@@ -12,10 +12,7 @@ import {
 } from '@/lib/game-types'
 import { questionSampleFile } from '@/lib/custom-questions'
 import { isPeoplePollGame } from '@/lib/player-participant-pool'
-import {
-  participantSampleFile,
-  participantsNeedGenderForGame,
-} from '@/lib/participants'
+import { participantSampleFile, participantsNeedGenderForGame } from '@/lib/participants'
 
 export type CustomContentHint = {
   headline: string
@@ -37,12 +34,7 @@ export function supportsQuestionCustomContentHint(gameType: GameType): boolean {
 }
 
 export function supportsParticipantCustomContentHint(gameType: GameType): boolean {
-  return (
-    isPeoplePollGame(gameType) ||
-    isWhoSaidThis(gameType) ||
-    isHotSeat(gameType) ||
-    isMostLikelyTo(gameType)
-  )
+  return isPeoplePollGame(gameType) || isWhoSaidThis(gameType) || isHotSeat(gameType) || isMostLikelyTo(gameType)
 }
 
 export function getQuestionCustomContentHint(gameType: GameType): CustomContentHint | null {

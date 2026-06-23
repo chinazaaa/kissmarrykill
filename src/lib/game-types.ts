@@ -1176,9 +1176,7 @@ export function gameHowItWorks(
     case 'ludo':
       return 'Players join with their name. Roll two dice each turn and use each die separately — a 6 brings pieces out; doubles earn another roll after both dice are played. Capture opponents, block with pairs — first to finish all four pieces wins!'
     case 'i_call_on':
-      return 'Players join with their name. Set a game timer (or play all 26 letters). Each letter cycle someone calls A–Z, everyone fills Name, Animal, Place, Thing, and Food, then marks the next player\'s sheet. Duplicates score 5 automatically; unique valid answers score 10. Everyone sees all marks live.'
-    case 'sudoku':
-      return 'Players join with their name. Everyone races to solve the same 9×9 Sudoku puzzle. Claim a 3×3 block by submitting the correct numbers first — 10 pts for 1st, 6 for 2nd, 3 for 3rd, 1 thereafter. A wrong answer costs 3 pts and locks you out of that block forever.'
+      return "Players join with their name. Set a game timer (or play all 26 letters). Each letter cycle someone calls A–Z, everyone fills Name, Animal, Place, Thing, and Food, then marks the next player's sheet. Duplicates score 5 automatically; unique valid answers score 10. Everyone sees all marks live."
     case 'most_likely_to':
       return joiners
         ? 'Players add their name to the poll when joining. Each round shows a "most likely to…" prompt — vote for who fits best. Votes stay anonymous.'

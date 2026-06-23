@@ -19,8 +19,14 @@ interface QuestionPack {
 
 const GAME_TYPE_META: Record<string, { label: string; color: string }> = {
   trivia: { label: 'Trivia', color: 'text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/25' },
-  would_you_rather: { label: 'Would You Rather', color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/25' },
-  most_likely_to: { label: 'Most Likely To', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25' },
+  would_you_rather: {
+    label: 'Would You Rather',
+    color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/25',
+  },
+  most_likely_to: {
+    label: 'Most Likely To',
+    color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25',
+  },
 }
 
 const TAG_META: Record<string, { label: string; color: string }> = {
@@ -52,7 +58,9 @@ export default function AdminLibraryPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load(tab) }, [tab])
+  useEffect(() => {
+    load(tab)
+  }, [tab])
 
   const handleAction = async (id: string, act: 'approve' | 'reject') => {
     setPacks((prev) => prev.filter((p) => p.id !== id))
@@ -135,8 +143,7 @@ function PackCard({
   const [tags, setTags] = useState<string[]>(pack.tags ?? [])
   const [status, setStatus] = useState(pack.status)
 
-  const toggleTag = (t: string) =>
-    setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+  const toggleTag = (t: string) => setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
 
   const handleSave = async () => {
     setSaving(true)
@@ -145,11 +152,26 @@ function PackCard({
       const res = await fetch(`/api/admin/library/${pack.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, author_name: authorName, game_type: gameType, description: description || null, tags, status }),
+        body: JSON.stringify({
+          title,
+          author_name: authorName,
+          game_type: gameType,
+          description: description || null,
+          tags,
+          status,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Save failed')
-      onSave({ ...pack, title, author_name: authorName, game_type: gameType, description: description || null, tags, status })
+      onSave({
+        ...pack,
+        title,
+        author_name: authorName,
+        game_type: gameType,
+        description: description || null,
+        tags,
+        status,
+      })
       setEditing(false)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Something went wrong')
@@ -193,16 +215,17 @@ function PackCard({
         </div>
       </div>
 
-      {pack.description && !editing && (
-        <p className="text-muted text-sm leading-relaxed">{pack.description}</p>
-      )}
+      {pack.description && !editing && <p className="text-muted text-sm leading-relaxed">{pack.description}</p>}
 
       {(pack.tags ?? []).length > 0 && !editing && (
         <div className="flex flex-wrap gap-1.5">
           {(pack.tags ?? []).map((t) => {
             const tm = TAG_META[t]
             return (
-              <span key={t} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${tm?.color ?? 'chip'}`}>
+              <span
+                key={t}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${tm?.color ?? 'chip'}`}
+              >
                 {tm?.label ?? t}
               </span>
             )
@@ -314,9 +337,7 @@ function PackCard({
             </div>
           </div>
 
-          {saveError && (
-            <p className="text-xs text-red-500 dark:text-red-400">{saveError}</p>
-          )}
+          {saveError && <p className="text-xs text-red-500 dark:text-red-400">{saveError}</p>}
 
           <button
             type="button"

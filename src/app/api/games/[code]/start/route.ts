@@ -34,7 +34,12 @@ import { pickWyrQuestions } from '@/lib/would-you-rather-questions'
 import { pickMltQuestions } from '@/lib/most-likely-to-questions'
 import { pickNhieQuestions } from '@/lib/never-have-i-ever-questions'
 import { pickPanQuestions, PAN_DEFAULT_POOL_SIZE, PAN_MIN_POOL } from '@/lib/pick-a-number-questions'
-import { fetchMltQuestionUsage, fetchNhieQuestionUsage, fetchPanQuestionUsage, fetchWyrQuestionUsage } from '@/lib/question-usage'
+import {
+  fetchMltQuestionUsage,
+  fetchNhieQuestionUsage,
+  fetchPanQuestionUsage,
+  fetchWyrQuestionUsage,
+} from '@/lib/question-usage'
 import {
   parseQuestionSource,
   parseStoredWyrQuestions,
@@ -76,12 +81,7 @@ import {
   teamsNeedRandomization,
   turnDeadline,
 } from '@/lib/codewords'
-import {
-  buildTtlRoundRows,
-  lobbyReadyForTwoTruths,
-  shufflePlayerOrder,
-  TTL_MIN_PLAYERS,
-} from '@/lib/two-truths'
+import { buildTtlRoundRows, lobbyReadyForTwoTruths, shufflePlayerOrder, TTL_MIN_PLAYERS } from '@/lib/two-truths'
 import { initializeMonopolyGame, MONOPOLY_MIN_PLAYERS } from '@/lib/monopoly'
 import { initializeYahtzeeGame, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
 import { initializeWhotGame, WHOT_MIN_PLAYERS } from '@/lib/whot'
@@ -198,10 +198,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isTriviaGame(gameType)) {
     if (playersData.length < TRIVIA_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${TRIVIA_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${TRIVIA_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const questionSource = parseQuestionSource(game.question_source, gameType)
@@ -258,10 +255,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isBingoGame(gameType)) {
     if (playersData.length < BINGO_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${BINGO_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${BINGO_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const { error: cardsError } = await createBingoCardsForPlayers(
@@ -288,10 +282,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isMonopolyGame(gameType)) {
     const playingPlayers = playersData.filter((p) => p.spectator !== true)
     if (playingPlayers.length < MONOPOLY_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${MONOPOLY_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${MONOPOLY_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const { error: initError } = await initializeMonopolyGame(
@@ -319,10 +310,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isYahtzeeGame(gameType)) {
     const playingPlayers = playersData.filter((p) => p.spectator !== true)
     if (playingPlayers.length < YAHTZEE_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${YAHTZEE_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${YAHTZEE_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const { error: initError } = await initializeYahtzeeGame(
@@ -349,10 +337,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isWhotGame(gameType)) {
     const playingPlayers = playersData.filter((p) => p.spectator !== true)
     if (playingPlayers.length < WHOT_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${WHOT_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${WHOT_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const { error: initError } = await initializeWhotGame(
@@ -379,10 +364,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isLudoGame(gameType)) {
     const playingPlayers = playersData.filter((p) => p.spectator !== true)
     if (playingPlayers.length < LUDO_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${LUDO_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${LUDO_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const { error: initError } = await initializeLudoGame(
@@ -408,10 +390,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isCodewordsGame(gameType)) {
     if (playersData.length < CODEWORDS_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${CODEWORDS_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${CODEWORDS_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const { data: roleRows } = await supabase
@@ -448,9 +427,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const words = pickBoardWords()
     const key = generateKey(startingTeam)
     const spymasterTimer = clampCodewordsTimer(game.timer_seconds ?? CODEWORDS_DEFAULT_SPYMASTER_TIMER)
-    const operativeTimer = clampCodewordsTimer(
-      game.operative_timer_seconds ?? CODEWORDS_DEFAULT_OPERATIVE_TIMER
-    )
+    const operativeTimer = clampCodewordsTimer(game.operative_timer_seconds ?? CODEWORDS_DEFAULT_OPERATIVE_TIMER)
 
     const { error: boardError } = await supabase.from('codewords_boards').insert({
       game_id: code.toUpperCase(),
@@ -483,16 +460,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isTwoTruthsGame(gameType)) {
     const playerIds = playersData.map((p) => p.id)
     if (playerIds.length < TTL_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${TTL_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${TTL_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
-    const { data: statementRows } = await supabase
-      .from('ttl_statements')
-      .select('*')
-      .eq('game_id', code.toUpperCase())
+    const { data: statementRows } = await supabase.from('ttl_statements').select('*').eq('game_id', code.toUpperCase())
 
     const statements = statementRows ?? []
     const ready = lobbyReadyForTwoTruths(playerIds, statements)
@@ -537,10 +508,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isICallOnGame(gameType)) {
     const playerIds = playersData.filter((p) => p.spectator !== true).map((p) => p.id)
     if (playerIds.length < NPAT_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${NPAT_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${NPAT_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const playerOrder = npatShufflePlayerOrder(playerIds)
@@ -570,10 +538,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (isSudokuGame(gameType)) {
     const playingPlayers = playersData.filter((p) => p.spectator !== true)
     if (playingPlayers.length < SUDOKU_MIN_PLAYERS) {
-      return NextResponse.json(
-        { error: `Need at least ${SUDOKU_MIN_PLAYERS} players to start` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Need at least ${SUDOKU_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
     const seed = Date.now() ^ Math.floor(Math.random() * 0xffffffff)
@@ -1228,7 +1193,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     const { error: gameError } = await supabase
       .from('games')
-      .update({ status: 'active', current_round_number: 1, rounds_count: groups.length, session_started_at: sessionStartedAt })
+      .update({
+        status: 'active',
+        current_round_number: 1,
+        rounds_count: groups.length,
+        session_started_at: sessionStartedAt,
+      })
       .eq('id', code.toUpperCase())
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })

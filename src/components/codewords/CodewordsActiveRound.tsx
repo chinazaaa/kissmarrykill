@@ -6,13 +6,7 @@ import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords
 import { CodewordsTeamChat } from '@/components/codewords/CodewordsTeamChat'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsScoreboard, CodewordsTimerBar } from '@/components/codewords/CodewordsScoreboard'
-import {
-  effectiveTurnPhase,
-  guessAttributionMap,
-  roleLabel,
-  teamLabel,
-  waitingTurnMessage,
-} from '@/lib/codewords'
+import { effectiveTurnPhase, guessAttributionMap, roleLabel, teamLabel, waitingTurnMessage } from '@/lib/codewords'
 import { useCodewordsTurnTimer } from '@/hooks/useCodewordsTurnTimer'
 import { useCodewordsNotifications, useCodewordsTimerAlerts } from '@/hooks/useCodewordsNotifications'
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Player } from '@/types'
@@ -77,9 +71,7 @@ export function CodewordsActiveRound({
       if (isSpymaster) return 'Your turn — give a one-word clue'
       const spymaster = roles.find((r) => r.team === myTeam && r.role === 'spymaster')
       const name = spymaster ? playerNameById.get(spymaster.player_id) : null
-      return name
-        ? `Waiting for ${name} (your spymaster) to give a clue`
-        : 'Waiting for your spymaster to give a clue'
+      return name ? `Waiting for ${name} (your spymaster) to give a clue` : 'Waiting for your spymaster to give a clue'
     }
     if (isOperative) return 'Your turn — tap words to guess'
     return 'Your operatives are guessing…'
@@ -204,8 +196,7 @@ export function CodewordsActiveRound({
             <div className="glass-card p-4 text-center">
               <p className="text-faint text-xs uppercase tracking-wider">Current clue</p>
               <p className="text-2xl font-black">
-                {board.current_clue_word}{' '}
-                <span className="text-muted text-lg">{board.current_clue_number}</span>
+                {board.current_clue_word} <span className="text-muted text-lg">{board.current_clue_number}</span>
               </p>
               {canGuess && board.guesses_remaining != null && (
                 <p className="text-faint text-xs mt-1">{board.guesses_remaining} guess(es) left</p>

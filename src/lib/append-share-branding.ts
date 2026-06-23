@@ -40,11 +40,8 @@ export async function appendShareBranding(
 ): Promise<Blob> {
   const img = await loadImage(contentBlob)
   const bg =
-    backgroundColor ||
-    getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||
-    '#f4f4f7'
-  const faint =
-    getComputedStyle(document.documentElement).getPropertyValue('--faint').trim() || '#5c5c78'
+    backgroundColor || getComputedStyle(document.documentElement).getPropertyValue('--background').trim() || '#f4f4f7'
+  const faint = getComputedStyle(document.documentElement).getPropertyValue('--faint').trim() || '#5c5c78'
 
   const footerHeight = Math.round(44 * pixelRatio)
   const canvas = document.createElement('canvas')

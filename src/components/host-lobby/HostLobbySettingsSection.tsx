@@ -19,13 +19,7 @@ function Chevron({ up }: { up?: boolean }) {
       aria-hidden
       className={['h-3.5 w-3.5 shrink-0 transition-transform', up ? 'rotate-180' : ''].join(' ')}
     >
-      <path
-        d="M4 6l4 4 4-4"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

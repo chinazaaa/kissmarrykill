@@ -63,10 +63,7 @@ export async function POST(req: NextRequest) {
   }
 
   const nextMarked = [...marked, cellIndex]
-  const { error } = await supabase
-    .from('bingo_cards')
-    .update({ marked_indices: nextMarked })
-    .eq('id', card.id)
+  const { error } = await supabase.from('bingo_cards').update({ marked_indices: nextMarked }).eq('id', card.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, marked_indices: nextMarked })

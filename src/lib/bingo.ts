@@ -95,11 +95,7 @@ export function pickRandomUncalledNumber(called: number[]): number | null {
   return remaining[Math.floor(Math.random() * remaining.length)]
 }
 
-export function hasBingoWin(
-  cells: number[],
-  markedIndices: number[],
-  pattern: BingoWinPattern = 'line'
-): boolean {
+export function hasBingoWin(cells: number[], markedIndices: number[], pattern: BingoWinPattern = 'line'): boolean {
   const marked = new Set(markedIndices)
   if (pattern === 'full_house') {
     return cells.every((cell, index) => cell === 0 || marked.has(index))
@@ -145,7 +141,15 @@ export function bingoCallIntervalFromGame(game: { bingo_call_interval_seconds?: 
   return clampBingoCallInterval(game.bingo_call_interval_seconds)
 }
 
-export type BingoSyncCode = 'manual_mode' | 'not_active' | 'not_bingo' | 'game_not_found' | 'waiting' | 'called' | 'all_called' | 'call_failed'
+export type BingoSyncCode =
+  | 'manual_mode'
+  | 'not_active'
+  | 'not_bingo'
+  | 'game_not_found'
+  | 'waiting'
+  | 'called'
+  | 'all_called'
+  | 'call_failed'
 
 export type BingoSyncResult = {
   ok: boolean
@@ -153,10 +157,7 @@ export type BingoSyncResult = {
   number?: number
 }
 
-export async function syncBingoAutoCall(
-  supabase: SupabaseClient,
-  gameId: string
-): Promise<BingoSyncResult> {
+export async function syncBingoAutoCall(supabase: SupabaseClient, gameId: string): Promise<BingoSyncResult> {
   const code = gameId.toUpperCase()
   const { data: game } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
   if (!game) return { ok: false, code: 'game_not_found' }

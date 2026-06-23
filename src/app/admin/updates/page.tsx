@@ -119,7 +119,7 @@ export default function AdminProductUpdatesPage() {
   const remove = async (update: ProductUpdate) => {
     const ok = await confirm({
       title: `Delete "${update.title}"?`,
-      message: 'This will remove the entry from the public What\'s new page.',
+      message: "This will remove the entry from the public What's new page.",
       confirmLabel: 'Delete',
       destructive: true,
     })
@@ -295,7 +295,11 @@ export default function AdminProductUpdatesPage() {
                       <p className="text-sm text-muted leading-relaxed whitespace-pre-wrap">{item.description}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button type="button" onClick={() => startEdit(item)} className="btn-secondary text-sm px-3 py-1.5">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(item)}
+                        className="btn-secondary text-sm px-3 py-1.5"
+                      >
                         Edit
                       </button>
                       <button type="button" onClick={() => remove(item)} className="btn-ghost text-sm text-red-500">

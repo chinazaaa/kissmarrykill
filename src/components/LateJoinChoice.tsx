@@ -119,9 +119,7 @@ export function LateJoinChoice({
             >
               {joining ? 'Joining…' : 'Join to watch'}
             </button>
-            {context && (
-              <p className="text-faint text-[11px] text-center leading-snug px-1">{context.viewerDetail}</p>
-            )}
+            {context && <p className="text-faint text-[11px] text-center leading-snug px-1">{context.viewerDetail}</p>}
           </div>
         )}
         <ShareGameLinkCard gameCode={gameCode} />

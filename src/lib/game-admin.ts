@@ -19,7 +19,12 @@ export async function assertHostPlayerRemove(supabase: SupabaseClient, gameCode:
   if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
   if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
   if (game.status !== 'waiting' && game.status !== 'active') {
-    return { error: 'Players can only be removed while the lobby or game is open', status: 400 as const, game: null, id }
+    return {
+      error: 'Players can only be removed while the lobby or game is open',
+      status: 400 as const,
+      game: null,
+      id,
+    }
   }
   return { error: null, status: 200 as const, game, id }
 }

@@ -41,7 +41,5 @@ export function HostLateJoinSettingsCard({
 
   if (bare) return content
 
-  return (
-    <div className={`glass-card-strong p-5 sm:p-6 space-y-3 ${className}`}>{content}</div>
-  )
+  return <div className={`glass-card-strong p-5 sm:p-6 space-y-3 ${className}`}>{content}</div>
 }

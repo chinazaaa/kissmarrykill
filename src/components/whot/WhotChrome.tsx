@@ -29,11 +29,9 @@ export function WhotShell({
         ].join(' ')}
       >
         <div
-          className={[
-            'w-full',
-            compact ? 'space-y-2' : 'space-y-5 sm:space-y-6',
-            wide ? 'max-w-3xl' : 'max-w-lg',
-          ].join(' ')}
+          className={['w-full', compact ? 'space-y-2' : 'space-y-5 sm:space-y-6', wide ? 'max-w-3xl' : 'max-w-lg'].join(
+            ' '
+          )}
         >
           {(title || subtitle) && !compact && (
             <header className="text-center space-y-2">

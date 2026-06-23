@@ -15,9 +15,7 @@ import { useToast } from '@/components/ui/Toast'
 
 type ValidityMap = Record<string, Record<NpatCategory, boolean>>
 
-function overridesToValidity(
-  overrides: NonNullable<NpatMetadata['host_overrides']>
-): ValidityMap {
+function overridesToValidity(overrides: NonNullable<NpatMetadata['host_overrides']>): ValidityMap {
   const map: ValidityMap = {}
   for (const [playerId, flags] of Object.entries(overrides)) {
     map[playerId] = Object.fromEntries(
@@ -38,9 +36,7 @@ const OVERRIDE_PAYLOAD_KEYS: Record<NpatCategory, string> = {
 function validityToPayload(validity: ValidityMap) {
   return Object.entries(validity).map(([playerId, flags]) => ({
     playerId,
-    ...Object.fromEntries(
-      NPAT_CATEGORIES.map((category) => [OVERRIDE_PAYLOAD_KEYS[category], flags[category]])
-    ),
+    ...Object.fromEntries(NPAT_CATEGORIES.map((category) => [OVERRIDE_PAYLOAD_KEYS[category], flags[category]])),
   }))
 }
 
@@ -145,10 +141,10 @@ export function NpatCallerReviewPanel({
       <div className="glass-card p-5 space-y-3">
         <p className="label-caps">Your approval</p>
         <p className="text-sm text-muted leading-relaxed">
-          You called letter{' '}
-          <strong className="text-body">{letter ?? '?'}</strong> — review everyone&apos;s answers before scores are
-          revealed. Empty answers, wrong starting letters, single-letter answers, and duplicates are invalid
-          automatically. Answers flagged <span className="text-orange-500 font-semibold">⚑ disputed</span> by other players are highlighted — toggle anything you disagree with, then approve.
+          You called letter <strong className="text-body">{letter ?? '?'}</strong> — review everyone&apos;s answers
+          before scores are revealed. Empty answers, wrong starting letters, single-letter answers, and duplicates are
+          invalid automatically. Answers flagged <span className="text-orange-500 font-semibold">⚑ disputed</span> by
+          other players are highlighted — toggle anything you disagree with, then approve.
         </p>
         <button type="button" onClick={() => void approveRound()} disabled={approving} className="btn-primary w-full">
           {approving ? 'Approving…' : 'Approve & reveal scores'}

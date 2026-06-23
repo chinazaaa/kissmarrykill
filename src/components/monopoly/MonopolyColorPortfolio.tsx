@@ -2,11 +2,7 @@
 
 import { MONOPOLY_COLOR_CLASSES } from '@/lib/monopoly'
 import type { MonopolyColorGroup } from '@/lib/monopoly-board'
-import {
-  buildColorGroupStatuses,
-  COLOR_SET_ORDER,
-  type ColorGroupStatus,
-} from '@/lib/monopoly-color-portfolio'
+import { buildColorGroupStatuses, COLOR_SET_ORDER, type ColorGroupStatus } from '@/lib/monopoly-color-portfolio'
 import type { Player } from '@/types'
 
 function colorBarClass(color: MonopolyColorGroup): string {
@@ -57,9 +53,7 @@ function ColorSetRow({ status }: { status: ColorGroupStatus }) {
             ))}
           </p>
         )}
-        {inactive && (
-          <p className="text-[10px] text-faint">None owned yet</p>
-        )}
+        {inactive && <p className="text-[10px] text-faint">None owned yet</p>}
       </div>
     </div>
   )
@@ -109,11 +103,7 @@ export function MonopolyColorBar({ color }: { color: MonopolyColorGroup }) {
 }
 
 /** Dot strip showing owned (filled) vs missing slots in a group. */
-export function MonopolyColorSetDots({
-  status,
-}: {
-  status: ColorGroupStatus
-}) {
+export function MonopolyColorSetDots({ status }: { status: ColorGroupStatus }) {
   return (
     <div className="flex gap-1 items-center" title={`${status.owned}/${status.total} in ${status.label}`}>
       {Array.from({ length: status.total }, (_, i) => (

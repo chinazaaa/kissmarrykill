@@ -17,8 +17,14 @@ interface PackSummary {
 
 const GAME_TYPE_META: Record<string, { label: string; color: string }> = {
   trivia: { label: 'Trivia', color: 'text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/25' },
-  would_you_rather: { label: 'Would You Rather', color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/25' },
-  most_likely_to: { label: 'Most Likely To', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25' },
+  would_you_rather: {
+    label: 'Would You Rather',
+    color: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/25',
+  },
+  most_likely_to: {
+    label: 'Most Likely To',
+    color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25',
+  },
 }
 
 const TAG_META: Record<string, { label: string; color: string }> = {
@@ -109,10 +115,7 @@ export default function LibraryPage() {
             <h1 className="text-3xl font-black tracking-tight gradient-title">Question Library</h1>
             <p className="text-muted text-sm mt-1">Community-made packs for your games</p>
           </div>
-          <Link
-            href="/library/submit"
-            className="btn-secondary btn-fit px-4 py-2 text-sm no-underline shrink-0 mt-1"
-          >
+          <Link href="/library/submit" className="btn-secondary btn-fit px-4 py-2 text-sm no-underline shrink-0 mt-1">
             + Submit a pack
           </Link>
         </div>
@@ -229,7 +232,9 @@ export default function LibraryPage() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between gap-4 pt-2">
-              <p className="text-faint text-xs">{total} pack{total !== 1 ? 's' : ''} total</p>
+              <p className="text-faint text-xs">
+                {total} pack{total !== 1 ? 's' : ''} total
+              </p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"

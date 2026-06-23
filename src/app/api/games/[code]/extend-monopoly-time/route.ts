@@ -17,7 +17,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { hostToken, extensionSeconds } = parsed.data
   const gameId = code.toUpperCase()
 
-  const { data: game } = await supabase.from('games').select('id, host_token, game_type, status').eq('id', gameId).maybeSingle()
+  const { data: game } = await supabase
+    .from('games')
+    .select('id, host_token, game_type, status')
+    .eq('id', gameId)
+    .maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (!isMonopolyGame(parseGameType(game.game_type))) {

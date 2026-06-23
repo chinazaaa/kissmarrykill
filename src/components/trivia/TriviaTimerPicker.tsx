@@ -3,13 +3,7 @@
 import { Chip } from '@/components/ui/PageShell'
 import { TRIVIA_TIMER_OPTIONS } from '@/lib/trivia'
 
-export function TriviaTimerPicker({
-  value,
-  onChange,
-}: {
-  value: number
-  onChange: (seconds: number) => void
-}) {
+export function TriviaTimerPicker({ value, onChange }: { value: number; onChange: (seconds: number) => void }) {
   return (
     <div className="grid grid-cols-4 gap-1.5">
       {TRIVIA_TIMER_OPTIONS.map((n) => (

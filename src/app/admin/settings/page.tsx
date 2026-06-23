@@ -114,8 +114,8 @@ export default function AdminGameLimitsPage() {
       <div>
         <h1 className="text-3xl font-black tracking-tight gradient-title">Game limits</h1>
         <p className="text-muted text-sm mt-1">
-          Set the maximum lobby size for each game type. Changes apply to new games and join enforcement
-          immediately (cached for ~30 seconds on the server).
+          Set the maximum lobby size for each game type. Changes apply to new games and join enforcement immediately
+          (cached for ~30 seconds on the server).
         </p>
       </div>
 

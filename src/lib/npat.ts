@@ -178,7 +178,11 @@ export function parseNpatMetadata(raw: unknown): NpatMetadata | null {
         typeof d.target_player_id === 'string' &&
         NPAT_CATEGORIES.includes(d.category as NpatCategory)
       ) {
-        disputes.push({ challenger_id: d.challenger_id, target_player_id: d.target_player_id, category: d.category as NpatCategory })
+        disputes.push({
+          challenger_id: d.challenger_id,
+          target_player_id: d.target_player_id,
+          category: d.category as NpatCategory,
+        })
       }
     }
   }
@@ -207,10 +211,7 @@ export function roundCallerPlayerId(
   return metadata.caller_order[metadata.caller_index] ?? metadata.caller_order[0] ?? null
 }
 
-export function syncCallerIndexInMetadata(
-  metadata: NpatMetadata,
-  submitterPlayerId: string | null
-): NpatMetadata {
+export function syncCallerIndexInMetadata(metadata: NpatMetadata, submitterPlayerId: string | null): NpatMetadata {
   if (!submitterPlayerId || metadata.caller_order.length === 0) return metadata
   const idx = metadata.caller_order.indexOf(submitterPlayerId)
   if (idx === -1) return metadata
@@ -229,9 +230,7 @@ export function resolveActiveNpatRound(rounds: Round[], currentRoundNumber: numb
   if (active && byPointer && active.id !== byPointer.id && byPointer.status === 'finished') return active
 
   if (byPointer?.status === 'finished') {
-    const pendingNext = rounds.find(
-      (r) => r.status === 'pending' && r.round_number === byPointer.round_number + 1
-    )
+    const pendingNext = rounds.find((r) => r.status === 'pending' && r.round_number === byPointer.round_number + 1)
     if (pendingNext) return pendingNext
   }
 
@@ -315,9 +314,7 @@ export function buildNpatNextRound(opts: {
   playerIds: string[]
   now: string
 }): Record<string, unknown> | null {
-  const usedSet = new Set(
-    opts.previousMetadata.used_letters.map((l) => l.toUpperCase().slice(0, 1))
-  )
+  const usedSet = new Set(opts.previousMetadata.used_letters.map((l) => l.toUpperCase().slice(0, 1)))
   if (opts.previousMetadata.letter) {
     usedSet.add(opts.previousMetadata.letter.toUpperCase().slice(0, 1))
   }
@@ -600,7 +597,10 @@ export function answerTotal(
   )
 }
 
-export function tallyNpatScores(answers: NpatAnswer[], players: Player[]): { id: string; name: string; score: number }[] {
+export function tallyNpatScores(
+  answers: NpatAnswer[],
+  players: Player[]
+): { id: string; name: string; score: number }[] {
   const totals = new Map<string, number>()
   for (const player of players) totals.set(player.id, 0)
   for (const row of answers) {
@@ -625,10 +625,7 @@ export function playerDisplayName(playerId: string | null | undefined, players: 
   return players.find((p) => p.id === playerId)?.name ?? 'Someone'
 }
 
-export function reviewTargetForMarker(
-  metadata: NpatMetadata | null,
-  markerPlayerId: string
-): string | null {
+export function reviewTargetForMarker(metadata: NpatMetadata | null, markerPlayerId: string): string | null {
   if (!metadata) return null
   return metadata.reviewer_assignments[markerPlayerId] ?? null
 }
@@ -656,20 +653,18 @@ export function phaseSecondsLeft(
   return Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
 }
 
-export function revealCountdownSeconds(endedAt: string | null | undefined, revealSeconds = NPAT_REVEAL_SECONDS): number {
+export function revealCountdownSeconds(
+  endedAt: string | null | undefined,
+  revealSeconds = NPAT_REVEAL_SECONDS
+): number {
   if (!endedAt) return revealSeconds
   const deadline = new Date(endedAt).getTime() + revealSeconds * 1000
   return Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
 }
 
-export function trimNpatAnswerFields(
-  fields: Partial<Record<NpatCategory, string>>
-): Record<NpatCategory, string> {
+export function trimNpatAnswerFields(fields: Partial<Record<NpatCategory, string>>): Record<NpatCategory, string> {
   return Object.fromEntries(
-    NPAT_CATEGORIES.map((category) => [
-      category,
-      (fields[category] ?? '').trim().slice(0, NPAT_MAX_ANSWER_LENGTH),
-    ])
+    NPAT_CATEGORIES.map((category) => [category, (fields[category] ?? '').trim().slice(0, NPAT_MAX_ANSWER_LENGTH)])
   ) as Record<NpatCategory, string>
 }
 
@@ -692,10 +687,7 @@ export function npatAnswerRequestPayload(opts: {
   }
 }
 
-export function validateNpatAnswerFields(
-  letter: string | null,
-  fields: Record<NpatCategory, string>
-): string | null {
+export function validateNpatAnswerFields(letter: string | null, fields: Record<NpatCategory, string>): string | null {
   for (const category of NPAT_CATEGORIES) {
     const trimmed = fields[category]
     if (trimmed && letter && !answerStartsWithLetter(trimmed, letter)) {

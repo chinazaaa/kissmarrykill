@@ -17,10 +17,7 @@ export function formatCashMessageForPlayer(event: MonopolyLastCashEvent): string
   return `${event.label} Balance now ${balance}.`
 }
 
-export function formatCashMessageForOthers(
-  event: MonopolyLastCashEvent,
-  playerName: string
-): string {
+export function formatCashMessageForOthers(event: MonopolyLastCashEvent, playerName: string): string {
   const amount = formatMonopolyMoney(Math.abs(event.change))
   if (event.bankrupt) {
     return `${playerName} went bankrupt — ${event.label}.`

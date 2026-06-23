@@ -97,9 +97,21 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   useEffect(() => {
     const channel = supabase
       .channel(`whot-host-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whot_sessions', filter: `game_id=eq.${gameCode}` }, () => void load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whot_player_hands', filter: `game_id=eq.${gameCode}` }, () => void load())
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whot_sessions', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whot_player_hands', filter: `game_id=eq.${gameCode}` },
+        () => void load()
+      )
       .subscribe()
     return () => {
       supabase.removeChannel(channel)
@@ -218,11 +230,7 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const showPlayTab = hostPlays && game?.status !== 'waiting' && game?.status !== 'finished'
   const isHostTurn = turnPlayerId === hostPlayerId
 
-  const { secondsLeft, hasTimer, urgent } = useWhotTurnTimer(
-    gameCode,
-    session,
-    game?.status === 'active'
-  )
+  const { secondsLeft, hasTimer, urgent } = useWhotTurnTimer(gameCode, session, game?.status === 'active')
 
   const myHand = useMemo(() => {
     const row = hands.find((h) => h.player_id === hostPlayerId)
@@ -270,138 +278,135 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
   return (
     <HostPageShell gameCode={gameCode} {...layout}>
-        <HostGameHeader game={game} />
+      <HostGameHeader game={game} />
 
-        {game.status === 'waiting' && (
-          <div className="glass-card-strong p-5 space-y-3">
-            <p className="label-caps">Host mode</p>
-            <div className="grid grid-cols-2 gap-3">
+      {game.status === 'waiting' && (
+        <div className="glass-card-strong p-5 space-y-3">
+          <p className="label-caps">Host mode</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => changeHostMode('spectator')}
+              className={[
+                'rounded-2xl border-2 px-4 py-4 text-left',
+                hostMode === 'spectator'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block text-base">Host only</span>
+              <span className="text-faint text-xs">Spectate from Manage</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeHostMode('player')}
+              className={[
+                'rounded-2xl border-2 px-4 py-4 text-left',
+                hostMode === 'player'
+                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                  : 'border-[var(--border-strong)] text-muted',
+              ].join(' ')}
+            >
+              <span className="font-bold block text-base">Host + play</span>
+              <span className="text-faint text-xs">Play tab + Manage tab</span>
+            </button>
+          </div>
+          {hostMode === 'player' && !hostPlayerId && (
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                value={hostJoinName}
+                onChange={(e) => setHostJoinName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
+                placeholder="Your name"
+                className="input-field flex-1"
+                maxLength={40}
+              />
               <button
                 type="button"
-                onClick={() => changeHostMode('spectator')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'spectator'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
+                onClick={() => void hostJoinGame()}
+                disabled={!hostJoinName.trim() || hostJoining}
+                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
               >
-                <span className="font-bold block text-base">Host only</span>
-                <span className="text-faint text-xs">Spectate from Manage</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => changeHostMode('player')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'player'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
-              >
-                <span className="font-bold block text-base">Host + play</span>
-                <span className="text-faint text-xs">Play tab + Manage tab</span>
+                {hostJoining ? 'Joining…' : 'Join'}
               </button>
             </div>
-            {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field flex-1"
-                  maxLength={40}
-                />
-                <button
-                  type="button"
-                  onClick={() => void hostJoinGame()}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
+      )}
 
-        {showPlayTab && (
-          <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
-            <button
-              type="button"
-              onClick={() => setTab('play')}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-            >
-              Play
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('manage')}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-            >
-              Manage
-            </button>
-          </div>
-        )}
+      {showPlayTab && (
+        <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
+          <button
+            type="button"
+            onClick={() => setTab('play')}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
+          >
+            Play
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('manage')}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
+          >
+            Manage
+          </button>
+        </div>
+      )}
 
-        {tab === 'play' && session && hostPlayerId && (
-          <div className="space-y-3">
-            <WhotGameTimerBar gameCode={gameCode} game={game} />
-            <WhotTable
-              session={session}
-              players={players}
-              myPlayerId={hostPlayerId}
-              handCounts={handCounts}
-              {...tableTimerProps}
+      {tab === 'play' && session && hostPlayerId && (
+        <div className="space-y-3">
+          <WhotGameTimerBar gameCode={gameCode} game={game} />
+          <WhotTable
+            session={session}
+            players={players}
+            myPlayerId={hostPlayerId}
+            handCounts={handCounts}
+            {...tableTimerProps}
+          />
+          {isHostTurn && session.phase === 'choose_whot' && (
+            <WhotChoosePanel
+              acting={hostActing}
+              allowNumberCalls={whotRules.numberCallsEnabled}
+              onChooseShape={(shape: WhotShape) => void postHostAction('/api/whot/choose', { shape })}
+              onChooseNumber={(number) => void postHostAction('/api/whot/choose', { number })}
             />
-            {isHostTurn && session.phase === 'choose_whot' && (
-              <WhotChoosePanel
+          )}
+          {session.phase === 'playing' && (
+            <>
+              <WhotHand
+                cards={myHand}
+                session={session}
                 acting={hostActing}
-                allowNumberCalls={whotRules.numberCallsEnabled}
-                onChooseShape={(shape: WhotShape) => void postHostAction('/api/whot/choose', { shape })}
-                onChooseNumber={(number) => void postHostAction('/api/whot/choose', { number })}
+                rules={whotRules}
+                onPlay={(cardId) => void postHostAction('/api/whot/play', { cardId })}
               />
-            )}
-            {session.phase === 'playing' && (
-              <>
-                <WhotHand
-                  cards={myHand}
-                  session={session}
-                  acting={hostActing}
-                  rules={whotRules}
-                  onPlay={(cardId) => void postHostAction('/api/whot/play', { cardId })}
-                />
-                {isHostTurn && !(drawDepleted && hostCanPlay) && (
-                  <WhotPrimaryButton
-                    onClick={() => void postHostAction('/api/whot/draw')}
-                    loading={hostActing}
-                  >
-                    {drawDepleted
-                      ? 'Pass turn'
-                      : pickPenalty.type === 'pick2'
-                        ? `Draw ${pickPenalty.count} (Pick 2)`
-                        : pickPenalty.type === 'pick3'
-                          ? `Draw ${pickPenalty.count} (Pick 3)`
-                          : 'Draw 1 card'}
-                  </WhotPrimaryButton>
-                )}
-              </>
-            )}
-          </div>
-        )}
+              {isHostTurn && !(drawDepleted && hostCanPlay) && (
+                <WhotPrimaryButton onClick={() => void postHostAction('/api/whot/draw')} loading={hostActing}>
+                  {drawDepleted
+                    ? 'Pass turn'
+                    : pickPenalty.type === 'pick2'
+                      ? `Draw ${pickPenalty.count} (Pick 2)`
+                      : pickPenalty.type === 'pick3'
+                        ? `Draw ${pickPenalty.count} (Pick 3)`
+                        : 'Draw 1 card'}
+                </WhotPrimaryButton>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
-        {(tab === 'manage' || !showPlayTab) && (
-          <>
-            <p className="text-center">
-              <GameRulesLink gameType="whot" variant="subtle" />
-            </p>
+      {(tab === 'manage' || !showPlayTab) && (
+        <>
+          <p className="text-center">
+            <GameRulesLink gameType="whot" variant="subtle" />
+          </p>
 
-            {session && (
-              <>
-                <WhotGameTimerBar gameCode={gameCode} game={game} />
-                <WhotTable
+          {session && (
+            <>
+              <WhotGameTimerBar gameCode={gameCode} game={game} />
+              <WhotTable
                 session={session}
                 players={players}
                 myPlayerId={hostPlayerId}
@@ -409,49 +414,49 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
                 {...tableTimerProps}
                 isMyTurn={false}
               />
-              </>
-            )}
+            </>
+          )}
 
-            {(game.status === 'waiting' || game.status === 'active') && (
-              <HostLobbyPlayersSection
-                players={players}
-                removingPlayerId={removingPlayerId}
-                onRemovePlayer={removePlayer}
-                highlightPlayerId={hostPlayerId}
+          {(game.status === 'waiting' || game.status === 'active') && (
+            <HostLobbyPlayersSection
+              players={players}
+              removingPlayerId={removingPlayerId}
+              onRemovePlayer={removePlayer}
+              highlightPlayerId={hostPlayerId}
+            />
+          )}
+
+          {game.status === 'waiting' && (
+            <>
+              <HostBoardGameLobbyPanel
+                gameCode={gameCode}
+                hostToken={hostToken}
+                game={game}
+                boardGameType="whot"
+                playerCount={players.length}
+                onGameUpdate={setGame}
               />
-            )}
+              <HostLobbyWaitingFooter
+                gameCode={gameCode}
+                hostToken={hostToken}
+                onStart={() => void startGame()}
+                onEnded={load}
+                canStart={canStart}
+                starting={starting}
+                startDisabledHint={
+                  canStart
+                    ? null
+                    : `Need at least ${WHOT_MIN_PLAYERS} players to start (${players.length}/${WHOT_MIN_PLAYERS})`
+                }
+                className="space-y-3"
+              />
+            </>
+          )}
 
-            {game.status === 'waiting' && (
-              <>
-                <HostBoardGameLobbyPanel
-                  gameCode={gameCode}
-                  hostToken={hostToken}
-                  game={game}
-                  boardGameType="whot"
-                  playerCount={players.length}
-                  onGameUpdate={setGame}
-                />
-                <HostLobbyWaitingFooter
-                  gameCode={gameCode}
-                  hostToken={hostToken}
-                  onStart={() => void startGame()}
-                  onEnded={load}
-                  canStart={canStart}
-                  starting={starting}
-                  startDisabledHint={
-                    canStart
-                      ? null
-                      : `Need at least ${WHOT_MIN_PLAYERS} players to start (${players.length}/${WHOT_MIN_PLAYERS})`
-                  }
-                  className="space-y-3"
-                />
-              </>
-            )}
-
-            {game.status === 'active' && (
-              <>
-                <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-                <HostEndGameButton
+          {game.status === 'active' && (
+            <>
+              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+              <HostEndGameButton
                 gameCode={gameCode}
                 hostToken={hostToken}
                 onEnded={load}
@@ -460,31 +465,31 @@ export function WhotHostView({ gameCode, hostToken }: { gameCode: string; hostTo
                 confirmMessage="The current game will end and players will see the results screen."
                 className="btn-secondary w-full py-3"
               />
-              </>
-            )}
+            </>
+          )}
 
-            {game.status === 'finished' && (
-              <WhotFinalResultsShareBlock
-                game={game}
-                players={players}
-                hands={hands}
-                session={session}
-                winnerName={winner?.name}
-                highlightPlayerId={hostPlayerId}
-                playAgainButton={
-                  <button
-                    type="button"
-                    onClick={() => void playAgain()}
-                    disabled={playingAgain}
-                    className="btn-primary w-full py-3"
-                  >
-                    {playingAgain ? 'Resetting…' : 'Play again'}
-                  </button>
-                }
-              />
-            )}
-          </>
-        )}
+          {game.status === 'finished' && (
+            <WhotFinalResultsShareBlock
+              game={game}
+              players={players}
+              hands={hands}
+              session={session}
+              winnerName={winner?.name}
+              highlightPlayerId={hostPlayerId}
+              playAgainButton={
+                <button
+                  type="button"
+                  onClick={() => void playAgain()}
+                  disabled={playingAgain}
+                  className="btn-primary w-full py-3"
+                >
+                  {playingAgain ? 'Resetting…' : 'Play again'}
+                </button>
+              }
+            />
+          )}
+        </>
+      )}
     </HostPageShell>
   )
 }

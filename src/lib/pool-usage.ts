@@ -72,10 +72,7 @@ export function mergeUsageRecords(
   return mapToPoolUsageSection(merged)
 }
 
-export function extractRoundUsage(
-  rounds: RoundForUsage[],
-  participants: ParticipantRow[]
-): PoolUsageState {
+export function extractRoundUsage(rounds: RoundForUsage[], participants: ParticipantRow[]): PoolUsageState {
   const byId = new Map(participants.map((p) => [p.id, p]))
   const wyr = new Map<string, number>()
   const mlt = new Map<string, number>()

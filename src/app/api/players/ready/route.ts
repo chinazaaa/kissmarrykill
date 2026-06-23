@@ -19,11 +19,7 @@ export async function POST(req: NextRequest) {
   const { gameId, playerId } = parsed.data
   const gameCode = gameId.toUpperCase()
 
-  const { data: game } = await supabase
-    .from('games')
-    .select('id, status')
-    .eq('id', gameCode)
-    .maybeSingle()
+  const { data: game } = await supabase.from('games').select('id, status').eq('id', gameCode).maybeSingle()
 
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.status !== 'waiting') {

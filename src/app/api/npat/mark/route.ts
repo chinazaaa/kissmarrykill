@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isICallOnGame, parseGameType } from '@/lib/game-types'
-import { parseNpatMetadata, reviewTargetForMarker, answerStartsWithLetter, normalizeAnswer, duplicateKeysByCategory, isSingleLetterAnswer } from '@/lib/npat'
+import {
+  parseNpatMetadata,
+  reviewTargetForMarker,
+  answerStartsWithLetter,
+  normalizeAnswer,
+  duplicateKeysByCategory,
+  isSingleLetterAnswer,
+} from '@/lib/npat'
 import { npatMarkSchema } from '@/lib/validation'
 import type { NpatCategory } from '@/types'
 
@@ -63,7 +70,12 @@ export async function POST(req: NextRequest) {
     return requested
   }
 
-  const { data: player } = await supabase.from('players').select('id').eq('id', playerId).eq('game_id', code).maybeSingle()
+  const { data: player } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', playerId)
+    .eq('game_id', code)
+    .maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
   const now = new Date().toISOString()

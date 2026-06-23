@@ -65,10 +65,8 @@ export function GameShareMenu({ gameCode, hostToken, resumeToken, className = ''
   const origin = shareOrigin()
   const inviteUrl = playerGameUrl(gameCode, origin)
   const hostUrl = hostToken ? hostGameUrl(gameCode, hostToken, origin) : null
-  const hostPlayerLink =
-    hostToken && resumeToken ? hostPlayerUrl(gameCode, hostToken, resumeToken, origin) : null
-  const playerContinueLink =
-    resumeToken && !hostToken ? playerResumeUrl(gameCode, resumeToken, origin) : null
+  const hostPlayerLink = hostToken && resumeToken ? hostPlayerUrl(gameCode, hostToken, resumeToken, origin) : null
+  const playerContinueLink = resumeToken && !hostToken ? playerResumeUrl(gameCode, resumeToken, origin) : null
 
   const openQr = (config: QrConfig) => {
     setMenuOpen(false)

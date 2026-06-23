@@ -11,9 +11,9 @@ function HomeSeoContent() {
         <div className="space-y-3">
           <h2 className="text-lg font-bold text-body">What is Fate Round?</h2>
           <p>
-            Fate Round is a free online party game platform where friend groups vote, laugh, and reveal together —
-            no sign-up, no download, and no app store required. Create a room in seconds, share a short code or link,
-            and everyone joins from their phone or laptop in real time.
+            Fate Round is a free online party game platform where friend groups vote, laugh, and reveal together — no
+            sign-up, no download, and no app store required. Create a room in seconds, share a short code or link, and
+            everyone joins from their phone or laptop in real time.
           </p>
         </div>
 
@@ -29,10 +29,10 @@ function HomeSeoContent() {
         <div className="space-y-3">
           <h2 className="text-lg font-bold text-body">How does it work?</h2>
           <p>
-            Pick a game mode, create a room, and share the code with your group. Players join with a display name,
-            vote or play each round, and the host reveals results live. Games like Smash Marry Kill, Red Flag Green
-            Flag, Most Likely To, and Would You Rather are free forever — browse all modes or jump straight into a
-            room from the homepage.
+            Pick a game mode, create a room, and share the code with your group. Players join with a display name, vote
+            or play each round, and the host reveals results live. Games like Smash Marry Kill, Red Flag Green Flag,
+            Most Likely To, and Would You Rather are free forever — browse all modes or jump straight into a room from
+            the homepage.
           </p>
         </div>
       </div>

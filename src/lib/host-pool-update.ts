@@ -1,18 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { stripHtml } from '@/lib/validation'
-import {
-  parseGameType,
-  isBinaryChoiceGame,
-  isMostLikelyTo,
-  isNeverHaveIEver,
-  isThisOrThat,
-} from '@/lib/game-types'
+import { parseGameType, isBinaryChoiceGame, isMostLikelyTo, isNeverHaveIEver, isThisOrThat } from '@/lib/game-types'
 import { usesHostParticipantList } from '@/lib/participant-mode'
-import {
-  normalizeGender,
-  participantsNeedGenderForGame,
-  type ParticipantInput,
-} from '@/lib/participants'
+import { normalizeGender, participantsNeedGenderForGame, type ParticipantInput } from '@/lib/participants'
 import {
   parseStoredMltQuestions,
   parseStoredWyrQuestions,
@@ -199,8 +189,7 @@ export function applyTriviaSettingsUpdate(
     if (input.custom_questions === undefined) {
       gameUpdate.custom_questions = null
     }
-    const category =
-      input.trivia_category ?? triviaCategoryFromGame({ trivia_category: game.trivia_category })
+    const category = input.trivia_category ?? triviaCategoryFromGame({ trivia_category: game.trivia_category })
     poolUsage = {
       ...poolUsage,
       trivia: pruneQuestionUsage(poolUsage.trivia, platformTriviaPool(category), triviaQuestionKey),

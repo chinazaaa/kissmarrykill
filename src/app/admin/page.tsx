@@ -48,9 +48,7 @@ export default function AdminDashboardPage() {
   if (!stats) return null
 
   const averagePlayTimeLabel =
-    stats.totals.averagePlayTimeSeconds != null
-      ? formatPlayDuration(stats.totals.averagePlayTimeSeconds)
-      : '—'
+    stats.totals.averagePlayTimeSeconds != null ? formatPlayDuration(stats.totals.averagePlayTimeSeconds) : '—'
 
   const statCards = [
     { label: 'Total games', value: stats.totals.games },
@@ -84,9 +82,7 @@ export default function AdminDashboardPage() {
             <p className="text-3xl font-black mt-2">
               {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
             </p>
-            {'detail' in card && card.detail ? (
-              <p className="text-muted text-xs mt-1">{card.detail}</p>
-            ) : null}
+            {'detail' in card && card.detail ? <p className="text-muted text-xs mt-1">{card.detail}</p> : null}
           </div>
         ))}
       </div>

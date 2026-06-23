@@ -74,7 +74,7 @@ export async function playLobbyOpenSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -105,7 +105,7 @@ export async function playRoundStartSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -136,7 +136,7 @@ export async function playVoteSubmittedSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -162,7 +162,7 @@ export async function playRoundEndSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -193,7 +193,7 @@ export async function playGameFinishedSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -229,7 +229,7 @@ export async function playConfessionSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -269,7 +269,7 @@ export async function playDiceRollSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -318,7 +318,7 @@ export async function playTickTockSound(secondsRemaining: number) {
   if (secondsRemaining <= 0 || secondsRemaining > TIMER_TICK_THRESHOLD) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
     const isTock = secondsRemaining % 2 === 0
@@ -344,7 +344,7 @@ export async function playCorrectAnswerSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -374,7 +374,7 @@ export async function playWrongAnswerSound() {
   if (typeof window === 'undefined' || isSoundMuted()) return
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const now = ctx.currentTime
 
@@ -415,7 +415,7 @@ export async function playTimerMusic(secondsRemaining: number, totalSeconds: num
   }
 
   try {
-    if (!await ensureContext() || !audioCtx) return
+    if (!(await ensureContext()) || !audioCtx) return
     const ctx = audioCtx
     const progress = 1 - secondsRemaining / totalSeconds
 

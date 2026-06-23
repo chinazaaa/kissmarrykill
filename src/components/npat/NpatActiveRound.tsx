@@ -133,9 +133,7 @@ export function NpatActiveRound({
   const myMark = roundMarks.find((m) => m.marker_player_id === myPlayerId) ?? null
   const isCaller = callerId === myPlayerId
   const reviewTargetId = reviewTargetForMarker(metadata, myPlayerId)
-  const reviewTargetAnswer = reviewTargetId
-    ? roundAnswers.find((a) => a.player_id === reviewTargetId) ?? null
-    : null
+  const reviewTargetAnswer = reviewTargetId ? (roundAnswers.find((a) => a.player_id === reviewTargetId) ?? null) : null
   const leaderboard = useMemo(() => tallyNpatScores(answers, players), [answers, players])
   const callerName = playerDisplayName(callerId, players)
 
@@ -249,15 +247,7 @@ export function NpatActiveRound({
       cancelled = true
       window.clearInterval(interval)
     }
-  }, [
-    skipGameSync,
-    game.status,
-    gameCode,
-    currentRound?.id,
-    currentRound?.status,
-    currentRound?.ended_at,
-    onReload,
-  ])
+  }, [skipGameSync, game.status, gameCode, currentRound?.id, currentRound?.status, currentRound?.ended_at, onReload])
 
   const screen: PlayScreen = useMemo(() => {
     if (game.status === 'finished') return 'finished'
@@ -296,10 +286,7 @@ export function NpatActiveRound({
     }
   }
 
-  const submitAnswersWithForm = async (
-    values: Record<NpatCategory, string>,
-    opts?: { silent?: boolean }
-  ) => {
+  const submitAnswersWithForm = async (values: Record<NpatCategory, string>, opts?: { silent?: boolean }) => {
     if (!currentRound || readOnly || submittingRef.current) return
     submittingRef.current = true
     setSubmitting(true)
@@ -405,7 +392,13 @@ export function NpatActiveRound({
       const res = await fetch('/api/npat/dispute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, roundId: currentRound.id, targetPlayerId, category }),
+        body: JSON.stringify({
+          gameId: gameCode,
+          playerId: myPlayerId,
+          roundId: currentRound.id,
+          targetPlayerId,
+          category,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to submit dispute')
@@ -531,9 +524,7 @@ export function NpatActiveRound({
         )}
 
         {screen === 'letter_wait' && (
-          <div className="glass-card p-6 text-center text-muted">
-            {callerName} is choosing the letter…
-          </div>
+          <div className="glass-card p-6 text-center text-muted">{callerName} is choosing the letter…</div>
         )}
 
         {(screen === 'writing' || screen === 'writing_locked') && (
@@ -597,7 +588,8 @@ export function NpatActiveRound({
               </p>
               {!isCaller && (
                 <p className="text-sm text-muted">
-                  Tap <span className="font-semibold text-orange-500">⚑ Dispute</span> on any answer below you think is invalid — {callerName} will see your flags.
+                  Tap <span className="font-semibold text-orange-500">⚑ Dispute</span> on any answer below you think is
+                  invalid — {callerName} will see your flags.
                 </p>
               )}
             </div>
@@ -618,91 +610,98 @@ export function NpatActiveRound({
           </div>
         )}
 
-        {(screen === 'marking' || screen === 'marking_locked') && reviewTargetAnswer && (() => {
-          const markingDupes = duplicateKeysByCategory(roundAnswers)
-          return (
-          <div className="glass-card p-4 space-y-3">
-            <p className="font-bold">
-              Mark {playerDisplayName(reviewTargetId, players)}&apos;s answers
-            </p>
-            <p className="text-faint text-xs">
-              Tap valid or invalid for each category. Wrong category (e.g. &quot;cat&quot; under Name) should be invalid.
-              Duplicates are handled automatically.
-            </p>
-            {NPAT_CATEGORIES.map((category) => {
-              const text = reviewTargetAnswer[category]
-              const normalized = text.trim().toLowerCase()
-              const isDuplicate = normalized ? markingDupes[category].has(normalized) : false
-              const forcedInvalid = isForcedInvalidAnswer(text, metadata.letter, isDuplicate)
-              const displayValid = forcedInvalid ? false : validFlags[category]
-              return (
-              <div key={category} className="rounded-lg border border-[var(--border-strong)] p-3 space-y-2">
-                <p className="text-sm font-semibold">{NPAT_CATEGORY_LABELS[category]}</p>
-                <p className="font-medium">{text || '—'}</p>
-                {!forcedInvalid && text.trim() && (() => {
-                  const inCatalogue = isInCatalogue(category, text)
-                  return inCatalogue ? (
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">📚 Known answer</p>
-                  ) : (
-                    <p className="text-[11px] text-orange-500 dark:text-orange-300 font-semibold">⚠️ Not in catalogue — use your judgement</p>
+        {(screen === 'marking' || screen === 'marking_locked') &&
+          reviewTargetAnswer &&
+          (() => {
+            const markingDupes = duplicateKeysByCategory(roundAnswers)
+            return (
+              <div className="glass-card p-4 space-y-3">
+                <p className="font-bold">Mark {playerDisplayName(reviewTargetId, players)}&apos;s answers</p>
+                <p className="text-faint text-xs">
+                  Tap valid or invalid for each category. Wrong category (e.g. &quot;cat&quot; under Name) should be
+                  invalid. Duplicates are handled automatically.
+                </p>
+                {NPAT_CATEGORIES.map((category) => {
+                  const text = reviewTargetAnswer[category]
+                  const normalized = text.trim().toLowerCase()
+                  const isDuplicate = normalized ? markingDupes[category].has(normalized) : false
+                  const forcedInvalid = isForcedInvalidAnswer(text, metadata.letter, isDuplicate)
+                  const displayValid = forcedInvalid ? false : validFlags[category]
+                  return (
+                    <div key={category} className="rounded-lg border border-[var(--border-strong)] p-3 space-y-2">
+                      <p className="text-sm font-semibold">{NPAT_CATEGORY_LABELS[category]}</p>
+                      <p className="font-medium">{text || '—'}</p>
+                      {!forcedInvalid &&
+                        text.trim() &&
+                        (() => {
+                          const inCatalogue = isInCatalogue(category, text)
+                          return inCatalogue ? (
+                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                              📚 Known answer
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-orange-500 dark:text-orange-300 font-semibold">
+                              ⚠️ Not in catalogue — use your judgement
+                            </p>
+                          )
+                        })()}
+                      {forcedInvalid && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
+                          {!text.trim()
+                            ? 'Empty — invalid automatically'
+                            : isDuplicate
+                              ? 'Duplicate — 5 pts each'
+                              : isSingleLetterAnswer(text)
+                                ? 'Single letter — invalid automatically'
+                                : `Must start with ${metadata.letter}`}
+                        </p>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={screen !== 'marking' || readOnly || submitting || forcedInvalid}
+                          onClick={() => setValidFlags((prev) => ({ ...prev, [category]: true }))}
+                          className={[
+                            'rounded-lg py-2 text-sm font-bold border',
+                            displayValid
+                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
+                              : 'border-[var(--border-strong)]',
+                          ].join(' ')}
+                        >
+                          Valid (+10)
+                        </button>
+                        <button
+                          type="button"
+                          disabled={screen !== 'marking' || readOnly || submitting || forcedInvalid}
+                          onClick={() => setValidFlags((prev) => ({ ...prev, [category]: false }))}
+                          className={[
+                            'rounded-lg py-2 text-sm font-bold border',
+                            !displayValid
+                              ? 'border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-200'
+                              : 'border-[var(--border-strong)]',
+                          ].join(' ')}
+                        >
+                          Invalid (0)
+                        </button>
+                      </div>
+                    </div>
                   )
-                })()}
-                {forcedInvalid && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-300 font-semibold">
-                    {!text.trim()
-                      ? 'Empty — invalid automatically'
-                      : isDuplicate
-                        ? 'Duplicate — 5 pts each'
-                        : isSingleLetterAnswer(text)
-                          ? 'Single letter — invalid automatically'
-                          : `Must start with ${metadata.letter}`}
-                  </p>
+                })}
+                {screen === 'marking' ? (
+                  <button
+                    type="button"
+                    disabled={readOnly || submitting}
+                    onClick={() => void submitMarks()}
+                    className="btn-primary w-full"
+                  >
+                    {submitting ? 'Saving marks…' : 'Lock in marks'}
+                  </button>
+                ) : (
+                  <p className="text-center text-sm text-muted">Marks saved — everyone can see them below.</p>
                 )}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={screen !== 'marking' || readOnly || submitting || forcedInvalid}
-                    onClick={() => setValidFlags((prev) => ({ ...prev, [category]: true }))}
-                    className={[
-                      'rounded-lg py-2 text-sm font-bold border',
-                      displayValid
-                        ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
-                        : 'border-[var(--border-strong)]',
-                    ].join(' ')}
-                  >
-                    Valid (+10)
-                  </button>
-                  <button
-                    type="button"
-                    disabled={screen !== 'marking' || readOnly || submitting || forcedInvalid}
-                    onClick={() => setValidFlags((prev) => ({ ...prev, [category]: false }))}
-                    className={[
-                      'rounded-lg py-2 text-sm font-bold border',
-                      !displayValid
-                        ? 'border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-200'
-                        : 'border-[var(--border-strong)]',
-                    ].join(' ')}
-                  >
-                    Invalid (0)
-                  </button>
-                </div>
               </div>
-            )})}
-            {screen === 'marking' ? (
-              <button
-                type="button"
-                disabled={readOnly || submitting}
-                onClick={() => void submitMarks()}
-                className="btn-primary w-full"
-              >
-                {submitting ? 'Saving marks…' : 'Lock in marks'}
-              </button>
-            ) : (
-              <p className="text-center text-sm text-muted">Marks saved — everyone can see them below.</p>
-            )}
-          </div>
-          )
-        })()}
+            )
+          })()}
 
         {showTransparency && <div className="lg:hidden">{scoreboard}</div>}
 

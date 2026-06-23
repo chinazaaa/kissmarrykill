@@ -5,13 +5,7 @@ import { useTimerTickSound } from '@/hooks/useTimerTickSound'
 import { GameTypeBadge } from '@/components/GameTypeBadge'
 import { gameTypeConfig } from '@/lib/game-types'
 
-export function MonopolyPageHeader({
-  title,
-  children,
-}: {
-  title?: string
-  children?: ReactNode
-}) {
+export function MonopolyPageHeader({ title, children }: { title?: string; children?: ReactNode }) {
   const cfg = gameTypeConfig('monopoly')
 
   return (
@@ -24,9 +18,7 @@ export function MonopolyPageHeader({
           <GameTypeBadge gameType="monopoly" />
         </div>
         {title ? (
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight gradient-title drop-shadow-sm px-2">
-            {title}
-          </h1>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight gradient-title drop-shadow-sm px-2">{title}</h1>
         ) : null}
       </div>
       {children}
@@ -45,10 +37,7 @@ export function MonopolyShell({
 }) {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]">
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{ background: 'var(--bg-gradient)' }}
-      />
+      <div className="pointer-events-none fixed inset-0" style={{ background: 'var(--bg-gradient)' }} />
 
       <div className="relative z-10 mx-auto max-w-2xl px-4 pb-28 pt-5 sm:pt-8 space-y-5">
         {(title || subtitle) && (
@@ -79,13 +68,7 @@ export function MonopolyGlassCard({
         : 'border-[var(--border-strong)] shadow-[var(--card-shadow)]'
 
   return (
-    <div
-      className={[
-        'rounded-2xl border bg-[var(--card)] backdrop-blur-xl',
-        glowClass,
-        className,
-      ].join(' ')}
-    >
+    <div className={['rounded-2xl border bg-[var(--card)] backdrop-blur-xl', glowClass, className].join(' ')}>
       {children}
     </div>
   )
@@ -208,7 +191,12 @@ export function MonopolyCashBadge({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[9px] font-semibold uppercase tracking-widest text-muted leading-none">{displayLabel}</p>
-            <p className={['text-sm sm:text-base font-black tabular-nums truncate leading-tight mt-0.5', amountClass].join(' ')}>
+            <p
+              className={[
+                'text-sm sm:text-base font-black tabular-nums truncate leading-tight mt-0.5',
+                amountClass,
+              ].join(' ')}
+            >
               £{amount.toLocaleString('en-GB')}
             </p>
           </div>
@@ -227,9 +215,7 @@ export function MonopolyCashBadge({
       ].join(' ')}
     >
       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">{displayLabel}</p>
-      <p className={['text-2xl font-black tabular-nums', amountClass].join(' ')}>
-        £{amount.toLocaleString('en-GB')}
-      </p>
+      <p className={['text-2xl font-black tabular-nums', amountClass].join(' ')}>£{amount.toLocaleString('en-GB')}</p>
     </div>
   )
 }
@@ -272,9 +258,7 @@ export function MonopolyJailCardInventory({
         🎫 {count} Get Out of Jail card{count === 1 ? '' : 's'}
       </p>
       {!compact && (
-        <p className="text-[10px] text-muted mt-0.5 leading-snug">
-          Use from the jail panel, or include in a trade.
-        </p>
+        <p className="text-[10px] text-muted mt-0.5 leading-snug">Use from the jail panel, or include in a trade.</p>
       )}
     </div>
   )
@@ -367,9 +351,7 @@ export function MonopolyTurnStrip({
           <p className="text-lg font-black text-[var(--foreground)] truncate">
             {acting ? (isMyAuctionTurn && !isMyTurn ? 'Your bid' : 'Your turn') : turnName}
           </p>
-          {acting && myName && !isMyAuctionTurn && (
-            <p className="text-xs text-muted truncate">{myName}</p>
-          )}
+          {acting && myName && !isMyAuctionTurn && <p className="text-xs text-muted truncate">{myName}</p>}
         </div>
         <div className="text-right shrink-0 flex flex-col items-end gap-1">
           {timerBadge}
@@ -422,9 +404,7 @@ export function MonopolyModal({
         {colorBar && <div className={['h-2 w-full', colorBar].join(' ')} />}
         <div className="p-5 sm:p-6 space-y-4">
           <div className="text-center">
-            {subtitle && (
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">{subtitle}</p>
-            )}
+            {subtitle && <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">{subtitle}</p>}
             <h2 className="text-xl sm:text-2xl font-black text-[var(--foreground)] mt-1">{title}</h2>
             {timerSecondsLeft != null && timerSecondsLeft > 0 && (
               <p

@@ -92,8 +92,7 @@ export function TriviaHostManagePanel({
     const finished = rounds.filter((r) => r.status === 'finished')
     return finished.length ? finished[finished.length - 1] : null
   }, [lastFinishedRoundProp, rounds])
-  const betweenRounds =
-    betweenRoundsProp ?? (game.status === 'active' && !activeRound && lastFinishedRound != null)
+  const betweenRounds = betweenRoundsProp ?? (game.status === 'active' && !activeRound && lastFinishedRound != null)
   const metadata = activeRound ? parseTriviaMetadata(activeRound.trivia_metadata) : null
   const roundAnswers = useMemo(
     () => roundAnswersProp ?? (currentRound ? answers.filter((a) => a.round_id === currentRound.id) : []),
@@ -133,12 +132,7 @@ export function TriviaHostManagePanel({
   return (
     <div className="space-y-5">
       {game.status === 'active' && onGameUpdate && (
-        <HostLateJoinSettingsCard
-          gameCode={gameCode}
-          hostToken={hostToken}
-          game={game}
-          onGameUpdate={onGameUpdate}
-        />
+        <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={onGameUpdate} />
       )}
 
       {canManagePlayers && (
@@ -207,7 +201,12 @@ export function TriviaHostManagePanel({
             >
               {advancing ? 'Ending…' : 'End round early'}
             </button>
-            <HostEndGameButton gameCode={gameCode} hostToken={hostToken} onEnded={onReload} className="btn-secondary w-full py-3 text-base" />
+            <HostEndGameButton
+              gameCode={gameCode}
+              hostToken={hostToken}
+              onEnded={onReload}
+              className="btn-secondary w-full py-3 text-base"
+            />
           </div>
         </LiveLeaderboardLayout>
       )}
@@ -238,7 +237,11 @@ export function TriviaHostManagePanel({
                             key={a.id}
                             className="flex justify-between gap-3 rounded-xl border border-[var(--border-strong)] px-4 py-3"
                           >
-                            <span className={a.is_correct ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-muted'}>
+                            <span
+                              className={
+                                a.is_correct ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-muted'
+                              }
+                            >
                               {player?.name ?? 'Player'} — {a.is_correct ? '✓' : '✗'}
                             </span>
                             <span className="text-muted shrink-0 font-semibold">+{a.points} pts</span>
@@ -258,7 +261,12 @@ export function TriviaHostManagePanel({
                   ? `Showing final leaderboard — ending in ${revealCountdown}s…`
                   : `Next question in ${revealCountdown}s…`}
             </p>
-            <HostEndGameButton gameCode={gameCode} hostToken={hostToken} onEnded={onReload} className="btn-secondary w-full py-3 text-base" />
+            <HostEndGameButton
+              gameCode={gameCode}
+              hostToken={hostToken}
+              onEnded={onReload}
+              className="btn-secondary w-full py-3 text-base"
+            />
           </div>
         </LiveLeaderboardLayout>
       )}
@@ -276,7 +284,12 @@ export function TriviaHostManagePanel({
             triviaAnswers={answers}
             showCreateNewGame
             playAgainButton={
-              <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-primary w-full py-3.5 text-base">
+              <button
+                type="button"
+                onClick={onPlayAgain}
+                disabled={playingAgain}
+                className="btn-primary w-full py-3.5 text-base"
+              >
                 {playingAgain ? 'Resetting…' : 'Play again'}
               </button>
             }

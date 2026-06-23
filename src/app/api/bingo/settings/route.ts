@@ -17,11 +17,7 @@ export async function POST(req: NextRequest) {
   const { gameId, hostToken, bingo_call_mode, bingo_call_interval_seconds, max_players } = parsed.data
   const code = gameId.toUpperCase()
 
-  if (
-    bingo_call_mode === undefined &&
-    bingo_call_interval_seconds === undefined &&
-    max_players === undefined
-  ) {
+  if (bingo_call_mode === undefined && bingo_call_interval_seconds === undefined && max_players === undefined) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
@@ -32,7 +28,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not a bingo game' }, { status: 400 })
   }
   if (game.status !== 'waiting') {
-    return NextResponse.json({ error: 'Settings can only be changed in the lobby before the game starts' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Settings can only be changed in the lobby before the game starts' },
+      { status: 400 }
+    )
   }
 
   const gameUpdate: Record<string, unknown> = {}
@@ -45,12 +44,7 @@ export async function POST(req: NextRequest) {
     gameUpdate.max_players = clampLobbyMaxPlayers('bingo', max_players, lobbyLimits)
   }
 
-  const { data: updated, error } = await supabase
-    .from('games')
-    .update(gameUpdate)
-    .eq('id', code)
-    .select()
-    .single()
+  const { data: updated, error } = await supabase.from('games').update(gameUpdate).eq('id', code).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, game: updated })

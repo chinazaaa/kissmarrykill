@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const typedBoard = board as CodewordsBoard
   if (typedBoard.winner) return NextResponse.json({ error: 'Game is over' }, { status: 400 })
   if (typedBoard.current_turn !== role.team) {
-    return NextResponse.json({ error: 'Not your team\'s turn' }, { status: 400 })
+    return NextResponse.json({ error: "Not your team's turn" }, { status: 400 })
   }
   if (effectiveTurnPhase(typedBoard) !== 'clue') {
     return NextResponse.json({ error: 'Wait for your operatives to finish guessing' }, { status: 400 })
@@ -54,9 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   const clue = normalizeWord(clueWord)
-  const visibleWords = typedBoard.words.filter(
-    (_, index) => !typedBoard.revealed_indices.includes(index)
-  )
+  const visibleWords = typedBoard.words.filter((_, index) => !typedBoard.revealed_indices.includes(index))
   if (visibleWords.some((word) => normalizeWord(word) === clue)) {
     return NextResponse.json({ error: 'Clue cannot match a word still on the board' }, { status: 400 })
   }

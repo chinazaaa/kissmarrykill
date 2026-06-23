@@ -99,7 +99,10 @@ export function buildTtlRoundRows(opts: {
   })
 }
 
-export function lobbyReadyForTwoTruths(playerIds: string[], statements: TtlStatement[]): { ok: boolean; error?: string } {
+export function lobbyReadyForTwoTruths(
+  playerIds: string[],
+  statements: TtlStatement[]
+): { ok: boolean; error?: string } {
   if (playerIds.length < TTL_MIN_PLAYERS) {
     return { ok: false, error: `Need at least ${TTL_MIN_PLAYERS} players to start` }
   }
@@ -129,11 +132,7 @@ export interface TtlPlayerScore {
   fooledCount: number
 }
 
-export function tallyTtlScores(
-  guesses: TtlGuess[],
-  players: Player[],
-  rounds: Round[]
-): TtlPlayerScore[] {
+export function tallyTtlScores(guesses: TtlGuess[], players: Player[], rounds: Round[]): TtlPlayerScore[] {
   const activePlayers = players.filter((p) => p.spectator !== true)
   const totals = new Map<string, { score: number; correct: number; fooled: number }>()
   for (const p of activePlayers) {

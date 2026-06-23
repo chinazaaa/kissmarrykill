@@ -1,12 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import {
-  playRoundStartSound,
-  playRoundEndSound,
-  playVoteSubmittedSound,
-  playGameFinishedSound,
-} from '@/lib/sounds'
+import { playRoundStartSound, playRoundEndSound, playVoteSubmittedSound, playGameFinishedSound } from '@/lib/sounds'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, YahtzeeSession } from '@/types'
 import { currentPlayerId } from '@/lib/yahtzee'
@@ -72,7 +67,7 @@ export function useYahtzeeNotifications({
     ) {
       const nowMyTurn = myPlayerId && currentPlayerId(session) === myPlayerId
       if (nowMyTurn) {
-        info("Your turn! 🎲 Roll the dice")
+        info('Your turn! 🎲 Roll the dice')
         playRoundStartSound()
       } else {
         playRoundEndSound()

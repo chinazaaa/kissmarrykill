@@ -8,10 +8,7 @@ import type { GameStatus } from '@/types'
  * Plays a chime when the game returns to the lobby (play again / host reset).
  * Calls onOpen so the UI can switch to the join screen automatically.
  */
-export function useLobbyOpenNotification(
-  status: GameStatus | undefined | null,
-  onOpen?: () => void
-): void {
+export function useLobbyOpenNotification(status: GameStatus | undefined | null, onOpen?: () => void): void {
   const prevRef = useRef<GameStatus | null | undefined>(undefined)
   const onOpenRef = useRef(onOpen)
   onOpenRef.current = onOpen

@@ -91,12 +91,7 @@ export function CodewordsSessionSummary({
             </aside>
           </div>
 
-          <CodewordsEndGameStats
-            guesses={guesses}
-            roles={roles}
-            players={players}
-            winner={board?.winner ?? null}
-          />
+          <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} winner={board?.winner ?? null} />
         </>
       )}
 

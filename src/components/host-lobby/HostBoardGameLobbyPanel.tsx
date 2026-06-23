@@ -9,11 +9,7 @@ import {
 } from '@/lib/board-game-lobby-settings'
 import { formatMonopolyGameDuration, MONOPOLY_GAME_DURATION_OPTIONS } from '@/lib/monopoly'
 import { formatWhotGameDuration, WHOT_GAME_DURATION_OPTIONS } from '@/lib/whot'
-import {
-  lobbyMaxPlayersFromGame,
-  playerCountOptions,
-  type GamePlayerLimitsMap,
-} from '@/lib/game-limits'
+import { lobbyMaxPlayersFromGame, playerCountOptions, type GamePlayerLimitsMap } from '@/lib/game-limits'
 import { gameSupportsViewerSetting, lateJoinPolicyFromGame } from '@/lib/viewers'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
 import { HostLobbySettingsSection } from '@/components/host-lobby/HostLobbySettingsSection'
@@ -169,8 +165,7 @@ export function HostBoardGameLobbyPanel({
   )
 
   const durationFormatter = boardGameType === 'whot' ? formatWhotGameDuration : formatMonopolyGameDuration
-  const durationOptionsSource =
-    boardGameType === 'whot' ? WHOT_GAME_DURATION_OPTIONS : MONOPOLY_GAME_DURATION_OPTIONS
+  const durationOptionsSource = boardGameType === 'whot' ? WHOT_GAME_DURATION_OPTIONS : MONOPOLY_GAME_DURATION_OPTIONS
 
   const durationOptions = useMemo(
     () =>
@@ -188,15 +183,12 @@ export function HostBoardGameLobbyPanel({
     }
     if (gameSupportsViewerSetting(game.game_type)) {
       const policy = lateJoinPolicyFromGame(game)
-      parts.push(
-        policy === 'lobby_only' ? 'Lobby only' : policy === 'viewers_only' ? 'Viewers OK' : 'Late play OK'
-      )
+      parts.push(policy === 'lobby_only' ? 'Lobby only' : policy === 'viewers_only' ? 'Viewers OK' : 'Late play OK')
     }
     return parts.join(' · ')
   }, [boardGameType, durationFormatter, game, gameDuration, maxPlayers, turnTimer])
 
-  const statusLabel =
-    saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : null
+  const statusLabel = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : null
 
   return (
     <HostLobbySettingsSection status={statusLabel} summary={summary}>

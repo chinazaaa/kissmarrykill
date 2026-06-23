@@ -102,11 +102,15 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, () =>
         load()
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trivia_answers', filter: `game_id=eq.${gameCode}` }, () =>
-        load()
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'trivia_answers', filter: `game_id=eq.${gameCode}` },
+        () => load()
       )
       .subscribe()
 
@@ -133,11 +137,7 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
     game,
     screen === 'late_join_choice'
   )
-  const { context: viewerPromoteContext } = useLateJoinContext(
-    gameCode,
-    game,
-    isViewer && screen === 'playing'
-  )
+  const { context: viewerPromoteContext } = useLateJoinContext(gameCode, game, isViewer && screen === 'playing')
 
   const joinGame = async (joinAsViewer?: boolean) => {
     const name = joinName.trim()
@@ -238,12 +238,7 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
             ) : null
           }
         />
-        <NameJoinForm
-          value={joinName}
-          onChange={setJoinName}
-          onSubmit={() => void joinGame()}
-          joining={joining}
-        />
+        <NameJoinForm value={joinName} onChange={setJoinName} onSubmit={() => void joinGame()} joining={joining} />
       </GameJoinLobbyShell>
     )
   }
@@ -288,7 +283,11 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
                 className="btn-primary w-full py-3 text-base font-bold"
                 onClick={async () => {
                   if (!myPlayerId) return
-                  await fetch('/api/players/ready', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }) })
+                  await fetch('/api/players/ready', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+                  })
                   await load()
                 }}
               >

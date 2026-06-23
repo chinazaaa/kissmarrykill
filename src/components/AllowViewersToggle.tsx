@@ -46,11 +46,7 @@ export function LateJoinPolicyToggle({
 
   return (
     <div className={disabled ? 'opacity-50 pointer-events-none' : undefined}>
-      <SegmentedControl
-        value={effectiveValue}
-        onChange={(v) => onChange(v as LateJoinPolicy)}
-        options={options}
-      />
+      <SegmentedControl value={effectiveValue} onChange={(v) => onChange(v as LateJoinPolicy)} options={options} />
     </div>
   )
 }

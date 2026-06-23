@@ -12,10 +12,7 @@ export interface ProductUpdate {
   updated_at: string
 }
 
-export const UPDATE_CATEGORY_META: Record<
-  UpdateCategory,
-  { label: string; emoji: string; description: string }
-> = {
+export const UPDATE_CATEGORY_META: Record<UpdateCategory, { label: string; emoji: string; description: string }> = {
   new: {
     label: 'New',
     emoji: '✨',

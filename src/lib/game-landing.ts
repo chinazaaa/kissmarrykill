@@ -293,12 +293,17 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
   never_have_i_ever: landing('never_have_i_ever', {
     seoTitle: 'Never Have I Ever Online — Free Party Game',
     seoDescription:
-      'Play Never Have I Ever online with friends for free. Anonymous I have / I haven\'t votes, instant reveals, built-in or custom prompts.',
-    keywords: ['never have i ever online', 'never have i ever game', 'nhie party game', 'never have i ever with friends'],
+      "Play Never Have I Ever online with friends for free. Anonymous I have / I haven't votes, instant reveals, built-in or custom prompts.",
+    keywords: [
+      'never have i ever online',
+      'never have i ever game',
+      'nhie party game',
+      'never have i ever with friends',
+    ],
     heroSubtitle:
-      'Classic confession game, online. Each prompt asks who\'s done it — anonymous votes reveal how spicy the group really is.',
+      "Classic confession game, online. Each prompt asks who's done it — anonymous votes reveal how spicy the group really is.",
     bodyParagraph:
-      'Never Have I Ever on Fate Round reads each prompt aloud on every screen while players tap I have or I haven\'t anonymously. Use built-in prompts or upload your own — perfect for parties, pregames, or friend groups who want honest confessions without the awkward eye contact. Unlike playing in a circle where people hesitate, anonymous votes get real answers.',
+      "Never Have I Ever on Fate Round reads each prompt aloud on every screen while players tap I have or I haven't anonymously. Use built-in prompts or upload your own — perfect for parties, pregames, or friend groups who want honest confessions without the awkward eye contact. Unlike playing in a circle where people hesitate, anonymous votes get real answers.",
     highlights: ['Anonymous voting', 'Platform or custom prompts', '2+ players, zero setup'],
     features: [
       {
@@ -317,7 +322,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     steps: [
       { title: 'Start a lobby', description: 'Choose round count and timer — no participant list needed.' },
       { title: 'Friends join', description: 'Share the link. Everyone enters a display name and waits.' },
-      { title: 'Confess & reveal', description: 'Tap I have or I haven\'t each round and see the group split.' },
+      { title: 'Confess & reveal', description: "Tap I have or I haven't each round and see the group split." },
     ],
     perfectFor: ['Pregames', 'Friend reunions', 'Icebreakers', 'Spicy confession nights'],
     extraFaqs: [
@@ -335,7 +340,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       'Play Pick a Number online with friends. Choose a number from a hidden list — answer the question it reveals. Built-in or custom questions, free, no sign-up.',
     keywords: ['pick a number game', 'pick a number questions', 'party question game', 'number question game'],
     heroSubtitle:
-      'Pick a number between 1 and X — you won\'t know the question until after you choose. Then answer whatever gets revealed.',
+      "Pick a number between 1 and X — you won't know the question until after you choose. Then answer whatever gets revealed.",
     bodyParagraph:
       'Pick a Number is a classic party game: one person chooses a number from a hidden list, and that number maps to a question they have to answer out loud. Fate Round runs it online — upload your own numbered questions or use our built-in pool, rotate who picks each round, and reveal the question on every screen the moment they lock in their number.',
     highlights: ['Hidden numbered list', 'Platform or custom questions', '2+ players, zero setup'],
@@ -356,7 +361,10 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     steps: [
       { title: 'Start a lobby', description: 'Choose your question source and max picking rounds.' },
       { title: 'Friends join', description: 'Share the link. Everyone enters a display name.' },
-      { title: 'Pick & answer', description: 'Each round one player picks a number — then answers the revealed question.' },
+      {
+        title: 'Pick & answer',
+        description: 'Each round one player picks a number — then answers the revealed question.',
+      },
     ],
     perfectFor: ['Pregames', 'Road trips', 'Icebreakers', 'Spicy question nights'],
     extraFaqs: [
@@ -749,7 +757,10 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Create & join', description: 'Pick a category, set rounds and timer — players join with their name.' },
-      { title: 'Answer fast', description: 'Each round shows a multiple-choice question — tap your answer before time runs out.' },
+      {
+        title: 'Answer fast',
+        description: 'Each round shows a multiple-choice question — tap your answer before time runs out.',
+      },
       { title: 'Climb the board', description: 'Points stack across rounds — fastest fingers win the leaderboard.' },
     ],
     perfectFor: ['Pub quizzes', 'Team meetings', 'Classroom reviews', 'Game nights'],
@@ -819,16 +830,23 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       },
       {
         title: 'Turn-based play',
-        description: 'Roll dice, buy or pass on properties, pay rent, draw cards, and manage Jail — core Monopoly rules on your phones.',
+        description:
+          'Roll dice, buy or pass on properties, pay rent, draw cards, and manage Jail — core Monopoly rules on your phones.',
         emoji: '🎲',
       },
       SHARED_FEATURES.realtime,
       SHARED_FEATURES.noSignup,
     ],
     steps: [
-      { title: 'Create a room', description: 'Set the player cap and share the link — everyone joins with their name.' },
+      {
+        title: 'Create a room',
+        description: 'Set the player cap and share the link — everyone joins with their name.',
+      },
       { title: 'Start the game', description: 'Everyone begins on GO with £1,500. The host starts when ready.' },
-      { title: 'Last one wins', description: 'Buy properties, collect rent, and bankrupt opponents until one player remains.' },
+      {
+        title: 'Last one wins',
+        description: 'Buy properties, collect rent, and bankrupt opponents until one player remains.',
+      },
     ],
     perfectFor: ['Game nights', 'Family gatherings', 'Friend groups', 'Remote hangouts'],
     extraFaqs: [
@@ -842,7 +860,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
 
   yahtzee: landing('yahtzee', {
     seoTitle: 'Yahtzee Online — Roll, Hold, and Score',
-    seoDescription: 'Play Yahtzee online with friends. Roll dice, hold what you want, and fill your scorecard with the best combos.',
+    seoDescription:
+      'Play Yahtzee online with friends. Roll dice, hold what you want, and fill your scorecard with the best combos.',
     keywords: ['yahtzee game online', 'dice game multiplayer', 'roll hold scorecard', 'play yahtzee friends'],
     heroSubtitle: 'The classic dice puzzle — score straights, full houses, and Yahtzees together.',
     bodyParagraph:
@@ -940,7 +959,11 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Join a room', description: 'Enter your name and pick your color when the host starts.' },
-      { title: 'Roll the dice', description: 'Roll two dice — use each die separately. A 6 brings a piece out; doubles play both dice then roll again.' },
+      {
+        title: 'Roll the dice',
+        description:
+          'Roll two dice — use each die separately. A 6 brings a piece out; doubles play both dice then roll again.',
+      },
       { title: 'Race home', description: 'Get all four pieces into the center home triangle to win.' },
     ],
     perfectFor: ['Family game night', 'Friend groups', 'Board game fans'],
@@ -977,7 +1000,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       },
       {
         title: 'Live scoring',
-        description: 'See who\'s claimed each block in real time — race or be strategic about which block to target.',
+        description: "See who's claimed each block in real time — race or be strategic about which block to target.",
         emoji: '⚡',
       },
       {
@@ -988,18 +1011,26 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Join the room', description: 'Enter your name and wait for the host to start the puzzle.' },
-      { title: 'Solve the puzzle', description: 'Fill in numbers on the shared 9×9 grid and lock in a 3×3 block when you\'re confident.' },
-      { title: 'Race to the top', description: '1st correct on a block = 10 pts, 2nd = 6, 3rd = 3, rest = 1. Wrong answer = −3 pts, locked out.' },
+      {
+        title: 'Solve the puzzle',
+        description: "Fill in numbers on the shared 9×9 grid and lock in a 3×3 block when you're confident.",
+      },
+      {
+        title: 'Race to the top',
+        description: '1st correct on a block = 10 pts, 2nd = 6, 3rd = 3, rest = 1. Wrong answer = −3 pts, locked out.',
+      },
     ],
     perfectFor: ['Puzzle fans', 'Game nights', 'Brain teasers', 'Classrooms'],
     extraFaqs: [
       {
         question: 'What happens if I submit a wrong answer?',
-        answer: 'You lose 3 points and are permanently locked out of that block for the rest of the game. You can still attempt all other blocks.',
+        answer:
+          'You lose 3 points and are permanently locked out of that block for the rest of the game. You can still attempt all other blocks.',
       },
       {
         question: 'Can multiple players solve the same block?',
-        answer: 'Yes — the first correct submission gets 10 pts, second gets 6, third gets 3, and everyone after that gets 1.',
+        answer:
+          'Yes — the first correct submission gets 10 pts, second gets 6, third gets 3, and everyone after that gets 1.',
       },
     ],
   }),
@@ -1027,8 +1058,15 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Join the room', description: 'Enter your name and wait for the host to start.' },
-      { title: 'Play letters', description: 'While time lasts, callers pick unused A–Z letters and everyone fills all five categories.' },
-      { title: 'Score together', description: 'Mark the next player\'s sheet — duplicates score 5, unique answers score 10, everyone sees marks live.' },
+      {
+        title: 'Play letters',
+        description: 'While time lasts, callers pick unused A–Z letters and everyone fills all five categories.',
+      },
+      {
+        title: 'Score together',
+        description:
+          "Mark the next player's sheet — duplicates score 5, unique answers score 10, everyone sees marks live.",
+      },
     ],
     perfectFor: ['Classrooms', 'Road trips', 'Family game night', 'Friend groups'],
     extraFaqs: [

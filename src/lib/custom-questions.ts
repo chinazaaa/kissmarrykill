@@ -5,7 +5,16 @@ import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
 import { NHIE_QUESTION_COUNT } from '@/lib/never-have-i-ever-questions'
 import { PAN_QUESTION_COUNT } from '@/lib/pick-a-number-questions'
 import { TRIVIA_QUESTION_COUNT, triviaQuestionKey } from '@/lib/trivia-questions'
-import { isWouldYouRather, isMostLikelyTo, isNeverHaveIEver, isPickANumber, isThisOrThat, isBinaryChoiceGame, isTriviaGame, parseGameType } from '@/lib/game-types'
+import {
+  isWouldYouRather,
+  isMostLikelyTo,
+  isNeverHaveIEver,
+  isPickANumber,
+  isThisOrThat,
+  isBinaryChoiceGame,
+  isTriviaGame,
+  parseGameType,
+} from '@/lib/game-types'
 import { pickLeastUsed } from '@/lib/question-picker'
 
 function splitCsvRow(line: string): string[] {
@@ -120,9 +129,7 @@ type TriviaHeaderMap = {
 function buildTriviaHeaderMap(cols: string[]): TriviaHeaderMap | null {
   const normalized = cols.map(normalizeHeaderKey)
   const question =
-    normalized.indexOf('question') >= 0
-      ? normalized.indexOf('question')
-      : normalized.indexOf('questions')
+    normalized.indexOf('question') >= 0 ? normalized.indexOf('question') : normalized.indexOf('questions')
 
   if (question < 0) return null
 
@@ -140,8 +147,7 @@ function buildTriviaHeaderMap(cols: string[]): TriviaHeaderMap | null {
   }
 
   const correct =
-    ['correct', 'correct_answer', 'answer', 'correct_index'].map((k) => normalized.indexOf(k)).find((i) => i >= 0) ??
-    -1
+    ['correct', 'correct_answer', 'answer', 'correct_index'].map((k) => normalized.indexOf(k)).find((i) => i >= 0) ?? -1
 
   if (choices.length < 2 || correct < 0) return null
 
@@ -190,20 +196,29 @@ function parseTriviaQuestionFromCols(
   const question = cols[0]?.trim()
   if (!question) return null
 
-  let choices: string[] = []
-  let correctRaw = ''
+  let choices: string[]
+  let correctRaw: string
   let category: TriviaCategory = defaultCategory
 
   if (cols.length >= 6) {
-    choices = cols.slice(1, 5).map((c) => c.trim()).filter(Boolean)
+    choices = cols
+      .slice(1, 5)
+      .map((c) => c.trim())
+      .filter(Boolean)
     correctRaw = cols[5] ?? ''
     const cat = cols[6]?.trim().toLowerCase()
     if (cat === 'tech' || cat === 'general') category = cat
   } else if (cols.length === 5) {
-    choices = cols.slice(1, 4).map((c) => c.trim()).filter(Boolean)
+    choices = cols
+      .slice(1, 4)
+      .map((c) => c.trim())
+      .filter(Boolean)
     correctRaw = cols[4] ?? ''
   } else if (cols.length === 4) {
-    choices = cols.slice(1, 3).map((c) => c.trim()).filter(Boolean)
+    choices = cols
+      .slice(1, 3)
+      .map((c) => c.trim())
+      .filter(Boolean)
     correctRaw = cols[3] ?? ''
   } else {
     choices = [cols[1], cols[2]].map((c) => c.trim()).filter(Boolean)
@@ -320,7 +335,10 @@ export function parseStoredTriviaQuestions(raw: unknown): TriviaQuestion[] {
     const correctIndex = Number((item as { correctIndex?: unknown }).correctIndex)
     const categoryRaw = (item as { category?: unknown }).category
     const choices = Array.isArray(choicesRaw)
-      ? choicesRaw.filter((c): c is string => typeof c === 'string').map((c) => c.trim()).filter(Boolean)
+      ? choicesRaw
+          .filter((c): c is string => typeof c === 'string')
+          .map((c) => c.trim())
+          .filter(Boolean)
       : []
     const category: TriviaCategory = categoryRaw === 'tech' ? 'tech' : 'general'
     if (!question || choices.length < 2 || Number.isNaN(correctIndex)) continue
@@ -332,7 +350,13 @@ export function parseStoredTriviaQuestions(raw: unknown): TriviaQuestion[] {
 
 export function parseQuestionSource(raw: unknown, gameType?: GameType | string): QuestionSource {
   if (isThisOrThat(gameType)) return 'custom'
-  if (isTriviaGame(gameType) || isWouldYouRather(gameType) || isMostLikelyTo(gameType) || isNeverHaveIEver(gameType) || isPickANumber(gameType)) {
+  if (
+    isTriviaGame(gameType) ||
+    isWouldYouRather(gameType) ||
+    isMostLikelyTo(gameType) ||
+    isNeverHaveIEver(gameType) ||
+    isPickANumber(gameType)
+  ) {
     if (raw === 'custom') return 'custom'
     if (raw === 'library') return 'library'
     return 'platform'
@@ -342,7 +366,13 @@ export function parseQuestionSource(raw: unknown, gameType?: GameType | string):
 
 export function isLobbyQuestionGame(gameType?: GameType | string): boolean {
   const type = parseGameType(gameType)
-  return isWouldYouRather(type) || isNeverHaveIEver(type) || isPickANumber(type) || isThisOrThat(type) || isMostLikelyTo(type)
+  return (
+    isWouldYouRather(type) ||
+    isNeverHaveIEver(type) ||
+    isPickANumber(type) ||
+    isThisOrThat(type) ||
+    isMostLikelyTo(type)
+  )
 }
 
 export function parseWyrQuestionRows(text: string): WyrQuestion[] {

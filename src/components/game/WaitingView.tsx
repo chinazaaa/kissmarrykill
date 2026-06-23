@@ -107,7 +107,11 @@ export function WaitingView({
       ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at))
       : []
   const canSubmitPoolQuote = !!me?.participant_id
-  const isPeopleMode = !isWouldYouRather(game?.game_type) && !isNeverHaveIEver(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst
+  const isPeopleMode =
+    !isWouldYouRather(game?.game_type) &&
+    !isNeverHaveIEver(game?.game_type) &&
+    !isMostLikelyTo(game?.game_type) &&
+    !isWst
   const myParticipant = me?.participant_id ? participants.find((p) => p.id === me.participant_id) : null
   const canUploadPhoto = isPeopleMode && !!me?.participant_id
 
@@ -516,20 +520,17 @@ export function WaitingView({
       )}
 
       {/* Participant gallery for games with photo cards */}
-      {participants.length > 0 && !isWyrGame && !isNeverHaveIEver(game?.game_type) && !isMostLikelyTo(game?.game_type) && !isWst && (
-        <ParticipantGallery participants={participants} />
-      )}
+      {participants.length > 0 &&
+        !isWyrGame &&
+        !isNeverHaveIEver(game?.game_type) &&
+        !isMostLikelyTo(game?.game_type) &&
+        !isWst && <ParticipantGallery participants={participants} />}
 
       <div className="flex flex-col gap-2">
         <button type="button" onClick={openEditJoin} className="btn-secondary text-sm py-2.5">
           {isNameOnlyJoin || !joinNeedsGender ? 'Change name' : 'Change name or gender'}
         </button>
-        <button
-          type="button"
-          onClick={leaveGame}
-          disabled={joining}
-          className={leaveButtonClassName}
-        >
+        <button type="button" onClick={leaveGame} disabled={joining} className={leaveButtonClassName}>
           Leave game
         </button>
       </div>

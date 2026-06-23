@@ -28,8 +28,7 @@ export function CodewordsWaitingPanel({
   variant?: 'lobby' | 'starting'
   manageHint?: string
 }) {
-  const heading =
-    variant === 'starting' ? 'Starting game…' : 'Waiting for the host to start'
+  const heading = variant === 'starting' ? 'Starting game…' : 'Waiting for the host to start'
 
   return (
     <div className="glass-card p-6 w-full max-w-lg space-y-5">
@@ -75,9 +74,7 @@ export function CodewordsWaitingPanel({
         </p>
       )}
 
-      {variant === 'starting' && (
-        <p className="text-center text-faint text-xs">Dealing the board…</p>
-      )}
+      {variant === 'starting' && <p className="text-center text-faint text-xs">Dealing the board…</p>}
 
       {manageHint && <p className="text-center text-faint text-xs leading-relaxed">{manageHint}</p>}
     </div>

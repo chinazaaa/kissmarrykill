@@ -40,8 +40,7 @@ export function MonopolyFinalResultsShareBlock({
     [board, players, states]
   )
 
-  const displayWinner =
-    winnerName ?? standings.find((row) => row.rank === 1)?.name ?? null
+  const displayWinner = winnerName ?? standings.find((row) => row.rank === 1)?.name ?? null
 
   return (
     <div className="space-y-4">
@@ -67,9 +66,7 @@ export function MonopolyFinalResultsShareBlock({
                     isWinner
                       ? 'border-[color-mix(in_srgb,var(--marry)_45%,var(--border-strong))] bg-[color-mix(in_srgb,var(--marry)_10%,var(--surface-inset-bg))]'
                       : 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
-                    isMe && !isWinner
-                      ? 'ring-1 ring-[color-mix(in_srgb,var(--primary)_25%,transparent)]'
-                      : '',
+                    isMe && !isWinner ? 'ring-1 ring-[color-mix(in_srgb,var(--primary)_25%,transparent)]' : '',
                   ].join(' ')}
                 >
                   <div className="min-w-0">

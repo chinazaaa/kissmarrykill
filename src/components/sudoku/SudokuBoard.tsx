@@ -5,20 +5,19 @@ import { cellBlockIndex } from '@/lib/sudoku'
 export type BlockStatus = 'idle' | 'claimed' | 'pending'
 
 interface SudokuBoardProps {
-  puzzle: number[][]         // 9×9, 0 = editable cell
-  solution?: number[][]      // host-only: show solution
-  userGrid?: number[][]      // player's current entries (9×9, 0 = empty)
+  puzzle: number[][] // 9×9, 0 = editable cell
+  solution?: number[][] // host-only: show solution
+  userGrid?: number[][] // player's current entries (9×9, 0 = empty)
   onCellChange?: (row: number, col: number, value: number) => void
   onSubmitBlock?: (blockIndex: number) => void
-  blockStatuses?: BlockStatus[]  // per-block status for the local player (length 9)
-  blockScorers?: string[][]      // per-block list of scorer names
-  submitting?: number | null     // blockIndex currently being submitted
+  blockStatuses?: BlockStatus[] // per-block status for the local player (length 9)
+  blockScorers?: string[][] // per-block list of scorer names
+  submitting?: number | null // blockIndex currently being submitted
   readOnly?: boolean
 }
 
 const BLOCK_BORDER = 'border-[var(--foreground)]/50'
-const INPUT_BASE =
-  'w-full h-full flex items-center justify-center text-lg font-bold select-none cursor-default'
+const INPUT_BASE = 'w-full h-full flex items-center justify-center text-lg font-bold select-none cursor-default'
 
 export function SudokuBoard({
   puzzle,
@@ -45,24 +44,21 @@ export function SudokuBoard({
             const blockIdx = cellBlockIndex(row, col)
             const status = blockStatuses[blockIdx]
             const given = puzzle[row]?.[col] !== 0
-            const displayValue = given
-              ? puzzle[row][col]
-              : solution
-                ? solution[row][col]
-                : userGrid?.[row]?.[col] || ''
+            const displayValue = given ? puzzle[row][col] : solution ? solution[row][col] : userGrid?.[row]?.[col] || ''
 
-            const borderRight = (col + 1) % 3 === 0 && col < 8 ? `border-r-2 ${BLOCK_BORDER}` : 'border-r border-[var(--border)]/40'
-            const borderBottom = (row + 1) % 3 === 0 && row < 8 ? `border-b-2 ${BLOCK_BORDER}` : 'border-b border-[var(--border)]/40'
+            const borderRight =
+              (col + 1) % 3 === 0 && col < 8 ? `border-r-2 ${BLOCK_BORDER}` : 'border-r border-[var(--border)]/40'
+            const borderBottom =
+              (row + 1) % 3 === 0 && row < 8 ? `border-b-2 ${BLOCK_BORDER}` : 'border-b border-[var(--border)]/40'
 
-            const blockBg =
-              status === 'claimed'
-                ? 'bg-emerald-500/10'
-                : status === 'pending'
-                  ? 'bg-amber-500/10'
-                  : ''
+            const blockBg = status === 'claimed' ? 'bg-emerald-500/10' : status === 'pending' ? 'bg-amber-500/10' : ''
 
             return (
-              <div key={`${row}-${col}`} className={`relative ${borderRight} ${borderBottom} ${blockBg}`} style={{ aspectRatio: '1' }}>
+              <div
+                key={`${row}-${col}`}
+                className={`relative ${borderRight} ${borderBottom} ${blockBg}`}
+                style={{ aspectRatio: '1' }}
+              >
                 {given || solution || readOnly ? (
                   <div
                     className={`${INPUT_BASE} ${given ? 'text-[var(--foreground)]' : 'text-violet-500 dark:text-violet-400'}`}
@@ -105,8 +101,13 @@ export function SudokuBoard({
 
             if (status === 'claimed') {
               return (
-                <div key={blockIdx} className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2 py-1.5 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">✓ Solved</p>
+                <div
+                  key={blockIdx}
+                  className="rounded-lg bg-emerald-500/15 border border-emerald-500/40 px-2 py-1.5 text-center"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    ✓ Solved
+                  </p>
                   {scorers.length > 0 && (
                     <p className="text-[9px] text-emerald-700 dark:text-emerald-300 truncate">{scorers[0]}</p>
                   )}
@@ -135,10 +136,17 @@ export function SudokuBoard({
           {Array.from({ length: 9 }, (_, blockIdx) => {
             const scorers = blockScorers[blockIdx] ?? []
             return (
-              <div key={blockIdx} className="rounded-lg border border-[var(--border)] px-2 py-1.5 text-center min-h-[2.5rem]">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--muted)]">Block {blockIdx + 1}</p>
+              <div
+                key={blockIdx}
+                className="rounded-lg border border-[var(--border)] px-2 py-1.5 text-center min-h-[2.5rem]"
+              >
+                <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                  Block {blockIdx + 1}
+                </p>
                 {scorers.length > 0 ? (
-                  <p className="text-[9px] text-emerald-600 dark:text-emerald-400 truncate">{scorers[0]} +{scorers.length - 1 > 0 ? ` ${scorers.length - 1} more` : ''}</p>
+                  <p className="text-[9px] text-emerald-600 dark:text-emerald-400 truncate">
+                    {scorers[0]} +{scorers.length - 1 > 0 ? ` ${scorers.length - 1} more` : ''}
+                  </p>
                 ) : (
                   <p className="text-[9px] text-[var(--faint)]">—</p>
                 )}

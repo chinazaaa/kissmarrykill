@@ -44,7 +44,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Teams can only be changed while the lobby or game is open' }, { status: 400 })
   }
 
-  const { data: player } = await supabase.from('players').select('id').eq('id', playerId).eq('game_id', code).maybeSingle()
+  const { data: player } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', playerId)
+    .eq('game_id', code)
+    .maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
   if (role === 'spymaster') {
@@ -99,7 +104,12 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Players can only be moved while the lobby or game is open' }, { status: 400 })
   }
 
-  const { data: player } = await supabase.from('players').select('id').eq('id', playerId).eq('game_id', code).maybeSingle()
+  const { data: player } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', playerId)
+    .eq('game_id', code)
+    .maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
   const { data: role } = await supabase

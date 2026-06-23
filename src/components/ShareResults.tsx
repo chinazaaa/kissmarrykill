@@ -96,9 +96,7 @@ function buildShareText({
       ludoWinnerName ? `🏆 ${ludoWinnerName} wins!` : ludoEndedEarly ? '🏁 Game ended early' : '🏁 Game over',
       '',
       'Final standings:',
-      ...ludoStandings.slice(0, 8).map(
-        (row) => `  ${row.rank}. ${row.name} — ${row.finishedCount}/4 home`
-      ),
+      ...ludoStandings.slice(0, 8).map((row) => `  ${row.rank}. ${row.name} — ${row.finishedCount}/4 home`),
       '',
       `Play at ${appDomain()}`,
     ]
@@ -127,9 +125,9 @@ function buildShareText({
       monopolyWinnerName ? `🏆 ${monopolyWinnerName} wins!` : '🏆 Game over',
       '',
       'Final standings (total assets):',
-      ...monopolyStandings.slice(0, 8).map(
-        (row) => `  ${row.rank}. ${row.name} — ${formatMonopolyMoney(row.netWorth)}`
-      ),
+      ...monopolyStandings
+        .slice(0, 8)
+        .map((row) => `  ${row.rank}. ${row.name} — ${formatMonopolyMoney(row.netWorth)}`),
       '',
       `Play at ${appDomain()}`,
     ]
@@ -137,16 +135,7 @@ function buildShareText({
   }
 
   if (isBingoGame(gameType) && bingoWinnerName) {
-    return [
-      ...gameHeader,
-      '🏆',
-      '',
-      'BINGO!',
-      '',
-      `${bingoWinnerName} wins!`,
-      '',
-      `Play at ${appDomain()}`,
-    ].join('\n')
+    return [...gameHeader, '🏆', '', 'BINGO!', '', `${bingoWinnerName} wins!`, '', `Play at ${appDomain()}`].join('\n')
   }
 
   if (isYahtzeeGame(gameType) && yahtzeeScores && yahtzeeScores.length > 0) {
@@ -424,7 +413,27 @@ export function ShareResults({
       sharingLock.current = false
       setSharing(false)
     }
-  }, [captureRef, game, participants, votes, rounds, players, triviaAnswers, bingoWinnerName, yahtzeeScores, yahtzeeWinnerName, monopolyStandings, monopolyWinnerName, whotStandings, whotWinnerName, ludoStandings, ludoWinnerName, ludoEndedEarly, success, error])
+  }, [
+    captureRef,
+    game,
+    participants,
+    votes,
+    rounds,
+    players,
+    triviaAnswers,
+    bingoWinnerName,
+    yahtzeeScores,
+    yahtzeeWinnerName,
+    monopolyStandings,
+    monopolyWinnerName,
+    whotStandings,
+    whotWinnerName,
+    ludoStandings,
+    ludoWinnerName,
+    ludoEndedEarly,
+    success,
+    error,
+  ])
 
   return (
     <button

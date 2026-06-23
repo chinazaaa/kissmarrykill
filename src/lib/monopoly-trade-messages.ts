@@ -47,11 +47,7 @@ export function normalizePendingTrade(trade: MonopolyPendingTrade): MonopolyPend
   }
 }
 
-export function buildTradeSideItems(
-  cash: number,
-  propertyIndexes: unknown,
-  jailCards = 0
-): TradeSideItem[] {
+export function buildTradeSideItems(cash: number, propertyIndexes: unknown, jailCards = 0): TradeSideItem[] {
   const items: TradeSideItem[] = []
   if (cash > 0) items.push({ kind: 'cash', amount: cash })
   for (const index of normalizeTradePropertyList(propertyIndexes)) {
@@ -85,11 +81,7 @@ function sideItemCount(cash: number, propertyIndexes: unknown, jailCards = 0): n
 
 export function formatIncomingTradeAlert(trade: MonopolyPendingTrade, fromName: string): string {
   const normalized = normalizePendingTrade(trade)
-  const receiveCount = sideItemCount(
-    normalized.offer_cash,
-    normalized.offer_properties,
-    normalized.offer_get_out_cards
-  )
+  const receiveCount = sideItemCount(normalized.offer_cash, normalized.offer_properties, normalized.offer_get_out_cards)
   const payCount = sideItemCount(
     normalized.request_cash,
     normalized.request_properties,
@@ -103,11 +95,7 @@ export function formatIncomingTradeAlert(trade: MonopolyPendingTrade, fromName: 
   )
   const paySummary =
     payCount > 0
-      ? formatTradeSideText(
-          normalized.request_cash,
-          normalized.request_properties,
-          normalized.request_get_out_cards
-        )
+      ? formatTradeSideText(normalized.request_cash, normalized.request_properties, normalized.request_get_out_cards)
       : null
 
   let message = `${fromName} offers ${receiveSummary}`

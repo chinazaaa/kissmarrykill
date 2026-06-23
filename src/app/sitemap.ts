@@ -12,7 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = STATIC_INDEXABLE_ROUTES.map((path) => ({
     url: `${origin}${path === '/' ? '' : path}`,
     lastModified,
-    changeFrequency: path === '/' || path === '/games' || path === '/updates' ? ('weekly' as const) : ('monthly' as const),
+    changeFrequency:
+      path === '/' || path === '/games' || path === '/updates' ? ('weekly' as const) : ('monthly' as const),
     priority: path === '/' ? 1 : path === '/games' ? 0.9 : path === '/updates' ? 0.75 : 0.8,
   }))
 

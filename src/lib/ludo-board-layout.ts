@@ -176,14 +176,7 @@ export function baseColorAt(row: number, col: number): LudoColor | null {
   return null
 }
 
-export type BoardCellKind =
-  | 'void'
-  | 'base'
-  | 'track'
-  | 'start'
-  | 'home'
-  | 'center'
-  | 'safe'
+export type BoardCellKind = 'void' | 'base' | 'track' | 'start' | 'home' | 'center' | 'safe'
 
 export function boardCellKind(row: number, col: number): { kind: BoardCellKind; color?: LudoColor } {
   const key = `${row},${col}`
@@ -269,9 +262,7 @@ export const TRACK_DIRECTION: Record<number, TrackDirection> = Object.fromEntrie
   })
 ) as Record<number, TrackDirection>
 
-const TRACK_POS_BY_COORD = new Map(
-  LUDO_TRACK_COORDS.map((coord, index) => [`${coord[0]},${coord[1]}`, index])
-)
+const TRACK_POS_BY_COORD = new Map(LUDO_TRACK_COORDS.map((coord, index) => [`${coord[0]},${coord[1]}`, index]))
 
 export function trackIndexAt(row: number, col: number): number | null {
   return TRACK_POS_BY_COORD.get(`${row},${col}`) ?? null
@@ -304,15 +295,13 @@ export function pathArrowAt(row: number, col: number): TrackDirection | null {
   return null
 }
 
-export const CORNER_BOUNDS: Record<
-  LudoColor,
-  { rowStart: number; rowEnd: number; colStart: number; colEnd: number }
-> = {
-  red: { rowStart: 0, rowEnd: 5, colStart: 0, colEnd: 5 },
-  green: { rowStart: 0, rowEnd: 5, colStart: 9, colEnd: 14 },
-  yellow: { rowStart: 9, rowEnd: 14, colStart: 9, colEnd: 14 },
-  blue: { rowStart: 9, rowEnd: 14, colStart: 0, colEnd: 5 },
-}
+export const CORNER_BOUNDS: Record<LudoColor, { rowStart: number; rowEnd: number; colStart: number; colEnd: number }> =
+  {
+    red: { rowStart: 0, rowEnd: 5, colStart: 0, colEnd: 5 },
+    green: { rowStart: 0, rowEnd: 5, colStart: 9, colEnd: 14 },
+    yellow: { rowStart: 9, rowEnd: 14, colStart: 9, colEnd: 14 },
+    blue: { rowStart: 9, rowEnd: 14, colStart: 0, colEnd: 5 },
+  }
 
 export function pieceStatusLabel(piece: { zone: string; pos: number }): string {
   if (piece.zone === 'base') return 'At home'

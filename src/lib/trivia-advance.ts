@@ -28,10 +28,7 @@ type SyncOptions = {
 }
 
 async function countPlayers(supabase: SupabaseClient, gameId: string): Promise<number> {
-  const { count } = await supabase
-    .from('players')
-    .select('id', { count: 'exact', head: true })
-    .eq('game_id', gameId)
+  const { count } = await supabase.from('players').select('id', { count: 'exact', head: true }).eq('game_id', gameId)
   return count ?? 0
 }
 
@@ -49,11 +46,7 @@ function timerExpired(game: Game, round: Round): boolean {
   return Date.now() >= new Date(round.started_at).getTime() + timerMs
 }
 
-async function shouldEndActiveRound(
-  supabase: SupabaseClient,
-  game: Game,
-  round: Round
-): Promise<boolean> {
+async function shouldEndActiveRound(supabase: SupabaseClient, game: Game, round: Round): Promise<boolean> {
   if (timerExpired(game, round)) return true
   const [playerCount, answerCount] = await Promise.all([
     countPlayers(supabase, game.id),
@@ -74,23 +67,12 @@ async function endActiveRound(supabase: SupabaseClient, roundId: string): Promis
   return !error && !!data
 }
 
-async function syncGamePointer(
-  supabase: SupabaseClient,
-  gameId: string,
-  roundNumber: number
-): Promise<boolean> {
-  const { error } = await supabase
-    .from('games')
-    .update({ current_round_number: roundNumber })
-    .eq('id', gameId)
+async function syncGamePointer(supabase: SupabaseClient, gameId: string, roundNumber: number): Promise<boolean> {
+  const { error } = await supabase.from('games').update({ current_round_number: roundNumber }).eq('id', gameId)
   return !error
 }
 
-async function advanceAfterReveal(
-  supabase: SupabaseClient,
-  game: Game,
-  force: boolean
-): Promise<TriviaAdvanceResult> {
+async function advanceAfterReveal(supabase: SupabaseClient, game: Game, force: boolean): Promise<TriviaAdvanceResult> {
   const code = game.id
 
   const { data: currentRound } = await supabase

@@ -186,7 +186,9 @@ export function isWstHostQuote(entry: WstQuotePoolEntry): boolean {
 }
 
 export function wstHostPoolEntries(pool: WstQuotePoolEntry[]): WstQuotePoolEntry[] {
-  return pool.filter(isWstHostQuote).sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+  return pool
+    .filter(isWstHostQuote)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
 }
 
 export function wstPoolQuoteCountByPlayer(pool: WstQuotePoolEntry[]): Map<string, number> {

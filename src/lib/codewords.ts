@@ -113,11 +113,7 @@ export function countTeamCells(key: CodewordsCellType[], team: CodewordsTeam): n
   return key.filter((cell) => cell === team).length
 }
 
-export function countRevealedTeamCells(
-  key: CodewordsCellType[],
-  revealed: number[],
-  team: CodewordsTeam
-): number {
+export function countRevealedTeamCells(key: CodewordsCellType[], revealed: number[], team: CodewordsTeam): number {
   return revealed.filter((index) => key[index] === team).length
 }
 
@@ -209,7 +205,10 @@ export function teamsNeedRandomization(playerIds: string[], roles: CodewordsLobb
   return operatives.length < playerIds.length - 2
 }
 
-export function lobbyReadySpymasters(roles: CodewordsLobbyRole[], playerCount: number): { ok: boolean; error?: string } {
+export function lobbyReadySpymasters(
+  roles: CodewordsLobbyRole[],
+  playerCount: number
+): { ok: boolean; error?: string } {
   if (playerCount < CODEWORDS_MIN_PLAYERS) {
     return { ok: false, error: `Need at least ${CODEWORDS_MIN_PLAYERS} players` }
   }
@@ -238,10 +237,7 @@ export function lobbyReadyForGame(
   return lobbyReady(roles)
 }
 
-export function buildRandomizedRoles(
-  playerIds: string[],
-  roles: CodewordsLobbyRole[]
-): CodewordsLobbyRole[] {
+export function buildRandomizedRoles(playerIds: string[], roles: CodewordsLobbyRole[]): CodewordsLobbyRole[] {
   const redSpy = roles.find((r) => r.team === 'red' && r.role === 'spymaster')
   const blueSpy = roles.find((r) => r.team === 'blue' && r.role === 'spymaster')
   if (!redSpy || !blueSpy) {
@@ -272,7 +268,10 @@ export async function persistRandomizedRoles(
   for (const role of nextRoles) {
     const { error } = await supabase
       .from('codewords_player_roles')
-      .upsert({ game_id: gameId, player_id: role.player_id, team: role.team, role: role.role }, { onConflict: 'game_id,player_id' })
+      .upsert(
+        { game_id: gameId, player_id: role.player_id, team: role.team, role: role.role },
+        { onConflict: 'game_id,player_id' }
+      )
     if (error) return { roles: nextRoles, error: error.message }
   }
   const assigned = new Set(nextRoles.map((r) => r.player_id))
@@ -321,9 +320,7 @@ export function mergeCodewordsGuesses(
   const rows = Array.isArray(incoming) ? incoming : [incoming]
   const byId = new Map(prev.map((g) => [g.id, g]))
   for (const guess of rows) byId.set(guess.id, guess)
-  return Array.from(byId.values()).sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  )
+  return Array.from(byId.values()).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 }
 
 export function mergeCodewordsRoles(
@@ -514,19 +511,13 @@ export function setCodewordsHostMode(gameCode: string, mode: CodewordsHostMode) 
   localStorage.setItem(codewordsHostModeKey(gameCode), mode)
 }
 
-export async function clearCodewordsChat(
-  supabase: SupabaseClient,
-  gameId: string
-): Promise<{ error: string | null }> {
+export async function clearCodewordsChat(supabase: SupabaseClient, gameId: string): Promise<{ error: string | null }> {
   const { error } = await supabase.from('codewords_messages').delete().eq('game_id', gameId)
   if (error) return { error: error.message }
   return { error: null }
 }
 
-export async function finishCodewordsGame(
-  supabase: SupabaseClient,
-  gameId: string
-): Promise<{ error: string | null }> {
+export async function finishCodewordsGame(supabase: SupabaseClient, gameId: string): Promise<{ error: string | null }> {
   const { error: gameError } = await markGameFinished(supabase, gameId)
   if (gameError) return { error: gameError.message }
 

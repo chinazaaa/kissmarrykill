@@ -11,14 +11,7 @@ type Props = {
   children: React.ReactNode
 }
 
-export function GameJoinLobbyShell({
-  gameCode,
-  onResumed,
-  showInvite = true,
-  wide = false,
-  header,
-  children,
-}: Props) {
+export function GameJoinLobbyShell({ gameCode, onResumed, showInvite = true, wide = false, header, children }: Props) {
   const mainMax = wide ? 'max-w-2xl' : 'max-w-xl'
 
   return (

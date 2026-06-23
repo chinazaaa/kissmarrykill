@@ -14,10 +14,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   if (!hasServiceRoleKey()) {
-    return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY is required to manage game limits.' },
-      { status: 503 }
-    )
+    return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is required to manage game limits.' }, { status: 503 })
   }
 
   const supabase = getSupabaseAdmin()
@@ -30,10 +27,7 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   if (!hasServiceRoleKey()) {
-    return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY is required to manage game limits.' },
-      { status: 503 }
-    )
+    return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is required to manage game limits.' }, { status: 503 })
   }
 
   const raw = await req.json()
@@ -49,22 +43,17 @@ export async function PATCH(req: NextRequest) {
     const gameType = entry.game_type as LobbyLimitGameType
     const min = GAME_LIMIT_CODE_DEFAULTS[gameType].min
     if (entry.max_players < min) {
-      return NextResponse.json(
-        { error: `${gameType} max players must be at least ${min}` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `${gameType} max players must be at least ${min}` }, { status: 400 })
     }
 
-    const { error } = await supabase
-      .from('game_player_limits')
-      .upsert(
-        {
-          game_type: gameType,
-          max_players: entry.max_players,
-          updated_at: now,
-        },
-        { onConflict: 'game_type' }
-      )
+    const { error } = await supabase.from('game_player_limits').upsert(
+      {
+        game_type: gameType,
+        max_players: entry.max_players,
+        updated_at: now,
+      },
+      { onConflict: 'game_type' }
+    )
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }

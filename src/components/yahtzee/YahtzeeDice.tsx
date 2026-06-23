@@ -53,7 +53,9 @@ function DieFace({ value, held, onClick, interactive, isRolling }: DieFaceProps)
       <div
         className={[
           'yahtzee-die relative h-12 w-12 sm:h-14 sm:w-14 rounded-2xl border-2 select-none',
-          held ? 'yahtzee-die-held border-[var(--marry)]' : 'border-[color-mix(in_srgb,var(--foreground)_12%,transparent)]',
+          held
+            ? 'yahtzee-die-held border-[var(--marry)]'
+            : 'border-[color-mix(in_srgb,var(--foreground)_12%,transparent)]',
           isRolling && !held ? 'animate-dice-roll' : '',
         ].join(' ')}
       >
@@ -161,7 +163,6 @@ export function YahtzeeDiceRow({
       }
     }
     setDisplayDice(dice)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dice]) // intentionally omit `held` — handled via heldRef
 
   return (

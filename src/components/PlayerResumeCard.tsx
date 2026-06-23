@@ -36,7 +36,9 @@ export function PlayerResumeCard({
     <div className={`glass-card p-4 space-y-3 ${className}`}>
       <div className="space-y-1">
         <p className="text-muted text-xs uppercase tracking-wider">Continue on another device</p>
-        <p className="text-faint text-xs">Save this code or link to pick up where you left off on your phone or laptop.</p>
+        <p className="text-faint text-xs">
+          Save this code or link to pick up where you left off on your phone or laptop.
+        </p>
       </div>
       <button
         type="button"

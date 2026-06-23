@@ -51,7 +51,9 @@ export function PaginatedLeaderboard({
             <div className="text-right shrink-0">
               <div className="text-muted">{scoreLabel(row.score)}</div>
               {row.correctCount !== undefined && totalQuestions !== undefined && (
-                <div className="text-xs text-faint tabular-nums">{row.correctCount}/{totalQuestions}</div>
+                <div className="text-xs text-faint tabular-nums">
+                  {row.correctCount}/{totalQuestions}
+                </div>
               )}
             </div>
           </div>

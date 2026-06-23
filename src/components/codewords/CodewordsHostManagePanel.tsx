@@ -169,8 +169,8 @@ export function CodewordsHostManagePanel({
                   <>
                     {randomizeTeams ? (
                       <>
-                        Pick one red and one blue spymaster, then shuffle to fill operatives. Use arrows to move
-                        anyone afterward.
+                        Pick one red and one blue spymaster, then shuffle to fill operatives. Use arrows to move anyone
+                        afterward.
                         {lateJoin ? ' New players can join mid-game.' : ' Lobby locked once the game starts.'}
                       </>
                     ) : (
@@ -183,8 +183,8 @@ export function CodewordsHostManagePanel({
                   </>
                 ) : (
                   <>
-                    Team lineup for this round. Use arrows to move players, Waiting to unassign, or Remove to kick
-                    them from the game.
+                    Team lineup for this round. Use arrows to move players, Waiting to unassign, or Remove to kick them
+                    from the game.
                   </>
                 )}
               </p>

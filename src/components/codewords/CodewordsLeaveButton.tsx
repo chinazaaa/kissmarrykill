@@ -14,12 +14,6 @@ export function CodewordsLeaveButton({
   className?: string
 }) {
   return (
-    <LeaveGameButton
-      gameCode={gameCode}
-      playerId={playerId}
-      onLeft={onLeft}
-      className={className}
-      label="Leave game"
-    />
+    <LeaveGameButton gameCode={gameCode} playerId={playerId} onLeft={onLeft} className={className} label="Leave game" />
   )
 }

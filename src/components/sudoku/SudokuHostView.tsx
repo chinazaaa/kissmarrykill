@@ -14,10 +14,7 @@ import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/ut
 import type { Game, Player } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 type SudokuHostMode = 'spectator' | 'player'
 type HostTab = 'manage' | 'play'
@@ -75,7 +72,11 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
 
     if (gameData.status === 'active') {
       const { data: roundData } = await supabase
-        .from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('round_number', 1).maybeSingle()
+        .from('rounds')
+        .select(ROUND_SELECT)
+        .eq('game_id', gameCode)
+        .eq('round_number', 1)
+        .maybeSingle()
       if (roundData) {
         const meta = parseSudokuMetadata((roundData as Record<string, unknown>).sudoku_metadata)
         if (meta) {
@@ -85,12 +86,16 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
         setRoundId(roundData.id as string)
 
         const { data: subs } = await supabase
-          .from('sudoku_submissions').select(SUDOKU_SUBMISSION_SELECT).eq('round_id', roundData.id)
+          .from('sudoku_submissions')
+          .select(SUDOKU_SUBMISSION_SELECT)
+          .eq('round_id', roundData.id)
         setSubmissions((subs ?? []) as SudokuSubmission[])
       }
     } else if (gameData.status === 'finished') {
       const { data: subs } = await supabase
-        .from('sudoku_submissions').select(SUDOKU_SUBMISSION_SELECT).eq('game_id', gameCode)
+        .from('sudoku_submissions')
+        .select(SUDOKU_SUBMISSION_SELECT)
+        .eq('game_id', gameCode)
       setSubmissions((subs ?? []) as SudokuSubmission[])
     }
   }, [gameCode])
@@ -117,38 +122,65 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
 
   // Real-time: game changes
   useEffect(() => {
-    const ch = supabase.channel(`sudoku_host_game_${gameCode}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, (payload) => {
-        setGame(payload.new as Game)
-        load()
-      })
+    const ch = supabase
+      .channel(`sudoku_host_game_${gameCode}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        (payload) => {
+          setGame(payload.new as Game)
+          load()
+        }
+      )
       .subscribe()
-    return () => { void supabase.removeChannel(ch) }
+    return () => {
+      void supabase.removeChannel(ch)
+    }
   }, [gameCode, load])
 
   // Real-time: submissions
   useEffect(() => {
     if (!roundId) return
-    const ch = supabase.channel(`sudoku_host_subs_${roundId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sudoku_submissions', filter: `round_id=eq.${roundId}` }, (payload) => {
-        setSubmissions((prev) => {
-          const exists = prev.some((s) => s.id === (payload.new as SudokuSubmission).id)
-          return exists ? prev : [...prev, payload.new as SudokuSubmission]
-        })
-      })
+    const ch = supabase
+      .channel(`sudoku_host_subs_${roundId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sudoku_submissions', filter: `round_id=eq.${roundId}` },
+        (payload) => {
+          setSubmissions((prev) => {
+            const exists = prev.some((s) => s.id === (payload.new as SudokuSubmission).id)
+            return exists ? prev : [...prev, payload.new as SudokuSubmission]
+          })
+        }
+      )
       .subscribe()
-    return () => { void supabase.removeChannel(ch) }
+    return () => {
+      void supabase.removeChannel(ch)
+    }
   }, [roundId])
 
   // Real-time: players
   useEffect(() => {
-    const ch = supabase.channel(`sudoku_host_players_${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` }, () => {
-        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at')
-          .then(({ data }) => { if (data) setPlayers(data as Player[]) })
-      })
+    const ch = supabase
+      .channel(`sudoku_host_players_${gameCode}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
+        () => {
+          supabase
+            .from('players')
+            .select(PLAYER_SELECT)
+            .eq('game_id', gameCode)
+            .order('joined_at')
+            .then(({ data }) => {
+              if (data) setPlayers(data as Player[])
+            })
+        }
+      )
       .subscribe()
-    return () => { void supabase.removeChannel(ch) }
+    return () => {
+      void supabase.removeChannel(ch)
+    }
   }, [gameCode])
 
   const changeHostMode = (mode: SudokuHostMode) => {
@@ -249,7 +281,10 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
           <div className="text-center space-y-1">
             <p className="text-4xl">🔢</p>
             <h1 className="text-2xl font-black">{game?.title ?? 'Sudoku'}</h1>
-            <p className="text-muted text-sm">Join at <span className="font-mono font-bold text-[var(--foreground)]">fateround.com/game/{gameCode}</span></p>
+            <p className="text-muted text-sm">
+              Join at{' '}
+              <span className="font-mono font-bold text-[var(--foreground)]">fateround.com/game/{gameCode}</span>
+            </p>
           </div>
 
           {/* Host mode selector */}
@@ -311,10 +346,7 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
             )}
           </div>
 
-          <HostLobbyPlayersSection
-            players={players}
-            label={showReady ? `Players — ${readyCount} ready` : 'Players'}
-          />
+          <HostLobbyPlayersSection players={players} label={showReady ? `Players — ${readyCount} ready` : 'Players'} />
 
           <button
             type="button"
@@ -380,19 +412,16 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
 
               <div className="grid md:grid-cols-2 gap-6">
                 {solution && puzzle && (
-                  <SudokuBoard
-                    puzzle={puzzle}
-                    solution={solution}
-                    blockScorers={blockScorers}
-                    readOnly
-                  />
+                  <SudokuBoard puzzle={puzzle} solution={solution} blockScorers={blockScorers} readOnly />
                 )}
 
                 <div className="space-y-3">
                   <p className="label-caps text-xs">Live scores</p>
                   {leaderboard.map((row, i) => (
                     <div key={row.player_id} className="glass-card px-3 py-2 flex items-center justify-between">
-                      <span className="text-sm font-medium">{i + 1}. {row.name}</span>
+                      <span className="text-sm font-medium">
+                        {i + 1}. {row.name}
+                      </span>
                       <span className="text-sm font-bold">{row.points} pts</span>
                     </div>
                   ))}

@@ -69,11 +69,7 @@ export function PollHostPlayShell({
         />
       )}
       {showPlayTab && <HostPlayManageTabs tab={tab} onTabChange={setTab} />}
-      {tab === 'play' && showPlayTab ? (
-        <PollGamePlayerExperience gameCode={gameCode} embedded />
-      ) : (
-        children
-      )}
+      {tab === 'play' && showPlayTab ? <PollGamePlayerExperience gameCode={gameCode} embedded /> : children}
     </>
   )
 }

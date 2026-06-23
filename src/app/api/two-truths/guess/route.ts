@@ -45,22 +45,25 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
   if (existing) return NextResponse.json({ error: 'Already guessed this round' }, { status: 400 })
 
-  const { data: player } = await supabase.from('players').select('id').eq('id', playerId).eq('game_id', code).maybeSingle()
+  const { data: player } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', playerId)
+    .eq('game_id', code)
+    .maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
   const isCorrect = guessedIndex === metadata.lie_index
   const points = isCorrect ? TTL_GUESS_POINTS : 0
 
-  const { error } = await supabase
-    .from('ttl_guesses')
-    .insert({
-      game_id: code,
-      round_id: roundId,
-      player_id: playerId,
-      guessed_index: guessedIndex,
-      is_correct: isCorrect,
-      points,
-    })
+  const { error } = await supabase.from('ttl_guesses').insert({
+    game_id: code,
+    round_id: roundId,
+    player_id: playerId,
+    guessed_index: guessedIndex,
+    is_correct: isCorrect,
+    points,
+  })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

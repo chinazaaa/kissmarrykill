@@ -2,11 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-export function CreateNewGameButton({
-  className = 'btn-primary w-full',
-}: {
-  className?: string
-}) {
+export function CreateNewGameButton({ className = 'btn-primary w-full' }: { className?: string }) {
   const router = useRouter()
 
   return (

@@ -28,7 +28,10 @@ export function setTriviaHostMode(gameCode: string, mode: TriviaHostMode) {
   localStorage.setItem(triviaHostModeKey(gameCode), mode)
 }
 
-export function revealCountdownSeconds(endedAt: string | null | undefined, revealSeconds = TRIVIA_REVEAL_SECONDS): number {
+export function revealCountdownSeconds(
+  endedAt: string | null | undefined,
+  revealSeconds = TRIVIA_REVEAL_SECONDS
+): number {
   if (!endedAt) return revealSeconds
   const deadline = new Date(endedAt).getTime() + revealSeconds * 1000
   return Math.max(0, Math.ceil((deadline - Date.now()) / 1000))

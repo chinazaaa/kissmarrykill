@@ -39,11 +39,7 @@ export function stationRent(owners: Record<string, string>, ownerId: string, bas
   return baseRent * 2 ** Math.max(0, count - 1)
 }
 
-export function utilityRent(
-  owners: Record<string, string>,
-  ownerId: string,
-  diceTotal: number
-): number {
+export function utilityRent(owners: Record<string, string>, ownerId: string, diceTotal: number): number {
   const count = Object.entries(owners).filter(([idx, id]) => {
     const space = spaceAt(Number(idx))
     return id === ownerId && space.type === 'utility'
@@ -100,7 +96,6 @@ export function totalHotelsOwned(
   ownerId: string,
   owners: Record<string, string>
 ): number {
-  return Object.entries(buildings).filter(
-    ([idx, level]) => owners[idx] === ownerId && level === MONOPOLY_HOTEL_LEVEL
-  ).length
+  return Object.entries(buildings).filter(([idx, level]) => owners[idx] === ownerId && level === MONOPOLY_HOTEL_LEVEL)
+    .length
 }
