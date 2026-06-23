@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -36,10 +37,7 @@ export async function POST(req: NextRequest) {
   if (author_name.length > 60) return NextResponse.json({ error: 'Author name too long' }, { status: 400 })
   if (description && description.length > 500) return NextResponse.json({ error: 'Description too long' }, { status: 400 })
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = getSupabaseAdmin()
 
   const { data, error } = await supabase
     .from('question_packs')
