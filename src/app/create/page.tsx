@@ -263,6 +263,7 @@ function CreateGameInner() {
       most_likely_to: 'most_likely_to',
       trivia: 'trivia',
       this_or_that: 'this_or_that',
+      never_have_i_ever: 'never_have_i_ever',
     }
     const gt = gameTypeMap[settings.game_type]
     if (!gt) return

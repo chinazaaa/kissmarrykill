@@ -7,7 +7,7 @@ import { PageShell, Chip } from '@/components/ui/PageShell'
 interface PackSummary {
   id: string
   title: string
-  game_type: 'trivia' | 'would_you_rather' | 'most_likely_to' | 'this_or_that'
+  game_type: 'trivia' | 'would_you_rather' | 'most_likely_to' | 'this_or_that' | 'never_have_i_ever'
   author_name: string
   description: string | null
   question_count: number
@@ -29,6 +29,10 @@ const GAME_TYPE_META: Record<string, { label: string; color: string }> = {
     label: 'This or That',
     color: 'text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/25',
   },
+  never_have_i_ever: {
+    label: 'Never Have I Ever',
+    color: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/25',
+  },
 }
 
 const TAG_META: Record<string, { label: string; color: string }> = {
@@ -47,6 +51,7 @@ const GAME_TYPE_FILTERS = [
   { value: 'would_you_rather', label: 'Would You Rather' },
   { value: 'most_likely_to', label: 'Most Likely To' },
   { value: 'this_or_that', label: 'This or That' },
+  { value: 'never_have_i_ever', label: 'Never Have I Ever' },
 ]
 
 const TAG_FILTERS = [
