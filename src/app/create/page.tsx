@@ -1911,26 +1911,43 @@ function CreateGameInner() {
                     )}
 
                     {isLobbyQuestions && questionSource === 'library' && (
-                      <div className="space-y-3 pt-1">
+                      <div className="space-y-2 pt-1">
                         {libraryPacksLoading ? (
-                          <p className="text-muted text-sm">Loading packs…</p>
+                          <div className="space-y-2">
+                            {[0, 1].map((i) => (
+                              <div key={i} className="surface-inset px-4 py-3 animate-pulse">
+                                <div className="h-3 bg-[var(--border-strong)] rounded-full w-2/3 mb-2" />
+                                <div className="h-2.5 bg-[var(--border)] rounded-full w-1/3" />
+                              </div>
+                            ))}
+                          </div>
                         ) : libraryPacks.length === 0 ? (
-                          <p className="text-muted text-sm">No approved packs for this game type yet.</p>
+                          <p className="text-muted text-sm text-center py-4">No approved packs for this game type yet.</p>
                         ) : (
                           libraryPacks.map((pack) => (
                             <button
                               key={pack.id}
                               type="button"
                               onClick={() => selectLibraryPack(pack.id)}
-                              className={`glass-card w-full p-4 text-left transition-all ${selectedPackId === pack.id ? 'border-[var(--primary)]' : ''}`}
+                              className={`surface-inset w-full px-4 py-3 text-left transition-all ${
+                                selectedPackId === pack.id
+                                  ? 'border-[var(--chip-active-border)] bg-[var(--chip-active-bg)]'
+                                  : 'hover:border-[var(--border-strong)]'
+                              }`}
                             >
-                              <p className="font-medium text-sm">{pack.title}</p>
-                              <p className="text-muted text-xs mt-0.5">by {pack.author_name} · {pack.question_count} questions</p>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className={`font-semibold text-sm truncate ${selectedPackId === pack.id ? 'text-[var(--chip-active-text)]' : ''}`}>
+                                    {pack.title}
+                                  </p>
+                                  <p className="text-faint text-xs mt-0.5">by {pack.author_name} · {pack.question_count} questions</p>
+                                </div>
+                                {selectedPackId === pack.id && (
+                                  <span className="text-[var(--chip-active-text)] text-sm font-bold shrink-0">✓</span>
+                                )}
+                              </div>
                             </button>
                           ))
-                        )}
-                        {selectedPackId && libraryPackQuestions.length > 0 && (
-                          <p className="text-xs text-muted">{libraryPackQuestions.length} questions loaded.</p>
                         )}
                       </div>
                     )}
