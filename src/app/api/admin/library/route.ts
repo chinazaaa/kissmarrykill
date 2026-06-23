@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('question_packs')
     .select(
-      'id, title, game_type, author_name, description, question_count, questions, status, created_at, approved_at'
+      'id, title, game_type, author_name, description, question_count, questions, status, created_at, approved_at, tags'
     )
     .order('created_at', { ascending: false })
 

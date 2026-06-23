@@ -115,18 +115,47 @@ const GAME_TYPES: { value: GameType; label: string; description: string; columns
   },
 ]
 
+const DIFFICULTY_TAGS = ['easy', 'intermediate', 'advanced'] as const
+const VIBE_TAGS = ['family-friendly', '18+', 'party', 'spicy'] as const
+
+type DifficultyTag = (typeof DIFFICULTY_TAGS)[number]
+type VibeTag = (typeof VIBE_TAGS)[number]
+
+const DIFFICULTY_META: Record<DifficultyTag, { label: string; description: string }> = {
+  easy: { label: 'Easy', description: 'Suitable for everyone' },
+  intermediate: { label: 'Intermediate', description: 'Some knowledge needed' },
+  advanced: { label: 'Advanced', description: 'Challenging questions' },
+}
+
+const VIBE_META: Record<VibeTag, { label: string }> = {
+  'family-friendly': { label: 'Family-friendly' },
+  '18+': { label: '18+' },
+  party: { label: 'Party' },
+  spicy: { label: 'Spicy' },
+}
+
 export default function SubmitPackPage() {
   const router = useRouter()
   const [gameType, setGameType] = useState<GameType | null>(null)
   const [title, setTitle] = useState('')
   const [authorName, setAuthorName] = useState('')
   const [description, setDescription] = useState('')
+  const [difficulty, setDifficulty] = useState<DifficultyTag | null>(null)
+  const [vibeTags, setVibeTags] = useState<Set<VibeTag>>(new Set())
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [fileName, setFileName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const toggleVibe = (v: VibeTag) =>
+    setVibeTags((prev) => {
+      const next = new Set(prev)
+      if (next.has(v)) next.delete(v)
+      else next.add(v)
+      return next
+    })
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -147,6 +176,7 @@ export default function SubmitPackPage() {
     if (!gameType || !validation?.ok || !title.trim() || !authorName.trim()) return
     setSubmitting(true)
     setSubmitError(null)
+    const tags = [...(difficulty ? [difficulty] : []), ...Array.from(vibeTags)]
     try {
       const res = await fetch('/api/library', {
         method: 'POST',
@@ -157,6 +187,7 @@ export default function SubmitPackPage() {
           author_name: authorName.trim(),
           description: description.trim() || undefined,
           questions: validation.questions,
+          tags,
         }),
       })
       const data = await res.json()
@@ -286,6 +317,49 @@ export default function SubmitPackPage() {
               className="input-field resize-none"
             />
           </Field>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-muted">Difficulty (optional)</p>
+            <div className="grid grid-cols-3 gap-2">
+              {DIFFICULTY_TAGS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDifficulty(difficulty === d ? null : d)}
+                  className={`surface-inset text-left px-3 py-2.5 transition-all ${
+                    difficulty === d
+                      ? 'border-[var(--chip-active-border)] bg-[var(--chip-active-bg)]'
+                      : 'hover:border-[var(--border-strong)]'
+                  }`}
+                >
+                  <p className={`font-semibold text-xs ${difficulty === d ? 'text-[var(--chip-active-text)]' : ''}`}>
+                    {DIFFICULTY_META[d].label}
+                  </p>
+                  <p className="text-faint text-[10px] mt-0.5">{DIFFICULTY_META[d].description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-muted">Vibe tags (optional)</p>
+            <div className="flex flex-wrap gap-2">
+              {VIBE_TAGS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => toggleVibe(v)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                    vibeTags.has(v)
+                      ? 'border-[var(--chip-active-border)] bg-[var(--chip-active-bg)] text-[var(--chip-active-text)]'
+                      : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
+                  }`}
+                >
+                  {VIBE_META[v].label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
