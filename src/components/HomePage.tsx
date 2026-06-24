@@ -88,6 +88,18 @@ export function HomePage() {
             </div>
           </div>
 
+          <Link
+            href="/rooms"
+            className="glass-card glass-card-interactive flex items-center gap-3 p-3 sm:p-3.5 no-underline shrink-0"
+          >
+            <span className="text-2xl shrink-0">🏠</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-body">Game Rooms</p>
+              <p className="text-[11px] sm:text-xs text-faint leading-snug">Permanent space for your crew — chat, leaderboard &amp; multiple games</p>
+            </div>
+            <span className="text-faint text-sm shrink-0">→</span>
+          </Link>
+
           <div className="space-y-1.5 shrink-0">
             <p className="label-caps text-center text-[10px] sm:text-xs">Popular games</p>
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -130,6 +142,10 @@ export function HomePage() {
             >
               Game history
             </button>
+            <span aria-hidden>·</span>
+            <Link href="/rooms" className="hover:text-[var(--foreground)] transition-colors">
+              Game Rooms
+            </Link>
             <span aria-hidden>·</span>
             <Link href="/updates" className="hover:text-[var(--foreground)] transition-colors">
               What&apos;s new
