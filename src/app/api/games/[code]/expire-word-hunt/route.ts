@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { parseGameType, isWordHuntGame } from '@/lib/game-types'
-import { finishExpiredWordHuntGame, wordHuntSessionExpired } from '@/lib/word-hunt'
+import { finishExpiredWordHuntGame, WORD_HUNT_EXPIRE_GRACE_MS, wordHuntSessionExpired } from '@/lib/word-hunt'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -22,11 +22,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ co
   if (game.status !== 'active') {
     return NextResponse.json({ expired: false, finished: game.status === 'finished' })
   }
-  if (!wordHuntSessionExpired(game.session_started_at, game.timer_seconds)) {
+  if (!wordHuntSessionExpired(game.session_started_at, game.timer_seconds, WORD_HUNT_EXPIRE_GRACE_MS)) {
     return NextResponse.json({ expired: false, finished: false })
   }
 
-  const finished = await finishExpiredWordHuntGame(supabase, game)
+  const finished = await finishExpiredWordHuntGame(supabase, game, {
+    graceMs: WORD_HUNT_EXPIRE_GRACE_MS,
+  })
   if (!finished) return NextResponse.json({ error: 'Failed to end game' }, { status: 500 })
 
   return NextResponse.json({ expired: true, finished: true })

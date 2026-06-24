@@ -72,10 +72,6 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
   const inFlightWordsRef = useRef<Set<string>>(new Set())
 
-  const { label: timeLabel, timeUp, secondsLeft } = useWordHuntGameTimer(gameCode, game)
-
-  useLobbyOpenNotification(game?.status, () => void load())
-
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 3000)
@@ -172,6 +168,10 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
 
     syncView(gameData as Game, playerId)
   }, [gameCode, syncView])
+
+  const { label: timeLabel, timeUp, secondsLeft } = useWordHuntGameTimer(gameCode, game, load)
+
+  useLobbyOpenNotification(game?.status, () => void load())
 
   useEffect(() => {
     void load()

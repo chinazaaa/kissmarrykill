@@ -65,8 +65,6 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
   const [playingAgain, setPlayingAgain] = useState(false)
   const [starting, setStarting] = useState(false)
 
-  const { label: timeLabel, timeUp, secondsLeft } = useWordHuntGameTimer(gameCode, game)
-
   const [hostMode, setHostModeState] = useState<WordHuntHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
@@ -110,6 +108,8 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
       setSubmissions((subs ?? []) as WordHuntSubmission[])
     }
   }, [gameCode])
+
+  const { label: timeLabel, timeUp, secondsLeft } = useWordHuntGameTimer(gameCode, game, load)
 
   const { removingPlayerId, removePlayer } = useHostRemovePlayer(gameCode, hostToken, async (playerId) => {
     if (playerId === hostPlayerId) {

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
-import { secondsUntilDeadline } from '@/lib/round-timing'
+import { msUntilDeadline, secondsUntilDeadline } from '@/lib/round-timing'
 import type { Game } from '@/types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -210,21 +210,27 @@ export function formatWordHuntTimer(seconds: number): string {
   return `${seconds}s`
 }
 
+/** Client may call expire slightly before the server deadline — allow a small grace window (ms). */
+export const WORD_HUNT_EXPIRE_GRACE_MS = 2500
+
 export function wordHuntSessionExpired(
   sessionStartedAt: string | null | undefined,
-  timerSeconds: number | null | undefined
+  timerSeconds: number | null | undefined,
+  graceMs = 0
 ): boolean {
   if (!sessionStartedAt) return false
-  return secondsUntilDeadline(sessionStartedAt, wordHuntTimerSeconds(timerSeconds)) <= 0
+  return msUntilDeadline(sessionStartedAt, wordHuntTimerSeconds(timerSeconds)) <= graceMs
 }
 
 export async function finishExpiredWordHuntGame(
   supabase: SupabaseClient,
-  game: Pick<Game, 'id' | 'status' | 'session_started_at' | 'timer_seconds'>
+  game: Pick<Game, 'id' | 'status' | 'session_started_at' | 'timer_seconds'>,
+  options?: { graceMs?: number }
 ): Promise<boolean> {
   if (game.status === 'finished') return true
   if (game.status !== 'active') return false
-  if (!wordHuntSessionExpired(game.session_started_at, game.timer_seconds)) return false
+  const graceMs = options?.graceMs ?? 0
+  if (!wordHuntSessionExpired(game.session_started_at, game.timer_seconds, graceMs)) return false
 
   const { error } = await markGameFinished(supabase, game.id)
   return !error
