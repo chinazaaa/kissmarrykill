@@ -10,7 +10,7 @@ import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayer
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { WordHuntBoard } from '@/components/word-hunt/WordHuntBoard'
 import { WordHuntPlayerView } from '@/components/word-hunt/WordHuntPlayerView'
-import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { WordHuntFinalResultsShareBlock } from '@/components/word-hunt/WordHuntFinalResultsShareBlock'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import {
@@ -423,33 +423,22 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
           )}
 
           {game.status === 'finished' && (
-            <>
-              <div className="glass-card-strong p-8 text-center space-y-2">
-                <p className="text-4xl">🏆</p>
-                <p className="text-2xl font-black">{leaderboard[0]?.name ?? 'Someone'} wins!</p>
-                <p className="text-muted text-base">{leaderboard[0]?.points ?? 0} points total</p>
-              </div>
-
-              <PaginatedLeaderboard
-                title="Final leaderboard"
-                rows={leaderboard.map((row, i) => ({
-                  id: row.player_id,
-                  name: row.name,
-                  score: row.points,
-                  rank: i + 1,
-                }))}
-                scoreLabel={(n) => `${n} pts`}
-              />
-
-              <button
-                type="button"
-                onClick={() => void handlePlayAgain()}
-                disabled={playingAgain}
-                className="btn-primary w-full py-3 font-bold"
-              >
-                {playingAgain ? 'Resetting…' : 'Play again'}
-              </button>
-            </>
+            <WordHuntFinalResultsShareBlock
+              game={game}
+              players={players}
+              leaderboard={leaderboard}
+              highlightPlayerId={hostPlayerId}
+              playAgainButton={
+                <button
+                  type="button"
+                  onClick={() => void handlePlayAgain()}
+                  disabled={playingAgain}
+                  className="btn-primary w-full py-3 font-bold"
+                >
+                  {playingAgain ? 'Resetting…' : 'Play again'}
+                </button>
+              }
+            />
           )}
 
           {(game.status === 'waiting' || game.status === 'active') && (

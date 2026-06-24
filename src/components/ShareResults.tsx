@@ -19,6 +19,7 @@ import {
   isTicTacToeGame,
   isICallOnGame,
   isCodewordsGame,
+  isWordHuntGame,
 } from '@/lib/game-types'
 import { tallyTriviaPlayerScores } from '@/lib/trivia'
 import { totalScore } from '@/lib/yahtzee'
@@ -60,6 +61,8 @@ function buildShareText({
   npatWinnerLabel,
   codewordsOperativeStats,
   codewordsWinnerLabel,
+  wordHuntLeaderboard,
+  wordHuntWinnerName,
 }: {
   game: Game
   participants: Participant[]
@@ -84,10 +87,27 @@ function buildShareText({
   npatWinnerLabel?: string
   codewordsOperativeStats?: { name: string; score: number }[]
   codewordsWinnerLabel?: string
+  wordHuntLeaderboard?: { name: string; score: number; wordCount: number }[]
+  wordHuntWinnerName?: string
 }): string {
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
   const gameHeader = [config.headerEmoji, game.title, config.label, '']
+
+  if (isWordHuntGame(gameType) && wordHuntLeaderboard && wordHuntLeaderboard.length > 0) {
+    const lines = [
+      ...gameHeader,
+      wordHuntWinnerName ? `🏆 ${wordHuntWinnerName} wins!` : '⏱️ Time\'s up!',
+      '',
+      'Final leaderboard:',
+      ...wordHuntLeaderboard
+        .slice(0, 8)
+        .map((row, i) => `  ${i + 1}. ${row.name} (${row.score} pts · ${row.wordCount}w)`),
+      '',
+      `Play at ${appDomain()}`,
+    ]
+    return lines.join('\n')
+  }
 
   if (isCodewordsGame(gameType)) {
     const lines = [
@@ -337,6 +357,8 @@ export function ShareResults({
   npatWinnerLabel,
   codewordsOperativeStats,
   codewordsWinnerLabel,
+  wordHuntLeaderboard,
+  wordHuntWinnerName,
 }: {
   captureRef?: RefObject<HTMLElement | null>
   game: Game
@@ -362,6 +384,8 @@ export function ShareResults({
   npatWinnerLabel?: string
   codewordsOperativeStats?: { name: string; score: number }[]
   codewordsWinnerLabel?: string
+  wordHuntLeaderboard?: { name: string; score: number; wordCount: number }[]
+  wordHuntWinnerName?: string
 }) {
   const { success, error } = useToast()
   const [sharing, setSharing] = useState(false)
@@ -419,6 +443,8 @@ export function ShareResults({
         npatWinnerLabel,
         codewordsOperativeStats,
         codewordsWinnerLabel,
+        wordHuntLeaderboard,
+        wordHuntWinnerName,
       })
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
@@ -464,6 +490,8 @@ export function ShareResults({
           npatWinnerLabel,
           codewordsOperativeStats,
           codewordsWinnerLabel,
+          wordHuntLeaderboard,
+          wordHuntWinnerName,
         })
         await navigator.clipboard.writeText(text)
         success('Results copied to clipboard!')
@@ -499,6 +527,8 @@ export function ShareResults({
     npatWinnerLabel,
     codewordsOperativeStats,
     codewordsWinnerLabel,
+    wordHuntLeaderboard,
+    wordHuntWinnerName,
     success,
     error,
   ])

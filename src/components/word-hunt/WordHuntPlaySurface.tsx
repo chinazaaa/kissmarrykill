@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
-import { rowColToIndex, wordFromPath, WORD_HUNT_MIN_WORD_LENGTH } from '@/lib/word-hunt'
+import { wordFromPath, WORD_HUNT_MIN_WORD_LENGTH } from '@/lib/word-hunt'
+import { WordHuntGrid } from '@/components/word-hunt/WordHuntGrid'
 
 type Props = {
   grid: string[][]
@@ -32,39 +32,9 @@ export function WordHuntPlaySurface({
   submitting = false,
   disabled = false,
 }: Props) {
-  const isDragging = useRef(false)
   const currentWord = wordFromPath(grid, selectedPath)
   const canSubmit = !submitting && !disabled && !timeUp && selectedPath.length >= WORD_HUNT_MIN_WORD_LENGTH
   const timerUrgent = !timeUp && secondsLeft <= 10
-
-  const handleCell = useCallback(
-    (index: number) => {
-      if (disabled) return
-
-      const current = selectedPath
-      const existingIdx = current.indexOf(index)
-
-      if (existingIdx >= 0) {
-        if (existingIdx === current.length - 1) {
-          onPathChange(current.slice(0, -1))
-        }
-        return
-      }
-
-      if (current.length === 0) {
-        onPathChange([index])
-        return
-      }
-
-      const last = current[current.length - 1]
-      const [lr, lc] = [Math.floor(last / 4), last % 4]
-      const [r, c] = [Math.floor(index / 4), index % 4]
-      if (Math.abs(lr - r) <= 1 && Math.abs(lc - c) <= 1) {
-        onPathChange([...current, index])
-      }
-    },
-    [disabled, onPathChange, selectedPath]
-  )
 
   return (
     <div className="glass-card-strong overflow-hidden border border-[color-mix(in_srgb,var(--primary)_18%,var(--border))] shadow-[var(--card-shadow-glow)]">
@@ -94,56 +64,13 @@ export function WordHuntPlaySurface({
       </div>
 
       <div className="px-4 pt-4 pb-3">
-        <div
-          className="surface-inset rounded-2xl p-2.5 sm:p-3 ring-1 ring-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
-          onPointerUp={() => {
-            isDragging.current = false
-          }}
-          onPointerLeave={() => {
-            isDragging.current = false
-          }}
-        >
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-            {grid.map((row, r) =>
-              row.map((letter, c) => {
-                const index = rowColToIndex(r, c)
-                const inPath = selectedPath.includes(index)
-                const pathOrder = selectedPath.indexOf(index)
-                return (
-                  <button
-                    key={index}
-                    type="button"
-                    disabled={disabled}
-                    onPointerDown={(e) => {
-                      e.preventDefault()
-                      isDragging.current = true
-                      handleCell(index)
-                    }}
-                    onPointerEnter={() => {
-                      if (isDragging.current) handleCell(index)
-                    }}
-                    className={[
-                      'aspect-square rounded-xl font-black text-lg sm:text-2xl flex items-center justify-center select-none touch-none transition-all duration-150',
-                      inPath
-                        ? 'bg-[color-mix(in_srgb,var(--marry)_22%,var(--card-strong))] text-[var(--slot-marry-text)] shadow-[0_0_0_2px_var(--marry),0_8px_20px_-6px_color-mix(in_srgb,var(--marry)_45%,transparent)] scale-[1.04] z-[1]'
-                        : 'bg-[var(--card-strong)] text-[var(--foreground)] border border-[var(--border-strong)] shadow-[var(--card-shadow)] hover:border-[color-mix(in_srgb,var(--primary)_25%,var(--border))]',
-                      disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-[0.97]',
-                    ].join(' ')}
-                  >
-                    <span className="relative">
-                      {letter}
-                      {inPath && pathOrder >= 0 && (
-                        <span className="absolute -top-2.5 -right-3 text-[8px] font-black text-[var(--marry)]">
-                          {pathOrder + 1}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
+        <WordHuntGrid
+          grid={grid}
+          selectedPath={selectedPath}
+          onPathChange={onPathChange}
+          disabled={disabled}
+          variant="play"
+        />
       </div>
 
       <div className="px-4 space-y-3">

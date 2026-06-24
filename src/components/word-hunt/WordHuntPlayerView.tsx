@@ -10,7 +10,7 @@ import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
 import { GameLobbyWaitingPanel } from '@/components/game-lobby/GameLobbyWaitingPanel'
 import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { WordHuntPlaySurface } from '@/components/word-hunt/WordHuntPlaySurface'
-import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
+import { WordHuntFinalResultsShareBlock } from '@/components/word-hunt/WordHuntFinalResultsShareBlock'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
@@ -384,30 +384,17 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
-  if (view === 'finished') {
+  if (view === 'finished' && game) {
     return (
       <div className="min-h-screen flex flex-col">
         <GamePlayerChrome />
-        <main className="pt-16 flex-1 px-4 py-8 max-w-lg mx-auto w-full space-y-6">
-          <div className="glass-card-strong p-8 text-center space-y-2">
-            <p className="text-4xl">🏆</p>
-            <p className="text-2xl font-black">Time&apos;s up!</p>
-            {leaderboard[0] && (
-              <p className="text-muted text-base">
-                {leaderboard[0].name} wins with {leaderboard[0].points} pts
-              </p>
-            )}
-          </div>
-          <PaginatedLeaderboard
-            title="Final leaderboard"
-            rows={leaderboard.map((row, i) => ({
-              id: row.player_id,
-              name: row.name,
-              score: row.points,
-              rank: i + 1,
-            }))}
-            highlightId={myPlayerId ?? undefined}
-            scoreLabel={(n) => `${n} pts`}
+        <main className="pt-16 flex-1 px-4 py-8 max-w-lg mx-auto w-full">
+          <WordHuntFinalResultsShareBlock
+            game={game}
+            players={players}
+            leaderboard={leaderboard}
+            highlightPlayerId={myPlayerId}
+            showCreateNewGame
           />
         </main>
       </div>
