@@ -48,20 +48,32 @@ async function countActivePlayers(supabase: SupabaseClient, gameId: string): Pro
   return (data ?? []).map((p) => p.id)
 }
 
-async function countRoundAnswers(supabase: SupabaseClient, roundId: string): Promise<number> {
+async function countRoundAnswers(
+  supabase: SupabaseClient,
+  roundId: string,
+  playerIds: string[]
+): Promise<number> {
+  if (playerIds.length === 0) return 0
   const { count } = await supabase
     .from('npat_answers')
     .select('id', { count: 'exact', head: true })
     .eq('round_id', roundId)
+    .in('player_id', playerIds)
     .not('submitted_at', 'is', null)
   return count ?? 0
 }
 
-async function countRoundMarks(supabase: SupabaseClient, roundId: string): Promise<number> {
+async function countRoundMarks(
+  supabase: SupabaseClient,
+  roundId: string,
+  playerIds: string[]
+): Promise<number> {
+  if (playerIds.length === 0) return 0
   const { count } = await supabase
     .from('npat_marks')
     .select('id', { count: 'exact', head: true })
     .eq('round_id', roundId)
+    .in('marker_player_id', playerIds)
     .not('marked_at', 'is', null)
   return count ?? 0
 }
@@ -290,7 +302,7 @@ async function advanceActiveRoundPhase(
   }
 
   if (metadata.phase === 'writing') {
-    const submitted = await countRoundAnswers(supabase, round.id)
+    const submitted = await countRoundAnswers(supabase, round.id, playerIds)
     const allIn = playerIds.length > 0 && submitted >= playerIds.length
     if (allIn || phaseExpired(metadata, game)) {
       const ok = await startMarkingPhase(supabase, game.id, round, playerIds)
@@ -300,7 +312,7 @@ async function advanceActiveRoundPhase(
   }
 
   if (metadata.phase === 'marking') {
-    const marked = await countRoundMarks(supabase, round.id)
+    const marked = await countRoundMarks(supabase, round.id, playerIds)
     const allMarked = playerIds.length > 0 && marked >= playerIds.length
     if (allMarked || phaseExpired(metadata, game)) {
       const ok = await startHostReviewPhase(supabase, round)

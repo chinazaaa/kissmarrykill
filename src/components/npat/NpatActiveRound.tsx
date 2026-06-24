@@ -111,6 +111,7 @@ export function NpatActiveRound({
   answerFormRef.current = answerForm
   const autoSubmittedRoundRef = useRef<string | null>(null)
   const draftTimerRef = useRef<number | null>(null)
+  const hydratedRoundRef = useRef<string | null>(null)
   const submittingRef = useRef(false)
   const marksSeededRef = useRef<string | null>(null)
 
@@ -182,6 +183,7 @@ export function NpatActiveRound({
 
   useEffect(() => {
     marksSeededRef.current = null
+    hydratedRoundRef.current = null
     setAnswerForm(emptyAnswerForm)
     setValidFlags(defaultValidFlags)
     setSubmitting(false)
@@ -192,6 +194,20 @@ export function NpatActiveRound({
       draftTimerRef.current = null
     }
   }, [currentRound?.id, emptyAnswerForm, defaultValidFlags])
+
+  useEffect(() => {
+    if (!currentRound || metadata?.phase !== 'writing' || myAnswer?.submitted_at) return
+    if (hydratedRoundRef.current === currentRound.id) return
+    hydratedRoundRef.current = currentRound.id
+    if (!myAnswer) return
+    setAnswerForm({
+      name: myAnswer.name ?? '',
+      animal: myAnswer.animal ?? '',
+      place: myAnswer.place ?? '',
+      thing: myAnswer.thing ?? '',
+      food: myAnswer.food ?? '',
+    })
+  }, [currentRound?.id, metadata?.phase, myAnswer?.submitted_at, myAnswer?.id, myAnswer?.name, myAnswer?.animal, myAnswer?.place, myAnswer?.thing, myAnswer?.food])
 
   useEffect(() => {
     if (!currentRound || !reviewTargetAnswer || !metadata) return
