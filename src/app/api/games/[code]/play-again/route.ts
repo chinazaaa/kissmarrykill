@@ -69,6 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const gameType = parseGameType(game.game_type)
   const canReturnToLobby =
+    game.status === 'waiting' ||
     game.status === 'finished' ||
     (isCodewordsGame(gameType) && game.status === 'active') ||
     (isTwoTruthsGame(gameType) && game.status === 'active') ||
@@ -76,6 +77,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     (isSudokuGame(gameType) && game.status === 'active')
   if (!canReturnToLobby) {
     return NextResponse.json({ error: 'Game must be finished before playing again' }, { status: 400 })
+  }
+
+  if (isCodewordsGame(gameType)) {
+    const { error: reopenError } = await supabase
+      .from('games')
+      .update({
+        status: 'waiting',
+        current_round_number: 0,
+        session_started_at: null,
+        anonymous_messages_trimmed_at: null,
+      })
+      .eq('id', gameId)
+    if (reopenError) return NextResponse.json({ error: reopenError.message }, { status: 500 })
   }
 
   const genderBased = isGameGenderBased(game)

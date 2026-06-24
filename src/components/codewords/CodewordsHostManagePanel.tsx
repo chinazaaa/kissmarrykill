@@ -5,11 +5,11 @@ import { CodewordsFinalResultsShareBlock } from '@/components/codewords/Codeword
 import { CodewordsBoardGrid } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsLobbyRoster } from '@/components/codewords/CodewordsLobbyRoster'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
-import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
-import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import {
   CODEWORDS_MIN_PLAYERS,
   CODEWORDS_TIMER_OPTIONS,
+  codewordsInLobby,
   codewordsLateJoin,
   codewordsMaxPlayers,
   codewordsPlayerPicks,
@@ -91,7 +91,7 @@ export function CodewordsHostManagePanel({
   const playerIds = players.map((p) => p.id)
   const ready = lobbyReadyForGame(roles, playerIds, randomizeTeams)
   const needsShuffle = randomizeTeams && teamsNeedRandomization(playerIds, roles)
-  const inLobby = game.status === 'waiting'
+  const inLobby = codewordsInLobby(game.status, board)
   const playersPickTeams = codewordsPlayerPicks(game)
   const lateJoin = codewordsLateJoin(game)
   const playerNameById = new Map(players.map((p) => [p.id, p.name]))
@@ -104,8 +104,35 @@ export function CodewordsHostManagePanel({
     onSetSpymaster(playerId, team, makeSpymaster)
   }
 
+  const startDisabled =
+    starting || players.length < CODEWORDS_MIN_PLAYERS || !ready.ok
+  const startDisabledHint =
+    players.length < CODEWORDS_MIN_PLAYERS
+      ? `Need at least ${CODEWORDS_MIN_PLAYERS} players to start (${players.length}/${CODEWORDS_MIN_PLAYERS})`
+      : !ready.ok
+        ? ready.error
+        : null
+
   return (
     <div className="space-y-5">
+      {inLobby && (
+        <div className="glass-card p-5 space-y-3 border-[color-mix(in_srgb,var(--primary)_18%,var(--border))]">
+          <p className="label-caps">Lobby</p>
+          <p className="text-faint text-xs leading-relaxed">
+            Assign teams below, then start when everyone is ready.
+          </p>
+          <HostLobbyWaitingFooter
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onStart={onStartGame}
+            onEnded={onReload}
+            starting={starting}
+            startDisabled={startDisabled}
+            startDisabledHint={startDisabledHint}
+          />
+        </div>
+      )}
+
       <div className="glass-card p-5 space-y-4">
         <p className="label-caps">Timers</p>
         {inLobby ? (
@@ -217,40 +244,15 @@ export function CodewordsHostManagePanel({
             onRemovePlayer={onRemovePlayer}
           />
 
-          {inLobby && (
-            <>
-              {needsShuffle && onRandomizeTeams && (
-                <button
-                  type="button"
-                  onClick={onRandomizeTeams}
-                  disabled={randomizingTeams || !ready.ok}
-                  className="btn-secondary w-full"
-                >
-                  {randomizingTeams ? 'Shuffling…' : 'Shuffle teams'}
-                </button>
-              )}
-              <HostLobbyStartButton
-                onClick={onStartGame}
-                disabled={starting || players.length < CODEWORDS_MIN_PLAYERS || !ready.ok}
-                starting={starting}
-                disabledHint={
-                  players.length < CODEWORDS_MIN_PLAYERS
-                    ? `Need at least ${CODEWORDS_MIN_PLAYERS} players to start (${players.length}/${CODEWORDS_MIN_PLAYERS})`
-                    : !ready.ok
-                      ? ready.error
-                      : null
-                }
-              />
-              <HostEndGameButton
-                gameCode={gameCode}
-                hostToken={hostToken}
-                onEnded={onReload}
-                label="End lobby"
-                confirmTitle="Close this lobby?"
-                confirmMessage="Players will be disconnected. You can start a new game from Play again afterward."
-                className="btn-secondary w-full"
-              />
-            </>
+          {inLobby && needsShuffle && onRandomizeTeams && (
+            <button
+              type="button"
+              onClick={onRandomizeTeams}
+              disabled={randomizingTeams || !ready.ok}
+              className="btn-secondary w-full"
+            >
+              {randomizingTeams ? 'Shuffling…' : 'Shuffle teams'}
+            </button>
           )}
         </div>
       )}

@@ -549,6 +549,14 @@ export function codewordsAllowsPlayerChanges(status: string): boolean {
   return status === 'waiting' || status === 'active'
 }
 
+/** True when the host lobby is open (waiting, or reopening after play again). */
+export function codewordsInLobby(
+  status: string,
+  board: Pick<CodewordsBoard, 'id'> | null | undefined
+): boolean {
+  return status === 'waiting' || (status === 'active' && !board)
+}
+
 export async function removeCodewordsPlayerRole(
   supabase: SupabaseClient,
   gameId: string,
