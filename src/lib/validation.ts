@@ -69,6 +69,7 @@ const gameTypeEnum = z.enum([
   'ludo',
   'i_call_on',
   'sudoku',
+  'tic_tac_toe',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
