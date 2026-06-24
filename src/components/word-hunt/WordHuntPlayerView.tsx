@@ -24,6 +24,7 @@ import { validateWordHuntSubmissionClient, validWordsSetFromMetadata } from '@/l
 import { useWordHuntGameTimer } from '@/hooks/useWordHuntGameTimer'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
+import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { resolvePlayerSession } from '@/lib/player-resume'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT } from '@/lib/supabase-selects'
 import { allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
@@ -68,6 +69,8 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
   const [myPlayerName, setMyPlayerName] = useState('')
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
+  const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
+  useRoomMemberNamePrefill(roomDisplayName, joinName, setJoinName)
   const [roundId, setRoundId] = useState<string | null>(null)
   const [grid, setGrid] = useState<string[][] | null>(null)
   const [validWords, setValidWords] = useState<Set<string>>(new Set())
@@ -262,8 +265,9 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
     }
   }, [gameCode])
 
-  async function joinGame(joinAsViewer?: boolean) {
-    if (!joinName.trim() || joining) return
+  const joinGame = useCallback(async (opts?: { joinAsViewer?: boolean; name?: string }) => {
+    const name = (opts?.name ?? joinName).trim()
+    if (!name) return
     setJoining(true)
     try {
       const res = await fetch('/api/players', {
@@ -271,8 +275,9 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameCode,
-          playerName: joinName.trim(),
-          ...(game?.status === 'active' ? { joinAsViewer } : {}),
+          playerName: name,
+          ...joinExtras,
+          ...(game?.status === 'active' ? { joinAsViewer: opts?.joinAsViewer } : {}),
         }),
       })
       const json = await res.json()
@@ -287,7 +292,17 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
     } finally {
       setJoining(false)
     }
-  }
+  }, [game?.status, gameCode, joinExtras, joinName, load, toastError])
+
+  useRoomMemberAutoJoin({
+    displayName: roomDisplayName,
+    resolving: resolvingRoomMember,
+    screen: view,
+    gameStatus: game?.status,
+    hasPlayerSession: !!myPlayerId,
+    joining,
+    onJoin: (name) => joinGame({ name }),
+  })
 
   const handlePlayerLeft = () => {
     clearPlayerSession(gameCode)
@@ -363,6 +378,14 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (view === 'join') {
+    if (resolvingRoomMember) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-muted text-lg">Joining from your game room…</p>
+        </div>
+      )
+    }
+
     return (
       <GameJoinLobbyShell
         gameCode={gameCode}
@@ -406,8 +429,8 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
         nameInput={joinName}
         onNameChange={setJoinName}
         joining={joining}
-        onJoinAsViewer={() => void joinGame(true)}
-        onJoinAsPlayer={() => void joinGame(false)}
+        onJoinAsViewer={() => void joinGame({ joinAsViewer: true })}
+        onJoinAsPlayer={() => void joinGame({ joinAsViewer: false })}
       />
     )
   }

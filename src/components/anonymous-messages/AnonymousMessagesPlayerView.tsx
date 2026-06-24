@@ -34,6 +34,7 @@ import { ShareGameLinkCard } from '@/components/ShareGameLinkCard'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
+import { useRoomMemberAutoJoin, useRoomMemberJoin } from '@/hooks/useRoomMemberJoin'
 import { markPlayerReady } from '@/lib/player-ready'
 import { allowLateJoin, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 
@@ -56,6 +57,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
   const [myPlayerName, setMyPlayerName] = useState('')
   const [joining, setJoining] = useState(false)
+  const { memberCode, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
   const [messageInput, setMessageInput] = useState('')
   const [replyTo, setReplyTo] = useState<AnonymousMessage | null>(null)
   const [sending, setSending] = useState(false)
@@ -171,13 +173,13 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     if (screen === 'game_started_waiting' || screen === 'finished') void load()
   })
 
-  const join = async () => {
+  const join = useCallback(async () => {
     setJoining(true)
     try {
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode }),
+        body: JSON.stringify({ gameCode, ...joinExtras }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
@@ -192,7 +194,17 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
     } finally {
       setJoining(false)
     }
-  }
+  }, [gameCode, joinExtras, load, success, toastError])
+
+  useRoomMemberAutoJoin({
+    autoJoinWithoutName: !!memberCode,
+    resolving: resolvingRoomMember,
+    screen,
+    gameStatus: game?.status,
+    hasPlayerSession: !!myPlayerId,
+    joining,
+    onJoin: () => join(),
+  })
 
   const sendMessage = async () => {
     const text = messageInput.trim()
@@ -282,6 +294,14 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   }
 
   if (screen === 'join') {
+    if (resolvingRoomMember) {
+      return (
+        <CenteredShell>
+          <p className="text-muted text-lg text-center">Joining from your game room…</p>
+        </CenteredShell>
+      )
+    }
+
     const sessionInProgress = game?.status === 'active'
     const roomCapacity = game ? anonymousRoomMaxPlayers(game) : null
     const lobbyFull = game?.status === 'waiting' && roomCapacity != null && players.length >= roomCapacity
@@ -303,7 +323,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
             "Join the anonymous room — you'll get a random lobby name shown on your messages."
           )}
         </p>
-        <button type="button" onClick={join} disabled={joining || lobbyFull} className="btn-primary w-full">
+        <button type="button" onClick={() => void join()} disabled={joining || lobbyFull} className="btn-primary w-full">
           {joining
             ? 'Joining…'
             : lobbyFull

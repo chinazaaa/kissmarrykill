@@ -32,6 +32,7 @@ import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
+import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { allowLateJoin, allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -68,6 +69,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const [myPlayerName, setMyPlayerName] = useState('')
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
+  const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
+  useRoomMemberNamePrefill(roomDisplayName, joinName, setJoinName)
   const [myRole, setMyRole] = useState<CodewordsPlayerRole | null>(null)
   const [board, setBoard] = useState<CodewordsBoard | null>(null)
   const [allPlayers, setAllPlayers] = useState<Player[]>([])
@@ -264,8 +267,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     void loadBoard()
   }, [board, loadBoard, screen])
 
-  const joinGame = async (joinAsViewer?: boolean) => {
-    const name = joinName.trim()
+  const joinGame = useCallback(async (opts?: { joinAsViewer?: boolean; name?: string }) => {
+    const name = (opts?.name ?? joinName).trim()
     if (!name) return
     setJoining(true)
     try {
@@ -275,7 +278,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
         body: JSON.stringify({
           gameCode,
           playerName: name,
-          ...(game?.status === 'active' ? { joinAsViewer } : {}),
+          ...joinExtras,
+          ...(game?.status === 'active' ? { joinAsViewer: opts?.joinAsViewer } : {}),
         }),
       })
       const data = await res.json()
@@ -295,7 +299,17 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     } finally {
       setJoining(false)
     }
-  }
+  }, [game?.status, gameCode, joinExtras, joinName, load, success, toastError])
+
+  useRoomMemberAutoJoin({
+    displayName: roomDisplayName,
+    resolving: resolvingRoomMember,
+    screen,
+    gameStatus: game?.status,
+    hasPlayerSession: !!myPlayerId,
+    joining,
+    onJoin: (name) => joinGame({ name }),
+  })
 
   const saveRole = async () => {
     if (!myPlayerId || !pickingTeam || !pickingRole) return
@@ -394,13 +408,21 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
         nameInput={joinName}
         onNameChange={setJoinName}
         joining={joining}
-        onJoinAsViewer={() => void joinGame(true)}
-        onJoinAsPlayer={() => void joinGame(false)}
+        onJoinAsViewer={() => void joinGame({ joinAsViewer: true })}
+        onJoinAsPlayer={() => void joinGame({ joinAsViewer: false })}
       />
     )
   }
 
   if (screen === 'join') {
+    if (resolvingRoomMember) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-muted text-lg">Joining from your game room…</p>
+        </div>
+      )
+    }
+
     return (
       <GameJoinLobbyShell
         gameCode={gameCode}

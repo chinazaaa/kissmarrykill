@@ -29,6 +29,10 @@ export function playerGameUrl(gameCode: string, origin: string = appOrigin()): s
   return `${origin.replace(/\/$/, '')}/game/${gameCode.trim().toUpperCase()}`
 }
 
+export function roomLobbyUrl(roomCode: string, origin: string = appOrigin()): string {
+  return `${origin.replace(/\/$/, '')}/room/${roomCode.trim().toUpperCase()}`
+}
+
 export function playerResumeUrl(gameCode: string, resumeToken: string, origin: string = appOrigin()): string {
   const code = gameCode.trim().toUpperCase()
   const token = resumeToken.trim().toUpperCase()

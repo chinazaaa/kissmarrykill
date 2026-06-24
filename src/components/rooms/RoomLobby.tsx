@@ -22,6 +22,8 @@ import { RoomSettings } from '@/components/rooms/RoomSettings'
 import { formatRoomTimezone } from '@/lib/room-timezones'
 import type { RoomRow } from '@/lib/room-api'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { copyToClipboard } from '@/lib/copy'
+import { roomLobbyUrl, shareOrigin } from '@/lib/site'
 
 type Room = RoomRow
 
@@ -453,8 +455,12 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
     })
   }, [confirm, creatorToken, roomCode])
 
-  const copyText = (text: string, which: 'room' | 'member') => {
-    navigator.clipboard.writeText(text)
+  const copyText = async (text: string, which: 'room' | 'member') => {
+    const payload =
+      which === 'room'
+        ? `${roomCode}\n${roomLobbyUrl(roomCode, shareOrigin())}`
+        : text
+    await copyToClipboard(payload)
     setCopySuccess(which)
     setTimeout(() => setCopySuccess(null), 2000)
   }
@@ -544,7 +550,7 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
           <button
             type="button"
             onClick={() => copyText(roomCode, 'room')}
-            aria-label="Copy room code"
+            aria-label="Copy room code and link"
             className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 sm:px-3 py-1.5 text-xs font-mono font-bold tracking-widest hover:border-[var(--border-strong)] transition-colors"
           >
             <span className="hidden sm:inline text-[10px] uppercase tracking-wider text-faint font-sans font-semibold">Room</span>

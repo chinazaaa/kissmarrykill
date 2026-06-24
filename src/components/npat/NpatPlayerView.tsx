@@ -17,6 +17,7 @@ import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { GameStartedWaiting } from '@/components/GameStartedWaiting'
 import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
+import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
@@ -35,6 +36,8 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
   const [myPlayerName, setMyPlayerName] = useState('')
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
+  const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
+  useRoomMemberNamePrefill(roomDisplayName, joinName, setJoinName)
 
   const load = useCallback(async (): Promise<boolean> => {
     const [gameRes, plrsRes, rdsRes, ansRes, marksRes] = await Promise.all([
@@ -126,8 +129,8 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
   const me = players.find((p) => p.id === myPlayerId)
   const isViewer = !!(game && me && game.status !== 'waiting' && playerIsViewer(me, game))
 
-  const joinGame = async () => {
-    const name = joinName.trim()
+  const joinGame = useCallback(async (opts?: { joinAsViewer?: boolean; name?: string }) => {
+    const name = (opts?.name ?? joinName).trim()
     if (!name) return
     setJoining(true)
     try {
@@ -137,7 +140,8 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
         body: JSON.stringify({
           gameCode,
           playerName: name,
-          ...(game?.status === 'active' ? { joinAsViewer: true } : {}),
+          ...joinExtras,
+          ...(game?.status === 'active' ? { joinAsViewer: opts?.joinAsViewer ?? true } : {}),
         }),
       })
       const data = await res.json()
@@ -152,7 +156,17 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
     } finally {
       setJoining(false)
     }
-  }
+  }, [game?.status, gameCode, joinExtras, joinName, load, success, toastError])
+
+  useRoomMemberAutoJoin({
+    displayName: roomDisplayName,
+    resolving: resolvingRoomMember,
+    screen,
+    gameStatus: game?.status,
+    hasPlayerSession: !!myPlayerId,
+    joining,
+    onJoin: (name) => joinGame({ name }),
+  })
 
   const handlePlayerLeft = () => {
     clearPlayerSession(gameCode)
@@ -189,12 +203,20 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'join') {
+    if (resolvingRoomMember) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-muted text-lg">Joining from your game room…</p>
+        </div>
+      )
+    }
+
     return (
       <GameJoinLobbyShell
         gameCode={gameCode}
         header={<GameJoinHeader emoji={cfg.headerEmoji} title={game?.title} gameType="i_call_on" />}
       >
-        <NameJoinForm value={joinName} onChange={setJoinName} onSubmit={joinGame} joining={joining} />
+        <NameJoinForm value={joinName} onChange={setJoinName} onSubmit={() => void joinGame()} joining={joining} />
       </GameJoinLobbyShell>
     )
   }

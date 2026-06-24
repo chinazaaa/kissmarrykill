@@ -15,7 +15,7 @@ import { isImportClaimMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { gameOffersLateJoinChoice, allowLatePlayers } from '@/lib/viewers'
 import { unlockAudio } from '@/lib/sounds'
-import { roomMemberCodeFromSearch } from '@/lib/room-member-join'
+import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, Participant, Player, Round, ParticipantGender, PlayerGender } from '@/types'
 
@@ -56,6 +56,7 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     applyActiveRound,
   } = deps
   const toast = useToast()
+  const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
 
   const [nameInput, setNameInput] = useState('')
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
@@ -64,6 +65,8 @@ export function useJoinFlow(deps: JoinFlowDeps) {
   const [joining, setJoining] = useState(false)
   const [editingJoin, setEditingJoin] = useState(false)
   const joinGenderTouchedRef = useRef(false)
+
+  useRoomMemberNamePrefill(roomDisplayName, nameInput, setNameInput)
 
   const isJoinersMode = game?.participant_mode === 'joiners'
   const isVoterOnly = game ? isVoterOnlyMode(game) : false
@@ -118,21 +121,30 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     }
   }, [namePickerOptions, selectedParticipantId, useFreeNameJoin, view])
 
-  const joinGame = async (joinAsViewer?: boolean) => {
+  // Match room display name to a host-imported participant when joining from a game room.
+  useEffect(() => {
+    if (!roomDisplayName || useFreeNameJoin || view !== 'join' || editingJoin) return
+    const match = namePickerOptions.find((o) => o.name.toLowerCase() === roomDisplayName.toLowerCase())
+    if (!match || selectedParticipantId === match.id) return
+    handleSelectParticipant(match.id, match.name)
+  }, [roomDisplayName, useFreeNameJoin, view, editingJoin, namePickerOptions, selectedParticipantId])
+
+  const joinGame = async (joinAsViewer?: boolean, nameOverride?: string) => {
     if (joining) return
-    if (useFreeNameJoin ? !nameInput.trim() : !selectedParticipantId) return
+    const resolvedName = (nameOverride ?? nameInput).trim()
+    if (useFreeNameJoin ? !resolvedName : !selectedParticipantId) return
     unlockAudio()
     setJoining(true)
     try {
       const body =
         isNameOnlyJoin || ((isJoinersMode || isVoterOnly) && !joinNeedsGender)
-          ? { gameCode, playerName: nameInput.trim() }
+          ? { gameCode, playerName: resolvedName }
           : !joinNeedsGender && isImportClaim
             ? { gameCode, participantId: selectedParticipantId! }
             : isJoinersMode || isVoterOnly
               ? {
                   gameCode,
-                  playerName: nameInput.trim(),
+                  playerName: resolvedName,
                   gender: joinPlayerGender,
                   identityGender: joinIdentityGender,
                   ...(voteBothGenders ? { pollGender: joinIdentityGender } : {}),
@@ -154,15 +166,13 @@ export function useJoinFlow(deps: JoinFlowDeps) {
               : { joinAsViewer: true }
           : {}
 
-      const roomMemberCode = roomMemberCodeFromSearch(window.location.search)
-
       const res = await fetch('/api/players', {
         method: editingJoin && myPlayerId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           editingJoin && myPlayerId
             ? { ...body, playerId: myPlayerId }
-            : { ...body, ...activeJoinExtras, ...(roomMemberCode ? { roomMemberCode } : {}) }
+            : { ...body, ...activeJoinExtras, ...joinExtras }
         ),
       })
       const data = await res.json()
@@ -261,6 +271,56 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     joinGenderTouchedRef.current = false
   }
 
+  useRoomMemberAutoJoin({
+    enabled: useFreeNameJoin && !editingJoin,
+    displayName: roomDisplayName,
+    resolving: resolvingRoomMember,
+    screen: view,
+    gameStatus: game?.status,
+    hasPlayerSession: !!myPlayerId,
+    joining,
+    onJoin: (roomName) => joinGame(undefined, roomName),
+  })
+
+  const participantAutoJoinRef = useRef(false)
+  useEffect(() => {
+    if (
+      participantAutoJoinRef.current ||
+      !roomDisplayName ||
+      useFreeNameJoin ||
+      joinNeedsGender ||
+      view !== 'join' ||
+      game?.status !== 'waiting' ||
+      myPlayerId ||
+      joining ||
+      editingJoin ||
+      resolvingRoomMember ||
+      !selectedParticipantId
+    ) {
+      return
+    }
+    const match = namePickerOptions.find((o) => o.id === selectedParticipantId)
+    if (!match || match.name.toLowerCase() !== roomDisplayName.toLowerCase()) return
+    participantAutoJoinRef.current = true
+    void joinGame()
+  }, [
+    roomDisplayName,
+    useFreeNameJoin,
+    joinNeedsGender,
+    view,
+    game?.status,
+    myPlayerId,
+    joining,
+    editingJoin,
+    resolvingRoomMember,
+    selectedParticipantId,
+    namePickerOptions,
+  ])
+
+  useEffect(() => {
+    if (view !== 'join') participantAutoJoinRef.current = false
+  }, [view])
+
   return {
     nameInput,
     selectedParticipantId,
@@ -283,6 +343,7 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     handlePlayerRenamed,
     handleSelectParticipant,
     resetJoinState,
+    resolvingRoomMember,
   }
 }
 

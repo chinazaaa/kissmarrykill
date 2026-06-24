@@ -33,6 +33,7 @@ import { GameEndedScreen } from '@/components/GameEndedScreen'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
+import { useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { markPlayerReady } from '@/lib/player-ready'
 import { useMonopolyNotifications } from '@/hooks/useMonopolyNotifications'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
@@ -66,6 +67,8 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   const [joinName, setJoinName] = useState('')
   const [joinToken, setJoinToken] = useState<MonopolyTokenId | null>(null)
   const [joining, setJoining] = useState(false)
+  const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
+  useRoomMemberNamePrefill(roomDisplayName, joinName, setJoinName)
   const [acting, setActing] = useState(false)
   const actingRef = useRef(false)
 
@@ -180,8 +183,9 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     if (screen === 'finished' || screen === 'game_started_waiting') void load()
   })
 
-  const join = async () => {
-    if (!joinName.trim()) return
+  const join = useCallback(async (opts?: { joinAsViewer?: boolean; name?: string }) => {
+    const name = (opts?.name ?? joinName).trim()
+    if (!name) return
     const joiningAsViewer = game?.status === 'active'
     if (!joiningAsViewer && !joinToken) return
     setJoining(true)
@@ -191,8 +195,9 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameCode,
-          playerName: joinName.trim(),
-          ...(joiningAsViewer ? { joinAsViewer: true } : { monopolyToken: joinToken }),
+          playerName: name,
+          ...joinExtras,
+          ...(joiningAsViewer ? { joinAsViewer: opts?.joinAsViewer ?? true } : { monopolyToken: joinToken }),
         }),
       })
       const data = await res.json()
@@ -207,7 +212,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
     } finally {
       setJoining(false)
     }
-  }
+  }, [game?.status, gameCode, joinExtras, joinName, joinToken, load, toastError])
 
   const postAction = async (url: string, body: Record<string, unknown> = {}) => {
     if (!myPlayerId || actingRef.current) return
@@ -285,6 +290,14 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'join') {
+    if (resolvingRoomMember) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-muted text-lg">Joining from your game room…</p>
+        </div>
+      )
+    }
+
     const joiningAsViewer = game?.status === 'active'
     return (
       <GameJoinLobbyShell

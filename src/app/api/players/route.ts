@@ -43,7 +43,7 @@ import {
   allowLatePlayers,
 } from '@/lib/viewers'
 import type { Game } from '@/types'
-import { linkPlayerToRoomMember, resolveRoomMemberIdForGame } from '@/lib/room-points'
+import { linkPlayerToRoomMember, resolveRoomMemberForGame } from '@/lib/room-points'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -180,12 +180,16 @@ export async function POST(req: NextRequest) {
     roomMemberCode,
   } = parsed.data
 
-  const name = playerName?.trim() ?? ''
+  let name = playerName?.trim() ?? ''
   const gameId = gameCode.toUpperCase()
   const { data: gameRow } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
   if (!gameRow) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
-  const roomMemberId = await resolveRoomMemberIdForGame(supabase, gameId, roomMemberCode)
+  const roomMember = await resolveRoomMemberForGame(supabase, gameId, roomMemberCode)
+  const roomMemberId = roomMember?.id ?? null
+  if (!name && roomMember?.display_name) {
+    name = roomMember.display_name.trim()
+  }
 
   const rowGameType = parseGameType(gameRow.game_type)
   const lobbyLimits = await fetchGamePlayerLimits(supabase)

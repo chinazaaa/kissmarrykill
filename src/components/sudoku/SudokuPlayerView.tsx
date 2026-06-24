@@ -8,6 +8,7 @@ import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { parseSudokuMetadata, tallySudokuScores, SUDOKU_SCORING, SUDOKU_WRONG_PENALTY } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import type { Game, Player } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -35,6 +36,10 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
   const [submissions, setSubmissions] = useState<SudokuSubmission[]>([])
   const [submitting, setSubmitting] = useState<number | null>(null)
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+  const [joinName, setJoinName] = useState('')
+  const [joining, setJoining] = useState(false)
+  const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
+  useRoomMemberNamePrefill(roomDisplayName, joinName, setJoinName)
   const myPlayerIdRef = useRef<string | null>(null)
 
   const myPlayerId = myPlayerIdRef.current
@@ -181,21 +186,38 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     }
   }, [gameCode])
 
-  async function handleJoin(name: string) {
-    const res = await fetch('/api/players', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameCode, playerName: name }),
-    })
-    const json = await res.json()
-    if (!res.ok) {
-      showToast(json.error ?? 'Failed to join', false)
-      return
+  const handleJoin = useCallback(async (opts?: { name?: string }) => {
+    const name = (opts?.name ?? joinName).trim()
+    if (!name) return
+    setJoining(true)
+    try {
+      const res = await fetch('/api/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, playerName: name, ...joinExtras }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        showToast(json.error ?? 'Failed to join', false)
+        return
+      }
+      myPlayerIdRef.current = json.playerId
+      setPlayerSession(gameCode, json.playerId, json.playerName, json.playerGender ?? 'no_pref', json.resumeToken ?? null)
+      setView('waiting')
+    } finally {
+      setJoining(false)
     }
-    myPlayerIdRef.current = json.playerId
-    setPlayerSession(gameCode, json.playerId, name, json.playerGender ?? 'no_pref', json.resumeToken ?? null)
-    setView('waiting')
-  }
+  }, [gameCode, joinExtras, joinName])
+
+  useRoomMemberAutoJoin({
+    displayName: roomDisplayName,
+    resolving: resolvingRoomMember,
+    screen: view,
+    gameStatus: game?.status,
+    hasPlayerSession: !!myPlayerId,
+    joining,
+    onJoin: (name) => handleJoin({ name }),
+  })
 
   async function handleReady() {
     if (!myPlayerId) return
@@ -285,11 +307,24 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (view === 'join') {
+    if (resolvingRoomMember) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-muted text-lg">Joining from your game room…</p>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen flex flex-col">
         <GamePlayerChrome />
         <main className="pt-16 flex-1 flex items-center justify-center px-4">
-          <JoinForm onJoin={handleJoin} />
+          <JoinForm
+            name={joinName}
+            onNameChange={setJoinName}
+            onJoin={() => void handleJoin()}
+            joining={joining}
+          />
         </main>
       </div>
     )
@@ -431,16 +466,21 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
   )
 }
 
-function JoinForm({ onJoin }: { onJoin: (name: string) => void }) {
-  const [name, setName] = useState('')
-  const [loading, setLoading] = useState(false)
-
+function JoinForm({
+  name,
+  onNameChange,
+  onJoin,
+  joining,
+}: {
+  name: string
+  onNameChange: (value: string) => void
+  onJoin: () => void
+  joining: boolean
+}) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    setLoading(true)
-    await onJoin(name.trim())
-    setLoading(false)
+    await onJoin()
   }
 
   return (
@@ -452,13 +492,13 @@ function JoinForm({ onJoin }: { onJoin: (name: string) => void }) {
         type="text"
         placeholder="Your name"
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => onNameChange(e.target.value)}
         maxLength={32}
         className="input-field w-full"
         autoFocus
       />
-      <button type="submit" disabled={!name.trim() || loading} className="btn-primary w-full">
-        {loading ? 'Joining…' : 'Join game'}
+      <button type="submit" disabled={!name.trim() || joining} className="btn-primary w-full">
+        {joining ? 'Joining…' : 'Join game'}
       </button>
     </form>
   )

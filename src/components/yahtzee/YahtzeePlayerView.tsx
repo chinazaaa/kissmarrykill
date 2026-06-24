@@ -37,6 +37,7 @@ import { GameLobbyWaitingPanel } from '@/components/game-lobby/GameLobbyWaitingP
 import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
+import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
@@ -64,6 +65,8 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
+  const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
+  useRoomMemberNamePrefill(roomDisplayName, joinName, setJoinName)
   const [acting, setActing] = useState(false)
   const [localHeld, setLocalHeld] = useState<boolean[]>([false, false, false, false, false])
   const turnIndexRef = useRef<number | null>(null)
@@ -178,18 +181,19 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     if (screen === 'finished' || screen === 'game_started_waiting') void load()
   })
 
-  const join = async () => {
-    if (!joinName.trim()) return
+  const join = useCallback(async (opts?: { joinAsViewer?: boolean; name?: string }) => {
+    const name = (opts?.name ?? joinName).trim()
+    if (!name) return
     setJoining(true)
     try {
-      const joiningAsViewer = game?.status === 'active'
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameCode,
-          playerName: joinName.trim(),
-          ...(joiningAsViewer ? { joinAsViewer: true } : {}),
+          playerName: name,
+          ...joinExtras,
+          ...(game?.status === 'active' ? { joinAsViewer: opts?.joinAsViewer ?? true } : {}),
         }),
       })
       const data = await res.json()
@@ -202,7 +206,17 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
     } finally {
       setJoining(false)
     }
-  }
+  }, [game?.status, gameCode, joinExtras, joinName, load, toastError])
+
+  useRoomMemberAutoJoin({
+    displayName: roomDisplayName,
+    resolving: resolvingRoomMember,
+    screen,
+    gameStatus: game?.status,
+    hasPlayerSession: !!myPlayerId,
+    joining,
+    onJoin: (name) => join({ name }),
+  })
 
   const postAction = async (url: string, body: Record<string, unknown> = {}) => {
     if (!myPlayerId) return
@@ -283,6 +297,14 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'join') {
+    if (resolvingRoomMember) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-muted text-lg">Joining from your game room…</p>
+        </div>
+      )
+    }
+
     const joiningAsViewer = game?.status === 'active'
     return (
       <GameJoinLobbyShell
