@@ -24,7 +24,7 @@ import { clearMonopolySessionData } from '@/lib/monopoly'
 import { clearYahtzeeSessionData } from '@/lib/yahtzee'
 import { clearWhotSessionData } from '@/lib/whot'
 import { clearLudoSessionData } from '@/lib/ludo'
-import { clearTicTacToeSessionData } from '@/lib/tic-tac-toe'
+import { clearTicTacToeSessionData, canTicTacToePlayAgain } from '@/lib/tic-tac-toe'
 import { clearNpatSessionData } from '@/lib/npat'
 import { clearSudokuSessionData } from '@/lib/sudoku'
 import { clearTriviaSessionData } from '@/lib/trivia'
@@ -70,9 +70,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const gameType = parseGameType(game.game_type)
+  const ticTacToeCanReplay = isTicTacToeGame(gameType)
+    ? await canTicTacToePlayAgain(supabase, gameId, game.status)
+    : false
   const canReturnToLobby =
     game.status === 'waiting' ||
     game.status === 'finished' ||
+    ticTacToeCanReplay ||
     (isCodewordsGame(gameType) && game.status === 'active') ||
     (isTwoTruthsGame(gameType) && game.status === 'active') ||
     (isICallOnGame(gameType) && game.status === 'active') ||

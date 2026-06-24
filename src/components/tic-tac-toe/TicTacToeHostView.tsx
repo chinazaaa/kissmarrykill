@@ -5,9 +5,10 @@ import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
-import { currentTurnPlayerId, TIC_TAC_TOE_MIN_PLAYERS } from '@/lib/tic-tac-toe'
+import { currentTurnPlayerId, TIC_TAC_TOE_MIN_PLAYERS, isTicTacToeResultsPhase } from '@/lib/tic-tac-toe'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, TIC_TAC_TOE_SESSION_SELECT } from '@/lib/supabase-selects'
+import { useHostAutoReady } from '@/hooks/useHostAutoReady'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player, TicTacToeSession } from '@/types'
@@ -18,6 +19,7 @@ import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useTicTacToeTurnTimer } from '@/hooks/useTicTacToeTurnTimer'
 import { TicTacToeGamePanel } from '@/components/tic-tac-toe/TicTacToeBoard'
+import { TicTacToeFinalResultsShareBlock } from '@/components/tic-tac-toe/TicTacToeFinalResultsShareBlock'
 import { TicTacToePrimaryButton } from '@/components/tic-tac-toe/TicTacToeChrome'
 
 type HostTab = 'play' | 'manage'
@@ -50,21 +52,31 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
   const [hostJoining, setHostJoining] = useState(false)
   const [hostActing, setHostActing] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+  const [loading, setLoading] = useState(true)
 
   useApplyGameTheme(game?.theme)
   useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const load = useCallback(async (): Promise<boolean> => {
-    const [gameRes, plrsRes, sessionRes] = await Promise.all([
+    const [gameRes, plrsRes] = await Promise.all([
       supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
-      supabase.from('tic_tac_toe_sessions').select(TIC_TAC_TOE_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
     ])
-    if (!supabasePollOk(gameRes, plrsRes, sessionRes)) return false
+    if (!supabasePollOk(gameRes, plrsRes)) return false
+
     setGame(gameRes.data)
     setPlayers(plrsRes.data ?? [])
-    setSession(sessionRes.data as TicTacToeSession | null)
-    return true
+    setLoading(false)
+
+    const sessionRes = await supabase
+      .from('tic_tac_toe_sessions')
+      .select(TIC_TAC_TOE_SESSION_SELECT)
+      .eq('game_id', gameCode)
+      .maybeSingle()
+    if (supabasePollOk(sessionRes)) {
+      setSession(sessionRes.data as TicTacToeSession | null)
+    }
+    return supabasePollOk(sessionRes)
   }, [gameCode])
 
   useEffect(() => {
@@ -78,8 +90,8 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
   }, [gameCode, load])
 
   useEffect(() => {
-    if (game?.status === 'finished') setTab('manage')
-  }, [game?.status])
+    if (isTicTacToeResultsPhase(game?.status, session?.status)) setTab('manage')
+  }, [game?.status, session?.status])
 
   useEffect(() => {
     if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
@@ -128,6 +140,8 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
   )
 
   const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
+
+  useHostAutoReady(gameCode, game?.status, hostPlayerId, players, load)
 
   const changeHostMode = (mode: TicTacToeHostMode) => {
     setHostModeState(mode)
@@ -220,10 +234,11 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
       const res = await fetch(`/api/games/${gameCode}/play-again`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
+        body: JSON.stringify({ hostToken, hostPlayerId: hostPlayerId ?? undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
+      if (data.game) setGame(data.game)
       success('Ready for a new game!')
       await load()
     } catch (err) {
@@ -233,11 +248,13 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
     }
   }
 
-  const canStart = players.filter((p) => p.spectator !== true).length >= TIC_TAC_TOE_MIN_PLAYERS
+  const readyPlayers = players.filter((p) => p.spectator !== true)
+  const canStart = readyPlayers.length >= TIC_TAC_TOE_MIN_PLAYERS
   const turnPlayerId = session ? currentTurnPlayerId(session) : null
   const winner = players.find((p) => p.id === session?.winner_player_id)
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status !== 'waiting' && game?.status !== 'finished'
+  const gameFinished = isTicTacToeResultsPhase(game?.status, session?.status)
+  const showPlayTab = hostPlays && game?.status !== 'waiting' && !gameFinished
   const isHostTurn = turnPlayerId === hostPlayerId
 
   const { secondsLeft, hasTimer, urgent } = useTicTacToeTurnTimer(
@@ -246,10 +263,18 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
     game?.status === 'active' && (tab === 'play' ? isHostTurn : true)
   )
 
-  if (!game) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!game) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <p className="text-muted text-center">Game not found.</p>
       </div>
     )
   }
@@ -258,7 +283,7 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
 
   return (
     <HostPageShell gameCode={gameCode} {...layout}>
-      <HostGameHeader game={game} />
+      {!gameFinished && <HostGameHeader game={game} />}
 
       {game.status === 'waiting' && (
         <div className="glass-card-strong p-5 space-y-3">
@@ -339,7 +364,7 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
         </div>
       )}
 
-      {tab === 'play' && session && hostPlayerId && (
+      {tab === 'play' && session && hostPlayerId && game.status === 'active' && (
         <TicTacToeGamePanel
           session={session}
           players={players}
@@ -355,23 +380,28 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
 
       {(tab === 'manage' || !showPlayTab) && (
         <>
-          <p className="text-center">
-            <GameRulesLink gameType="tic_tac_toe" variant="subtle" />
-          </p>
-
-          {game.status === 'finished' && (
-            <div className="glass-card p-6 text-center space-y-3">
-              <p className="text-4xl">{session?.is_draw ? '🤝' : winner ? '🏆' : '🏁'}</p>
-              <p className="text-2xl font-black">
-                {session?.is_draw ? "It's a draw!" : winner ? `${winner.name} wins!` : 'Game ended early'}
-              </p>
-              <TicTacToePrimaryButton onClick={playAgain} loading={playingAgain}>
-                Play again
-              </TicTacToePrimaryButton>
-            </div>
+          {!gameFinished && (
+            <p className="text-center">
+              <GameRulesLink gameType="tic_tac_toe" variant="subtle" />
+            </p>
           )}
 
-          {session && game.status !== 'finished' && (
+          {gameFinished && (
+            <TicTacToeFinalResultsShareBlock
+              game={game}
+              players={players}
+              session={session}
+              winnerName={winner?.name}
+              highlightPlayerId={hostPlayerId}
+              playAgainButton={
+                <TicTacToePrimaryButton onClick={playAgain} loading={playingAgain}>
+                  Play again
+                </TicTacToePrimaryButton>
+              }
+            />
+          )}
+
+          {session && game.status === 'active' && !gameFinished && (
             <TicTacToeGamePanel
               session={session}
               players={players}
@@ -403,7 +433,9 @@ export function TicTacToeHostView({ gameCode, hostToken }: { gameCode: string; h
               startDisabledHint={
                 canStart
                   ? null
-                  : `Need exactly ${TIC_TAC_TOE_MIN_PLAYERS} players to start (${players.length}/${TIC_TAC_TOE_MIN_PLAYERS})`
+                  : readyPlayers.length < players.length
+                    ? `Waiting for players to tap ready (${readyPlayers.length}/${TIC_TAC_TOE_MIN_PLAYERS})`
+                    : `Need exactly ${TIC_TAC_TOE_MIN_PLAYERS} players to start (${players.length}/${TIC_TAC_TOE_MIN_PLAYERS})`
               }
               className="space-y-3"
             />

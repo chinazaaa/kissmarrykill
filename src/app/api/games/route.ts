@@ -372,7 +372,13 @@ export async function POST(req: NextRequest) {
                       ? resolveMaxPlayers('i_call_on', rawMaxPlayers, lobbyDefaultMaxPlayers('i_call_on', lobbyLimits))
                       : isSudokuGame(game_type)
                         ? resolveMaxPlayers('sudoku', rawMaxPlayers, lobbyDefaultMaxPlayers('sudoku', lobbyLimits))
-                        : null
+                        : isTicTacToeGame(game_type)
+                          ? resolveMaxPlayers(
+                              'tic_tac_toe',
+                              rawMaxPlayers,
+                              lobbyDefaultMaxPlayers('tic_tac_toe', lobbyLimits)
+                            )
+                          : null
   const isSecret = isSecretMessageGame(game_type)
   const lateJoinFields = gameSupportsViewerSetting(game_type)
     ? rawLateJoinPolicy

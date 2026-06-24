@@ -8,9 +8,10 @@ import {
   TicTacToeSecondaryButton,
   TicTacToeShell,
 } from '@/components/tic-tac-toe/TicTacToeChrome'
+import { TicTacToeFinalResultsShareBlock } from '@/components/tic-tac-toe/TicTacToeFinalResultsShareBlock'
 import { TicTacToeGamePanel } from '@/components/tic-tac-toe/TicTacToeBoard'
 import { gameTypeConfig } from '@/lib/game-types'
-import { currentTurnPlayerId } from '@/lib/tic-tac-toe'
+import { currentTurnPlayerId, isTicTacToeResultsPhase } from '@/lib/tic-tac-toe'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, TIC_TAC_TOE_SESSION_SELECT } from '@/lib/supabase-selects'
 import { setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -56,7 +57,7 @@ export function TicTacToePlayerView({ gameCode }: { gameCode: string }) {
 
   useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
 
-  const syncScreen = useCallback((gameData: Game, playerId: string | null) => {
+  const syncScreen = useCallback((gameData: Game, playerId: string | null, sessionData: TicTacToeSession | null) => {
     if (!playerId) {
       const pre = preJoinScreen(gameData, false)
       if (pre === 'game_started_waiting') {
@@ -74,20 +75,23 @@ export function TicTacToePlayerView({ gameCode }: { gameCode: string }) {
       setScreen('waiting')
       return
     }
-    if (gameData.status === 'active') {
+    if (gameData.status === 'active' && sessionData?.status !== 'finished') {
       setScreen('active')
       return
     }
-    setScreen('finished')
+    if (isTicTacToeResultsPhase(gameData.status, sessionData?.status)) {
+      setScreen('finished')
+      return
+    }
+    setScreen('waiting')
   }, [])
 
   const load = useCallback(async (): Promise<boolean> => {
-    const [gameRes, plrsRes, sessionRes] = await Promise.all([
+    const [gameRes, plrsRes] = await Promise.all([
       supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
-      supabase.from('tic_tac_toe_sessions').select(TIC_TAC_TOE_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
     ])
-    if (!supabasePollOk(gameRes, plrsRes, sessionRes)) return false
+    if (!supabasePollOk(gameRes, plrsRes)) return false
 
     const gameData = gameRes.data
     const plrs = plrsRes.data
@@ -99,7 +103,16 @@ export function TicTacToePlayerView({ gameCode }: { gameCode: string }) {
 
     setGame(gameData)
     setPlayers(plrs ?? [])
-    setSession(sessionRes.data as TicTacToeSession | null)
+
+    const sessionRes = await supabase
+      .from('tic_tac_toe_sessions')
+      .select(TIC_TAC_TOE_SESSION_SELECT)
+      .eq('game_id', gameCode)
+      .maybeSingle()
+    const sessionData = supabasePollOk(sessionRes) ? (sessionRes.data as TicTacToeSession | null) : null
+    if (sessionData) {
+      setSession(sessionData)
+    }
 
     const session = await resolvePlayerSession(gameCode, plrs)
     const playerId = session?.playerId ?? null
@@ -109,8 +122,8 @@ export function TicTacToePlayerView({ gameCode }: { gameCode: string }) {
       setMyPlayerId(null)
     }
 
-    syncScreen(gameData, playerId)
-    return true
+    syncScreen(gameData, playerId, sessionData)
+    return supabasePollOk(sessionRes)
   }, [gameCode, syncScreen])
 
   useEffect(() => {
@@ -266,6 +279,7 @@ export function TicTacToePlayerView({ gameCode }: { gameCode: string }) {
   }
 
   if (screen === 'waiting') {
+    const me = players.find((p) => p.id === myPlayerId)
     return (
       <GameJoinLobbyShell gameCode={gameCode}>
         <GameLobbyWaitingPanel
@@ -277,6 +291,16 @@ export function TicTacToePlayerView({ gameCode }: { gameCode: string }) {
           onLeft={handlePlayerLeft}
           title="Waiting for host to start"
           rulesLink={<GameRulesLink gameType="tic_tac_toe" variant="subtle" />}
+          isSpectator={me?.spectator === true}
+          onReady={async () => {
+            if (!myPlayerId) return
+            await fetch('/api/players/ready', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+            })
+            await load()
+          }}
         />
       </GameJoinLobbyShell>
     )
@@ -285,24 +309,32 @@ export function TicTacToePlayerView({ gameCode }: { gameCode: string }) {
   if (screen === 'finished') {
     const myName = players.find((p) => p.id === myPlayerId)?.name
     const iWon = myPlayerId != null && session?.winner_player_id === myPlayerId
+    const shareWinnerName = iWon ? myName : winner?.name
 
     return (
-      <TicTacToeShell
-        title="Game over!"
-        subtitle={session?.is_draw ? "It's a draw" : winner ? `${winner.name} wins` : 'Session ended'}
-      >
-        <TicTacToeCard className="p-6 text-center space-y-3">
-          <p className="text-4xl">{session?.is_draw ? '🤝' : winner ? '🏆' : '🏁'}</p>
-          <p className="text-2xl font-black">
-            {session?.is_draw
-              ? "It's a draw!"
-              : winner
-                ? iWon
-                  ? 'You win!'
-                  : `${winner.name} wins!`
-                : 'Game ended early'}
-          </p>
-        </TicTacToeCard>
+      <TicTacToeShell compact>
+        {game ? (
+          <TicTacToeFinalResultsShareBlock
+            game={game}
+            players={players}
+            session={session}
+            winnerName={shareWinnerName}
+            highlightPlayerId={myPlayerId}
+          />
+        ) : (
+          <TicTacToeCard className="p-6 text-center space-y-3">
+            <p className="text-4xl">{session?.is_draw ? '🤝' : winner ? '🏆' : '🏁'}</p>
+            <p className="text-2xl font-black">
+              {session?.is_draw
+                ? "It's a draw!"
+                : winner
+                  ? iWon
+                    ? 'You win!'
+                    : `${winner.name} wins!`
+                  : 'Game ended early'}
+            </p>
+          </TicTacToeCard>
+        )}
         {myPlayerId && myName && (
           <PlayerSessionControls
             gameCode={gameCode}

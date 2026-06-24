@@ -16,6 +16,7 @@ import {
   isMonopolyGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isICallOnGame,
   isCodewordsGame,
 } from '@/lib/game-types'
@@ -52,6 +53,9 @@ function buildShareText({
   ludoStandings,
   ludoWinnerName,
   ludoEndedEarly,
+  ticTacToeWinnerName,
+  ticTacToeIsDraw,
+  ticTacToeEndedEarly,
   npatLeaderboard,
   npatWinnerLabel,
   codewordsOperativeStats,
@@ -73,6 +77,9 @@ function buildShareText({
   ludoStandings?: LudoStanding[]
   ludoWinnerName?: string
   ludoEndedEarly?: boolean
+  ticTacToeWinnerName?: string
+  ticTacToeIsDraw?: boolean
+  ticTacToeEndedEarly?: boolean
   npatLeaderboard?: { name: string; score: number }[]
   npatWinnerLabel?: string
   codewordsOperativeStats?: { name: string; score: number }[]
@@ -158,6 +165,18 @@ function buildShareText({
 
   if (isBingoGame(gameType) && bingoWinnerName) {
     return [...gameHeader, '🏆', '', 'BINGO!', '', `${bingoWinnerName} wins!`, '', `Play at ${appDomain()}`].join('\n')
+  }
+
+  if (isTicTacToeGame(gameType)) {
+    if (ticTacToeIsDraw) {
+      return [...gameHeader, '🤝', '', "It's a draw!", '', `Play at ${appDomain()}`].join('\n')
+    }
+    if (ticTacToeWinnerName) {
+      return [...gameHeader, '🏆', '', `${ticTacToeWinnerName} wins!`, '', `Play at ${appDomain()}`].join('\n')
+    }
+    if (ticTacToeEndedEarly) {
+      return [...gameHeader, '🏁', '', 'Game ended early', '', `Play at ${appDomain()}`].join('\n')
+    }
   }
 
   if (isYahtzeeGame(gameType) && yahtzeeScores && yahtzeeScores.length > 0) {
@@ -311,6 +330,9 @@ export function ShareResults({
   ludoStandings,
   ludoWinnerName,
   ludoEndedEarly,
+  ticTacToeWinnerName,
+  ticTacToeIsDraw,
+  ticTacToeEndedEarly,
   npatLeaderboard,
   npatWinnerLabel,
   codewordsOperativeStats,
@@ -333,6 +355,9 @@ export function ShareResults({
   ludoStandings?: LudoStanding[]
   ludoWinnerName?: string
   ludoEndedEarly?: boolean
+  ticTacToeWinnerName?: string
+  ticTacToeIsDraw?: boolean
+  ticTacToeEndedEarly?: boolean
   npatLeaderboard?: { name: string; score: number }[]
   npatWinnerLabel?: string
   codewordsOperativeStats?: { name: string; score: number }[]
@@ -387,6 +412,9 @@ export function ShareResults({
         ludoStandings,
         ludoWinnerName,
         ludoEndedEarly,
+        ticTacToeWinnerName,
+        ticTacToeIsDraw,
+        ticTacToeEndedEarly,
         npatLeaderboard,
         npatWinnerLabel,
         codewordsOperativeStats,
@@ -429,6 +457,9 @@ export function ShareResults({
           ludoStandings,
           ludoWinnerName,
           ludoEndedEarly,
+          ticTacToeWinnerName,
+          ticTacToeIsDraw,
+          ticTacToeEndedEarly,
           npatLeaderboard,
           npatWinnerLabel,
           codewordsOperativeStats,
@@ -461,6 +492,9 @@ export function ShareResults({
     ludoStandings,
     ludoWinnerName,
     ludoEndedEarly,
+    ticTacToeWinnerName,
+    ticTacToeIsDraw,
+    ticTacToeEndedEarly,
     npatLeaderboard,
     npatWinnerLabel,
     codewordsOperativeStats,

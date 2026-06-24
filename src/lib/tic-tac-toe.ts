@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { markGameFinished } from '@/lib/game-finish'
 import type { TicTacToeMark, TicTacToeSession } from '@/types'
 
 export const TIC_TAC_TOE_MIN_PLAYERS = 2
@@ -57,12 +58,61 @@ export function currentTurnPlayerId(session: TicTacToeSession): string {
   return session.current_turn_mark === 'X' ? session.player_x_id : session.player_o_id
 }
 
+/** True when the host can reset the room for another round. */
+export async function canTicTacToePlayAgain(
+  supabase: SupabaseClient,
+  gameId: string,
+  gameStatus: string
+): Promise<boolean> {
+  if (gameStatus === 'waiting' || gameStatus === 'finished') return true
+  if (gameStatus !== 'active') return false
+
+  const { data: session } = await supabase
+    .from('tic_tac_toe_sessions')
+    .select('status')
+    .eq('game_id', gameId)
+    .maybeSingle()
+
+  return session?.status === 'finished'
+}
+
+export function isTicTacToeResultsPhase(
+  gameStatus: string | undefined,
+  sessionStatus: string | undefined | null
+): boolean {
+  if (!gameStatus || gameStatus === 'waiting') return false
+  return gameStatus === 'finished' || sessionStatus === 'finished'
+}
+
 export async function initializeTicTacToeGame(
   supabase: SupabaseClient,
   gameId: string,
   playerIds: string[]
 ): Promise<{ error?: string }> {
-  const [playerXId, playerOId] = shuffle(playerIds)
+  if (playerIds.length !== TIC_TAC_TOE_MIN_PLAYERS) {
+    return { error: `Need exactly ${TIC_TAC_TOE_MIN_PLAYERS} players to start` }
+  }
+
+  const { data: existing } = await supabase
+    .from('tic_tac_toe_sessions')
+    .select('player_x_id, player_o_id')
+    .eq('game_id', gameId)
+    .maybeSingle()
+
+  let playerXId: string
+  let playerOId: string
+
+  if (existing) {
+    // Rematch: swap X/O so the player who went second last game starts as X.
+    playerXId = existing.player_o_id
+    playerOId = existing.player_x_id
+    if (!playerIds.includes(playerXId) || !playerIds.includes(playerOId)) {
+      ;[playerXId, playerOId] = shuffle(playerIds)
+    }
+  } else {
+    ;[playerXId, playerOId] = shuffle(playerIds)
+  }
+
   if (!playerXId || !playerOId) return { error: 'Need exactly 2 players to start' }
 
   const { data: gameRow } = await supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle()
@@ -72,20 +122,22 @@ export async function initializeTicTacToeGame(
   const names = new Map<string, string>()
   for (const p of playerRows ?? []) names.set(p.id, p.name)
 
-  const sessionRow: Partial<TicTacToeSession> = {
-    game_id: gameId,
+  const sessionRow = {
     player_x_id: playerXId,
     player_o_id: playerOId,
     board: EMPTY_BOARD,
-    current_turn_mark: 'X',
-    status: 'active',
+    current_turn_mark: 'X' as const,
+    status: 'active' as const,
     winner_player_id: null,
     is_draw: false,
     status_message: `${names.get(playerXId) ?? 'Player'}'s turn (X)`,
     turn_deadline_at: ticTacToeTurnDeadline(timerSeconds),
+    updated_at: new Date().toISOString(),
   }
 
-  const { error } = await supabase.from('tic_tac_toe_sessions').insert(sessionRow)
+  const { error } = existing
+    ? await supabase.from('tic_tac_toe_sessions').update(sessionRow).eq('game_id', gameId)
+    : await supabase.from('tic_tac_toe_sessions').insert({ ...sessionRow, game_id: gameId })
   if (error) return { error: error.message }
   return {}
 }
@@ -152,6 +204,12 @@ export async function processTicTacToeMove(
     .eq('game_id', gameId)
 
   if (updateError) return { error: updateError.message }
+
+  if (win || draw) {
+    const { error: finishError } = await markGameFinished(supabase, gameId)
+    if (finishError) return { error: finishError }
+  }
+
   return {}
 }
 
@@ -188,33 +246,7 @@ export async function processTicTacToeExpireTurn(
   return {}
 }
 
-/** Play again — same room, same X/O assignment, board cleared. */
-export async function clearTicTacToeSessionData(supabase: SupabaseClient, gameId: string): Promise<{ error?: string }> {
-  const { session, error: loadError } = await loadSession(supabase, gameId)
-  if (loadError) return { error: loadError }
-  if (!session) return {}
-
-  const { data: playerRows } = await supabase.from('players').select('id, name').eq('game_id', gameId)
-  const names = new Map<string, string>()
-  for (const p of playerRows ?? []) names.set(p.id, p.name)
-
-  const { data: gameRow } = await supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle()
-  const timerSeconds = gameRow?.timer_seconds ?? 0
-
-  const { error } = await supabase
-    .from('tic_tac_toe_sessions')
-    .update({
-      board: EMPTY_BOARD,
-      current_turn_mark: 'X',
-      status: 'active',
-      winner_player_id: null,
-      is_draw: false,
-      status_message: `${names.get(session.player_x_id) ?? 'Player'}'s turn (X)`,
-      turn_deadline_at: ticTacToeTurnDeadline(timerSeconds),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('game_id', gameId)
-
-  if (error) return { error: error.message }
+/** Play again — keep finished session so the next start can swap who opens as X. */
+export async function clearTicTacToeSessionData(_supabase: SupabaseClient, _gameId: string): Promise<{ error?: string }> {
   return {}
 }
