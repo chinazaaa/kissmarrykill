@@ -64,6 +64,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
   pairVoteModeOptions,
@@ -79,6 +80,7 @@ import { MonopolyHostView } from '@/components/monopoly/MonopolyHostView'
 import { YahtzeeHostView } from '@/components/yahtzee/YahtzeeHostView'
 import { WhotHostView } from '@/components/whot/WhotHostView'
 import { LudoHostView } from '@/components/ludo/LudoHostView'
+import { TicTacToeHostView } from '@/components/tic-tac-toe/TicTacToeHostView'
 import { NpatHostView } from '@/components/npat/NpatHostView'
 import { SudokuHostView } from '@/components/sudoku/SudokuHostView'
 import {
@@ -720,7 +722,11 @@ export default function HostPage() {
   )
 
   const reloadHostPlayers = useCallback(async () => {
-    const { data: plrs } = await supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at')
+    const { data: plrs } = await supabase
+      .from('players')
+      .select(PLAYER_SELECT)
+      .eq('game_id', gameCode)
+      .order('joined_at')
     if (plrs) setPlayers(plrs)
   }, [gameCode])
 
@@ -1498,6 +1504,10 @@ export default function HostPage() {
 
   if (game && isSudokuGame(game.game_type)) {
     return <SudokuHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isTicTacToeGame(game.game_type)) {
+    return <TicTacToeHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isAnonymousMessagesGame(game.game_type)) {

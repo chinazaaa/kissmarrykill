@@ -77,6 +77,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
 } from '@/lib/game-types'
@@ -91,6 +92,7 @@ import { MonopolyPlayerView } from '@/components/monopoly/MonopolyPlayerView'
 import { YahtzeePlayerView } from '@/components/yahtzee/YahtzeePlayerView'
 import { WhotPlayerView } from '@/components/whot/WhotPlayerView'
 import { LudoPlayerView } from '@/components/ludo/LudoPlayerView'
+import { TicTacToePlayerView } from '@/components/tic-tac-toe/TicTacToePlayerView'
 import { SudokuPlayerView } from '@/components/sudoku/SudokuPlayerView'
 import {
   ParticipantRoundResults,
@@ -568,6 +570,9 @@ export function PollGamePlayerExperience({
   }
   if (game && isLudoGame(game.game_type)) {
     return <LudoPlayerView gameCode={gameCode} />
+  }
+  if (game && isTicTacToeGame(game.game_type)) {
+    return <TicTacToePlayerView gameCode={gameCode} />
   }
   if (game && isSudokuGame(game.game_type)) {
     return <SudokuPlayerView gameCode={gameCode} />

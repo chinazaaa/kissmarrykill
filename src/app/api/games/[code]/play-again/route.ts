@@ -13,6 +13,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
 } from '@/lib/game-types'
@@ -23,6 +24,7 @@ import { clearMonopolySessionData } from '@/lib/monopoly'
 import { clearYahtzeeSessionData } from '@/lib/yahtzee'
 import { clearWhotSessionData } from '@/lib/whot'
 import { clearLudoSessionData } from '@/lib/ludo'
+import { clearTicTacToeSessionData } from '@/lib/tic-tac-toe'
 import { clearNpatSessionData } from '@/lib/npat'
 import { clearSudokuSessionData } from '@/lib/sudoku'
 import { clearTriviaSessionData } from '@/lib/trivia'
@@ -259,6 +261,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isLudoGame(gameType)) {
     const { error: clearError } = await clearLudoSessionData(supabase, gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isTicTacToeGame(gameType)) {
+    const { error: clearError } = await clearTicTacToeSessionData(supabase, gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 

@@ -33,6 +33,7 @@ export type GameType =
   | 'ludo'
   | 'i_call_on'
   | 'sudoku'
+  | 'tic_tac_toe'
 
 export type NpatPhase = 'letter_pick' | 'writing' | 'marking' | 'host_review' | 'reveal'
 export type NpatCategory = 'name' | 'animal' | 'place' | 'thing' | 'food'
@@ -476,6 +477,24 @@ export interface LudoPlayerState {
   pieces: LudoPiece[]
   player_order: number
   created_at: string
+}
+
+export type TicTacToeMark = 'X' | 'O'
+
+export interface TicTacToeSession {
+  id: string
+  game_id: string
+  player_x_id: string
+  player_o_id: string
+  board: (TicTacToeMark | null)[]
+  current_turn_mark: TicTacToeMark
+  status: 'active' | 'finished'
+  winner_player_id: string | null
+  is_draw: boolean
+  status_message: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface TriviaQuestion {

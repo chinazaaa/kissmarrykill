@@ -976,6 +976,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  tic_tac_toe: {
+    id: 'tic_tac_toe',
+    label: 'Tic-Tac-Toe',
+    tagline: 'Classic 3x3 grid — get three in a row before they do',
+    headerEmoji: '⭕❌',
+    card: {
+      accent: '#0ea5e9',
+      accentSoft: 'rgba(14, 165, 233, 0.15)',
+      emoji: '⭕',
+      players: '2 players',
+      vibe: 'Quick head-to-head',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '❌',
+        label: 'X',
+        color: '#0ea5e9',
+        leaderboardLabel: 'X wins',
+        activeClass: 'bg-sky-500/20 text-sky-100 border-sky-400',
+        borderClass: 'border-sky-500/50 bg-sky-500/10',
+        textColor: '#7dd3fc',
+      },
+      marry: {
+        emoji: '⭕',
+        label: 'O',
+        color: '#f97316',
+        leaderboardLabel: 'O wins',
+        activeClass: 'bg-orange-500/20 text-orange-100 border-orange-400',
+        borderClass: 'border-orange-500/50 bg-orange-500/10',
+        textColor: '#fdba74',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Winner',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winner',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
   i_call_on: {
     id: 'i_call_on',
     label: 'I Call On',
@@ -1099,6 +1142,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'ludo',
   'i_call_on',
   'sudoku',
+  'tic_tac_toe',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -1125,6 +1169,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'ludo') return 'ludo'
   if (raw === 'i_call_on') return 'i_call_on'
   if (raw === 'sudoku') return 'sudoku'
+  if (raw === 'tic_tac_toe') return 'tic_tac_toe'
   return 'smash_marry_kill'
 }
 
@@ -1175,6 +1220,8 @@ export function gameHowItWorks(
       return 'Players join with their name. Match the top card by shape or number — WHOT lets you call the next match. Pick 2 and Pick 3 stacks are separate. First to empty their hand wins — or lowest hand total when the game clock runs out.'
     case 'ludo':
       return 'Players join with their name. Roll two dice each turn and use each die separately — a 6 brings pieces out; doubles earn another roll after both dice are played. Capture opponents, block with pairs — first to finish all four pieces wins!'
+    case 'tic_tac_toe':
+      return "Two players join with their name. The host can play too. Take turns placing X or O on the 3x3 grid — first to get three in a row (across, down, or diagonal) wins. No row? It's a draw."
     case 'i_call_on':
       return "Players join with their name. Set a game timer (or play all 26 letters). Each letter cycle someone calls A–Z, everyone fills Name, Animal, Place, Thing, and Food, then marks the next player's sheet. Duplicates score 5 automatically; unique valid answers score 10. Everyone sees all marks live."
     case 'most_likely_to':
@@ -1409,7 +1456,8 @@ export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): b
     type === 'whot' ||
     type === 'ludo' ||
     type === 'i_call_on' ||
-    type === 'sudoku'
+    type === 'sudoku' ||
+    type === 'tic_tac_toe'
   )
 }
 
@@ -1500,6 +1548,10 @@ export function isWhotGame(gameType: GameType | string | undefined): boolean {
 
 export function isLudoGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'ludo'
+}
+
+export function isTicTacToeGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'tic_tac_toe'
 }
 
 export function isICallOnGame(gameType: GameType | string | undefined): boolean {

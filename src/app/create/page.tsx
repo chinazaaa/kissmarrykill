@@ -56,6 +56,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
 } from '@/lib/game-types'
@@ -282,7 +283,8 @@ function CreateGameInner() {
     if (data.pack?.questions) {
       setLibraryPackQuestions(data.pack.questions)
       if (isTriviaGame(settings.game_type)) setCustomTriviaQuestions(data.pack.questions as TriviaQuestion[])
-      else if (isWouldYouRather(settings.game_type) || isThisOrThat(settings.game_type)) setCustomWyrQuestions(data.pack.questions as WyrQuestion[])
+      else if (isWouldYouRather(settings.game_type) || isThisOrThat(settings.game_type))
+        setCustomWyrQuestions(data.pack.questions as WyrQuestion[])
       else setCustomMltQuestions(data.pack.questions as string[])
     }
   }
@@ -375,6 +377,13 @@ function CreateGameInner() {
               rounds_count: 1,
             }
           : {}),
+        ...(isTicTacToeGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+            }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -432,6 +441,7 @@ function CreateGameInner() {
     if (!whotCardsEnabled) setWhotNumberCallsEnabled(false)
   }, [whotCardsEnabled])
   const isLudo = isLudoGame(settings.game_type)
+  const isTicTacToe = isTicTacToeGame(settings.game_type)
   const isNpat = isICallOnGame(settings.game_type)
   const isSudoku = isSudokuGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
@@ -524,6 +534,7 @@ function CreateGameInner() {
     isYahtzee ||
     isWhot ||
     isLudo ||
+    isTicTacToe ||
     isNpat ||
     isSudoku
   const isTriviaQuickCreate = isTrivia
@@ -1445,6 +1456,28 @@ function CreateGameInner() {
                   Exact rolls needed to finish. First to get all four pieces home wins!
                 </p>
               </SettingsGroup>
+            ) : isTicTacToe ? (
+              <SettingsGroup title="Tic-Tac-Toe room">
+                <p className="text-faint text-sm">Exactly 2 players — the host can join as one of them.</p>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={15}>15 seconds</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                  </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="tic_tac_toe" />
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Classic Tic-Tac-Toe — take turns placing X or O on the 3x3 grid. First to get three in a row wins.
+                </p>
+              </SettingsGroup>
             ) : isNpat ? (
               <SettingsGroup title="I Call On room">
                 <Field label={`Max players (${effectiveLimits.i_call_on.min}–${effectiveLimits.i_call_on.max})`}>
@@ -1947,10 +1980,7 @@ function CreateGameInner() {
                                 .filter((p) => {
                                   const q = libraryPackSearch.toLowerCase().trim()
                                   if (!q) return true
-                                  return (
-                                    p.title.toLowerCase().includes(q) ||
-                                    p.author_name.toLowerCase().includes(q)
-                                  )
+                                  return p.title.toLowerCase().includes(q) || p.author_name.toLowerCase().includes(q)
                                 })
                                 .map((pack) => (
                                   <button
@@ -1975,7 +2005,9 @@ function CreateGameInner() {
                                         </p>
                                       </div>
                                       {selectedPackId === pack.id && (
-                                        <span className="text-[var(--chip-active-text)] text-sm font-bold shrink-0">✓</span>
+                                        <span className="text-[var(--chip-active-text)] text-sm font-bold shrink-0">
+                                          ✓
+                                        </span>
                                       )}
                                     </div>
                                   </button>
