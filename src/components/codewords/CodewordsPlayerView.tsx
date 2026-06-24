@@ -319,6 +319,16 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     void load()
   }, [load])
 
+  const markReady = useCallback(async () => {
+    if (!myPlayerId) return
+    await fetch('/api/players/ready', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+    })
+    await load()
+  }, [gameCode, load, myPlayerId])
+
   useLobbyOpenNotification(game?.status, () => {
     if (screen === 'finished' || screen === 'game_started_waiting' || screen === 'late_join_choice') void load()
   })
@@ -423,6 +433,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   ) : null
 
   if (needsTeamPick || waitingInLobby) {
+    const isSpectator = me?.spectator === true
     return (
       <GameJoinLobbyShell gameCode={gameCode}>
         <div className="space-y-5">
@@ -436,8 +447,17 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
                     ? 'Pick your team & role'
                     : 'Waiting in lobby'}
             </h2>
-            <p className="text-muted text-sm">Playing as {myPlayerName}</p>
+            {!isSpectator ? <p className="text-muted text-sm">Playing as {myPlayerName}</p> : null}
           </div>
+          {isSpectator && game?.status === 'waiting' && (
+            <button
+              type="button"
+              onClick={() => void markReady()}
+              className="btn-primary w-full py-3 text-base font-bold"
+            >
+              I&apos;m in — ready to play
+            </button>
+          )}
           {myPlayerId && (
             <PlayerSessionControls
               gameCode={gameCode}
@@ -549,6 +569,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             myRole={myRole}
             players={allPlayers}
             myPlayerId={myPlayerId}
+            isSpectator={me?.spectator === true}
+            onReady={markReady}
           />
           {leaveButton}
         </div>

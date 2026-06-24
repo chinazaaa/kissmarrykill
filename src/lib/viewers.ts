@@ -182,11 +182,22 @@ export function spectatorForActiveJoin(
   return joinAsViewer === true
 }
 
-/** Mark all existing players as spectators when the lobby reopens so they must opt in. */
+/** Mark existing players as spectators when the lobby reopens so they must opt in. */
 export async function resetSpectatorsForLobby(
   supabase: SupabaseClient,
-  gameId: string
+  gameId: string,
+  exceptPlayerIds: string[] = []
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.from('players').update({ spectator: true }).eq('game_id', gameId)
-  return { error: error?.message ?? null }
+  const { error: resetError } = await supabase.from('players').update({ spectator: true }).eq('game_id', gameId)
+  if (resetError) return { error: resetError.message }
+
+  if (exceptPlayerIds.length === 0) return { error: null }
+
+  const { error: readyError } = await supabase
+    .from('players')
+    .update({ spectator: false })
+    .eq('game_id', gameId)
+    .in('id', exceptPlayerIds)
+
+  return { error: readyError?.message ?? null }
 }
