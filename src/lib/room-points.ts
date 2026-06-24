@@ -3,6 +3,7 @@ import { buildLudoStandings } from '@/lib/ludo'
 import { totalScore } from '@/lib/yahtzee'
 import { tallyTriviaPlayerScores } from '@/lib/trivia'
 import { tallySudokuScores } from '@/lib/sudoku'
+import { tallyWordHuntScores } from '@/lib/word-hunt'
 import {
   parseGameType,
   isMonopolyGame,
@@ -12,6 +13,7 @@ import {
   isBingoGame,
   isCodewordsGame,
   isSudokuGame,
+  isWordHuntGame,
   isTriviaGame,
 } from '@/lib/game-types'
 import type { GameType, LudoPlayerState, Player, TriviaAnswer, YahtzeeCategoryPoints } from '@/types'
@@ -44,6 +46,7 @@ export function isCompetitiveRoomGame(gameType: GameType): boolean {
     isBingoGame(gameType) ||
     isCodewordsGame(gameType) ||
     isSudokuGame(gameType) ||
+    isWordHuntGame(gameType) ||
     isTriviaGame(gameType)
   )
 }
@@ -223,6 +226,20 @@ async function getCompetitiveStandings(
       spectator: p.spectator,
     }))
     return tallySudokuScores(submissions, playerRows).map((row) => row.player_id)
+  }
+
+  if (isWordHuntGame(gameType)) {
+    const { data: submissions } = await supabase
+      .from('word_hunt_submissions')
+      .select('player_id, points_awarded')
+      .eq('game_id', gameId)
+    if (!submissions?.length) return []
+    const playerRows = players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      spectator: p.spectator,
+    }))
+    return tallyWordHuntScores(submissions, playerRows).map((row) => row.player_id)
   }
 
   return []

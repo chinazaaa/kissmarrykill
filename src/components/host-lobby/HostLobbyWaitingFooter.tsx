@@ -12,6 +12,7 @@ type Props = {
   starting?: boolean
   startDisabledHint?: string | null
   startDisabled?: boolean
+  startLabel?: string
   endLabel?: string
   className?: string
 }
@@ -25,6 +26,7 @@ export function HostLobbyWaitingFooter({
   starting = false,
   startDisabledHint,
   startDisabled,
+  startLabel = 'Start game',
   endLabel = 'End lobby',
   className = 'space-y-3',
 }: Props) {
@@ -37,6 +39,7 @@ export function HostLobbyWaitingFooter({
         disabled={disabled}
         starting={starting}
         disabledHint={startDisabledHint}
+        label={startLabel}
       />
       <HostEndGameButton
         gameCode={gameCode}

@@ -1105,6 +1105,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  word_hunt: {
+    id: 'word_hunt',
+    label: 'Word Hunt',
+    tagline: 'Find words on the letter grid before time runs out',
+    headerEmoji: '🔤⏱️',
+    card: {
+      accent: '#22c55e',
+      accentSoft: 'rgba(34, 197, 94, 0.15)',
+      emoji: '🔤',
+      players: '2–20 players',
+      vibe: 'Boggle-style rush',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🔤',
+        label: 'Words',
+        color: '#22c55e',
+        leaderboardLabel: 'Words found',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#86efac',
+      },
+      marry: {
+        emoji: '⭐',
+        label: 'Points',
+        color: '#fbbf24',
+        leaderboardLabel: 'Total points',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+      kill: {
+        emoji: '⏱️',
+        label: 'Timer',
+        color: '#0ea5e9',
+        leaderboardLabel: 'Race against time',
+        activeClass: 'bg-sky-500/20 text-sky-100 border-sky-400',
+        borderClass: 'border-sky-500/50 bg-sky-500/10',
+        textColor: '#7dd3fc',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -1143,6 +1186,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'i_call_on',
   'sudoku',
   'tic_tac_toe',
+  'word_hunt',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -1170,6 +1214,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'i_call_on') return 'i_call_on'
   if (raw === 'sudoku') return 'sudoku'
   if (raw === 'tic_tac_toe') return 'tic_tac_toe'
+  if (raw === 'word_hunt') return 'word_hunt'
   return 'smash_marry_kill'
 }
 
@@ -1222,6 +1267,8 @@ export function gameHowItWorks(
       return 'Players join with their name. Roll two dice each turn and use each die separately — a 6 brings pieces out; doubles earn another roll after both dice are played. Capture opponents, block with pairs — first to finish all four pieces wins!'
     case 'tic_tac_toe':
       return "Two players join with their name. The host can play too. Take turns placing X or O on the 3x3 grid — first to get three in a row (across, down, or diagonal) wins. No row? It's a draw."
+    case 'word_hunt':
+      return 'Players join with their name. Everyone gets the same 4×4 letter grid — connect adjacent letters to spell valid words (3+ letters) before the timer runs out. Longer words score more points.'
     case 'i_call_on':
       return "Players join with their name. Set a game timer (or play all 26 letters). Each letter cycle someone calls A–Z, everyone fills Name, Animal, Place, Thing, and Food, then marks the next player's sheet. Duplicates score 5 automatically; unique valid answers score 10. Everyone sees all marks live."
     case 'most_likely_to':
@@ -1457,7 +1504,8 @@ export function isNameOnlyPlayerJoin(gameType: GameType | string | undefined): b
     type === 'ludo' ||
     type === 'i_call_on' ||
     type === 'sudoku' ||
-    type === 'tic_tac_toe'
+    type === 'tic_tac_toe' ||
+    type === 'word_hunt'
   )
 }
 
@@ -1560,6 +1608,10 @@ export function isICallOnGame(gameType: GameType | string | undefined): boolean 
 
 export function isSudokuGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'sudoku'
+}
+
+export function isWordHuntGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'word_hunt'
 }
 
 /** Anonymous room or host-only secret message inbox — shared message storage. */

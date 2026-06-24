@@ -80,6 +80,7 @@ import {
   isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
+  isWordHuntGame,
 } from '@/lib/game-types'
 import { AnonymousMessagesPlayerView } from '@/components/anonymous-messages/AnonymousMessagesPlayerView'
 import { SecretMessageSenderView } from '@/components/secret-message/SecretMessageSenderView'
@@ -94,6 +95,7 @@ import { WhotPlayerView } from '@/components/whot/WhotPlayerView'
 import { LudoPlayerView } from '@/components/ludo/LudoPlayerView'
 import { TicTacToePlayerView } from '@/components/tic-tac-toe/TicTacToePlayerView'
 import { SudokuPlayerView } from '@/components/sudoku/SudokuPlayerView'
+import { WordHuntPlayerView } from '@/components/word-hunt/WordHuntPlayerView'
 import {
   ParticipantRoundResults,
   VoteCountStat,
@@ -576,6 +578,9 @@ export function PollGamePlayerExperience({
   }
   if (game && isSudokuGame(game.game_type)) {
     return <SudokuPlayerView gameCode={gameCode} />
+  }
+  if (game && isWordHuntGame(game.game_type)) {
+    return <WordHuntPlayerView gameCode={gameCode} />
   }
   if (game && isAnonymousMessagesGame(game.game_type)) {
     return <AnonymousMessagesPlayerView gameCode={gameCode} />

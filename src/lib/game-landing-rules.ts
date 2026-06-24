@@ -806,4 +806,41 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       ],
     },
   ],
+
+  word_hunt: [
+    {
+      title: 'Objective',
+      points: [
+        'Everyone races on the same 4×4 letter grid.',
+        'Find as many valid words as you can before the timer runs out.',
+        'The player with the highest score wins.',
+      ],
+    },
+    {
+      title: 'How it works',
+      points: [
+        'Tap or drag across adjacent letters (including diagonals) to spell a word.',
+        'Each letter can only be used once per word.',
+        'Words must be at least 3 letters and appear in the dictionary.',
+        'Submit each word once — duplicates do not score again.',
+      ],
+    },
+    {
+      title: 'Scoring',
+      points: [
+        '3 letters = 100 points.',
+        '4 letters = 400 points.',
+        '5 letters = 800 points.',
+        'Longer words score even more (6+ letters add 400 pts per extra letter).',
+      ],
+    },
+    {
+      title: 'Game end',
+      points: [
+        'The game ends when the host taps “End game” or the timer hits zero.',
+        'After time is up, no new words can be submitted.',
+        'Play again generates a fresh letter grid for the next round.',
+      ],
+    },
+  ],
 }

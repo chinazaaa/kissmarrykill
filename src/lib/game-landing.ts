@@ -52,6 +52,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   i_call_on: 'i-call-on',
   sudoku: 'sudoku',
   tic_tac_toe: 'tic-tac-toe',
+  word_hunt: 'word-hunt',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -1077,6 +1078,46 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
           'Each unique valid answer earns 10 points per category (50 max per round). If two or more players write the same answer in a category, everyone with that duplicate gets 5 for it. Reviewers mark whether an answer actually fits its category.',
       },
     ],
+  }),
+
+  word_hunt: landing('word_hunt', {
+    seoTitle: 'Word Hunt — Multiplayer Boggle-Style Game Online',
+    seoDescription:
+      'Play Word Hunt online with friends. Race on a 4×4 letter grid — connect adjacent letters to spell words before time runs out.',
+    keywords: ['word hunt', 'boggle online', 'word game multiplayer', 'letter grid game'],
+    heroSubtitle:
+      'Everyone gets the same 4×4 grid — spell words from adjacent letters and rack up points before the clock hits zero.',
+    highlights: ['4×4 letter grid', 'Timed race', 'Live leaderboard'],
+    features: [
+      {
+        title: 'Connect letters',
+        description: 'Drag across adjacent tiles (including diagonals) to build words of 3+ letters.',
+        emoji: '🔤',
+      },
+      {
+        title: 'Score big',
+        description: '3 letters = 100 pts, 4 = 400, 5 = 800 — longer words earn even more.',
+        emoji: '⭐',
+      },
+      {
+        title: 'Live leaderboard',
+        description: 'See who is finding the most words in real time.',
+        emoji: '⚡',
+      },
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join the room', description: 'Enter your name and wait for the host to start the hunt.' },
+      {
+        title: 'Find words',
+        description: 'Tap adjacent letters on the shared grid and submit valid dictionary words.',
+      },
+      {
+        title: 'Beat the clock',
+        description: 'Score as many points as you can before time runs out.',
+      },
+    ],
+    perfectFor: ['Word game fans', 'Classrooms', 'Family game night', 'Quick party rounds'],
   }),
 
   tic_tac_toe: landing('tic_tac_toe', {

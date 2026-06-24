@@ -67,6 +67,7 @@ import {
   isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
+  isWordHuntGame,
   pairVoteModeOptions,
   parsePairVoteMode,
 } from '@/lib/game-types'
@@ -83,6 +84,7 @@ import { LudoHostView } from '@/components/ludo/LudoHostView'
 import { TicTacToeHostView } from '@/components/tic-tac-toe/TicTacToeHostView'
 import { NpatHostView } from '@/components/npat/NpatHostView'
 import { SudokuHostView } from '@/components/sudoku/SudokuHostView'
+import { WordHuntHostView } from '@/components/word-hunt/WordHuntHostView'
 import {
   getCustomSlots,
   tallyCustomVotes,
@@ -1504,6 +1506,10 @@ export default function HostPage() {
 
   if (game && isSudokuGame(game.game_type)) {
     return <SudokuHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isWordHuntGame(game.game_type)) {
+    return <WordHuntHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isTicTacToeGame(game.game_type)) {

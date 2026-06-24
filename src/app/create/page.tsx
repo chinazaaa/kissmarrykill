@@ -59,6 +59,7 @@ import {
   isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
+  isWordHuntGame,
 } from '@/lib/game-types'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -139,6 +140,7 @@ import {
   NPAT_MARKING_TIMER_OPTIONS,
   NPAT_TIMER_OPTIONS,
 } from '@/lib/npat'
+import { WORD_HUNT_DEFAULT_MAX_PLAYERS, WORD_HUNT_DEFAULT_TIMER, WORD_HUNT_TIMER_OPTIONS } from '@/lib/word-hunt'
 import { getCodeDefaultLimits, playerCountOptions, type GamePlayerLimitsMap } from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
@@ -235,6 +237,8 @@ function CreateGameInner() {
   const [ludoMaxPlayers, setLudoMaxPlayers] = useState(LUDO_DEFAULT_MAX_PLAYERS)
   const [npatMaxPlayers, setNpatMaxPlayers] = useState(NPAT_DEFAULT_MAX_PLAYERS)
   const [sudokuMaxPlayers, setSudokuMaxPlayers] = useState(20)
+  const [wordHuntMaxPlayers, setWordHuntMaxPlayers] = useState(WORD_HUNT_DEFAULT_MAX_PLAYERS)
+  const [wordHuntTimer, setWordHuntTimer] = useState(WORD_HUNT_DEFAULT_TIMER)
   const [npatGameDuration, setNpatGameDuration] = useState(NPAT_DEFAULT_GAME_DURATION)
   const [npatMarkingTimer, setNpatMarkingTimer] = useState(NPAT_DEFAULT_MARKING_TIMER)
   const [customTriviaQuestions, setCustomTriviaQuestions] = useState<TriviaQuestion[]>([])
@@ -444,6 +448,7 @@ function CreateGameInner() {
   const isTicTacToe = isTicTacToeGame(settings.game_type)
   const isNpat = isICallOnGame(settings.game_type)
   const isSudoku = isSudokuGame(settings.game_type)
+  const isWordHunt = isWordHuntGame(settings.game_type)
   const showViewerToggle = gameSupportsViewerSetting(settings.game_type)
   const isWst = isWhoSaidThis(settings.game_type)
   const isHotSeatGame = isHotSeat(settings.game_type)
@@ -536,7 +541,8 @@ function CreateGameInner() {
     isLudo ||
     isTicTacToe ||
     isNpat ||
-    isSudoku
+    isSudoku ||
+    isWordHunt
   const isTriviaQuickCreate = isTrivia
   const needsParticipantStep =
     !isQuickLobby && !isTriviaQuickCreate && !isBinaryLobby && !(isMlt && isJoinersMode) && !isJoinersMode
@@ -661,6 +667,14 @@ function CreateGameInner() {
             participant_mode: 'joiners' as const,
             anonymous: true,
             rounds_count: 1,
+          }
+        : {}),
+      ...(isWordHuntGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: WORD_HUNT_DEFAULT_TIMER,
           }
         : {}),
       ...(isWhoSaidThis(type)
@@ -971,6 +985,7 @@ function CreateGameInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...settings,
+          ...(isWordHunt ? { timer_seconds: wordHuntTimer } : {}),
           rounds_count: isWst ? Math.max(participants.length, 2) : settings.rounds_count,
           question_source: isTot
             ? 'custom'
@@ -1016,7 +1031,9 @@ function CreateGameInner() {
                               ? npatMaxPlayers
                               : isSudoku
                                 ? sudokuMaxPlayers
-                                : undefined,
+                                : isWordHunt
+                                  ? wordHuntMaxPlayers
+                                  : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : isNpat ? npatMarkingTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? lateJoinPolicy === 'viewers_and_players' : undefined,
@@ -1636,6 +1653,38 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Race to solve the 9×9 puzzle block by block. First to claim a block gets 10 pts, second 6, third 3,
                   rest 1. Wrong answer? −3 pts and you're locked out of that block.
+                </p>
+              </SettingsGroup>
+            ) : isWordHunt ? (
+              <SettingsGroup title="Word Hunt room">
+                <Field label={`Max players (${effectiveLimits.word_hunt.min}–${effectiveLimits.word_hunt.max})`}>
+                  <select
+                    value={wordHuntMaxPlayers}
+                    onChange={(e) => setWordHuntMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.word_hunt.min, effectiveLimits.word_hunt.max).map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Time limit">
+                  <select
+                    value={wordHuntTimer}
+                    onChange={(e) => setWordHuntTimer(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    <option value={60}>1 minute</option>
+                    <option value={120}>2 minutes</option>
+                    <option value={180}>3 minutes</option>
+                    <option value={300}>5 minutes</option>
+                  </select>
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Everyone races on the same 4×4 letter grid. Connect adjacent letters to spell valid words — 3 letters =
+                  100 pts, 4 = 400, 5 = 800, and longer words score even more.
                 </p>
               </SettingsGroup>
             ) : (

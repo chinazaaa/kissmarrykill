@@ -36,6 +36,7 @@ import {
   isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
+  isWordHuntGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import {
@@ -88,6 +89,7 @@ import {
 } from '@/lib/game-limits'
 import { clampMonopolyGameDuration, clampMonopolyTurnTimer } from '@/lib/monopoly'
 import { clampWhotGameDuration } from '@/lib/whot'
+import { clampWordHuntTimer } from '@/lib/word-hunt'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -244,6 +246,7 @@ export async function POST(req: NextRequest) {
     isWhotGame(game_type) ||
     isLudoGame(game_type) ||
     isSudokuGame(game_type) ||
+    isWordHuntGame(game_type) ||
     isTicTacToeGame(game_type)
       ? 'joiners'
       : isWhoSaidThis(game_type)
@@ -296,6 +299,7 @@ export async function POST(req: NextRequest) {
     isWhotGame(game_type) ||
     isLudoGame(game_type) ||
     isSudokuGame(game_type) ||
+    isWordHuntGame(game_type) ||
     isTicTacToeGame(game_type)
       ? 1
       : isWhoSaidThis(game_type)
@@ -372,7 +376,13 @@ export async function POST(req: NextRequest) {
                       ? resolveMaxPlayers('i_call_on', rawMaxPlayers, lobbyDefaultMaxPlayers('i_call_on', lobbyLimits))
                       : isSudokuGame(game_type)
                         ? resolveMaxPlayers('sudoku', rawMaxPlayers, lobbyDefaultMaxPlayers('sudoku', lobbyLimits))
-                        : isTicTacToeGame(game_type)
+                        : isWordHuntGame(game_type)
+                          ? resolveMaxPlayers(
+                              'word_hunt',
+                              rawMaxPlayers,
+                              lobbyDefaultMaxPlayers('word_hunt', lobbyLimits)
+                            )
+                          : isTicTacToeGame(game_type)
                           ? resolveMaxPlayers(
                               'tic_tac_toe',
                               rawMaxPlayers,
@@ -406,9 +416,11 @@ export async function POST(req: NextRequest) {
             ? clampNpatTimer(timer_seconds)
             : isMonopolyGame(game_type)
               ? clampMonopolyTurnTimer(timer_seconds)
-              : [15, 30, 60].includes(Number(timer_seconds))
-                ? Number(timer_seconds)
-                : 30,
+              : isWordHuntGame(game_type)
+                ? clampWordHuntTimer(timer_seconds)
+                : [15, 30, 60].includes(Number(timer_seconds))
+                  ? Number(timer_seconds)
+                  : 30,
     ...(isCodewordsGame(game_type)
       ? {
           operative_timer_seconds: clampCodewordsTimer(
