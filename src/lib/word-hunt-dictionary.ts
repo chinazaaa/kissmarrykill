@@ -1,12 +1,35 @@
 import fs from 'fs'
 import path from 'path'
 import {
+  WORD_HUNT_GRID_SIZE,
   WORD_HUNT_MIN_WORD_LENGTH,
+  indexToRowCol,
   isValidPath,
+  letterAt,
+  rowColToIndex,
   wordFromPath,
+  type WordHuntMetadata,
 } from '@/lib/word-hunt'
 
+const MAX_WORD_LENGTH = 8
+const NEIGHBORS = [
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+] as const
+
+type TrieNode = {
+  children: Map<string, TrieNode>
+  isWord: boolean
+}
+
 let wordSet: Set<string> | null = null
+let trieRoot: TrieNode | null = null
 
 function loadWordSet(): Set<string> {
   if (wordSet) return wordSet
@@ -16,14 +39,113 @@ function loadWordSet(): Set<string> {
     content
       .split(/\r?\n/)
       .map((line) => line.trim().toLowerCase())
-      .filter((line) => line.length >= 3 && line.length <= 8)
+      .filter((line) => line.length >= WORD_HUNT_MIN_WORD_LENGTH && line.length <= MAX_WORD_LENGTH)
   )
   return wordSet
 }
 
-export function isValidWordHuntWord(word: string): boolean {
+function getTrieRoot(): TrieNode {
+  if (trieRoot) return trieRoot
+  const root: TrieNode = { children: new Map(), isWord: false }
+  for (const word of loadWordSet()) {
+    let node = root
+    for (const ch of word) {
+      let child = node.children.get(ch)
+      if (!child) {
+        child = { children: new Map(), isWord: false }
+        node.children.set(ch, child)
+      }
+      node = child
+    }
+    node.isWord = true
+  }
+  trieRoot = root
+  return root
+}
+
+function tileChars(grid: string[][], index: number): string[] {
+  return letterAt(grid, index).toLowerCase().split('')
+}
+
+/** All dictionary words formable on this grid (computed once per round). */
+export function enumerateValidGridWords(grid: string[][]): Set<string> {
+  const root = getTrieRoot()
+  const results = new Set<string>()
+  const visited = new Set<number>()
+
+  function dfs(index: number, node: TrieNode, prefix: string) {
+    if (node.isWord && prefix.length >= WORD_HUNT_MIN_WORD_LENGTH) {
+      results.add(prefix)
+    }
+    if (prefix.length >= MAX_WORD_LENGTH) return
+
+    const [row, col] = indexToRowCol(index)
+    for (const [dr, dc] of NEIGHBORS) {
+      const nr = row + dr
+      const nc = col + dc
+      if (nr < 0 || nr >= WORD_HUNT_GRID_SIZE || nc < 0 || nc >= WORD_HUNT_GRID_SIZE) continue
+      const nextIndex = rowColToIndex(nr, nc)
+      if (visited.has(nextIndex)) continue
+
+      let nextNode = node
+      let nextPrefix = prefix
+      let ok = true
+      for (const ch of tileChars(grid, nextIndex)) {
+        const child = nextNode.children.get(ch)
+        if (!child) {
+          ok = false
+          break
+        }
+        nextNode = child
+        nextPrefix += ch
+      }
+      if (!ok) continue
+
+      visited.add(nextIndex)
+      dfs(nextIndex, nextNode, nextPrefix)
+      visited.delete(nextIndex)
+    }
+  }
+
+  for (let index = 0; index < WORD_HUNT_GRID_SIZE * WORD_HUNT_GRID_SIZE; index++) {
+    let node = root
+    let prefix = ''
+    let ok = true
+    for (const ch of tileChars(grid, index)) {
+      const child = node.children.get(ch)
+      if (!child) {
+        ok = false
+        break
+      }
+      node = child
+      prefix += ch
+    }
+    if (!ok) continue
+
+    visited.add(index)
+    dfs(index, node, prefix)
+    visited.delete(index)
+  }
+
+  return results
+}
+
+export function buildWordHuntMetadata(grid: string[][]): WordHuntMetadata {
+  return {
+    grid,
+    valid_words: Array.from(enumerateValidGridWords(grid)),
+  }
+}
+
+export function validWordsSetForMetadata(metadata: WordHuntMetadata): Set<string> {
+  if (metadata.valid_words?.length) return new Set(metadata.valid_words)
+  return enumerateValidGridWords(metadata.grid)
+}
+
+export function isValidWordHuntWord(word: string, validWords?: Set<string>): boolean {
   const normalized = word.trim().toLowerCase()
-  if (normalized.length < 3 || normalized.length > 8) return false
+  if (normalized.length < WORD_HUNT_MIN_WORD_LENGTH || normalized.length > MAX_WORD_LENGTH) return false
+  if (validWords) return validWords.has(normalized)
   return loadWordSet().has(normalized)
 }
 
@@ -31,7 +153,8 @@ export function isValidWordHuntWord(word: string): boolean {
 export function validateWordSubmission(
   grid: string[][],
   word: string,
-  path: number[]
+  path: number[],
+  validWords?: Set<string>
 ): { ok: true; normalized: string } | { ok: false; error: string } {
   const normalized = word.trim().toLowerCase()
   if (normalized.length < WORD_HUNT_MIN_WORD_LENGTH) {
@@ -44,7 +167,7 @@ export function validateWordSubmission(
   if (formed !== normalized) {
     return { ok: false, error: 'Selected letters do not match the word' }
   }
-  if (!isValidWordHuntWord(normalized)) {
+  if (!isValidWordHuntWord(normalized, validWords)) {
     return { ok: false, error: 'Not a valid word' }
   }
   return { ok: true, normalized }

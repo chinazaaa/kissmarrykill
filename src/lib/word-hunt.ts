@@ -37,6 +37,8 @@ const BOGGLE_DICE = [
 
 export interface WordHuntMetadata {
   grid: string[][] // 4×4 uppercase letters
+  /** Precomputed valid words for this grid — instant client checks, fast server lookup */
+  valid_words?: string[]
 }
 
 export interface WordHuntSubmission {
@@ -205,15 +207,14 @@ export async function finishExpiredWordHuntGame(
 
 // ── Session data ─────────────────────────────────────────────────────────────
 
-export function buildWordHuntRoundRow(gameId: string, seed: number) {
-  const grid = generateWordHuntGrid(seed)
+export function buildWordHuntRoundRow(gameId: string, metadata: WordHuntMetadata) {
   return {
     game_id: gameId,
     round_number: 1,
     status: 'active' as const,
     started_at: new Date().toISOString(),
     participant_ids: [] as string[],
-    word_hunt_metadata: { grid } satisfies WordHuntMetadata,
+    word_hunt_metadata: metadata,
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { GamePlayerChrome } from '@/components/GamePlayerChrome'
 import { GameEndedScreen } from '@/components/GameEndedScreen'
@@ -18,6 +18,7 @@ import {
   tallyWordHuntScores,
   WORD_HUNT_MIN_WORD_LENGTH,
 } from '@/lib/word-hunt'
+import { validateWordHuntSubmissionClient, validWordsSetFromMetadata } from '@/lib/word-hunt-client'
 import { useWordHuntGameTimer } from '@/hooks/useWordHuntGameTimer'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
 import { resolvePlayerSession } from '@/lib/player-resume'
@@ -65,10 +66,11 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
   const [joining, setJoining] = useState(false)
   const [roundId, setRoundId] = useState<string | null>(null)
   const [grid, setGrid] = useState<string[][] | null>(null)
+  const [validWords, setValidWords] = useState<Set<string>>(new Set())
   const [submissions, setSubmissions] = useState<WordHuntSubmission[]>([])
   const [selectedPath, setSelectedPath] = useState<number[]>([])
-  const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+  const inFlightWordsRef = useRef<Set<string>>(new Set())
 
   const { label: timeLabel, timeUp, secondsLeft } = useWordHuntGameTimer(gameCode, game)
 
@@ -151,6 +153,7 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
         const meta = parseWordHuntMetadata((roundData as Record<string, unknown>).word_hunt_metadata)
         if (meta) {
           setGrid(meta.grid)
+          setValidWords(validWordsSetFromMetadata(meta.valid_words))
           setRoundId(roundData.id as string)
 
           const { data: subs } = await supabase
@@ -162,6 +165,7 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
       }
     } else {
       setGrid(null)
+      setValidWords(new Set())
       setRoundId(null)
       setSubmissions([])
     }
@@ -263,34 +267,48 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
     void load()
   }
 
-  async function handleSubmitWord() {
-    if (!myPlayerId || !roundId || submitting || timeUp || selectedPath.length < WORD_HUNT_MIN_WORD_LENGTH) return
+  function handleSubmitWord() {
+    if (!myPlayerId || !roundId || !grid || timeUp || selectedPath.length < WORD_HUNT_MIN_WORD_LENGTH) return
 
-    const word = selectedPath
-      .map((i) => {
-        const row = Math.floor(i / 4)
-        const col = i % 4
-        return grid?.[row]?.[col] ?? ''
-      })
-      .join('')
+    const path = [...selectedPath]
+    setSelectedPath([])
 
-    setSubmitting(true)
-    try {
-      const res = await fetch('/api/word-hunt/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, word, path: selectedPath }),
-      })
-      const json = await res.json()
-      if (!res.ok) {
-        showToast(json.error ?? 'Invalid word', false)
-      } else {
-        showToast(`+${json.pointsAwarded} pts — ${json.word}`, true)
-        setSelectedPath([])
-      }
-    } finally {
-      setSubmitting(false)
+    const foundSet = new Set(
+      submissions.filter((s) => s.player_id === myPlayerId).map((s) => s.word)
+    )
+    const validation = validateWordHuntSubmissionClient(grid, path, validWords, foundSet)
+    if (!validation.ok) {
+      showToast(validation.error, false)
+      return
     }
+
+    if (inFlightWordsRef.current.has(validation.normalized)) return
+    inFlightWordsRef.current.add(validation.normalized)
+
+    void fetch('/api/word-hunt/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gameId: gameCode,
+        playerId: myPlayerId,
+        word: validation.normalized,
+        path,
+      }),
+    })
+      .then(async (res) => {
+        const json = await res.json()
+        if (!res.ok) {
+          showToast(json.error ?? 'Invalid word', false)
+        } else {
+          showToast(`+${json.pointsAwarded} pts — ${json.word}`, true)
+        }
+      })
+      .catch(() => {
+        showToast('Could not submit word — try again', false)
+      })
+      .finally(() => {
+        inFlightWordsRef.current.delete(validation.normalized)
+      })
   }
 
   const mySubmissions = myPlayerId ? submissions.filter((s) => s.player_id === myPlayerId) : []
@@ -423,8 +441,7 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
             timeUp={timeUp}
             secondsLeft={secondsLeft}
             onClear={() => setSelectedPath([])}
-            onSubmit={() => void handleSubmitWord()}
-            submitting={submitting}
+            onSubmit={handleSubmitWord}
             disabled={timeUp || isSpectator}
           />
         )}

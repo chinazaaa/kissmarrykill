@@ -14,7 +14,6 @@ type Props = {
   secondsLeft: number
   onClear: () => void
   onSubmit: () => void
-  submitting?: boolean
   disabled?: boolean
 }
 
@@ -29,11 +28,10 @@ export function WordHuntPlaySurface({
   secondsLeft,
   onClear,
   onSubmit,
-  submitting = false,
   disabled = false,
 }: Props) {
   const currentWord = wordFromPath(grid, selectedPath)
-  const canSubmit = !submitting && !disabled && !timeUp && selectedPath.length >= WORD_HUNT_MIN_WORD_LENGTH
+  const canSubmit = !disabled && !timeUp && selectedPath.length >= WORD_HUNT_MIN_WORD_LENGTH
   const timerUrgent = !timeUp && secondsLeft <= 10
 
   return (
@@ -104,7 +102,7 @@ export function WordHuntPlaySurface({
             disabled={!canSubmit}
             className="btn-primary flex-1 !w-auto h-12 !py-0 text-sm font-black"
           >
-            {submitting ? 'Checking…' : timeUp ? "Time's up" : 'Submit word'}
+            {timeUp ? "Time's up" : 'Submit word'}
           </button>
         </div>
 

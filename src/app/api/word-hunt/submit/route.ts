@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import { validateWordSubmission } from '@/lib/word-hunt-dictionary'
+import { validateWordSubmission, validWordsSetForMetadata } from '@/lib/word-hunt-dictionary'
 import { parseWordHuntMetadata, wordHuntPoints, wordHuntSessionExpired } from '@/lib/word-hunt'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
   const metadata = parseWordHuntMetadata(round.word_hunt_metadata)
   if (!metadata) return NextResponse.json({ error: 'Grid data missing' }, { status: 500 })
 
-  const validation = validateWordSubmission(metadata.grid, word, path)
+  const validWords = validWordsSetForMetadata(metadata)
+  const validation = validateWordSubmission(metadata.grid, word, path, validWords)
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 400 })
   }
