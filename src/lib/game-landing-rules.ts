@@ -774,4 +774,36 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       ],
     },
   ],
+
+  tic_tac_toe: [
+    {
+      title: 'Objective',
+      points: [
+        'Be the first to get three of your marks (X or O) in a row — across, down, or diagonally — on the 3x3 grid.',
+        'If all nine cells fill up with no row of three, the game ends in a draw.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        'Exactly 2 players join a room. The host can play too.',
+        'One player is randomly assigned X, the other O. X always goes first.',
+        'Optional per-turn timer keeps the game moving — if your timer runs out, the turn passes to the other player.',
+      ],
+    },
+    {
+      title: 'Taking a turn',
+      points: [
+        'On your turn, tap any empty cell to place your mark there.',
+        'Turns alternate between X and O until someone wins or the board fills up.',
+      ],
+    },
+    {
+      title: 'Winning',
+      points: [
+        'Three matching marks in a row, column, or diagonal wins immediately.',
+        'Play again resets the board for a quick rematch — marks stay the same.',
+      ],
+    },
+  ],
 }

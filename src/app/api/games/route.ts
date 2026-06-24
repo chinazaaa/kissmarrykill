@@ -33,6 +33,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isICallOnGame,
   isSudokuGame,
 } from '@/lib/game-types'
@@ -242,7 +243,8 @@ export async function POST(req: NextRequest) {
     isYahtzeeGame(game_type) ||
     isWhotGame(game_type) ||
     isLudoGame(game_type) ||
-    isSudokuGame(game_type)
+    isSudokuGame(game_type) ||
+    isTicTacToeGame(game_type)
       ? 'joiners'
       : isWhoSaidThis(game_type)
         ? 'import'
@@ -293,7 +295,8 @@ export async function POST(req: NextRequest) {
     isYahtzeeGame(game_type) ||
     isWhotGame(game_type) ||
     isLudoGame(game_type) ||
-    isSudokuGame(game_type)
+    isSudokuGame(game_type) ||
+    isTicTacToeGame(game_type)
       ? 1
       : isWhoSaidThis(game_type)
         ? wstAutoRoundCount(participants.length)

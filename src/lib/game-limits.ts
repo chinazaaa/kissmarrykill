@@ -13,6 +13,7 @@ import { YAHTZEE_DEFAULT_MAX_PLAYERS, YAHTZEE_MAX_PLAYERS, YAHTZEE_MIN_PLAYERS }
 import { WHOT_DEFAULT_MAX_PLAYERS, WHOT_MAX_PLAYERS, WHOT_MIN_PLAYERS } from '@/lib/whot'
 import { LUDO_DEFAULT_MAX_PLAYERS, LUDO_MAX_PLAYERS, LUDO_MIN_PLAYERS } from '@/lib/ludo'
 import { NPAT_DEFAULT_MAX_PLAYERS, NPAT_MAX_PLAYERS, NPAT_MIN_PLAYERS } from '@/lib/npat'
+import { TIC_TAC_TOE_DEFAULT_MAX_PLAYERS, TIC_TAC_TOE_MAX_PLAYERS, TIC_TAC_TOE_MIN_PLAYERS } from '@/lib/tic-tac-toe'
 
 export const LOBBY_LIMIT_GAME_TYPES = [
   'anonymous_messages',
@@ -26,6 +27,7 @@ export const LOBBY_LIMIT_GAME_TYPES = [
   'ludo',
   'i_call_on',
   'sudoku',
+  'tic_tac_toe',
 ] as const
 
 export type LobbyLimitGameType = (typeof LOBBY_LIMIT_GAME_TYPES)[number]
@@ -97,6 +99,11 @@ export const GAME_LIMIT_CODE_DEFAULTS: GamePlayerLimitsMap = {
     max: 20,
     default: 20,
   },
+  tic_tac_toe: {
+    min: TIC_TAC_TOE_MIN_PLAYERS,
+    max: TIC_TAC_TOE_MAX_PLAYERS,
+    default: TIC_TAC_TOE_DEFAULT_MAX_PLAYERS,
+  },
 }
 
 export function isLobbyLimitGameType(value: string): value is LobbyLimitGameType {
@@ -116,6 +123,7 @@ export function getCodeDefaultLimits(): GamePlayerLimitsMap {
     ludo: { ...GAME_LIMIT_CODE_DEFAULTS.ludo },
     i_call_on: { ...GAME_LIMIT_CODE_DEFAULTS.i_call_on },
     sudoku: { ...GAME_LIMIT_CODE_DEFAULTS.sudoku },
+    tic_tac_toe: { ...GAME_LIMIT_CODE_DEFAULTS.tic_tac_toe },
   }
 }
 

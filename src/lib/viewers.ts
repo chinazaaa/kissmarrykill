@@ -6,6 +6,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isMostLikelyTo,
   isNeverHaveIEver,
   isSecretMessageGame,
@@ -54,7 +55,13 @@ export function gameSupportsViewerSetting(gameType: GameType): boolean {
 
 /** Board games allow watch-only late join — not mid-game players. */
 export function gameAllowsLatePlayerJoin(gameType: GameType): boolean {
-  return !isMonopolyGame(gameType) && !isYahtzeeGame(gameType) && !isWhotGame(gameType) && !isLudoGame(gameType)
+  return (
+    !isMonopolyGame(gameType) &&
+    !isYahtzeeGame(gameType) &&
+    !isWhotGame(gameType) &&
+    !isLudoGame(gameType) &&
+    !isTicTacToeGame(gameType)
+  )
 }
 
 /** Round/lobby games: late joiners pick viewer vs player. */

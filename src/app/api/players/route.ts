@@ -20,6 +20,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isTicTacToeGame,
   isTwoTruthsGame,
 } from '@/lib/game-types'
 import { fetchGamePlayerLimits, isLobbyLimitGameType, lobbyMaxPlayersFromGame } from '@/lib/game-limits'
@@ -495,6 +496,50 @@ export async function POST(req: NextRequest) {
     }
 
     const maxPlayers = lobbyMaxPlayersFromGame('ludo', gameRow, lobbyLimits)
+    const { count: playerCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+
+    if (gameRow.status === 'waiting' && (playerCount ?? 0) >= maxPlayers) {
+      return NextResponse.json({ error: 'This game is full' }, { status: 400 })
+    }
+
+    if (await nameTaken(gameId, name)) {
+      return NextResponse.json({ error: 'That name is already taken' }, { status: 400 })
+    }
+
+    const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
+
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        game_id: gameId,
+        name,
+        gender: 'both',
+        identity_gender: null,
+        participant_id: null,
+        spectator: isSpectator,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return jsonPlayerJoin(roomMemberId, player, gameRow as Game)
+  }
+
+  if (isTicTacToeGame(rowGameType)) {
+    const joinCheck = canJoinGame(gameRow as Game)
+    if (!joinCheck.ok) {
+      return NextResponse.json({ error: joinCheck.error }, { status: 400 })
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
+    }
+
+    const maxPlayers = lobbyMaxPlayersFromGame('tic_tac_toe', gameRow, lobbyLimits)
     const { count: playerCount } = await supabase
       .from('players')
       .select('id', { count: 'exact', head: true })

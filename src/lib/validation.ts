@@ -722,6 +722,20 @@ export const ludoExpireSchema = z.object({
 
 export type LudoMoveInput = z.infer<typeof ludoMoveSchema>
 
+// Tic-Tac-Toe (POST /api/tic-tac-toe/*)
+
+export const ticTacToeMoveSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+  cellIndex: z.coerce.number().int().min(0).max(8),
+})
+
+export const ticTacToeExpireSchema = z.object({
+  gameId: gameCodeString(),
+})
+
+export type TicTacToeMoveInput = z.infer<typeof ticTacToeMoveSchema>
+
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
 
