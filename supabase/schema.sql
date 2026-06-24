@@ -307,6 +307,7 @@ ALTER TABLE games ADD COLUMN IF NOT EXISTS gender_based boolean NOT NULL DEFAULT
 create table if not exists rooms (
   id text primary key,
   name text not null,
+  creator_token text not null default '',
   created_at timestamptz not null default now()
 );
 
@@ -391,3 +392,4 @@ alter publication supabase_realtime add table room_messages;
 -- alter publication supabase_realtime add table room_members;
 -- alter publication supabase_realtime add table room_games;
 -- alter publication supabase_realtime add table room_messages;
+-- alter table rooms add column if not exists creator_token text not null default '';

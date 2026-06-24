@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FateRoundLogo } from '@/components/FateRoundLogo'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -43,6 +44,7 @@ type Message = {
 type Identity = { memberId: string; memberCode: string; displayName: string }
 
 const MEMBER_KEY = (code: string) => `kmk_room_${code}_member`
+const CREATOR_KEY = (code: string) => `kmk_room_${code}_creator`
 
 function getSavedIdentity(roomCode: string): Identity | null {
   try {
@@ -54,6 +56,11 @@ function getSavedIdentity(roomCode: string): Identity | null {
   }
 }
 
+function getSavedCreatorToken(roomCode: string): string | null {
+  try { return localStorage.getItem(CREATOR_KEY(roomCode)) } catch { return null }
+}
+
+type Status = 'loading' | 'not_found' | 'unauthenticated' | 'ready'
 type Tab = 'chat' | 'leaderboard' | 'history'
 
 function memberInitial(name: string) {
@@ -81,10 +88,12 @@ function MemberRow({
   name,
   online,
   isYou,
+  onRemove,
 }: {
   name: string
   online: boolean
   isYou: boolean
+  onRemove?: () => void
 }) {
   return (
     <div
@@ -97,6 +106,16 @@ function MemberRow({
         {name}
         {isYou && <span className="ml-1 text-xs text-faint">(you)</span>}
       </span>
+      {onRemove && !isYou && (
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove member"
+          className="shrink-0 text-faint hover:text-red-400 active:text-red-400 transition-colors text-base leading-none px-1"
+        >
+          ×
+        </button>
+      )}
     </div>
   )
 }
@@ -122,7 +141,7 @@ function MemberChip({
 }
 
 export function RoomLobby({ roomCode }: { roomCode: string }) {
-  const [status, setStatus] = useState<'loading' | 'unauthenticated' | 'ready'>('loading')
+  const [status, setStatus] = useState<Status>('loading')
   const [room, setRoom] = useState<Room | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -132,6 +151,11 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
   const [tab, setTab] = useState<Tab>('chat')
   const [newGameBanner, setNewGameBanner] = useState<RoomGame | null>(null)
   const [copySuccess, setCopySuccess] = useState<'room' | 'member' | null>(null)
+  const [creatorToken, setCreatorToken] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<
+    { type: 'end' } | { type: 'remove'; memberId: string; name: string } | null
+  >(null)
+  const router = useRouter()
 
   const refreshGames = useCallback(() => {
     fetch(`/api/rooms/${roomCode}/games`)
@@ -144,8 +168,13 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
 
   // Initial load
   useEffect(() => {
+    setCreatorToken(getSavedCreatorToken(roomCode))
+  }, [roomCode])
+
+  useEffect(() => {
     async function init() {
       const res = await fetch(`/api/rooms/${roomCode}`)
+      if (res.status === 404) { setStatus('not_found'); return }
       if (!res.ok) { setStatus('unauthenticated'); return }
       const data = await res.json()
       setRoom(data.room)
@@ -287,6 +316,29 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
     })
   }, [roomCode, identity])
 
+  const confirmAction = useCallback(async () => {
+    if (!confirm || !creatorToken) return
+    if (confirm.type === 'remove') {
+      await fetch(`/api/rooms/${roomCode}/members/${confirm.memberId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorToken }),
+      })
+    } else {
+      const res = await fetch(`/api/rooms/${roomCode}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorToken }),
+      })
+      if (res.ok) {
+        localStorage.removeItem(CREATOR_KEY(roomCode))
+        localStorage.removeItem(MEMBER_KEY(roomCode))
+        router.push('/rooms')
+      }
+    }
+    setConfirm(null)
+  }, [confirm, creatorToken, roomCode, router])
+
   const copyText = (text: string, which: 'room' | 'member') => {
     navigator.clipboard.writeText(text)
     setCopySuccess(which)
@@ -299,6 +351,28 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
         <div className="flex items-center gap-2 text-muted text-sm">
           <span className="inline-block h-2 w-2 rounded-full bg-[var(--primary)] animate-pulse" />
           Loading room…
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'not_found') {
+    return (
+      <div className="page-wrap flex items-center justify-center px-4">
+        <div className="glass-card p-6 w-full max-w-md space-y-5 text-center">
+          <div className="space-y-2">
+            <div className="text-4xl">🏠</div>
+            <h1 className="text-2xl font-black text-body">Room {roomCode}</h1>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-bold text-body">This room has ended</p>
+            <p className="text-muted text-sm leading-relaxed">
+              The creator closed this room. Ask them to create a new one and share the code.
+            </p>
+          </div>
+          <a href="/rooms" className="btn-secondary block">
+            Go to Game Rooms
+          </a>
         </div>
       </div>
     )
@@ -402,6 +476,7 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
                 name={m.display_name}
                 online
                 isYou={m.id === identity?.memberId}
+                onRemove={creatorToken ? () => setConfirm({ type: 'remove', memberId: m.id, name: m.display_name }) : undefined}
               />
             ))}
             {offlineMembers.map((m) => (
@@ -410,14 +485,24 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
                 name={m.display_name}
                 online={false}
                 isYou={m.id === identity?.memberId}
+                onRemove={creatorToken ? () => setConfirm({ type: 'remove', memberId: m.id, name: m.display_name }) : undefined}
               />
             ))}
           </div>
 
-          <div className="p-4 border-t border-[var(--border)]">
+          <div className="p-4 border-t border-[var(--border)] space-y-2">
             <Link href={startGameHref} className="btn-primary text-sm py-2.5" {...OPEN_IN_NEW_TAB}>
               Start a Game
             </Link>
+            {creatorToken && (
+              <button
+                type="button"
+                onClick={() => setConfirm({ type: 'end' })}
+                className="w-full text-xs text-faint hover:text-red-400 transition-colors py-1"
+              >
+                End room
+              </button>
+            )}
           </div>
         </aside>
 
@@ -503,6 +588,46 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
       {/* Member code reminder — shown once */}
       {identity && status === 'ready' && (
         <MemberCodeReminder memberCode={identity.memberCode} displayName={identity.displayName} />
+      )}
+
+      {/* Confirm dialog */}
+      {confirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setConfirm(null)}
+        >
+          <div
+            className="glass-card-strong w-full max-w-xs p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-1">
+              <p className="font-bold text-body">
+                {confirm.type === 'end' ? 'End this room?' : `Remove ${confirm.name}?`}
+              </p>
+              <p className="text-sm text-muted">
+                {confirm.type === 'end'
+                  ? 'This will permanently delete the room, all chat messages, and the leaderboard for everyone.'
+                  : 'They will be removed from the room and their stats will be deleted.'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={confirmAction}
+                className="flex-1 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold py-2.5 hover:bg-red-500/20 transition-colors"
+              >
+                {confirm.type === 'end' ? 'End room' : 'Remove'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirm(null)}
+                className="flex-1 btn-secondary text-sm py-2.5"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

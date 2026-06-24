@@ -26,6 +26,9 @@ export function RoomsPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Failed to create room'); return }
+      if (data.creatorToken) {
+        localStorage.setItem(`kmk_room_${data.roomCode}_creator`, data.creatorToken)
+      }
       router.push(`/room/${data.roomCode}`)
     } catch {
       setError('Something went wrong. Please try again.')

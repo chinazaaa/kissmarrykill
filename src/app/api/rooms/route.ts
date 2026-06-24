@@ -18,8 +18,10 @@ export async function POST(req: NextRequest) {
     roomCode = generateGameCode()
   }
 
-  const { error } = await supabase.from('rooms').insert({ id: roomCode, name })
+  const creatorToken = generateGameCode() + generateGameCode()
+
+  const { error } = await supabase.from('rooms').insert({ id: roomCode, name, creator_token: creatorToken })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ roomCode })
+  return NextResponse.json({ roomCode, creatorToken })
 }
