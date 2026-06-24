@@ -9,6 +9,7 @@ export function RoomsPage() {
   const router = useRouter()
   const [tab, setTab] = useState<'create' | 'join'>('create')
   const [roomName, setRoomName] = useState('')
+  const [maxMembers, setMaxMembers] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -22,7 +23,7 @@ export function RoomsPage() {
       const res = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, maxMembers: maxMembers ? Number(maxMembers) : undefined }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Failed to create room'); return }
@@ -102,6 +103,18 @@ export function RoomsPage() {
                     maxLength={50}
                     className="input-field"
                     autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label-caps">Max members <span className="normal-case text-faint font-normal">(optional)</span></label>
+                  <input
+                    value={maxMembers}
+                    onChange={(e) => setMaxMembers(e.target.value.replace(/[^0-9]/g, ''))}
+                    onKeyDown={(e) => e.key === 'Enter' && createRoom()}
+                    placeholder="No limit"
+                    maxLength={3}
+                    inputMode="numeric"
+                    className="input-field"
                   />
                 </div>
                 {error && <p className="text-xs text-red-400">{error}</p>}

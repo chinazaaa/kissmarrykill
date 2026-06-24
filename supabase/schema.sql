@@ -308,6 +308,7 @@ create table if not exists rooms (
   id text primary key,
   name text not null,
   creator_token text not null default '',
+  max_members integer,
   created_at timestamptz not null default now()
 );
 
@@ -393,3 +394,4 @@ alter publication supabase_realtime add table room_messages;
 -- alter publication supabase_realtime add table room_games;
 -- alter publication supabase_realtime add table room_messages;
 -- alter table rooms add column if not exists creator_token text not null default '';
+-- alter table rooms add column if not exists max_members integer;

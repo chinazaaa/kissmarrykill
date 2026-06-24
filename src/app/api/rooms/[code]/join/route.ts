@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { code } = await params
   const roomCode = code.toUpperCase()
 
-  const { data: room } = await supabase.from('rooms').select('id').eq('id', roomCode).maybeSingle()
+  const { data: room } = await supabase.from('rooms').select('id, max_members').eq('id', roomCode).maybeSingle()
   if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
 
   const body = await req.json()
@@ -36,6 +36,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   // New member — join with display name
   const displayName = String(body.displayName ?? '').trim()
   if (!displayName) return NextResponse.json({ error: 'Display name is required' }, { status: 400 })
+
+  // Check room cap
+  if (room.max_members) {
+    const { count } = await supabase
+      .from('room_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', roomCode)
+    if ((count ?? 0) >= room.max_members) {
+      return NextResponse.json({ error: `Room is full (${room.max_members} members max)` }, { status: 409 })
+    }
+  }
   if (displayName.length > 30) return NextResponse.json({ error: 'Name must be 30 characters or less' }, { status: 400 })
 
   const { data: nameTaken } = await supabase
