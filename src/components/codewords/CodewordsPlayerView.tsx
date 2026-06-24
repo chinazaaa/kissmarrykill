@@ -36,6 +36,7 @@ import { allowLateJoin, allowLatePlayers, playerIsViewer, preJoinScreen } from '
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { markPlayerReady } from '@/lib/player-ready'
+import { resolvePlayerSession } from '@/lib/player-resume'
 import type {
   CodewordsBoard,
   CodewordsGuess,
