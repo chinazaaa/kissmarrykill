@@ -114,8 +114,70 @@ export function CodewordsHostManagePanel({
         ? ready.error
         : null
 
+  const sessionEnded = game.status === 'finished'
+  const roundWon = Boolean(board?.winner)
+  const showWinnerResults = Boolean(board && roundWon && (sessionEnded || game.status === 'active'))
+  const showSessionEndedResults = Boolean(board && sessionEnded && !board.winner)
+  const playAgainButton = (
+    <button
+      type="button"
+      onClick={onPlayAgain}
+      disabled={playingAgain || ending}
+      className="btn-primary w-full"
+    >
+      {playingAgain ? 'Returning…' : 'Return to lobby'}
+    </button>
+  )
+
   return (
     <div className="space-y-5">
+      {showWinnerResults && board && (
+        <div className="space-y-4">
+          <CodewordsFinalResultsShareBlock
+            game={game}
+            players={players}
+            guesses={guesses}
+            roles={roles}
+            winnerLabel={`${teamLabel(board.winner!)} team wins!`}
+            playAgainButton={playAgainButton}
+          />
+          <div className="glass-card p-4 space-y-4">
+            <p className="label-caps text-center">Final board</p>
+            <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
+            <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} winner={board.winner} />
+          </div>
+        </div>
+      )}
+
+      {showSessionEndedResults && board && (
+        <div className="space-y-4">
+          <CodewordsFinalResultsShareBlock
+            game={game}
+            players={players}
+            guesses={guesses}
+            roles={roles}
+            winnerLabel="Session ended"
+            subtitle="The game was closed before a team won."
+            playAgainButton={playAgainButton}
+          />
+          <div className="glass-card p-4 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4 items-start">
+              <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
+              <CodewordsScoreboard board={board} players={players} roles={roles} />
+            </div>
+            <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} />
+          </div>
+        </div>
+      )}
+
+      {sessionEnded && !board && (
+        <div className="glass-card p-5 space-y-3">
+          <p className="label-caps">Game over</p>
+          <p className="text-muted text-sm">Return to the lobby to start another round with this group.</p>
+          {playAgainButton}
+        </div>
+      )}
+
       {inLobby && (
         <div className="glass-card p-5 space-y-3 border-[color-mix(in_srgb,var(--primary)_18%,var(--border))]">
           <p className="label-caps">Lobby</p>
@@ -267,7 +329,7 @@ export function CodewordsHostManagePanel({
         </div>
       )}
 
-      {showSpectatorBoard && board && game.status === 'active' && (
+      {showSpectatorBoard && board && game.status === 'active' && !board.winner && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4 items-start">
           <div className="glass-card p-4 space-y-3">
             <p className="label-caps">Live board (host view)</p>
@@ -282,33 +344,6 @@ export function CodewordsHostManagePanel({
           <aside className="space-y-3">
             <CodewordsScoreboard board={board} players={players} roles={roles} />
           </aside>
-        </div>
-      )}
-
-      {board && game.status === 'active' && board.winner && showSpectatorBoard && (
-        <div className="space-y-4">
-          <CodewordsFinalResultsShareBlock
-            game={game}
-            players={players}
-            guesses={guesses}
-            roles={roles}
-            winnerLabel={`${teamLabel(board.winner)} team wins!`}
-            playAgainButton={
-              <button
-                type="button"
-                onClick={onPlayAgain}
-                disabled={playingAgain || ending}
-                className="btn-primary w-full"
-              >
-                {playingAgain ? 'Returning…' : 'Return to lobby'}
-              </button>
-            }
-          />
-          <div className="glass-card p-4 space-y-4">
-            <p className="label-caps text-center">Final board</p>
-            <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
-            <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} winner={board.winner} />
-          </div>
         </div>
       )}
 
@@ -332,53 +367,6 @@ export function CodewordsHostManagePanel({
             >
               {ending ? 'Closing…' : 'Close session'}
             </button>
-          </div>
-        </div>
-      )}
-
-      {board && game.status === 'finished' && !board.winner && showSpectatorBoard && (
-        <div className="space-y-4">
-          <CodewordsFinalResultsShareBlock
-            game={game}
-            players={players}
-            guesses={guesses}
-            roles={roles}
-            winnerLabel="Session ended"
-            subtitle="The game was closed before a team won."
-            playAgainButton={
-              <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-primary w-full">
-                {playingAgain ? 'Resetting…' : 'Return to lobby'}
-              </button>
-            }
-          />
-          <div className="glass-card p-4 space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4 items-start">
-              <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
-              <CodewordsScoreboard board={board} players={players} roles={roles} />
-            </div>
-            <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} />
-          </div>
-        </div>
-      )}
-
-      {board && game.status === 'finished' && board.winner && showSpectatorBoard && (
-        <div className="space-y-4">
-          <CodewordsFinalResultsShareBlock
-            game={game}
-            players={players}
-            guesses={guesses}
-            roles={roles}
-            winnerLabel={`${teamLabel(board.winner)} team wins!`}
-            playAgainButton={
-              <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-primary w-full">
-                {playingAgain ? 'Resetting…' : 'Return to lobby'}
-              </button>
-            }
-          />
-          <div className="glass-card p-4 space-y-4">
-            <p className="label-caps text-center">Final board</p>
-            <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
-            <CodewordsEndGameStats guesses={guesses} roles={roles} players={players} winner={board.winner} />
           </div>
         </div>
       )}
