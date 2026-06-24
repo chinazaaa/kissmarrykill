@@ -12,6 +12,12 @@ export const WORD_HUNT_DEFAULT_TIMER = 180
 export const WORD_HUNT_TIMER_OPTIONS = [60, 120, 180, 300] as const
 export const WORD_HUNT_MIN_WORD_LENGTH = 3
 export const WORD_HUNT_GRID_SIZE = 4
+/** At least this many cells must contain a vowel (A/E/I/O/U) — avoids all-consonant boards. */
+export const WORD_HUNT_MIN_VOWEL_CELLS = 5
+/** Regenerate grids with fewer playable words than this (checked at round start). */
+export const WORD_HUNT_MIN_VALID_WORDS = 40
+
+const WORD_HUNT_VOWELS = new Set(['A', 'E', 'I', 'O', 'U'])
 
 /** Classic 16 Boggle dice (one letter shown per die). */
 const BOGGLE_DICE = [
@@ -80,7 +86,18 @@ function shuffle<T>(arr: T[], rng: () => number): T[] {
   return a
 }
 
-export function generateWordHuntGrid(seed: number): string[][] {
+export function cellHasVowel(letter: string): boolean {
+  for (const ch of letter.toUpperCase()) {
+    if (WORD_HUNT_VOWELS.has(ch)) return true
+  }
+  return false
+}
+
+export function countVowelCells(grid: string[][]): number {
+  return grid.flat().filter(cellHasVowel).length
+}
+
+function rollWordHuntGrid(seed: number): string[][] {
   const rng = xorshift(seed)
   const dice = shuffle([...BOGGLE_DICE], rng)
   const grid: string[][] = []
@@ -94,6 +111,14 @@ export function generateWordHuntGrid(seed: number): string[][] {
     grid.push(rowLetters)
   }
   return grid
+}
+
+export function generateWordHuntGrid(seed: number): string[][] {
+  for (let attempt = 0; attempt < 64; attempt++) {
+    const grid = rollWordHuntGrid(seed + attempt * 7919)
+    if (countVowelCells(grid) >= WORD_HUNT_MIN_VOWEL_CELLS) return grid
+  }
+  return rollWordHuntGrid(seed)
 }
 
 export function parseWordHuntMetadata(raw: unknown): WordHuntMetadata | null {

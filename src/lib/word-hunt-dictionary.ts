@@ -2,7 +2,11 @@ import fs from 'fs'
 import path from 'path'
 import {
   WORD_HUNT_GRID_SIZE,
+  WORD_HUNT_MIN_VALID_WORDS,
+  WORD_HUNT_MIN_VOWEL_CELLS,
   WORD_HUNT_MIN_WORD_LENGTH,
+  countVowelCells,
+  generateWordHuntGrid,
   indexToRowCol,
   isValidPath,
   letterAt,
@@ -130,7 +134,26 @@ export function enumerateValidGridWords(grid: string[][]): Set<string> {
   return results
 }
 
-export function buildWordHuntMetadata(grid: string[][]): WordHuntMetadata {
+export function buildWordHuntMetadata(seed: number): WordHuntMetadata {
+  let best: WordHuntMetadata | null = null
+
+  for (let attempt = 0; attempt < 48; attempt++) {
+    const grid = generateWordHuntGrid(seed + attempt * 9973)
+    if (countVowelCells(grid) < WORD_HUNT_MIN_VOWEL_CELLS) continue
+
+    const valid_words = Array.from(enumerateValidGridWords(grid))
+    if (valid_words.length >= WORD_HUNT_MIN_VALID_WORDS) {
+      return { grid, valid_words }
+    }
+
+    if (!best || valid_words.length > (best.valid_words?.length ?? 0)) {
+      best = { grid, valid_words }
+    }
+  }
+
+  if (best) return best
+
+  const grid = generateWordHuntGrid(seed)
   return {
     grid,
     valid_words: Array.from(enumerateValidGridWords(grid)),

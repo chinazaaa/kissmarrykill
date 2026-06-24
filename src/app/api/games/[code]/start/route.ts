@@ -91,7 +91,7 @@ import { initializeLudoGame, LUDO_MIN_PLAYERS } from '@/lib/ludo'
 import { initializeTicTacToeGame, TIC_TAC_TOE_MIN_PLAYERS } from '@/lib/tic-tac-toe'
 import { buildNpatInitialRound, NPAT_MIN_PLAYERS, shufflePlayerOrder as npatShufflePlayerOrder } from '@/lib/npat'
 import { buildSudokuRoundRow, SUDOKU_MIN_PLAYERS } from '@/lib/sudoku'
-import { buildWordHuntRoundRow, generateWordHuntGrid, WORD_HUNT_MIN_PLAYERS } from '@/lib/word-hunt'
+import { buildWordHuntRoundRow, WORD_HUNT_MIN_PLAYERS } from '@/lib/word-hunt'
 import { buildWordHuntMetadata } from '@/lib/word-hunt-dictionary'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
 
@@ -600,7 +600,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const seed = Date.now() ^ Math.floor(Math.random() * 0xffffffff)
-    const metadata = buildWordHuntMetadata(generateWordHuntGrid(seed))
+    const metadata = buildWordHuntMetadata(seed)
     const roundRow = buildWordHuntRoundRow(code.toUpperCase(), metadata)
 
     const { error: roundError } = await supabase.from('rounds').insert(roundRow)
