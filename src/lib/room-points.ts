@@ -51,6 +51,19 @@ export function isCompetitiveRoomGame(gameType: GameType): boolean {
   )
 }
 
+export async function resolveRoomCodeForGame(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<string | null> {
+  const { data: roomGame } = await supabase
+    .from('room_games')
+    .select('room_id')
+    .eq('game_id', gameId.toUpperCase())
+    .maybeSingle()
+
+  return roomGame?.room_id ?? null
+}
+
 export async function resolveRoomMemberForGame(
   supabase: SupabaseClient,
   gameId: string,
