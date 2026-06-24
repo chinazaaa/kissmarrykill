@@ -434,6 +434,14 @@ export const bingoSettingsSchema = z.object({
   max_players: z.coerce.number().int().min(2).max(100).optional(),
 })
 
+export const codewordsLobbySettingsSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+  max_players: z.coerce.number().int().min(2).max(100).optional(),
+  spymasterTimerSeconds: z.coerce.number().optional(),
+  operativeTimerSeconds: z.coerce.number().optional(),
+})
+
 export type BingoSettingsInput = z.infer<typeof bingoSettingsSchema>
 
 export const boardGameLobbySettingsSchema = z.object({

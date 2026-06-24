@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsFinalResultsShareBlock } from '@/components/codewords/CodewordsFinalResultsShareBlock'
 import { CodewordsBoardGrid } from '@/components/codewords/CodewordsBoardGrid'
@@ -7,6 +8,9 @@ import { CodewordsLobbyRoster } from '@/components/codewords/CodewordsLobbyRoste
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
+import { HostLobbySettingBlock } from '@/components/host-lobby/HostLobbySettingBlock'
+import { HostLobbyOptionChips } from '@/components/host-lobby/HostLobbyOptionChips'
+import { useToast } from '@/components/ui/Toast'
 import {
   CODEWORDS_MIN_PLAYERS,
   CODEWORDS_TIMER_OPTIONS,
@@ -21,6 +25,7 @@ import {
   teamLabel,
   waitingTurnMessage,
 } from '@/lib/codewords'
+import { lobbyMaxPlayersFromGame, playerCountOptions, type GamePlayerLimitsMap } from '@/lib/game-limits'
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, CodewordsTeam, Game, Player } from '@/types'
 
 export function CodewordsHostManagePanel({
@@ -49,6 +54,7 @@ export function CodewordsHostManagePanel({
   onPlayAgain,
   onEndSession,
   onReload,
+  onGameUpdate,
   onBenchPlayer,
   onRemovePlayer,
   benchingPlayerId,
@@ -81,6 +87,7 @@ export function CodewordsHostManagePanel({
   onPlayAgain: () => void
   onEndSession: () => void
   onReload: () => void | Promise<unknown>
+  onGameUpdate: (game: Game) => void
   onBenchPlayer?: (playerId: string) => void
   onRemovePlayer?: (playerId: string, playerName: string) => void | Promise<void | boolean>
   benchingPlayerId?: string | null
@@ -88,6 +95,72 @@ export function CodewordsHostManagePanel({
   randomizingTeams?: boolean
   showSpectatorBoard?: boolean
 }) {
+  const { error: toastError } = useToast()
+  const [limits, setLimits] = useState<GamePlayerLimitsMap | null>(null)
+  const [lobbyMaxPlayers, setLobbyMaxPlayers] = useState(codewordsMaxPlayers(game))
+  const [savingMaxPlayers, setSavingMaxPlayers] = useState(false)
+
+  useEffect(() => {
+    void fetch('/api/game-limits')
+      .then((res) => res.json())
+      .then((data: { limits?: GamePlayerLimitsMap }) => {
+        if (data.limits) setLimits(data.limits)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!limits) {
+      setLobbyMaxPlayers(codewordsMaxPlayers(game))
+      return
+    }
+    setLobbyMaxPlayers(lobbyMaxPlayersFromGame('codewords', game, limits))
+  }, [game, limits])
+
+  const limitCfg = limits?.codewords
+  const minPlayers = limitCfg?.min ?? CODEWORDS_MIN_PLAYERS
+  const maxCap = limitCfg?.max ?? codewordsMaxPlayers(game)
+
+  const maxPlayerOptions = useMemo(
+    () =>
+      playerCountOptions(minPlayers, maxCap).map((n) => ({
+        value: n,
+        label: String(n),
+      })),
+    [maxCap, minPlayers]
+  )
+
+  const saveMaxPlayers = useCallback(
+    async (next: number) => {
+      setSavingMaxPlayers(true)
+      try {
+        const res = await fetch('/api/codewords/timers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId: gameCode, hostToken, max_players: next }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Failed to save max players')
+        if (data.game) onGameUpdate(data.game)
+      } catch (err) {
+        setLobbyMaxPlayers(codewordsMaxPlayers(game))
+        toastError(err instanceof Error ? err.message : 'Failed to save max players')
+      } finally {
+        setSavingMaxPlayers(false)
+      }
+    },
+    [game, gameCode, hostToken, onGameUpdate, toastError]
+  )
+
+  const onMaxPlayersChange = (next: number) => {
+    if (next < players.length) {
+      toastError(`Already have ${players.length} players — remove someone first`)
+      return
+    }
+    setLobbyMaxPlayers(next)
+    void saveMaxPlayers(next)
+  }
+
   const randomizeTeams = codewordsRandomizeTeams(game)
   const playerIds = players.map((p) => p.id)
   const ready = lobbyReadyForGame(roles, playerIds, randomizeTeams)
@@ -184,6 +257,14 @@ export function CodewordsHostManagePanel({
           <p className="text-faint text-xs leading-relaxed">
             Assign teams below, then start when everyone is ready.
           </p>
+          <HostLobbySettingBlock title={`Max players · ${players.length} joined`}>
+            <HostLobbyOptionChips
+              value={lobbyMaxPlayers}
+              options={maxPlayerOptions}
+              onChange={onMaxPlayersChange}
+              disabled={savingMaxPlayers}
+            />
+          </HostLobbySettingBlock>
           <HostLobbyWaitingFooter
             gameCode={gameCode}
             hostToken={hostToken}
@@ -252,7 +333,7 @@ export function CodewordsHostManagePanel({
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p className="label-caps">
-                Teams ({players.length}/{codewordsMaxPlayers(game)})
+                Teams ({players.length}/{lobbyMaxPlayers})
               </p>
               <p className="text-faint text-xs mt-1">
                 {inLobby ? (

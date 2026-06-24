@@ -597,6 +597,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
         onPlayAgain={playAgain}
         onEndSession={endSession}
         onReload={load}
+        onGameUpdate={setGame}
         onBenchPlayer={benchPlayer}
         onRemovePlayer={removePlayer}
         benchingPlayerId={benchingPlayerId}
