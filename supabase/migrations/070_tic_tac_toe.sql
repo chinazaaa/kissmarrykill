@@ -46,6 +46,7 @@ ALTER TABLE games ADD CONSTRAINT games_game_type_check CHECK (game_type IN (
   'whot',
   'ludo',
   'i_call_on',
+  'sudoku',
   'tic_tac_toe'
 ));
 
@@ -75,12 +76,13 @@ ALTER TABLE app_feedback ADD CONSTRAINT app_feedback_game_type_check CHECK (game
   'whot',
   'ludo',
   'i_call_on',
+  'sudoku',
   'tic_tac_toe'
 ));
 
 ALTER TABLE game_player_limits DROP CONSTRAINT IF EXISTS game_player_limits_game_type_check;
 ALTER TABLE game_player_limits ADD CONSTRAINT game_player_limits_game_type_check CHECK (
-  game_type IN ('anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths', 'monopoly', 'yahtzee', 'whot', 'ludo', 'i_call_on', 'tic_tac_toe')
+  game_type IN ('anonymous_messages', 'bingo', 'codewords', 'trivia', 'two_truths', 'monopoly', 'yahtzee', 'whot', 'ludo', 'i_call_on', 'sudoku', 'tic_tac_toe')
 );
 
 INSERT INTO game_player_limits (game_type, max_players)
