@@ -8,6 +8,7 @@ import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageSh
 import { HostWordHuntLobbyPanel } from '@/components/host-lobby/HostWordHuntLobbyPanel'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { WordHuntBoard } from '@/components/word-hunt/WordHuntBoard'
 import { WordHuntPlayerView } from '@/components/word-hunt/WordHuntPlayerView'
 import { WordHuntFinalResultsShareBlock } from '@/components/word-hunt/WordHuntFinalResultsShareBlock'
@@ -387,6 +388,13 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
 
           {game.status === 'active' && (
             <>
+              <HostLateJoinSettingsCard
+                gameCode={gameCode}
+                hostToken={hostToken}
+                game={game}
+                onGameUpdate={setGame}
+              />
+
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Words found</p>

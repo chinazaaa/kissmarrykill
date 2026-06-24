@@ -11,6 +11,7 @@ import {
   isTriviaGame,
   isBinaryChoiceGame,
   isWouldYouRather,
+  isWordHuntGame,
   parseGameType,
 } from '@/lib/game-types'
 import type { Game } from '@/types'
@@ -24,7 +25,10 @@ export type LateJoinContext = {
 export async function fetchLateJoinContext(
   supabase: SupabaseClient,
   gameCode: string,
-  game: Pick<Game, 'game_type' | 'status' | 'current_round_number' | 'rounds_count'>
+  game: Pick<
+    Game,
+    'game_type' | 'status' | 'current_round_number' | 'rounds_count' | 'session_started_at' | 'timer_seconds'
+  >
 ): Promise<LateJoinContext | null> {
   if (game.status !== 'active') return null
 
@@ -78,6 +82,27 @@ export async function fetchLateJoinContext(
       statusLine: `Round ${roundLabel(current)}`,
       playerDetail: "You'll participate from the current round only. Earlier rounds are skipped.",
       viewerDetail: "Watch live — you can't vote until the next lobby opens.",
+    }
+  }
+
+  if (isWordHuntGame(type)) {
+    const timerSec = game.timer_seconds ?? 180
+    let statusLine = 'Hunt in progress'
+    if (game.session_started_at) {
+      const elapsed = Math.floor((Date.now() - new Date(game.session_started_at).getTime()) / 1000)
+      const left = Math.max(0, timerSec - elapsed)
+      if (left <= 0) {
+        statusLine = 'Time is up — finalizing scores'
+      } else {
+        const m = Math.floor(left / 60)
+        const s = left % 60
+        statusLine = m > 0 ? `${m}m ${s}s left` : `${s}s left`
+      }
+    }
+    return {
+      statusLine,
+      playerDetail: 'Same letter grid as everyone else — find words before time runs out.',
+      viewerDetail: "Watch the grid and live scores — you can't submit words.",
     }
   }
 

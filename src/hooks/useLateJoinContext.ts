@@ -7,7 +7,10 @@ import type { Game } from '@/types'
 
 export function useLateJoinContext(
   gameCode: string,
-  game: Pick<Game, 'game_type' | 'status' | 'current_round_number' | 'rounds_count'> | null,
+  game: Pick<
+    Game,
+    'game_type' | 'status' | 'current_round_number' | 'rounds_count' | 'session_started_at' | 'timer_seconds'
+  > | null,
   enabled: boolean,
   /** Bumps context when mid-game stats change (e.g. bingo calls). */
   refreshKey?: number | string

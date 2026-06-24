@@ -1682,6 +1682,11 @@ function CreateGameInner() {
                     <option value={300}>5 minutes</option>
                   </select>
                 </Field>
+                {showViewerToggle && (
+                  <Field label="Late joiners">
+                    <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="word_hunt" />
+                  </Field>
+                )}
                 <p className="text-faint text-sm leading-relaxed">
                   Everyone races on the same 4×4 letter grid. Connect adjacent letters to spell valid words — 3 letters =
                   100 pts, 4 = 400, 5 = 800, and longer words score even more.

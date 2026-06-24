@@ -12,6 +12,8 @@ import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { WordHuntPlaySurface } from '@/components/word-hunt/WordHuntPlaySurface'
 import { WordHuntFinalResultsShareBlock } from '@/components/word-hunt/WordHuntFinalResultsShareBlock'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
+import { LateJoinChoice } from '@/components/LateJoinChoice'
+import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
   parseWordHuntMetadata,
@@ -21,9 +23,10 @@ import {
 import { validateWordHuntSubmissionClient, validWordsSetFromMetadata } from '@/lib/word-hunt-client'
 import { useWordHuntGameTimer } from '@/hooks/useWordHuntGameTimer'
 import { useLobbyOpenNotification } from '@/hooks/useLobbyOpenNotification'
+import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { resolvePlayerSession } from '@/lib/player-resume'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT } from '@/lib/supabase-selects'
-import { preJoinScreen } from '@/lib/viewers'
+import { allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { clearPlayerSession, setPlayerSession } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, Player } from '@/types'
@@ -49,6 +52,7 @@ type View =
   | 'not_found'
   | 'join'
   | 'game_started_waiting'
+  | 'late_join_choice'
   | 'game_ended'
   | 'waiting'
   | 'playing'
@@ -86,6 +90,10 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
       }
       if (pre === 'game_ended') {
         setView('game_ended')
+        return
+      }
+      if (pre === 'late_join_choice') {
+        setView('late_join_choice')
         return
       }
       setView('join')
@@ -171,7 +179,24 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
 
   const { label: timeLabel, timeUp, secondsLeft } = useWordHuntGameTimer(gameCode, game, load)
 
-  useLobbyOpenNotification(game?.status, () => void load())
+  useLobbyOpenNotification(game?.status, () => {
+    if (view === 'finished' || view === 'game_started_waiting' || view === 'late_join_choice') void load()
+  })
+
+  const me = players.find((p) => p.id === myPlayerId)
+  const isViewer = !!(game && me && playerIsViewer(me, game))
+  const { context: lateJoinContext, loading: lateJoinContextLoading } = useLateJoinContext(
+    gameCode,
+    game,
+    view === 'late_join_choice',
+    secondsLeft
+  )
+  const { context: viewerPromoteContext } = useLateJoinContext(
+    gameCode,
+    game,
+    isViewer && view === 'playing',
+    secondsLeft
+  )
 
   useEffect(() => {
     void load()
@@ -237,14 +262,18 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
     }
   }, [gameCode])
 
-  async function joinGame() {
+  async function joinGame(joinAsViewer?: boolean) {
     if (!joinName.trim() || joining) return
     setJoining(true)
     try {
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerName: joinName.trim() }),
+        body: JSON.stringify({
+          gameCode,
+          playerName: joinName.trim(),
+          ...(game?.status === 'active' ? { joinAsViewer } : {}),
+        }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -315,8 +344,6 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
   const myFoundWords = mySubmissions.map((s) => s.word)
   const myPoints = mySubmissions.reduce((sum, s) => sum + s.points_awarded, 0)
   const leaderboard = tallyWordHuntScores(submissions, players)
-  const me = players.find((p) => p.id === myPlayerId)
-  const isSpectator = me?.spectator === true
   const displayName = myPlayerName || me?.name || 'Player'
 
   if (view === 'loading') {
@@ -367,6 +394,24 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
     return <GameStartedWaiting gameCode={gameCode} game={game} onLobbyOpen={() => void load()} />
   }
 
+  if (view === 'late_join_choice' && game) {
+    return (
+      <LateJoinChoice
+        gameCode={gameCode}
+        game={game}
+        context={lateJoinContext}
+        contextLoading={lateJoinContextLoading}
+        playersAllowed={allowLatePlayers(game)}
+        showNameField
+        nameInput={joinName}
+        onNameChange={setJoinName}
+        joining={joining}
+        onJoinAsViewer={() => void joinGame(true)}
+        onJoinAsPlayer={() => void joinGame(false)}
+      />
+    )
+  }
+
   if (view === 'game_ended') {
     return <GameEndedScreen game={game} />
   }
@@ -387,7 +432,7 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
           title="Waiting for host to start"
           description="Find words on the letter grid before time runs out."
           rulesLink={<GameRulesLink gameType="word_hunt" variant="subtle" />}
-          isSpectator={isSpectator}
+          isSpectator={isViewer}
           onReady={async () => {
             if (!myPlayerId) return
             await fetch('/api/players/ready', {
@@ -430,6 +475,17 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
         </div>
       )}
       <main className="pt-16 flex-1 px-3 py-4 max-w-lg mx-auto w-full space-y-4">
+        {isViewer && (
+          <ViewerModeBanner
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            game={game}
+            player={me}
+            playerDetail={viewerPromoteContext?.playerDetail}
+            onPromoted={load}
+          />
+        )}
+
         {grid && (
           <WordHuntPlaySurface
             grid={grid}
@@ -442,7 +498,7 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
             secondsLeft={secondsLeft}
             onClear={() => setSelectedPath([])}
             onSubmit={handleSubmitWord}
-            disabled={timeUp || isSpectator}
+            disabled={timeUp || isViewer}
           />
         )}
 

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { validateWordSubmission, validWordsSetForMetadata } from '@/lib/word-hunt-dictionary'
 import { parseWordHuntMetadata, wordHuntPoints, wordHuntSessionExpired } from '@/lib/word-hunt'
+import { playerIsViewer } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -35,6 +36,17 @@ export async function POST(req: NextRequest) {
 
   if (wordHuntSessionExpired(game.session_started_at, game.timer_seconds)) {
     return NextResponse.json({ error: 'Time is up' }, { status: 400 })
+  }
+
+  const { data: player } = await supabase
+    .from('players')
+    .select('id, joined_at, spectator')
+    .eq('id', playerId)
+    .eq('game_id', gameId)
+    .maybeSingle()
+  if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+  if (playerIsViewer(player, game)) {
+    return NextResponse.json({ error: 'Viewers cannot submit words' }, { status: 403 })
   }
 
   const { data: round } = await supabase

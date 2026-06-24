@@ -74,37 +74,40 @@ export function WordHuntPlaySurface({
       <div className="px-4 space-y-3">
         <div
           className={[
-            'min-h-[3.25rem] rounded-2xl border px-4 flex items-center justify-center transition-colors',
+            'min-h-[3.25rem] rounded-2xl border px-3 sm:px-4 flex items-center gap-3 transition-colors',
             currentWord
               ? 'border-[color-mix(in_srgb,var(--primary)_35%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_8%,var(--card))]'
-              : 'border-[var(--border)] bg-[var(--surface-inset-bg)]',
+              : 'border-[var(--border)] bg-[var(--surface-inset-bg)] justify-center',
           ].join(' ')}
         >
           {currentWord ? (
-            <p className="text-2xl sm:text-3xl font-black tracking-[0.28em] uppercase gradient-title">{currentWord}</p>
+            <>
+              <p className="flex-1 min-w-0 text-center text-2xl sm:text-3xl font-black tracking-[0.28em] uppercase gradient-title truncate">
+                {currentWord}
+              </p>
+              <button
+                type="button"
+                onClick={onClear}
+                disabled={timeUp || disabled}
+                aria-label="Clear selection"
+                className="shrink-0 h-11 min-w-[5.5rem] px-4 rounded-xl border-2 border-[color-mix(in_srgb,var(--foreground)_28%,var(--border))] bg-[var(--card)] text-sm font-black text-[var(--foreground)] shadow-[var(--card-shadow)] active:scale-[0.98] disabled:opacity-40"
+              >
+                Clear
+              </button>
+            </>
           ) : (
             <p className="text-sm text-muted font-medium">Drag through adjacent letters</p>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onClear}
-            disabled={selectedPath.length === 0 || timeUp || disabled}
-            className="btn-secondary !w-auto shrink-0 h-12 px-5 !py-0 text-sm font-bold disabled:opacity-40"
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={!canSubmit}
-            className="btn-primary flex-1 !w-auto h-12 !py-0 text-sm font-black"
-          >
-            {timeUp ? "Time's up" : 'Submit word'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={!canSubmit}
+          className="btn-primary w-full h-12 !py-0 text-sm font-black"
+        >
+          {timeUp ? "Time's up" : 'Submit word'}
+        </button>
 
         <div className="pb-4">
           <div className="flex items-center justify-between mb-2">
