@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { FateRoundLogo } from '@/components/FateRoundLogo'
+import { supabase } from '@/lib/supabase'
 import {
   formatRoomTimezone,
   getRoomTimezoneOptions,
@@ -39,7 +40,7 @@ export function RoomsPage() {
     if (userTz) setTimezone(userTz)
   }, [])
 
-  const loadPublicRooms = async (cursor?: string | null) => {
+  const loadPublicRooms = useCallback(async (cursor?: string | null) => {
     const loadingMore = !!cursor
     if (loadingMore) setBrowseLoadingMore(true)
     else setBrowseLoading(true)
@@ -60,12 +61,62 @@ export function RoomsPage() {
       if (loadingMore) setBrowseLoadingMore(false)
       else setBrowseLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (tab !== 'browse') return
     void loadPublicRooms()
-  }, [tab])
+  }, [tab, loadPublicRooms])
+
+  useEffect(() => {
+    if (tab !== 'browse') return
+
+    const channel = supabase
+      .channel('public_rooms_browse')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rooms' },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id?: string })?.id
+            if (id) setPublicRooms((prev) => prev.filter((room) => room.id !== id))
+            return
+          }
+
+          const room = (payload.eventType === 'INSERT' ? payload.new : payload.new) as RoomRow
+          const visible = room.is_public && !room.is_locked
+
+          if (!visible) {
+            setPublicRooms((prev) => prev.filter((r) => r.id !== room.id))
+            return
+          }
+
+          if (payload.eventType === 'UPDATE') {
+            setPublicRooms((prev) => {
+              if (!prev.some((r) => r.id === room.id)) {
+                void loadPublicRooms()
+                return prev
+              }
+              return prev.map((r) => (r.id === room.id ? { ...r, ...room } : r))
+            })
+            return
+          }
+
+          void loadPublicRooms()
+        }
+      )
+      .subscribe()
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadPublicRooms()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      supabase.removeChannel(channel)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [tab, loadPublicRooms])
 
   const createRoom = async () => {
     const name = roomName.trim()
@@ -286,7 +337,7 @@ export function RoomsPage() {
             {tab === 'browse' && (
               <div className="space-y-3">
                 <p className="text-xs text-faint">
-                  Public rooms anyone can join. Private rooms only appear here if the host makes them public.
+                  Public, unlocked rooms anyone can join. Locked or private rooms are hidden automatically.
                 </p>
                 {browseLoading ? (
                   <p className="text-sm text-muted text-center py-6">Loading public rooms…</p>
