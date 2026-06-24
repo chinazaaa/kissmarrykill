@@ -5,13 +5,14 @@ export type RoomRow = {
   name: string
   created_at: string
   is_public: boolean
+  is_locked: boolean
   description: string | null
   timezone: string | null
   max_members: number | null
 }
 
 export const ROOM_PUBLIC_FIELDS =
-  'id, name, created_at, is_public, description, timezone, max_members'
+  'id, name, created_at, is_public, is_locked, description, timezone, max_members'
 
 export async function verifyRoomCreator(
   supabase: SupabaseClient,

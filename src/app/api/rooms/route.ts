@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     .from('rooms')
     .select(ROOM_PUBLIC_FIELDS)
     .eq('is_public', true)
+    .eq('is_locked', false)
     .order('created_at', { ascending: false })
     .limit(limit + 1)
 

@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { code } = await params
   const roomCode = code.toUpperCase()
 
-  const { data: room } = await supabase.from('rooms').select('id, max_members').eq('id', roomCode).maybeSingle()
+  const { data: room } = await supabase.from('rooms').select('id, max_members, is_locked').eq('id', roomCode).maybeSingle()
   if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
 
   const body = await req.json()
@@ -34,6 +34,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   // New member — join with display name
+  if (room.is_locked) {
+    return NextResponse.json(
+      { error: 'This room is locked. If you know the host, reach out to them.', locked: true },
+      { status: 403 }
+    )
+  }
+
   const displayName = String(body.displayName ?? '').trim()
   if (!displayName) return NextResponse.json({ error: 'Display name is required' }, { status: 400 })
 

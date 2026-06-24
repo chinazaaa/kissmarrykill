@@ -157,6 +157,11 @@ function RoomMeta({ room }: { room: Room }) {
         >
           {room.is_public ? '🌐 Public' : '🔒 Private'}
         </span>
+        {room.is_locked && (
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            🔐 Locked
+          </span>
+        )}
         {room.timezone && (
           <span className="text-[10px] text-faint">🕐 {formatRoomTimezone(room.timezone)}</span>
         )}
@@ -513,6 +518,7 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
       <RoomJoinGate
         roomCode={roomCode}
         roomName={room?.name ?? roomCode}
+        isLocked={room?.is_locked}
         description={room?.description}
         timezone={room?.timezone}
         onJoined={handleJoined}

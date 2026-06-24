@@ -20,6 +20,7 @@ type Props = {
 export function RoomSettings({ open, onClose, roomCode, creatorToken, room, onUpdated }: Props) {
   const [name, setName] = useState(room.name)
   const [isPublic, setIsPublic] = useState(room.is_public)
+  const [isLocked, setIsLocked] = useState(room.is_locked)
   const [description, setDescription] = useState(room.description ?? '')
   const [timezone, setTimezone] = useState(room.timezone ?? '')
   const [maxMembers, setMaxMembers] = useState(room.max_members ? String(room.max_members) : '')
@@ -31,6 +32,7 @@ export function RoomSettings({ open, onClose, roomCode, creatorToken, room, onUp
     if (!open) return
     setName(room.name)
     setIsPublic(room.is_public)
+    setIsLocked(room.is_locked)
     setDescription(room.description ?? '')
     setTimezone(room.timezone ?? '')
     setMaxMembers(room.max_members ? String(room.max_members) : '')
@@ -50,6 +52,7 @@ export function RoomSettings({ open, onClose, roomCode, creatorToken, room, onUp
           creatorToken,
           name: trimmedName,
           isPublic,
+          isLocked,
           description: description.trim() || null,
           timezone: timezone || null,
           maxMembers: maxMembers ? Number(maxMembers) : null,
@@ -106,8 +109,39 @@ export function RoomSettings({ open, onClose, roomCode, creatorToken, room, onUp
           </div>
           <p className="text-xs text-faint">
             {isPublic
-              ? 'Anyone can find this room in the public list and join with the code.'
+              ? isLocked
+                ? 'Public, but hidden from browse while locked. Only existing members can rejoin.'
+                : 'Anyone can find this room in the public list and join with the code.'
               : 'Only people with the room code can join. Hidden from the public list.'}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="label-caps">Join access</label>
+          <div className="flex rounded-xl border border-[var(--border)] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsLocked(false)}
+              className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+                !isLocked ? 'bg-[var(--primary)] text-white' : 'text-muted hover:text-body'
+              }`}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsLocked(true)}
+              className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+                isLocked ? 'bg-[var(--primary)] text-white' : 'text-muted hover:text-body'
+              }`}
+            >
+              🔐 Locked
+            </button>
+          </div>
+          <p className="text-xs text-faint">
+            {isLocked
+              ? 'New members cannot join. Existing members can still return with their member code. Locked rooms are hidden from public browse.'
+              : 'Anyone with the room code can join as a new member.'}
           </p>
         </div>
 

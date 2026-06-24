@@ -35,6 +35,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     updates.is_public = body.isPublic === true
   }
 
+  if (body.isLocked !== undefined) {
+    updates.is_locked = body.isLocked === true
+  }
+
   if (body.description !== undefined) {
     const description = normalizeRoomDescription(body.description)
     if (body.description && !description) {
