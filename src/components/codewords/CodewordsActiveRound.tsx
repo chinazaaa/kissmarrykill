@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
-import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords/CodewordsGuessLog'
+import { CodewordsFinalResultsShareBlock } from '@/components/codewords/CodewordsFinalResultsShareBlock'
 import { CodewordsTeamChat } from '@/components/codewords/CodewordsTeamChat'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { CodewordsCurrentClueCard } from '@/components/codewords/CodewordsCurrentClueCard'
@@ -258,6 +258,24 @@ export function CodewordsActiveRound({
         <aside className={['space-y-4', active ? 'lg:sticky lg:top-4 lg:self-start' : ''].join(' ')}>
           <CodewordsScoreboard board={board} players={players} roles={roles} highlightPlayerId={myPlayerId} />
           {gameOver && (
+            <CodewordsFinalResultsShareBlock
+              game={game}
+              players={players}
+              guesses={guesses}
+              roles={roles}
+              winnerLabel={
+                board.winner
+                  ? myRole.team === board.winner
+                    ? 'Your team wins!'
+                    : `${teamLabel(board.winner)} team wins!`
+                  : 'Session ended'
+              }
+              highlightPlayerId={myPlayerId}
+              showCreateNewGame={false}
+              showBackHome={false}
+            />
+          )}
+          {gameOver && (
             <CodewordsEndGameStats
               guesses={guesses}
               roles={roles}
@@ -277,8 +295,6 @@ export function CodewordsActiveRound({
                   enabled={active}
                 />
               )}
-              <CodewordsGuessSummary guesses={guesses} players={players} />
-              <CodewordsGuessLog guesses={guesses} players={players} roles={roles} compact />
             </>
           )}
         </aside>

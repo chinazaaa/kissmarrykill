@@ -17,6 +17,7 @@ import {
   isWhotGame,
   isLudoGame,
   isICallOnGame,
+  isCodewordsGame,
 } from '@/lib/game-types'
 import { tallyTriviaPlayerScores } from '@/lib/trivia'
 import { totalScore } from '@/lib/yahtzee'
@@ -53,6 +54,8 @@ function buildShareText({
   ludoEndedEarly,
   npatLeaderboard,
   npatWinnerLabel,
+  codewordsOperativeStats,
+  codewordsWinnerLabel,
 }: {
   game: Game
   participants: Participant[]
@@ -72,10 +75,29 @@ function buildShareText({
   ludoEndedEarly?: boolean
   npatLeaderboard?: { name: string; score: number }[]
   npatWinnerLabel?: string
+  codewordsOperativeStats?: { name: string; score: number }[]
+  codewordsWinnerLabel?: string
 }): string {
   const gameType = parseGameType(game.game_type)
   const config = gameTypeConfig(gameType)
   const gameHeader = [config.headerEmoji, game.title, config.label, '']
+
+  if (isCodewordsGame(gameType)) {
+    const lines = [
+      ...gameHeader,
+      codewordsWinnerLabel ?? '🏆 Game over',
+      '',
+    ]
+    if (codewordsOperativeStats && codewordsOperativeStats.length > 0) {
+      lines.push(
+        'Operative leaderboard:',
+        ...codewordsOperativeStats.slice(0, 8).map((row, i) => `  ${i + 1}. ${row.name} (${row.score} pts)`),
+        ''
+      )
+    }
+    lines.push(`Play at ${appDomain()}`)
+    return lines.join('\n')
+  }
 
   if (isICallOnGame(gameType) && npatLeaderboard && npatLeaderboard.length > 0) {
     const lines = [
@@ -291,6 +313,8 @@ export function ShareResults({
   ludoEndedEarly,
   npatLeaderboard,
   npatWinnerLabel,
+  codewordsOperativeStats,
+  codewordsWinnerLabel,
 }: {
   captureRef?: RefObject<HTMLElement | null>
   game: Game
@@ -311,6 +335,8 @@ export function ShareResults({
   ludoEndedEarly?: boolean
   npatLeaderboard?: { name: string; score: number }[]
   npatWinnerLabel?: string
+  codewordsOperativeStats?: { name: string; score: number }[]
+  codewordsWinnerLabel?: string
 }) {
   const { success, error } = useToast()
   const [sharing, setSharing] = useState(false)
@@ -363,6 +389,8 @@ export function ShareResults({
         ludoEndedEarly,
         npatLeaderboard,
         npatWinnerLabel,
+        codewordsOperativeStats,
+        codewordsWinnerLabel,
       })
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
@@ -403,6 +431,8 @@ export function ShareResults({
           ludoEndedEarly,
           npatLeaderboard,
           npatWinnerLabel,
+          codewordsOperativeStats,
+          codewordsWinnerLabel,
         })
         await navigator.clipboard.writeText(text)
         success('Results copied to clipboard!')
@@ -431,6 +461,10 @@ export function ShareResults({
     ludoStandings,
     ludoWinnerName,
     ludoEndedEarly,
+    npatLeaderboard,
+    npatWinnerLabel,
+    codewordsOperativeStats,
+    codewordsWinnerLabel,
     success,
     error,
   ])

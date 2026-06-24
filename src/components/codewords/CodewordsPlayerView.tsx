@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import { CodewordsLeaveButton } from '@/components/codewords/CodewordsLeaveButton'
+import { CodewordsFinalResultsShareBlock } from '@/components/codewords/CodewordsFinalResultsShareBlock'
 import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
@@ -605,33 +605,28 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     const iWon = board.winner && myTeam === board.winner
     const playerNameById = new Map(allPlayers.map((p) => [p.id, p.name]))
     const cellAttribution = guessAttributionMap(guesses, playerNameById)
+    const winnerLabel = board.winner
+      ? iWon
+        ? 'Your team wins!'
+        : `${teamLabel(board.winner)} team wins!`
+      : 'Session ended'
+    const winnerSubtitle = board.winner
+      ? iWon
+        ? `Great spycraft, ${myPlayerName}.`
+        : 'The host can start a new round.'
+      : 'The host closed this game. Wait for them to reopen the lobby.'
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl space-y-4">
-          <div className="glass-card p-8 text-center space-y-2">
-            {board.winner ? (
-              <>
-                <p className="text-4xl">🏆</p>
-                {iWon ? (
-                  <>
-                    <p className="text-2xl font-black text-amber-600 dark:text-amber-200">Your team wins!</p>
-                    <p className="text-muted text-sm">Great spycraft, {myPlayerName}.</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xl font-black">{teamLabel(board.winner)} team wins</p>
-                    <p className="text-muted text-sm">The host can start a new round.</p>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <p className="text-4xl">🛑</p>
-                <p className="text-xl font-black">Session ended</p>
-                <p className="text-muted text-sm">The host closed this game. Wait for them to reopen the lobby.</p>
-              </>
-            )}
-          </div>
+          <CodewordsFinalResultsShareBlock
+            game={game}
+            players={allPlayers}
+            guesses={guesses}
+            roles={allRoles}
+            winnerLabel={winnerLabel}
+            subtitle={winnerSubtitle}
+            highlightPlayerId={myPlayerId}
+          />
           <div className="glass-card p-4 space-y-4">
             <p className="label-caps text-center">Full board</p>
             <CodewordsBoardGrid board={board} showKey cellAttribution={cellAttribution} />
@@ -644,7 +639,6 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
               winner={board.winner}
             />
           </div>
-          <CreateNewGameButton />
         </div>
       </div>
     )

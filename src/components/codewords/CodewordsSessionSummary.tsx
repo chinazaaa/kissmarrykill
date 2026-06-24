@@ -2,7 +2,6 @@
 
 import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameStats'
 import { CodewordsBoardGrid } from '@/components/codewords/CodewordsBoardGrid'
-import { CodewordsGuessLog } from '@/components/codewords/CodewordsGuessLog'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
 import { guessAttributionMap, teamLabel } from '@/lib/codewords'
 import type { CodewordsBoard, CodewordsGuess, CodewordsPlayerRole, Game, Player } from '@/types'
@@ -87,7 +86,6 @@ export function CodewordsSessionSummary({
             </div>
             <aside className="space-y-3">
               <CodewordsScoreboard board={board!} players={players} roles={roles} />
-              <CodewordsGuessLog guesses={guesses} players={players} roles={roles} />
             </aside>
           </div>
 

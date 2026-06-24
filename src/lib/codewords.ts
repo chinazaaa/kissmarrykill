@@ -91,18 +91,17 @@ export function pickBoardWords(): string[] {
 export function generateKey(startingTeam: CodewordsTeam): CodewordsCellType[] {
   const key: CodewordsCellType[] = Array(CODEWORDS_GRID_SIZE).fill('neutral')
   const indices = shuffle(Array.from({ length: CODEWORDS_GRID_SIZE }, (_, i) => i))
-  const startingCount = 9
-  const otherCount = 8
-  const neutralCount = 7
+  const teamCount = 9
+  const neutralCount = CODEWORDS_GRID_SIZE - teamCount * 2 - 1 // 6 neutrals + 1 assassin
 
-  for (let i = 0; i < startingCount; i += 1) {
+  for (let i = 0; i < teamCount; i += 1) {
     key[indices[i]] = startingTeam
   }
   const otherTeam: CodewordsTeam = startingTeam === 'red' ? 'blue' : 'red'
-  for (let i = startingCount; i < startingCount + otherCount; i += 1) {
+  for (let i = teamCount; i < teamCount * 2; i += 1) {
     key[indices[i]] = otherTeam
   }
-  for (let i = startingCount + otherCount; i < startingCount + otherCount + neutralCount; i += 1) {
+  for (let i = teamCount * 2; i < teamCount * 2 + neutralCount; i += 1) {
     key[indices[i]] = 'neutral'
   }
   key[indices[CODEWORDS_GRID_SIZE - 1]] = 'assassin'
