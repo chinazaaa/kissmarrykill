@@ -318,6 +318,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
       setBoard(null)
       setGuesses([])
+      if (data.game) setGame(data.game as Game)
       await load()
       success('Lobby reopened!')
       setTab('manage')
@@ -354,8 +355,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const randomizeTeams = game ? codewordsRandomizeTeams(game) : false
   const hostMyRole = hostPlayerId ? roles.find((r) => r.player_id === hostPlayerId) : undefined
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && !!hostMyRole
-  const inActivePlay = showPlayTab && game?.status === 'active' && !!board
+  const showPlayTab = hostPlays && !!hostMyRole && game?.status === 'active'
+  const inActivePlay = showPlayTab && !!board
 
   useHostAutoReady(gameCode, game?.status, hostPlayerId, players, load)
 
@@ -367,7 +368,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   })
 
   useEffect(() => {
-    if (game?.status === 'finished') setTab('manage')
+    if (game?.status === 'finished' || game?.status === 'waiting') setTab('manage')
   }, [game?.status])
 
   useEffect(() => {
