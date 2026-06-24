@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -64,7 +64,7 @@ function getSavedCreatorToken(roomCode: string): string | null {
   try { return localStorage.getItem(CREATOR_KEY(roomCode)) } catch { return null }
 }
 
-type Status = 'loading' | 'not_found' | 'unauthenticated' | 'ready'
+type Status = 'loading' | 'not_found' | 'removed' | 'unauthenticated' | 'ready'
 type Tab = 'chat' | 'leaderboard' | 'history'
 
 function memberInitial(name: string) {
@@ -181,6 +181,8 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
   const [copySuccess, setCopySuccess] = useState<'room' | 'member' | null>(null)
   const [creatorToken, setCreatorToken] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const identityRef = useRef(identity)
+  identityRef.current = identity
   const router = useRouter()
   const { confirm } = useConfirm()
 
@@ -255,7 +257,7 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
     return () => { supabase.removeChannel(channel) }
   }, [roomCode])
 
-  // Realtime — room settings
+  // Realtime — room settings & deletion
   useEffect(() => {
     const channel = supabase
       .channel(`room_meta:${roomCode}`)
@@ -267,21 +269,69 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
           setRoom((prev) => (prev ? { ...prev, ...next } : next))
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'rooms', filter: `id=eq.${roomCode}` },
+        () => {
+          localStorage.removeItem(MEMBER_KEY(roomCode))
+          localStorage.removeItem(CREATOR_KEY(roomCode))
+          setStatus('not_found')
+        }
+      )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [roomCode])
 
   // Realtime — members
   useEffect(() => {
+    const refreshMembers = () => {
+      fetch(`/api/rooms/${roomCode}`)
+        .then((r) => {
+          if (r.status === 404) {
+            localStorage.removeItem(MEMBER_KEY(roomCode))
+            localStorage.removeItem(CREATOR_KEY(roomCode))
+            setStatus('not_found')
+            return null
+          }
+          return r.json()
+        })
+        .then((d) => { if (d?.members) setMembers(d.members) })
+    }
+
     const channel = supabase
       .channel(`room_members:${roomCode}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomCode}` },
-        () => {
-          fetch(`/api/rooms/${roomCode}`)
-            .then((r) => r.json())
-            .then((d) => { if (d.members) setMembers(d.members) })
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const deletedId = (payload.old as { id?: string })?.id
+            if (deletedId) {
+              setMembers((prev) => prev.filter((m) => m.id !== deletedId))
+            }
+            fetch(`/api/rooms/${roomCode}`)
+              .then((r) => {
+                if (r.status === 404) {
+                  localStorage.removeItem(MEMBER_KEY(roomCode))
+                  localStorage.removeItem(CREATOR_KEY(roomCode))
+                  setStatus('not_found')
+                  return null
+                }
+                return r.json()
+              })
+              .then((d) => {
+                if (!d) return
+                if (deletedId && identityRef.current?.memberId === deletedId) {
+                  localStorage.removeItem(MEMBER_KEY(roomCode))
+                  setIdentity(null)
+                  setStatus('removed')
+                  return
+                }
+                if (d.members) setMembers(d.members)
+              })
+            return
+          }
+          refreshMembers()
         }
       )
       .subscribe()
@@ -427,6 +477,27 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
             <p className="text-lg font-bold text-body">This room has ended</p>
             <p className="text-muted text-sm leading-relaxed">
               The creator closed this room. Ask them to create a new one and share the code.
+            </p>
+          </div>
+          <a href="/rooms" className="btn-secondary block">
+            Go to Game Rooms
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'removed') {
+    return (
+      <div className="page-wrap flex items-center justify-center px-4">
+        <div className="glass-card p-6 w-full max-w-md space-y-5 text-center">
+          <div className="space-y-2">
+            <div className="text-4xl">🚪</div>
+            <h1 className="text-2xl font-black text-body">Removed from room</h1>
+          </div>
+          <div className="space-y-2">
+            <p className="text-muted text-sm leading-relaxed">
+              The host removed you from this room. You can join again with the room code if they invite you back.
             </p>
           </div>
           <a href="/rooms" className="btn-secondary block">

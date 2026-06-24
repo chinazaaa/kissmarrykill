@@ -27,6 +27,9 @@ export function RoomsPage() {
   const [joinCode, setJoinCode] = useState('')
   const [publicRooms, setPublicRooms] = useState<PublicRoom[]>([])
   const [browseLoading, setBrowseLoading] = useState(false)
+  const [browseLoadingMore, setBrowseLoadingMore] = useState(false)
+  const [browseHasMore, setBrowseHasMore] = useState(false)
+  const [browseCursor, setBrowseCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const timezoneOptions = getRoomTimezoneOptions()
@@ -36,14 +39,32 @@ export function RoomsPage() {
     if (userTz) setTimezone(userTz)
   }, [])
 
+  const loadPublicRooms = async (cursor?: string | null) => {
+    const loadingMore = !!cursor
+    if (loadingMore) setBrowseLoadingMore(true)
+    else setBrowseLoading(true)
+    try {
+      const params = new URLSearchParams({ limit: '20' })
+      if (cursor) params.set('cursor', cursor)
+      const res = await fetch(`/api/rooms?${params}`)
+      const d = await res.json()
+      const rooms: PublicRoom[] = d.rooms ?? []
+      setPublicRooms((prev) => (loadingMore ? [...prev, ...rooms] : rooms))
+      setBrowseHasMore(!!d.hasMore)
+      setBrowseCursor(d.nextCursor ?? null)
+    } catch {
+      if (!loadingMore) setPublicRooms([])
+      setBrowseHasMore(false)
+      setBrowseCursor(null)
+    } finally {
+      if (loadingMore) setBrowseLoadingMore(false)
+      else setBrowseLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (tab !== 'browse') return
-    setBrowseLoading(true)
-    fetch('/api/rooms')
-      .then((r) => r.json())
-      .then((d) => setPublicRooms(d.rooms ?? []))
-      .catch(() => setPublicRooms([]))
-      .finally(() => setBrowseLoading(false))
+    void loadPublicRooms()
   }, [tab])
 
   const createRoom = async () => {
@@ -303,6 +324,16 @@ export function RoomsPage() {
                       </li>
                     ))}
                   </ul>
+                )}
+                {browseHasMore && !browseLoading && (
+                  <button
+                    type="button"
+                    onClick={() => void loadPublicRooms(browseCursor)}
+                    disabled={browseLoadingMore}
+                    className="btn-secondary w-full text-sm py-2"
+                  >
+                    {browseLoadingMore ? 'Loading…' : 'Load more rooms'}
+                  </button>
                 )}
               </div>
             )}

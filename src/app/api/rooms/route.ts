@@ -6,23 +6,42 @@ import { normalizeRoomDescription, normalizeRoomTimezone } from '@/lib/room-time
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-export async function GET() {
-  const { data: rooms, error } = await supabase
+const BROWSE_PAGE_SIZE = 20
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const limit = Math.min(
+    Math.max(parseInt(searchParams.get('limit') ?? String(BROWSE_PAGE_SIZE), 10) || BROWSE_PAGE_SIZE, 1),
+    50
+  )
+  const cursor = searchParams.get('cursor')
+
+  let query = supabase
     .from('rooms')
     .select(ROOM_PUBLIC_FIELDS)
     .eq('is_public', true)
     .order('created_at', { ascending: false })
-    .limit(50)
+    .limit(limit + 1)
+
+  if (cursor) {
+    query = query.lt('created_at', cursor)
+  }
+
+  const { data: rooms, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const counts = await countMembersByRoom(supabase, (rooms ?? []).map((room) => room.id))
+  const page = (rooms ?? []).slice(0, limit)
+  const hasMore = (rooms ?? []).length > limit
+  const counts = await countMembersByRoom(supabase, page.map((room) => room.id))
 
   return NextResponse.json({
-    rooms: (rooms ?? []).map((room) => ({
+    rooms: page.map((room) => ({
       ...room,
       memberCount: counts[room.id] ?? 0,
     })),
+    hasMore,
+    nextCursor: hasMore ? page[page.length - 1]?.created_at ?? null : null,
   })
 }
 
