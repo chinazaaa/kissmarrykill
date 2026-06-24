@@ -5,6 +5,7 @@ import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameSt
 import { CodewordsGuessLog, CodewordsGuessSummary } from '@/components/codewords/CodewordsGuessLog'
 import { CodewordsTeamChat } from '@/components/codewords/CodewordsTeamChat'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
+import { CodewordsCurrentClueCard } from '@/components/codewords/CodewordsCurrentClueCard'
 import { CodewordsScoreboard, CodewordsTimerBar } from '@/components/codewords/CodewordsScoreboard'
 import { effectiveTurnPhase, guessAttributionMap, roleLabel, teamLabel, waitingTurnMessage } from '@/lib/codewords'
 import { useCodewordsTurnTimer } from '@/hooks/useCodewordsTurnTimer'
@@ -193,15 +194,7 @@ export function CodewordsActiveRound({
           </div>
 
           {board.current_clue_word && (
-            <div className="glass-card p-4 text-center">
-              <p className="text-faint text-xs uppercase tracking-wider">Current clue</p>
-              <p className="text-2xl font-black">
-                {board.current_clue_word} <span className="text-muted text-lg">{board.current_clue_number}</span>
-              </p>
-              {canGuess && board.guesses_remaining != null && (
-                <p className="text-faint text-xs mt-1">{board.guesses_remaining} guess(es) left</p>
-              )}
-            </div>
+            <CodewordsCurrentClueCard board={board} showGuessesRemaining={canGuess} />
           )}
 
           {canGiveClue && (

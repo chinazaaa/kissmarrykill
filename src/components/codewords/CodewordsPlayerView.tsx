@@ -8,6 +8,7 @@ import { CodewordsEndGameStats } from '@/components/codewords/CodewordsEndGameSt
 import { CodewordsActiveRound } from '@/components/codewords/CodewordsActiveRound'
 import { CodewordsScoreboard } from '@/components/codewords/CodewordsScoreboard'
 import { CodewordsBoardGrid, CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
+import { CodewordsCurrentClueCard } from '@/components/codewords/CodewordsCurrentClueCard'
 import { CodewordsWaitingPanel } from '@/components/codewords/CodewordsWaitingPanel'
 import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
@@ -22,6 +23,7 @@ import {
   mergeCodewordsGuesses,
   roleLabel,
   teamLabel,
+  waitingTurnMessage,
 } from '@/lib/codewords'
 import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
 import { useCodewordsNotifications } from '@/hooks/useCodewordsNotifications'
@@ -667,6 +669,11 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             <p className="text-muted text-sm">Watching as {myPlayerName}</p>
           </div>
           <div className="glass-card p-4 space-y-4">
+            <div className="glass-card p-4 text-center text-sm font-medium text-muted">
+              <CodewordsTeamBadge team={board.current_turn} />{' '}
+              {waitingTurnMessage(board, allRoles, playerNameById)}
+            </div>
+            <CodewordsCurrentClueCard board={board} showGuessesRemaining />
             <CodewordsBoardGrid board={board} cellAttribution={cellAttribution} />
             <CodewordsScoreboard board={board} players={allPlayers} roles={allRoles} />
           </div>
