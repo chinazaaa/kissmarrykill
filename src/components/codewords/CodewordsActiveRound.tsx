@@ -255,7 +255,7 @@ export function CodewordsActiveRound({
           )}
         </div>
 
-        <aside className="lg:sticky lg:top-4 space-y-4">
+        <aside className={['space-y-4', active ? 'lg:sticky lg:top-4 lg:self-start' : ''].join(' ')}>
           <CodewordsScoreboard board={board} players={players} roles={roles} highlightPlayerId={myPlayerId} />
           {gameOver && (
             <CodewordsEndGameStats

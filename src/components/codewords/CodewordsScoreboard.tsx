@@ -32,7 +32,7 @@ export function CodewordsScoreboard({
       .filter(Boolean) as (CodewordsPlayerRole & { name: string })[]
 
   return (
-    <div className="glass-card p-4 space-y-4 sticky top-4">
+    <div className="glass-card p-4 space-y-4">
       <p className="label-caps">Scoreboard</p>
 
       <div className="space-y-3">
