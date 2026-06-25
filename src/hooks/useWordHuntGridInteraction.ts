@@ -1,23 +1,65 @@
 'use client'
 
 import { useCallback, useRef } from 'react'
-import { WORD_HUNT_MIN_WORD_LENGTH, wordFromPath } from '@/lib/word-hunt'
+import {
+  WORD_HUNT_MIN_WORD_LENGTH,
+  areWordHuntCellsAdjacent,
+  wordFromPath,
+} from '@/lib/word-hunt'
 import { canExtendWordHuntPath } from '@/lib/word-hunt-client'
 
+/** Nearest cell under the pointer — works across gaps for diagonal drags. */
 function cellIndexFromPoint(x: number, y: number, gridRoot: HTMLElement | null): number | null {
   if (!gridRoot) return null
-  const el = document.elementFromPoint(x, y)
-  const cell = el?.closest('[data-word-hunt-cell]')
-  if (!cell || !gridRoot.contains(cell)) return null
-  const raw = cell.getAttribute('data-word-hunt-cell')
-  if (raw == null) return null
-  const index = Number(raw)
-  return Number.isFinite(index) ? index : null
+
+  const innerGrid = gridRoot.querySelector('[data-word-hunt-cells]')
+  if (!innerGrid) return null
+
+  const cells = innerGrid.querySelectorAll<HTMLElement>('[data-word-hunt-cell]')
+  if (!cells.length) return null
+
+  let bestIndex: number | null = null
+  let bestDist = Infinity
+
+  for (const cell of cells) {
+    const raw = cell.getAttribute('data-word-hunt-cell')
+    if (raw == null) continue
+    const index = Number(raw)
+    if (!Number.isFinite(index)) continue
+
+    const rect = cell.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = x - cx
+    const dy = y - cy
+    const dist = Math.hypot(dx, dy)
+    // Extend hit area into gaps so diagonal strokes don't skip cells.
+    const pad = Math.min(rect.width, rect.height) * 0.42
+    if (
+      Math.abs(dx) <= rect.width / 2 + pad &&
+      Math.abs(dy) <= rect.height / 2 + pad &&
+      dist < bestDist
+    ) {
+      bestDist = dist
+      bestIndex = index
+    }
+  }
+
+  return bestIndex
 }
 
 type GridInteractionOptions = {
   grid?: string[][]
   validPrefixes?: ReadonlySet<string>
+}
+
+function canStartCell(
+  grid: string[][] | undefined,
+  validPrefixes: ReadonlySet<string> | undefined,
+  index: number
+): boolean {
+  if (!grid || !validPrefixes || validPrefixes.size === 0) return true
+  return validPrefixes.has(wordFromPath(grid, [index]))
 }
 
 export function useWordHuntGridInteraction(
@@ -43,9 +85,26 @@ export function useWordHuntGridInteraction(
       if (lastCellRef.current === index) return
 
       const current = selectedPathRef.current
+      const { grid, validPrefixes } = optionsRef.current ?? {}
+
       if (current.includes(index)) return
 
-      const { grid, validPrefixes } = optionsRef.current ?? {}
+      if (current.length === 0) {
+        if (!canStartCell(grid, validPrefixes, index)) return
+        onPathChange([index])
+        lastCellRef.current = index
+        return
+      }
+
+      const last = current[current.length - 1]
+
+      if (!areWordHuntCellsAdjacent(last, index)) {
+        if (!canStartCell(grid, validPrefixes, index)) return
+        onPathChange([index])
+        lastCellRef.current = index
+        return
+      }
+
       if (
         grid &&
         validPrefixes &&
@@ -55,24 +114,8 @@ export function useWordHuntGridInteraction(
         return
       }
 
-      if (current.length === 0) {
-        const { grid, validPrefixes } = optionsRef.current ?? {}
-        if (grid && validPrefixes && validPrefixes.size > 0) {
-          const prefix = wordFromPath(grid, [index])
-          if (!validPrefixes.has(prefix)) return
-        }
-        onPathChange([index])
-        lastCellRef.current = index
-        return
-      }
-
-      const last = current[current.length - 1]
-      const [lr, lc] = [Math.floor(last / 4), last % 4]
-      const [r, c] = [Math.floor(index / 4), index % 4]
-      if (Math.abs(lr - r) <= 1 && Math.abs(lc - c) <= 1) {
-        onPathChange([...current, index])
-        lastCellRef.current = index
-      }
+      onPathChange([...current, index])
+      lastCellRef.current = index
     },
     [disabled, onPathChange]
   )
@@ -80,6 +123,7 @@ export function useWordHuntGridInteraction(
   const endStroke = useCallback(
     (target: HTMLElement, pointerId: number) => {
       const path = selectedPathRef.current
+      const wasDrag = movedRef.current
       draggingRef.current = false
       movedRef.current = false
       lastCellRef.current = null
@@ -90,7 +134,8 @@ export function useWordHuntGridInteraction(
       if (path.length >= WORD_HUNT_MIN_WORD_LENGTH && onStrokeEnd) {
         onStrokeEnd([...path])
       }
-      if (path.length > 0) {
+      // Drags always reset; taps keep the path so letters accumulate.
+      if (wasDrag && path.length > 0) {
         onPathChange([])
       }
     },

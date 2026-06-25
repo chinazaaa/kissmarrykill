@@ -345,6 +345,8 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
       return
     }
 
+    setSelectedPath([])
+
     if (inFlightWordsRef.current.has(validation.normalized)) return
     inFlightWordsRef.current.add(validation.normalized)
 
@@ -563,7 +565,6 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
             highlightPlayerId={myPlayerId}
             mySubmissions={mySubmissions}
             allSubmissions={submissions}
-            grid={grid}
             validWords={validWords.size > 0 ? Array.from(validWords) : undefined}
             showCreateNewGame
           />

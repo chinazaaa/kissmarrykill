@@ -138,7 +138,7 @@ export function rowColToIndex(row: number, col: number): number {
   return row * WORD_HUNT_GRID_SIZE + col
 }
 
-function areAdjacent(a: number, b: number): boolean {
+export function areWordHuntCellsAdjacent(a: number, b: number): boolean {
   const [ar, ac] = indexToRowCol(a)
   const [br, bc] = indexToRowCol(b)
   return Math.abs(ar - br) <= 1 && Math.abs(ac - bc) <= 1 && !(ar === br && ac === bc)
@@ -161,7 +161,7 @@ export function isValidPath(path: number[]): boolean {
     if (idx < 0 || idx >= WORD_HUNT_GRID_SIZE * WORD_HUNT_GRID_SIZE) return false
     if (seen.has(idx)) return false
     seen.add(idx)
-    if (i > 0 && !areAdjacent(path[i - 1], idx)) return false
+    if (i > 0 && !areWordHuntCellsAdjacent(path[i - 1], idx)) return false
   }
   return true
 }

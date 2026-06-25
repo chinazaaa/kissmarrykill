@@ -461,7 +461,6 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
               highlightPlayerId={hostPlayerId}
               mySubmissions={hostMySubmissions}
               allSubmissions={submissions}
-              grid={grid}
               validWords={validWords.length > 0 ? validWords : undefined}
               playAgainButton={
                 <button

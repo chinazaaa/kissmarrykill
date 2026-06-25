@@ -1,12 +1,11 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 import { WordHuntPersonalResults } from '@/components/word-hunt/WordHuntPersonalResults'
 import { WordHuntResultsReview } from '@/components/word-hunt/WordHuntResultsReview'
-import { findPathForWordOnGrid } from '@/lib/word-hunt-client'
 import type { Game, Player } from '@/types'
 import type { WordHuntPlayerScore, WordHuntSubmission } from '@/lib/word-hunt'
 
@@ -17,7 +16,6 @@ export function WordHuntFinalResultsShareBlock({
   highlightPlayerId,
   mySubmissions,
   allSubmissions,
-  grid,
   validWords,
   playAgainButton,
   showCreateNewGame = true,
@@ -28,71 +26,31 @@ export function WordHuntFinalResultsShareBlock({
   highlightPlayerId?: string | null
   mySubmissions?: Pick<WordHuntSubmission, 'word' | 'points_awarded' | 'path'>[]
   allSubmissions?: Pick<WordHuntSubmission, 'word' | 'points_awarded' | 'path' | 'player_id'>[]
-  grid?: string[][] | null
   validWords?: string[]
   playAgainButton?: ReactNode
   showCreateNewGame?: boolean
 }) {
   const captureRef = useRef<HTMLDivElement>(null)
-  const [highlightPath, setHighlightPath] = useState<number[]>([])
-  const [highlightWord, setHighlightWord] = useState<string | null>(null)
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(
     highlightPlayerId ?? leaderboard[0]?.player_id ?? null
   )
   const winner = leaderboard[0]
   const winnerLabel = winner ? `${winner.name} wins!` : 'Time\'s up!'
 
-  const validWordsSet = useMemo(
-    () => new Set((validWords ?? []).map((word) => word.toLowerCase())),
-    [validWords]
-  )
-
-  const handleWordSelect = useCallback(
-    (word: string, path?: number[]) => {
-      const normalized = word.toLowerCase()
-      if (path && path.length > 0) {
-        setHighlightPath(path)
-        setHighlightWord(normalized)
-        return
-      }
-      if (grid) {
-        const found = findPathForWordOnGrid(grid, normalized, validWordsSet)
-        setHighlightPath(found ?? [])
-        setHighlightWord(normalized)
-      }
-    },
-    [grid, validWordsSet]
-  )
-
-  const showBoardReview = !!grid && !!allSubmissions
-
   return (
     <div className="space-y-4">
-      {showBoardReview && (
+      {allSubmissions && (
         <WordHuntResultsReview
-          grid={grid}
           submissions={allSubmissions}
           leaderboard={leaderboard}
           highlightPlayerId={highlightPlayerId}
-          highlightPath={highlightPath}
-          highlightWord={highlightWord}
-          onWordSelect={handleWordSelect}
-          onClearHighlight={() => {
-            setHighlightPath([])
-            setHighlightWord(null)
-          }}
           expandedPlayerId={expandedPlayerId}
           onExpandedPlayerChange={setExpandedPlayerId}
         />
       )}
 
       {mySubmissions && (
-        <WordHuntPersonalResults
-          submissions={mySubmissions}
-          validWords={validWords}
-          selectedWord={highlightWord}
-          onWordSelect={grid ? handleWordSelect : undefined}
-        />
+        <WordHuntPersonalResults submissions={mySubmissions} validWords={validWords} />
       )}
 
       <div ref={captureRef} className="glass-card-strong p-6 sm:p-8 space-y-4">

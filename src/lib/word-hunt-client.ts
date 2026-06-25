@@ -1,6 +1,7 @@
 import {
   WORD_HUNT_GRID_SIZE,
   WORD_HUNT_MIN_WORD_LENGTH,
+  areWordHuntCellsAdjacent,
   indexToRowCol,
   isValidPath,
   letterAt,
@@ -101,12 +102,6 @@ const NEIGHBORS = [
   [1, 1],
 ] as const
 
-function areAdjacent(a: number, b: number): boolean {
-  const [ar, ac] = indexToRowCol(a)
-  const [br, bc] = indexToRowCol(b)
-  return Math.abs(ar - br) <= 1 && Math.abs(ac - bc) <= 1 && !(ar === br && ac === bc)
-}
-
 /** Find one valid path for a word on the grid (for post-game review of missed words). */
 export function findPathForWordOnGrid(
   grid: string[][],
@@ -166,7 +161,7 @@ export function canExtendWordHuntPath(
 ): boolean {
   if (path.length === 0) return true
   const last = path[path.length - 1]
-  if (!areAdjacent(last, nextIndex)) return false
+  if (!areWordHuntCellsAdjacent(last, nextIndex)) return false
   if (path.includes(nextIndex)) return false
   const candidate = [...path, nextIndex]
   const prefix = wordFromPath(grid, candidate)

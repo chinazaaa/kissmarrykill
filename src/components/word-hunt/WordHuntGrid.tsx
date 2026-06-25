@@ -116,7 +116,7 @@ export function WordHuntGrid({
           />
         </svg>
       )}
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-2 relative z-[1]">
+      <div data-word-hunt-cells className="grid grid-cols-4 gap-1.5 sm:gap-2 relative z-[1]">
         {grid.map((row, r) =>
           row.map((letter, c) => {
             const index = rowColToIndex(r, c)
