@@ -87,7 +87,21 @@ export function useWordHuntGridInteraction(
       const current = selectedPathRef.current
       const { grid, validPrefixes } = optionsRef.current ?? {}
 
-      if (current.includes(index)) return
+      const existingIdx = current.indexOf(index)
+      if (existingIdx >= 0) {
+        // During a drag, ignore cells already in the path.
+        if (draggingRef.current && movedRef.current) return
+        // Tap a highlighted letter to undo (last) or rewind (earlier).
+        if (existingIdx === current.length - 1) {
+          const next = current.slice(0, -1)
+          onPathChange(next)
+          lastCellRef.current = next.length > 0 ? next[next.length - 1]! : null
+        } else {
+          onPathChange(current.slice(0, existingIdx + 1))
+          lastCellRef.current = index
+        }
+        return
+      }
 
       if (current.length === 0) {
         if (!canStartCell(grid, validPrefixes, index)) return
@@ -123,7 +137,6 @@ export function useWordHuntGridInteraction(
   const endStroke = useCallback(
     (target: HTMLElement, pointerId: number) => {
       const path = selectedPathRef.current
-      const wasDrag = movedRef.current
       draggingRef.current = false
       movedRef.current = false
       lastCellRef.current = null
@@ -134,8 +147,7 @@ export function useWordHuntGridInteraction(
       if (path.length >= WORD_HUNT_MIN_WORD_LENGTH && onStrokeEnd) {
         onStrokeEnd([...path])
       }
-      // Drags always reset; taps keep the path so letters accumulate.
-      if (wasDrag && path.length > 0) {
+      if (path.length > 0) {
         onPathChange([])
       }
     },

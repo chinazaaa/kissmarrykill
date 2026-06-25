@@ -76,22 +76,37 @@ export function WordHuntPlaySurface({
         </div>
       </div>
 
-      <div className="px-4 pt-3 pb-1 min-h-[2.5rem] flex items-center justify-center">
+      <div className="px-4 pt-3 pb-1 min-h-[2.5rem] flex items-center justify-center gap-2">
         {preview.word ? (
-          <div
-            className={[
-              'px-4 py-1.5 rounded-full font-black text-sm sm:text-base tracking-[0.12em] uppercase',
-              wordChipClass,
-            ].join(' ')}
-          >
-            {preview.word}
-            {preview.points != null && <span className="opacity-90"> (+{preview.points})</span>}
-            {preview.alreadyFound && preview.word.length >= WORD_HUNT_MIN_WORD_LENGTH && (
-              <span className="opacity-75 normal-case tracking-normal text-xs font-semibold"> · already found</span>
-            )}
-          </div>
+          <>
+            <div
+              className={[
+                'px-4 py-1.5 rounded-full font-black text-sm sm:text-base tracking-[0.12em] uppercase',
+                wordChipClass,
+              ].join(' ')}
+            >
+              {preview.word}
+              {preview.points != null && <span className="opacity-90"> (+{preview.points})</span>}
+              {preview.alreadyFound && preview.word.length >= WORD_HUNT_MIN_WORD_LENGTH && (
+                <span className="opacity-75 normal-case tracking-normal text-xs font-semibold"> · already found</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onPathChange([])}
+              className="shrink-0 h-8 w-8 rounded-full border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] text-muted font-bold text-sm hover:text-[var(--foreground)] hover:border-[color-mix(in_srgb,var(--primary)_30%,var(--border))] active:scale-95 transition-all"
+              aria-label="Clear letters"
+            >
+              ×
+            </button>
+          </>
         ) : (
-          <p className="text-sm text-muted font-medium">Drag through adjacent letters</p>
+          <p className="text-sm text-muted font-medium text-center">
+            Drag or tap adjacent letters
+            <span className="block text-[11px] text-faint font-normal mt-0.5">
+              Tap a selected letter to undo
+            </span>
+          </p>
         )}
       </div>
 

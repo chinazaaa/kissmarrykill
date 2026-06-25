@@ -342,6 +342,9 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
     const validation = validateWordHuntSubmissionClient(grid, path, validWords, foundSet)
     if (!validation.ok) {
       showToast(validation.error, false)
+      if (validation.clearPath) {
+        setSelectedPath([])
+      }
       return
     }
 

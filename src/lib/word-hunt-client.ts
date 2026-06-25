@@ -16,12 +16,12 @@ export function validateWordHuntSubmissionClient(
   path: number[],
   validWords: ReadonlySet<string>,
   foundWords: ReadonlySet<string>
-): { ok: true; normalized: string } | { ok: false; error: string } {
+): { ok: true; normalized: string } | { ok: false; error: string; clearPath?: boolean } {
   if (path.length < WORD_HUNT_MIN_WORD_LENGTH) {
     return { ok: false, error: `Words must be at least ${WORD_HUNT_MIN_WORD_LENGTH} letters` }
   }
   if (!isValidPath(path)) {
-    return { ok: false, error: 'Invalid letter path — use adjacent cells without repeating' }
+    return { ok: false, error: 'Invalid letter path — use adjacent cells without repeating', clearPath: true }
   }
 
   const normalized = wordFromPath(grid, path)
@@ -29,10 +29,10 @@ export function validateWordHuntSubmissionClient(
     return { ok: false, error: `Words must be at least ${WORD_HUNT_MIN_WORD_LENGTH} letters` }
   }
   if (foundWords.has(normalized)) {
-    return { ok: false, error: 'You already found this word' }
+    return { ok: false, error: 'You already found this word', clearPath: true }
   }
   if (validWords.size > 0 && !validWords.has(normalized)) {
-    return { ok: false, error: 'Not a valid word' }
+    return { ok: false, error: 'Not a valid word', clearPath: true }
   }
 
   return { ok: true, normalized }
