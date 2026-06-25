@@ -370,6 +370,9 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
             current_round_number: 0,
             session_started_at: null,
             finished_at: null,
+            ...(payload?.custom_questions
+              ? { custom_questions: payload.custom_questions, question_source: 'custom' as const }
+              : {}),
           }
         : current
     )
@@ -386,7 +389,19 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to reset')
-      if (data.game) applyLobbyReopenState(data.game as Game)
+      if (data.game) {
+        setGame(data.game as Game)
+      } else if (payload?.custom_questions) {
+        setGame((current) =>
+          current
+            ? {
+                ...current,
+                custom_questions: payload.custom_questions,
+                question_source: 'custom',
+              }
+            : current
+        )
+      }
       await load()
       success('Lobby reopened!')
       setTab('manage')

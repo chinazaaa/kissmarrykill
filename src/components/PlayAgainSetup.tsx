@@ -170,9 +170,16 @@ export function PlayAgainSetup({
 
   const questionsFileRef = useRef<HTMLInputElement>(null)
   const participantFileRef = useRef<HTMLInputElement>(null)
+  const draftInitializedRef = useRef(false)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      draftInitializedRef.current = false
+      return
+    }
+    if (draftInitializedRef.current) return
+    draftInitializedRef.current = true
+
     setQuestionMode(defaultQuestionMode ?? (variant === 'lobby' ? 'change' : 'same'))
     setParticipantMode('same')
     setQuestionsUploadError(null)
@@ -181,7 +188,7 @@ export function PlayAgainSetup({
     setCustomMltQuestions(parseStoredMltQuestions(game.custom_questions))
     setCustomCodewordsWords(parseStoredCodewordsWords(game.custom_questions))
     setDraftParticipants(hostParticipants(participants))
-  }, [open, game.custom_questions, participants, game, variant, defaultQuestionMode])
+  }, [open, game.custom_questions, participants, variant, defaultQuestionMode])
 
   const customQuestionCount = isCodewords
     ? customCodewordsWords.length
@@ -266,7 +273,7 @@ export function PlayAgainSetup({
             setQuestionsUploadError('No valid rows. Add one single word per line.')
             return
           }
-          addCustomQuestionsFromRows([], [], rows, replace)
+          setCustomCodewordsWords(rows)
         }
         return
       }
@@ -300,7 +307,7 @@ export function PlayAgainSetup({
             setQuestionsUploadError('No valid rows. Add one single word per line.')
             return
           }
-          addCustomQuestionsFromRows([], [], rows, replace)
+          setCustomCodewordsWords(rows)
         }
         return
       }
@@ -329,8 +336,11 @@ export function PlayAgainSetup({
         setQuestionsUploadError('Use a single word with no spaces.')
         return
       }
-      addCustomQuestionsFromRows([], [], rows)
-    } else if (isTot) {
+      setCustomCodewordsWords((prev) => mergeCodewordsWords(prev, rows))
+      setMltQuestionInput('')
+      return
+    }
+    if (isTot) {
       const parsed = parseOrSplitQuestion(q)
       if (!parsed) {
         setQuestionsUploadError('Use “Coffee or Tea?” style, or two columns for A and B.')
@@ -366,7 +376,7 @@ export function PlayAgainSetup({
         setQuestionsUploadError('No valid words found.')
         return
       }
-      addCustomQuestionsFromRows([], [], rows, replace)
+      setCustomCodewordsWords(questionMode === 'change' ? rows : (prev) => mergeCodewordsWords(prev, rows))
     } else {
       const rows = parseMltQuestionRows(questionsBulkPaste)
       if (rows.length === 0) {

@@ -88,20 +88,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Game must be finished before playing again' }, { status: 400 })
   }
 
-  if (isCodewordsGame(gameType)) {
-    const { error: reopenError } = await supabase
-      .from('games')
-      .update({
-        status: 'waiting',
-        current_round_number: 0,
-        session_started_at: null,
-        finished_at: null,
-        anonymous_messages_trimmed_at: null,
-      })
-      .eq('id', gameId)
-    if (reopenError) return NextResponse.json({ error: reopenError.message }, { status: 500 })
-  }
-
   const genderBased = isGameGenderBased(game)
 
   const [{ data: rounds }, { data: participantsData }, { data: codewordsBoard }] = await Promise.all([
