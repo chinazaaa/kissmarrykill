@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
-import { tallyCodewordsOperativeStats, tallyCodewordsSpymasterStats, teamLabel } from '@/lib/codewords'
+import { tallyCodewordsOperativeStats, tallyCodewordsSpymasterStats, pickBestCodewordsSpymaster, teamLabel } from '@/lib/codewords'
 import type { CodewordsGuess, CodewordsPlayerRole, Player } from '@/types'
 
 function MvpCard({ emoji, title, name, detail }: { emoji: string; title: string; name: string; detail: string }) {
@@ -34,7 +34,10 @@ export function CodewordsEndGameStats({
   const spymasterStats = useMemo(() => tallyCodewordsSpymasterStats(guesses, roles, players), [guesses, roles, players])
 
   const bestOperative = operativeStats[0] ?? null
-  const bestSpymaster = spymasterStats[0] ?? null
+  const bestSpymaster = useMemo(
+    () => pickBestCodewordsSpymaster(spymasterStats, winner),
+    [spymasterStats, winner]
+  )
   const hasGuesses = guesses.length > 0
 
   if (!hasGuesses && operativeStats.length === 0 && spymasterStats.length === 0) {
@@ -86,7 +89,14 @@ export function CodewordsEndGameStats({
 
       {spymasterStats.length > 0 && (
         <div className="space-y-2">
-          {spymasterStats.map((spy) => (
+          {[...spymasterStats]
+            .sort((a, b) => {
+              if (!winner) return 0
+              if (a.team === winner) return -1
+              if (b.team === winner) return 1
+              return 0
+            })
+            .map((spy) => (
             <div
               key={spy.playerId}
               className={[

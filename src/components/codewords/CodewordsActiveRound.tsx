@@ -271,6 +271,7 @@ export function CodewordsActiveRound({
                   : 'Session ended'
               }
               highlightPlayerId={myPlayerId}
+              winner={board.winner}
               showCreateNewGame={false}
               showBackHome={false}
             />

@@ -648,6 +648,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             winnerLabel={winnerLabel}
             subtitle={winnerSubtitle}
             highlightPlayerId={myPlayerId}
+            winner={board.winner}
           />
           <div className="glass-card p-4 space-y-4">
             <p className="label-caps text-center">Full board</p>

@@ -222,6 +222,7 @@ export function CodewordsHostManagePanel({
             guesses={guesses}
             roles={roles}
             winnerLabel={`${teamLabel(board.winner!)} team wins!`}
+            winner={board.winner}
             playAgainButton={playAgainButton}
           />
           <div className="glass-card p-4 space-y-4">

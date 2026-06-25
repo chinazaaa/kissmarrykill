@@ -524,6 +524,19 @@ export function tallyCodewordsSpymasterStats(
   return Array.from(stats.values()).sort((a, b) => b.score - a.score || b.wordsFound - a.wordsFound)
 }
 
+/** Prefer the winning team's spymaster; fall back to top clue stats when there is no winner. */
+export function pickBestCodewordsSpymaster(
+  stats: CodewordsSpymasterStat[],
+  winner?: CodewordsTeam | null
+): CodewordsSpymasterStat | null {
+  if (stats.length === 0) return null
+  if (winner) {
+    const winningSpy = stats.find((s) => s.team === winner)
+    if (winningSpy) return winningSpy
+  }
+  return stats[0] ?? null
+}
+
 export type CodewordsHostMode = 'spectator' | 'player'
 
 function codewordsHostModeKey(gameCode: string) {

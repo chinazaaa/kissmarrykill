@@ -5,8 +5,8 @@ import { CodewordsTeamBadge } from '@/components/codewords/CodewordsBoardGrid'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
-import { tallyCodewordsOperativeStats, tallyCodewordsSpymasterStats } from '@/lib/codewords'
-import type { CodewordsGuess, CodewordsPlayerRole, Game, Player } from '@/types'
+import { tallyCodewordsOperativeStats, tallyCodewordsSpymasterStats, pickBestCodewordsSpymaster } from '@/lib/codewords'
+import type { CodewordsGuess, CodewordsPlayerRole, CodewordsTeam, Game, Player } from '@/types'
 
 export function CodewordsFinalResultsShareBlock({
   game,
@@ -15,6 +15,7 @@ export function CodewordsFinalResultsShareBlock({
   roles,
   winnerLabel,
   subtitle,
+  winner,
   highlightPlayerId,
   playAgainButton,
   showCreateNewGame = true,
@@ -26,6 +27,7 @@ export function CodewordsFinalResultsShareBlock({
   roles: CodewordsPlayerRole[]
   winnerLabel: string
   subtitle?: string
+  winner?: CodewordsTeam | null
   highlightPlayerId?: string | null
   playAgainButton?: ReactNode
   showCreateNewGame?: boolean
@@ -43,7 +45,10 @@ export function CodewordsFinalResultsShareBlock({
   )
 
   const bestOperative = operativeStats[0] ?? null
-  const bestSpymaster = spymasterStats[0] ?? null
+  const bestSpymaster = useMemo(
+    () => pickBestCodewordsSpymaster(spymasterStats, winner),
+    [spymasterStats, winner]
+  )
 
   return (
     <div className="space-y-4">
