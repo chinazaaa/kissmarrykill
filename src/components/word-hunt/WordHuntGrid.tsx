@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { rowColToIndex } from '@/lib/word-hunt'
 import { useWordHuntGridInteraction } from '@/hooks/useWordHuntGridInteraction'
 
@@ -94,8 +94,8 @@ export function WordHuntGrid({
   return (
     <div
       ref={gridRef}
-      className={[frameClass, 'touch-none relative', isReview ? '' : ''].join(' ')}
-      style={{ touchAction: isReview ? undefined : 'none' }}
+      className={[frameClass, 'touch-none relative select-none', isReview ? '' : ''].join(' ')}
+      style={{ touchAction: isReview ? undefined : 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as CSSProperties}
       onDragStart={(e) => e.preventDefault()}
       {...(isReview ? {} : gridHandlers)}
     >
@@ -134,7 +134,7 @@ export function WordHuntGrid({
                 className={[
                   cellBase,
                   inPath
-                    ? 'bg-[linear-gradient(135deg,var(--primary)_0%,var(--primary-strong)_100%)] text-white shadow-[0_0_0_2px_var(--primary),0_8px_20px_-6px_var(--primary-glow)] scale-[1.04] z-[1]'
+                    ? 'bg-[linear-gradient(135deg,var(--primary)_0%,var(--primary-strong)_100%)] text-white shadow-[0_0_0_2px_var(--primary),0_4px_12px_-4px_var(--primary-glow)] ring-2 ring-white/30 z-[1]'
                     : variant === 'play' && !interactionDisabled
                       ? 'bg-[var(--card-strong)] text-[var(--foreground)] border border-[var(--border-strong)] shadow-[var(--card-shadow)] hover:bg-[color-mix(in_srgb,var(--primary)_10%,var(--card-strong))] hover:border-[color-mix(in_srgb,var(--primary)_22%,var(--border-strong))]'
                       : 'bg-[var(--card-strong)] text-[var(--foreground)] border border-[var(--border-strong)] shadow-[var(--card-shadow)]',

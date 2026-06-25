@@ -46,7 +46,7 @@ export function WordHuntPlaySurface({
         : ''
 
   return (
-    <div className="glass-card-strong overflow-hidden border border-[color-mix(in_srgb,var(--primary)_18%,var(--border))] shadow-[var(--card-shadow-glow)]">
+    <div className="glass-card-strong overflow-hidden border border-[color-mix(in_srgb,var(--primary)_18%,var(--border))] shadow-[var(--card-shadow-glow)] overscroll-none">
       <div className="grid grid-cols-[1fr_auto] gap-3 p-4 border-b border-[var(--border)]">
         <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_6%,transparent)] px-3 py-2.5">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted">Words</p>
@@ -76,7 +76,7 @@ export function WordHuntPlaySurface({
         </div>
       </div>
 
-      <div className="px-4 pt-3 pb-1 min-h-[2.5rem] flex items-center justify-center gap-2">
+      <div className="px-4 h-[3.25rem] flex items-center justify-center gap-2 shrink-0">
         {preview.word ? (
           <>
             <div
@@ -88,13 +88,22 @@ export function WordHuntPlaySurface({
               {preview.word}
               {preview.points != null && <span className="opacity-90"> (+{preview.points})</span>}
               {preview.alreadyFound && preview.word.length >= WORD_HUNT_MIN_WORD_LENGTH && (
-                <span className="opacity-75 normal-case tracking-normal text-xs font-semibold"> · already found</span>
+                <span className="opacity-75 normal-case tracking-normal text-xs font-semibold"> · keep going?</span>
               )}
             </div>
+            {preview.isValidWord && !preview.alreadyFound && (
+              <button
+                type="button"
+                onClick={() => onStrokeEnd(selectedPath)}
+                className="shrink-0 px-3 py-1.5 rounded-full bg-[linear-gradient(135deg,var(--primary)_0%,var(--primary-strong)_100%)] text-white text-xs font-black uppercase tracking-wide shadow-[0_2px_10px_-4px_var(--primary-glow)] active:scale-95 transition-transform"
+              >
+                Submit
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onPathChange([])}
-              className="shrink-0 h-8 w-8 rounded-full border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] text-muted font-bold text-sm hover:text-[var(--foreground)] hover:border-[color-mix(in_srgb,var(--primary)_30%,var(--border))] active:scale-95 transition-all"
+              className="shrink-0 h-8 w-8 rounded-full border border-[var(--border-strong)] bg-[var(--surface-inset-bg)] text-muted font-bold text-sm hover:text-[var(--foreground)] hover:border-[color-mix(in_srgb,var(--primary)_30%,var(--border))] active:scale-95 transition-colors"
               aria-label="Clear letters"
             >
               ×
@@ -103,14 +112,11 @@ export function WordHuntPlaySurface({
         ) : (
           <p className="text-sm text-muted font-medium text-center">
             Drag or tap adjacent letters
-            <span className="block text-[11px] text-faint font-normal mt-0.5">
-              Tap a selected letter to undo
-            </span>
           </p>
         )}
       </div>
 
-      <div className="px-4 pt-2 pb-3">
+      <div className="px-4 pt-2 pb-3 overscroll-none">
         <WordHuntGrid
           grid={grid}
           selectedPath={selectedPath}

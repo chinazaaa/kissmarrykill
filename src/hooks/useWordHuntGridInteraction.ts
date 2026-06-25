@@ -9,7 +9,7 @@ import {
 import { canExtendWordHuntPath } from '@/lib/word-hunt-client'
 
 /** Pixels before a pointer sequence counts as a drag (not a tap). */
-const DRAG_THRESHOLD_PX = 10
+const DRAG_THRESHOLD_PX = 16
 
 /** Nearest cell under the pointer — works across gaps for diagonal drags. */
 function cellIndexFromPoint(x: number, y: number, gridRoot: HTMLElement | null): number | null {
@@ -82,6 +82,14 @@ export function useWordHuntGridInteraction(
   const optionsRef = useRef(options)
   optionsRef.current = options
 
+  const commitPath = useCallback(
+    (path: number[]) => {
+      selectedPathRef.current = path
+      onPathChange(path)
+    },
+    [onPathChange]
+  )
+
   const applyCell = useCallback(
     (index: number) => {
       if (disabled) return
@@ -90,23 +98,11 @@ export function useWordHuntGridInteraction(
       const current = selectedPathRef.current
       const { grid, validPrefixes } = optionsRef.current ?? {}
 
-      const existingIdx = current.indexOf(index)
-      if (existingIdx >= 0) {
-        if (draggingRef.current && movedRef.current) return
-        if (existingIdx === current.length - 1) {
-          const next = current.slice(0, -1)
-          onPathChange(next)
-          lastCellRef.current = next.length > 0 ? next[next.length - 1]! : null
-        } else {
-          onPathChange(current.slice(0, existingIdx + 1))
-          lastCellRef.current = index
-        }
-        return
-      }
+      if (current.includes(index)) return
 
       if (current.length === 0) {
         if (!canStartCell(grid, validPrefixes, index)) return
-        onPathChange([index])
+        commitPath([index])
         lastCellRef.current = index
         return
       }
@@ -115,7 +111,7 @@ export function useWordHuntGridInteraction(
 
       if (!areWordHuntCellsAdjacent(last, index)) {
         if (!canStartCell(grid, validPrefixes, index)) return
-        onPathChange([index])
+        commitPath([index])
         lastCellRef.current = index
         return
       }
@@ -129,10 +125,10 @@ export function useWordHuntGridInteraction(
         return
       }
 
-      onPathChange([...current, index])
+      commitPath([...current, index])
       lastCellRef.current = index
     },
-    [disabled, onPathChange]
+    [commitPath, disabled]
   )
 
   const endStroke = useCallback(
@@ -146,15 +142,15 @@ export function useWordHuntGridInteraction(
       if (target.hasPointerCapture(pointerId)) {
         target.releasePointerCapture(pointerId)
       }
-      if (path.length >= WORD_HUNT_MIN_WORD_LENGTH && onStrokeEnd) {
+      // Drags submit on release; taps keep building until the player taps Submit.
+      if (wasDrag && path.length >= WORD_HUNT_MIN_WORD_LENGTH && onStrokeEnd) {
         onStrokeEnd([...path])
       }
-      // Only drags reset the path — taps keep letters selected for the next tap.
       if (wasDrag && path.length > 0) {
-        onPathChange([])
+        commitPath([])
       }
     },
-    [onPathChange, onStrokeEnd]
+    [commitPath, onStrokeEnd]
   )
 
   const onPointerDown = useCallback(
@@ -192,6 +188,7 @@ export function useWordHuntGridInteraction(
   const onPointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (activePointerRef.current !== e.pointerId) return
+      e.preventDefault()
       endStroke(e.currentTarget, e.pointerId)
     },
     [endStroke]

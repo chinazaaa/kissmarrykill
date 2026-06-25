@@ -29,7 +29,7 @@ export function validateWordHuntSubmissionClient(
     return { ok: false, error: `Words must be at least ${WORD_HUNT_MIN_WORD_LENGTH} letters` }
   }
   if (foundWords.has(normalized)) {
-    return { ok: false, error: 'You already found this word', clearPath: true }
+    return { ok: false, error: 'You already found this word' }
   }
   if (validWords.size > 0 && !validWords.has(normalized)) {
     return { ok: false, error: 'Not a valid word', clearPath: true }

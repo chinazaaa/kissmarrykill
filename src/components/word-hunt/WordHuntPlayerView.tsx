@@ -586,7 +586,7 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
           {toast.msg}
         </div>
       )}
-      <main className="pt-16 flex-1 px-3 py-4 max-w-lg mx-auto w-full space-y-4">
+      <main className="pt-16 flex-1 px-3 py-4 max-w-lg mx-auto w-full space-y-4 overscroll-none">
         {isViewer && (
           <ViewerModeBanner
             gameCode={gameCode}
