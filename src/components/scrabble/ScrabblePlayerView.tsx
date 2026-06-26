@@ -10,6 +10,7 @@ import {
 } from '@/components/scrabble/ScrabbleChrome'
 import { ScrabbleFinalResultsShareBlock } from '@/components/scrabble/ScrabbleFinalResultsShareBlock'
 import { ScrabbleGamePanel } from '@/components/scrabble/ScrabbleBoard'
+import { ScrabbleGameTimerBar } from '@/components/scrabble/ScrabbleGameTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
 import { currentTurnPlayerId, isScrabbleResultsPhase } from '@/lib/scrabble-board'
 import { supabase } from '@/lib/supabase'
@@ -420,6 +421,7 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
   return (
     <ScrabbleShell title={game?.title ?? cfg.label} compact wide>
       {isViewer && <ViewerModeBanner />}
+      {game?.status === 'active' && <ScrabbleGameTimerBar gameCode={gameCode} game={game} />}
       {session && (
         <ScrabbleGamePanel
           session={session}
