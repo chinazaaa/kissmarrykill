@@ -179,7 +179,7 @@ Round 3 Results:
 🔥 Most Fired: Bob (4 votes)
 ⭐ Most Promoted: Charlie (3 votes)
 
-Play at kissmarrykill.com
+Play at fateround.com
 ```
 
 ## Vote Tallying
