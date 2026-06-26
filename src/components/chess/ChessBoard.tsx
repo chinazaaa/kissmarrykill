@@ -56,13 +56,17 @@ function ChessClockChip({ session, color }: { session: ChessSession; color: Ches
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const
 
+// U+FE0E (text variation selector) forces monochrome TEXT rendering so our CSS
+// `color` applies. Without it, iOS renders these chess characters as emoji
+// (which ignore `color`), so White's pieces came out dark — looking black.
+const VS_TEXT = '\uFE0E'
 const GLYPH: Record<string, string> = {
-  p: '♟',
-  r: '♜',
-  n: '♞',
-  b: '♝',
-  q: '♛',
-  k: '♚',
+  p: `♟${VS_TEXT}`,
+  r: `♜${VS_TEXT}`,
+  n: `♞${VS_TEXT}`,
+  b: `♝${VS_TEXT}`,
+  q: `♛${VS_TEXT}`,
+  k: `♚${VS_TEXT}`,
 }
 
 const PROMOTION_PIECES: { piece: 'q' | 'r' | 'b' | 'n'; label: string }[] = [
