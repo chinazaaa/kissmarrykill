@@ -110,8 +110,8 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
         .from('describe_it_guesses')
         .select(DESCRIBE_IT_GUESS_SELECT)
         .eq('game_id', gameCode)
-        .order('created_at', { ascending: true })
-        .limit(60),
+        .order('created_at', { ascending: false })
+        .limit(40),
     ])
     const sessionData = supabasePollOk(sessionRes) ? (sessionRes.data as DescribeItSession | null) : null
     if (sessionData) setSession(sessionData)
