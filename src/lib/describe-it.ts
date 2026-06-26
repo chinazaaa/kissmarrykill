@@ -67,20 +67,23 @@ export function clueContainsWord(clue: string, word: string): boolean {
   return c === w || c.split(' ').includes(w) || c.includes(w)
 }
 
-export function describeItWordPool(game: Pick<Game, 'question_source' | 'custom_questions'>): readonly string[] {
-  if (game.question_source !== 'custom') return DESCRIBE_IT_WORD_POOL
+/**
+ * Words for the game as two tiers: `primary` is used first, `fallback` only tops
+ * up once the primary words run out within a game. When the host supplies their
+ * own words, those are the primary and the built-in bank is the overflow (so a
+ * short custom list still works across many rounds, but a big one — e.g. 80 —
+ * plays through on its own). With no custom words, the built-in bank is primary.
+ */
+export function describeItWordPools(game: Pick<Game, 'question_source' | 'custom_questions'>): {
+  primary: readonly string[]
+  fallback: readonly string[]
+} {
+  if (game.question_source !== 'custom') return { primary: DESCRIBE_IT_WORD_POOL, fallback: [] }
   const custom = parseStoredDescribeItWords(game.custom_questions as unknown)
-  if (custom.length === 0) return DESCRIBE_IT_WORD_POOL
-  // "Both": built-in bank plus the host's own words.
-  const seen = new Set(DESCRIBE_IT_WORD_POOL.map((w) => w.toLowerCase()))
-  const merged = [...DESCRIBE_IT_WORD_POOL]
-  for (const w of custom) {
-    if (!seen.has(w.toLowerCase())) {
-      seen.add(w.toLowerCase())
-      merged.push(w)
-    }
-  }
-  return merged
+  if (custom.length === 0) return { primary: DESCRIBE_IT_WORD_POOL, fallback: [] }
+  const customSet = new Set(custom.map((w) => w.toLowerCase()))
+  const fallback = DESCRIBE_IT_WORD_POOL.filter((w) => !customSet.has(w.toLowerCase()))
+  return { primary: custom, fallback }
 }
 
 export function totalDescribeItTurns(numTeams: number, totalRounds: number): number {
@@ -225,14 +228,15 @@ function buildTurn(
   totalRounds: number,
   turnSeconds: number,
   roster: Map<number, string[]>,
-  pool: readonly string[],
+  primary: readonly string[],
+  fallback: readonly string[],
   usedWords: string[]
 ): Partial<DescribeItSession> | null {
   if (turnIndex >= totalDescribeItTurns(numTeams, totalRounds)) return null
   const round = roundForTurn(turnIndex, numTeams)
   const activeTeam = teamForTurn(turnIndex, numTeams)
   const describer = describerForTurn(roster.get(activeTeam) ?? [], round)
-  const word = pickDescribeWord(pool, usedWords)
+  const word = pickDescribeWord(primary, fallback, usedWords)
   return {
     phase: 'turn',
     turn_index: turnIndex,
@@ -269,15 +273,15 @@ export async function initializeDescribeItGame(
   if (!ready.ok) return { error: ready.error }
 
   const roster = teamRoster(teamRows)
-  const pool = describeItWordPool(game as Pick<Game, 'question_source' | 'custom_questions'>)
+  const { primary, fallback } = describeItWordPools(game as Pick<Game, 'question_source' | 'custom_questions'>)
 
   // Carry word usage across Play again so each new game prefers fresh words.
-  // Once every word in the current pool has been used, start a new cycle.
-  const poolKeys = new Set(pool.map((w) => w.toLowerCase()))
-  let priorUsed = readUsedFromPoolUsage(game.pool_usage).filter((w) => poolKeys.has(w.toLowerCase()))
-  if (priorUsed.length >= pool.length) priorUsed = []
+  // Track the primary (cycled) pool; once all of it has been used, start fresh.
+  const primaryKeys = new Set(primary.map((w) => w.toLowerCase()))
+  let priorUsed = readUsedFromPoolUsage(game.pool_usage).filter((w) => primaryKeys.has(w.toLowerCase()))
+  if (priorUsed.length >= primary.length) priorUsed = []
 
-  const firstTurn = buildTurn(0, numTeams, totalRounds, turnSeconds, roster, pool, priorUsed)
+  const firstTurn = buildTurn(0, numTeams, totalRounds, turnSeconds, roster, primary, fallback, priorUsed)
   if (!firstTurn) return { error: 'Could not start the match' }
 
   const row = {
@@ -368,8 +372,8 @@ export async function processDescribeItGuess(
     .select('question_source, custom_questions')
     .eq('id', gameId)
     .maybeSingle()
-  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
-  const nextWord = pickDescribeWord(pool, session.used_words)
+  const { primary, fallback } = describeItWordPools((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
+  const nextWord = pickDescribeWord(primary, fallback, session.used_words)
   const name = await playerName(supabase, gameId, playerId)
 
   // Atomically "claim" the word by advancing it only while it's still the word
@@ -427,8 +431,8 @@ export async function processDescribeItSkip(
     .select('question_source, custom_questions')
     .eq('id', gameId)
     .maybeSingle()
-  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
-  const nextWord = pickDescribeWord(pool, session.used_words)
+  const { primary, fallback } = describeItWordPools((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
+  const nextWord = pickDescribeWord(primary, fallback, session.used_words)
 
   // Same atomic claim as a guess, so a skip can't skip a word that was just
   // guessed (or double-log) if a guess landed at the same moment.
@@ -520,7 +524,7 @@ export async function processDescribeItAdvance(
     .select('question_source, custom_questions')
     .eq('id', gameId)
     .maybeSingle()
-  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
+  const { primary, fallback } = describeItWordPools((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
 
   const nextTurn = buildTurn(
     nextIndex,
@@ -528,7 +532,8 @@ export async function processDescribeItAdvance(
     session.total_rounds,
     session.turn_seconds,
     roster,
-    pool,
+    primary,
+    fallback,
     session.used_words
   )
 
