@@ -1,4 +1,4 @@
--- KissMarryKill Schema
+-- Fate Round Schema
 -- Run this in your Supabase SQL editor
 
 -- Games

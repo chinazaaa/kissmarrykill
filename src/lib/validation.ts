@@ -799,6 +799,39 @@ export const describeItSettingsSchema = z.object({
   maxPlayers: z.coerce.number().int().min(4).max(20).optional(),
   words: z.string().max(8000).optional(),
 })
+// Scrabble (POST /api/scrabble/*)
+
+export const scrabbleActionSchema = z.object({
+  gameId: gameCodeString(),
+  playerId: uuidString('playerId'),
+})
+
+export const scrabblePlaySchema = scrabbleActionSchema.extend({
+  tiles: z
+    .array(
+      z.object({
+        row: z.coerce.number().int().min(0).max(14),
+        col: z.coerce.number().int().min(0).max(14),
+        letter: z.string().regex(/^[A-Za-z]$/),
+        isBlank: z.boolean(),
+      })
+    )
+    .min(1)
+    .max(7),
+})
+
+export const scrabbleExchangeSchema = scrabbleActionSchema.extend({
+  tileIndices: z.array(z.coerce.number().int().min(0).max(6)).min(1).max(7),
+})
+
+export const scrabblePassSchema = scrabbleActionSchema
+
+export const scrabbleExpireSchema = z.object({
+  gameId: gameCodeString(),
+})
+
+export type ScrabblePlayInput = z.infer<typeof scrabblePlaySchema>
+export type ScrabbleExchangeInput = z.infer<typeof scrabbleExchangeSchema>
 
 export const describeItAdvanceSchema = z.object({
   gameId: gameCodeString(),
