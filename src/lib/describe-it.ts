@@ -147,6 +147,25 @@ export function balanceDescribeItTeams(
   return assignment
 }
 
+/** Words used across previous rounds (carried between Play again games). */
+function readUsedFromPoolUsage(poolUsage: unknown): string[] {
+  if (!poolUsage || typeof poolUsage !== 'object') return []
+  const arr = (poolUsage as Record<string, unknown>).describe_it_used
+  return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []
+}
+
+function dedupeWords(words: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const w of words) {
+    const key = w.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(w)
+  }
+  return out
+}
+
 async function loadSession(
   supabase: SupabaseClient,
   gameId: string
@@ -211,7 +230,7 @@ export async function initializeDescribeItGame(
 ): Promise<{ error?: string }> {
   const { data: game } = await supabase
     .from('games')
-    .select('describe_it_num_teams, rounds_count, timer_seconds, question_source, custom_questions')
+    .select('describe_it_num_teams, rounds_count, timer_seconds, question_source, custom_questions, pool_usage')
     .eq('id', gameId)
     .maybeSingle()
   if (!game) return { error: 'Game not found' }
@@ -226,7 +245,14 @@ export async function initializeDescribeItGame(
 
   const roster = teamRoster(teamRows)
   const pool = describeItWordPool(game as Pick<Game, 'question_source' | 'custom_questions'>)
-  const firstTurn = buildTurn(0, numTeams, totalRounds, turnSeconds, roster, pool, [])
+
+  // Carry word usage across Play again so each new game prefers fresh words.
+  // Once every word in the current pool has been used, start a new cycle.
+  const poolKeys = new Set(pool.map((w) => w.toLowerCase()))
+  let priorUsed = readUsedFromPoolUsage(game.pool_usage).filter((w) => poolKeys.has(w.toLowerCase()))
+  if (priorUsed.length >= pool.length) priorUsed = []
+
+  const firstTurn = buildTurn(0, numTeams, totalRounds, turnSeconds, roster, pool, priorUsed)
   if (!firstTurn) return { error: 'Could not start the match' }
 
   const row = {
@@ -550,6 +576,25 @@ export async function clearDescribeItSessionData(
   supabase: SupabaseClient,
   gameId: string
 ): Promise<{ error?: string }> {
+  // Remember the words used this game so the next Play again prefers fresh ones.
+  const { data: session } = await supabase
+    .from('describe_it_sessions')
+    .select('used_words')
+    .eq('game_id', gameId)
+    .maybeSingle()
+  const usedThisGame = Array.isArray(session?.used_words) ? (session!.used_words as string[]) : []
+  if (usedThisGame.length > 0) {
+    const { data: game } = await supabase.from('games').select('pool_usage').eq('id', gameId).maybeSingle()
+    const prior = readUsedFromPoolUsage(game?.pool_usage)
+    const merged = dedupeWords([...prior, ...usedThisGame])
+    const poolUsage =
+      game?.pool_usage && typeof game.pool_usage === 'object' ? (game.pool_usage as Record<string, unknown>) : {}
+    await supabase
+      .from('games')
+      .update({ pool_usage: { ...poolUsage, describe_it_used: merged } })
+      .eq('id', gameId)
+  }
+
   await supabase.from('describe_it_guesses').delete().eq('game_id', gameId)
   await supabase.from('describe_it_words').delete().eq('game_id', gameId)
   await supabase.from('describe_it_sessions').delete().eq('game_id', gameId)
