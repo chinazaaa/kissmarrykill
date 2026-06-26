@@ -143,6 +143,27 @@ export function balanceDescribeItTeams(
   return assignment
 }
 
+/** Auto-assign a late-joining player to the team with the fewest members. */
+export async function assignDescribeItLateJoinTeam(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerId: string
+): Promise<{ team: number; error?: string }> {
+  const { data: game } = await supabase.from('games').select('describe_it_num_teams').eq('id', gameId).maybeSingle()
+  const numTeams = clampDescribeItTeams(game?.describe_it_num_teams)
+  const rows = await loadTeamRows(supabase, gameId)
+  const counts = new Array(numTeams + 1).fill(0)
+  for (const r of rows) if (r.team >= 1 && r.team <= numTeams) counts[r.team] += 1
+  let smallest = 1
+  for (let t = 2; t <= numTeams; t += 1) if (counts[t] < counts[smallest]) smallest = t
+
+  const { error } = await supabase
+    .from('describe_it_players')
+    .upsert({ game_id: gameId, player_id: playerId, team: smallest }, { onConflict: 'game_id,player_id' })
+  if (error) return { team: smallest, error: error.message }
+  return { team: smallest }
+}
+
 /** Words used across previous rounds (carried between Play again games). */
 function readUsedFromPoolUsage(poolUsage: unknown): string[] {
   if (!poolUsage || typeof poolUsage !== 'object') return []
@@ -334,7 +355,38 @@ export async function processDescribeItGuess(
 
   if (!correct) return { correct: false }
 
-  // Log the scored word, then reveal the next word.
+  const { data: game } = await supabase
+    .from('games')
+    .select('question_source, custom_questions')
+    .eq('id', gameId)
+    .maybeSingle()
+  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
+  const nextWord = pickDescribeWord(pool, session.used_words)
+  const name = await playerName(supabase, gameId, playerId)
+
+  // Atomically "claim" the word by advancing it only while it's still the word
+  // being guessed. If two teammates guess at once, only one update matches a row
+  // (Postgres re-checks the WHERE after locking) — the other scores nothing.
+  const { data: claimed } = await supabase
+    .from('describe_it_sessions')
+    .update({
+      current_word: nextWord,
+      current_clue: null,
+      current_clues: [],
+      used_words: [...session.used_words, nextWord],
+      status_message: `${name} guessed it!`,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+    .eq('turn_index', session.turn_index)
+    .eq('current_word', session.current_word)
+    .select('id')
+
+  if (!claimed || claimed.length === 0) {
+    // Someone else already got this word — a correct but late guess scores nothing.
+    return { correct: true }
+  }
+
   await supabase.from('describe_it_words').insert({
     game_id: gameId,
     turn_index: session.turn_index,
@@ -346,27 +398,6 @@ export async function processDescribeItGuess(
     status: 'guessed',
     guesser_player_id: playerId,
   })
-
-  const { data: game } = await supabase
-    .from('games')
-    .select('question_source, custom_questions')
-    .eq('id', gameId)
-    .maybeSingle()
-  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
-  const nextWord = pickDescribeWord(pool, session.used_words)
-  const name = await playerName(supabase, gameId, playerId)
-
-  await supabase
-    .from('describe_it_sessions')
-    .update({
-      current_word: nextWord,
-      current_clue: null,
-      current_clues: [],
-      used_words: [...session.used_words, nextWord],
-      status_message: `${name} guessed it!`,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('game_id', gameId)
 
   return { correct: true }
 }
@@ -381,20 +412,7 @@ export async function processDescribeItSkip(
   if (!session || session.status === 'finished') return { error: 'Game not active' }
   if (session.phase !== 'turn') return { error: 'Not in a turn right now' }
   if (session.describer_player_id !== playerId) return { error: 'Only the describer can skip' }
-
-  if (session.current_word) {
-    await supabase.from('describe_it_words').insert({
-      game_id: gameId,
-      turn_index: session.turn_index,
-      round: session.current_round,
-      team: session.active_team,
-      describer_player_id: session.describer_player_id,
-      word: session.current_word,
-      clue: session.current_clue,
-      status: 'skipped',
-      guesser_player_id: null,
-    })
-  }
+  if (!session.current_word) return {}
 
   const { data: game } = await supabase
     .from('games')
@@ -404,7 +422,9 @@ export async function processDescribeItSkip(
   const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
   const nextWord = pickDescribeWord(pool, session.used_words)
 
-  const { error: updateError } = await supabase
+  // Same atomic claim as a guess, so a skip can't skip a word that was just
+  // guessed (or double-log) if a guess landed at the same moment.
+  const { data: claimed } = await supabase
     .from('describe_it_sessions')
     .update({
       current_word: nextWord,
@@ -414,7 +434,23 @@ export async function processDescribeItSkip(
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
-  if (updateError) return { error: updateError.message }
+    .eq('turn_index', session.turn_index)
+    .eq('current_word', session.current_word)
+    .select('id')
+
+  if (!claimed || claimed.length === 0) return {}
+
+  await supabase.from('describe_it_words').insert({
+    game_id: gameId,
+    turn_index: session.turn_index,
+    round: session.current_round,
+    team: session.active_team,
+    describer_player_id: session.describer_player_id,
+    word: session.current_word,
+    clue: session.current_clue,
+    status: 'skipped',
+    guesser_player_id: null,
+  })
   return {}
 }
 

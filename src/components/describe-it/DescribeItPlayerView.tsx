@@ -34,13 +34,23 @@ import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
 import { GameLobbyWaitingPanel } from '@/components/game-lobby/GameLobbyWaitingPanel'
 import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
 import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
-import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
+import { preJoinScreen, playerIsViewer, allowLatePlayers } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
+import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useDescribeItTimer } from '@/hooks/useDescribeItTimer'
 import { useDescribeItSounds } from '@/hooks/useDescribeItSounds'
 
-type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'lobby' | 'active' | 'finished' | 'not_found'
+type Screen =
+  | 'loading'
+  | 'join'
+  | 'late_join_choice'
+  | 'game_started_waiting'
+  | 'game_ended'
+  | 'lobby'
+  | 'active'
+  | 'finished'
+  | 'not_found'
 
 export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
   const router = useRouter()
@@ -65,6 +75,7 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
       const pre = preJoinScreen(g, false)
       if (pre === 'game_started_waiting') return setScreen('game_started_waiting')
       if (pre === 'game_ended') return setScreen('game_ended')
+      if (pre === 'late_join_choice') return setScreen('late_join_choice')
       return setScreen('join')
     }
     if (g.status === 'waiting') return setScreen('lobby')
@@ -147,28 +158,35 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
 
-  const join = useCallback(async () => {
-    const name = joinName.trim()
-    if (!name) return
-    setJoining(true)
-    try {
-      const res = await fetch('/api/players', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerName: name }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        toastError(data.error ?? 'Failed to join')
-        return
+  const join = useCallback(
+    async (opts?: { joinAsViewer?: boolean; name?: string }) => {
+      const name = (opts?.name ?? joinName).trim()
+      if (!name) return
+      setJoining(true)
+      try {
+        const res = await fetch('/api/players', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameCode,
+            playerName: name,
+            ...(game?.status === 'active' ? { joinAsViewer: opts?.joinAsViewer } : {}),
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          toastError(data.error ?? 'Failed to join')
+          return
+        }
+        setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
+        setMyPlayerId(data.playerId)
+        await load()
+      } finally {
+        setJoining(false)
       }
-      setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
-      setMyPlayerId(data.playerId)
-      await load()
-    } finally {
-      setJoining(false)
-    }
-  }, [gameCode, joinName, load, toastError])
+    },
+    [game?.status, gameCode, joinName, load, toastError]
+  )
 
   const pickTeam = async (team: number) => {
     if (!myPlayerId) return
@@ -272,6 +290,22 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
           }
         />
       </GameJoinLobbyShell>
+    )
+  }
+
+  if (screen === 'late_join_choice' && game) {
+    return (
+      <LateJoinChoice
+        gameCode={gameCode}
+        game={game}
+        playersAllowed={allowLatePlayers(game)}
+        showNameField
+        nameInput={joinName}
+        onNameChange={setJoinName}
+        joining={joining}
+        onJoinAsViewer={() => void join({ joinAsViewer: true })}
+        onJoinAsPlayer={() => void join({ joinAsViewer: false })}
+      />
     )
   }
 
