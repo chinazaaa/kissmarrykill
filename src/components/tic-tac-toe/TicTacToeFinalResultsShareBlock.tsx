@@ -1,32 +1,74 @@
 'use client'
 
 import { useRef, type ReactNode } from 'react'
-import type { Game, Player, TicTacToeSession } from '@/types'
-import { checkWinner } from '@/lib/tic-tac-toe'
+import type { Game, Player, TicTacToeBoardResult, TicTacToeSession } from '@/types'
+import { checkOverallWinner, subBoardCells } from '@/lib/tic-tac-toe'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 
-function ReadOnlyBoard({ board }: { board: (string | null)[] }) {
-  const win = checkWinner(board as ('X' | 'O' | null)[])
+function glyph(value: string | null): string {
+  return value === 'X' ? '✕' : value === 'O' ? '○' : ''
+}
+
+function ReadOnlyBoard({
+  board,
+  boardWinners,
+}: {
+  board: ('X' | 'O' | null)[]
+  boardWinners: TicTacToeBoardResult[]
+}) {
+  const win = checkOverallWinner(boardWinners)
   const winLine = new Set(win?.line ?? [])
 
   return (
-    <div className="grid grid-cols-3 gap-2 max-w-[220px] mx-auto w-full">
-      {board.map((value, index) => (
-        <div
-          key={index}
-          className={[
-            'aspect-square rounded-xl border-2 flex items-center justify-center text-3xl sm:text-4xl font-black',
-            winLine.has(index)
-              ? 'border-[var(--primary)] bg-[var(--primary)]/15'
-              : 'border-[var(--border-strong)] bg-[var(--surface-inset-bg)]',
-            value === 'X' ? 'text-sky-500' : value === 'O' ? 'text-orange-500' : '',
-          ].join(' ')}
-        >
-          {value === 'X' ? '✕' : value === 'O' ? '○' : ''}
-        </div>
-      ))}
+    <div className="grid grid-cols-3 gap-1.5 max-w-[240px] mx-auto w-full">
+      {Array.from({ length: 9 }, (_, boardIndex) => {
+        const result = boardWinners[boardIndex] ?? null
+        const cells = subBoardCells(board, boardIndex)
+        return (
+          <div
+            key={boardIndex}
+            className={[
+              'relative rounded-lg border-2 p-0.5',
+              winLine.has(boardIndex)
+                ? 'border-amber-400 bg-amber-400/15'
+                : 'border-[var(--border-strong)]',
+            ].join(' ')}
+          >
+            <div className="grid grid-cols-3 gap-px">
+              {cells.map((value, pos) => (
+                <div
+                  key={pos}
+                  className={[
+                    'aspect-square flex items-center justify-center text-[10px] font-black bg-[var(--surface-inset-bg)] rounded-sm',
+                    result ? 'opacity-30' : '',
+                    value === 'X' ? 'text-sky-500' : value === 'O' ? 'text-orange-500' : '',
+                  ].join(' ')}
+                >
+                  {glyph(value)}
+                </div>
+              ))}
+            </div>
+            {result && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                {result === 'draw' ? (
+                  <span className="text-base">🤝</span>
+                ) : (
+                  <span
+                    className={[
+                      'text-2xl font-black',
+                      result === 'X' ? 'text-sky-500' : 'text-orange-500',
+                    ].join(' ')}
+                  >
+                    {glyph(result)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -77,7 +119,10 @@ export function TicTacToeFinalResultsShareBlock({
                 {playerO?.id === highlightPlayerId ? ' (you)' : ''}
               </span>
             </div>
-            <ReadOnlyBoard board={session.board} />
+            <ReadOnlyBoard
+              board={session.board as ('X' | 'O' | null)[]}
+              boardWinners={session.board_winners ?? []}
+            />
           </>
         )}
       </div>

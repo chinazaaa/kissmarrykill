@@ -729,7 +729,8 @@ export type LudoMoveInput = z.infer<typeof ludoMoveSchema>
 export const ticTacToeMoveSchema = z.object({
   gameId: gameCodeString(),
   playerId: uuidString('playerId'),
-  cellIndex: z.coerce.number().int().min(0).max(8),
+  // 0-80: sub-board = floor(cellIndex/9), cell within board = cellIndex % 9.
+  cellIndex: z.coerce.number().int().min(0).max(80),
 })
 
 export const ticTacToeExpireSchema = z.object({

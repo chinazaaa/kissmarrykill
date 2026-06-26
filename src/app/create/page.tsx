@@ -1506,7 +1506,7 @@ function CreateGameInner() {
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="tic_tac_toe" />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Classic Tic-Tac-Toe — take turns placing X or O on the 3x3 grid. First to get three in a row wins.
+                  Ultimate Tic-Tac-Toe — nine small boards in one big grid. Your move sends your opponent to the matching board; win three boards in a row to win it all.
                 </p>
               </SettingsGroup>
             ) : isNpat ? (

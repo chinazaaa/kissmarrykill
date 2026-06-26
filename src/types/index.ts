@@ -482,12 +482,20 @@ export interface LudoPlayerState {
 
 export type TicTacToeMark = 'X' | 'O'
 
+/** Result of a single sub-board: a winning mark, a filled draw, or still in play. */
+export type TicTacToeBoardResult = TicTacToeMark | 'draw' | null
+
 export interface TicTacToeSession {
   id: string
   game_id: string
   player_x_id: string
   player_o_id: string
+  /** 81 cells — nine 3x3 sub-boards laid out row-major (sub-board = floor(i/9), cell = i%9). */
   board: (TicTacToeMark | null)[]
+  /** Outcome of each of the 9 sub-boards. */
+  board_winners: TicTacToeBoardResult[]
+  /** Sub-board (0-8) the current player must play in, or null to play anywhere. */
+  active_board: number | null
   current_turn_mark: TicTacToeMark
   status: 'active' | 'finished'
   winner_player_id: string | null

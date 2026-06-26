@@ -779,8 +779,9 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Objective',
       points: [
-        'Be the first to get three of your marks (X or O) in a row — across, down, or diagonally — on the 3x3 grid.',
-        'If all nine cells fill up with no row of three, the game ends in a draw.',
+        'Ultimate Tic-Tac-Toe is nine small 3x3 boards arranged in one big 3x3 grid.',
+        'Win three small boards in a row — across, down, or diagonally — to win the whole game.',
+        'Win a small board the classic way: three of your marks (X or O) in a row inside it.',
       ],
     },
     {
@@ -794,15 +795,17 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     {
       title: 'Taking a turn',
       points: [
-        'On your turn, tap any empty cell to place your mark there.',
-        'Turns alternate between X and O until someone wins or the board fills up.',
+        'The first move can go in any cell of any board.',
+        'The cell you pick decides which board your opponent must play in next — e.g. play the top-right cell and they must play in the top-right board (highlighted for them).',
+        'If you are sent to a board that is already won or completely full, you may play in any open board instead.',
       ],
     },
     {
       title: 'Winning',
       points: [
-        'Three matching marks in a row, column, or diagonal wins immediately.',
-        'Play again resets the board for a quick rematch — marks stay the same.',
+        'Get three small boards in a row, column, or diagonal to win the game immediately.',
+        'A small board that fills with no winner counts as a draw and helps neither player.',
+        'Play again resets every board for a fresh rematch — marks stay the same.',
       ],
     },
   ],
