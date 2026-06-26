@@ -25,6 +25,79 @@ const PROMOTION_PIECES: { piece: 'q' | 'r' | 'b' | 'n'; label: string }[] = [
   { piece: 'n', label: '♞ Knight' },
 ]
 
+const CAPTURABLE_TYPES = ['q', 'r', 'b', 'n', 'p'] as const
+const STARTING_COUNT: Record<string, number> = { q: 1, r: 2, b: 2, n: 2, p: 8 }
+const PIECE_VALUE: Record<string, number> = { q: 9, r: 5, b: 3, n: 3, p: 1 }
+
+type Material = {
+  /** Black pieces removed from the board — i.e. captured by White. */
+  capturedByWhite: string[]
+  /** White pieces removed from the board — i.e. captured by Black. */
+  capturedByBlack: string[]
+  /** Positive when White leads on material, negative when Black leads. */
+  advantage: number
+}
+
+function computeMaterial(chess: Chess): Material {
+  const counts: Record<ChessColor, Record<string, number>> = {
+    w: { q: 0, r: 0, b: 0, n: 0, p: 0 },
+    b: { q: 0, r: 0, b: 0, n: 0, p: 0 },
+  }
+  for (const row of chess.board()) {
+    for (const cell of row) {
+      if (cell && cell.type !== 'k') counts[cell.color][cell.type] += 1
+    }
+  }
+
+  const capturedByWhite: string[] = []
+  const capturedByBlack: string[] = []
+  let whitePoints = 0
+  let blackPoints = 0
+
+  for (const type of CAPTURABLE_TYPES) {
+    whitePoints += counts.w[type] * PIECE_VALUE[type]
+    blackPoints += counts.b[type] * PIECE_VALUE[type]
+    // Promotions can leave more than the starting count; clamp at 0.
+    const missingBlack = Math.max(0, STARTING_COUNT[type] - counts.b[type])
+    const missingWhite = Math.max(0, STARTING_COUNT[type] - counts.w[type])
+    for (let i = 0; i < missingBlack; i += 1) capturedByWhite.push(type)
+    for (let i = 0; i < missingWhite; i += 1) capturedByBlack.push(type)
+  }
+
+  return { capturedByWhite, capturedByBlack, advantage: whitePoints - blackPoints }
+}
+
+/** A player's captured-pieces strip: the opponent-colored pieces they've taken. */
+function CapturedTray({
+  name,
+  pieces,
+  glyphColor,
+  advantage,
+}: {
+  name: string
+  pieces: string[]
+  glyphColor: ChessColor
+  advantage: number
+}) {
+  return (
+    <div className="flex items-center gap-1.5 min-h-[1.5rem] px-1">
+      <span className="text-xs font-bold shrink-0">{glyphColor === 'w' ? '♚' : '♔'} {name}</span>
+      <div className="flex items-center flex-wrap gap-px leading-none">
+        {pieces.map((type, i) => (
+          <span
+            key={`${type}-${i}`}
+            className="text-sm sm:text-base"
+            style={{ color: glyphColor === 'w' ? '#f8fafc' : '#1e293b' }}
+          >
+            {GLYPH[type]}
+          </span>
+        ))}
+      </div>
+      {advantage > 0 && <span className="text-xs font-bold text-emerald-400 ml-auto shrink-0">+{advantage}</span>}
+    </div>
+  )
+}
+
 function Piece({ type, color }: { type: string; color: ChessColor }) {
   return (
     <span
@@ -107,6 +180,8 @@ export function ChessGamePanel({
     return null
   }, [chess])
 
+  const material = useMemo(() => computeMaterial(chess), [chess])
+
   const orderedRanks = flip ? [...RANKS].reverse() : RANKS
   const orderedFiles = flip ? [...FILES].reverse() : FILES
 
@@ -114,6 +189,18 @@ export function ChessGamePanel({
   const white = players.find((p) => p.id === session.player_white_id)
   const black = players.find((p) => p.id === session.player_black_id)
   const winnerName = players.find((p) => p.id === session.winner_player_id)?.name
+
+  // Captured-pieces tray props for a given side. Each side shows the
+  // opponent-colored pieces it has taken, plus its material lead (if any).
+  const trayFor = (color: ChessColor) => ({
+    name: (color === 'w' ? white : black)?.name ?? (color === 'w' ? 'White' : 'Black'),
+    pieces: color === 'w' ? material.capturedByWhite : material.capturedByBlack,
+    glyphColor: (color === 'w' ? 'b' : 'w') as ChessColor,
+    advantage: color === 'w' ? Math.max(0, material.advantage) : Math.max(0, -material.advantage),
+  })
+
+  const bottomColor: ChessColor = flip ? 'b' : 'w'
+  const topColor: ChessColor = flip ? 'w' : 'b'
 
   const handleSquareClick = (square: string) => {
     if (!interactive) return
@@ -176,7 +263,8 @@ export function ChessGamePanel({
         </ChessCard>
       )}
 
-      <div className="max-w-md mx-auto w-full">
+      <div className="max-w-md mx-auto w-full space-y-1.5">
+        <CapturedTray {...trayFor(topColor)} />
         <div className="grid grid-cols-8 rounded-lg overflow-hidden border-2 border-[var(--border-strong)] shadow-lg">
           {orderedRanks.map((rank) =>
             orderedFiles.map((file) => {
@@ -215,6 +303,7 @@ export function ChessGamePanel({
             })
           )}
         </div>
+        <CapturedTray {...trayFor(bottomColor)} />
       </div>
 
       {pendingPromotion && (
