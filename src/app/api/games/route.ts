@@ -96,6 +96,7 @@ import { clampMonopolyGameDuration, clampMonopolyTurnTimer } from '@/lib/monopol
 import { clampWhotGameDuration } from '@/lib/whot'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
 import { clampChessTimer } from '@/lib/chess'
+import { clampScrabbleTimer } from '@/lib/scrabble'
 import { clampDescribeItRounds, clampDescribeItTeams } from '@/lib/describe-it'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 
@@ -468,9 +469,7 @@ export async function POST(req: NextRequest) {
                 : isChessGame(game_type)
                   ? clampChessTimer(timer_seconds)
                   : isScrabbleGame(game_type)
-                    ? [0, 60, 180, 300].includes(Number(timer_seconds))
-                      ? Number(timer_seconds)
-                      : 0
+                    ? clampScrabbleTimer(timer_seconds)
                     : [15, 30, 60].includes(Number(timer_seconds))
                       ? Number(timer_seconds)
                       : 30,
