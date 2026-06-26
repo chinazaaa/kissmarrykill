@@ -831,6 +831,10 @@ export const scrabbleExpireSchema = z.object({
   gameId: gameCodeString(),
 })
 
+export const scrabbleExtendTimeSchema = hostActionSchema.extend({
+  extensionSeconds: z.coerce.number().int().positive(),
+})
+
 export type ScrabblePlayInput = z.infer<typeof scrabblePlaySchema>
 export type ScrabbleExchangeInput = z.infer<typeof scrabbleExchangeSchema>
 

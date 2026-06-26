@@ -96,7 +96,7 @@ import { clampMonopolyGameDuration, clampMonopolyTurnTimer } from '@/lib/monopol
 import { clampWhotGameDuration } from '@/lib/whot'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
 import { clampChessTimer } from '@/lib/chess'
-import { clampScrabbleTimer } from '@/lib/scrabble'
+import { clampScrabbleTimer, clampScrabbleGameDuration } from '@/lib/scrabble'
 import { clampDescribeItRounds, clampDescribeItTeams } from '@/lib/describe-it'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 
@@ -558,6 +558,7 @@ export async function POST(req: NextRequest) {
           bingo_call_interval_seconds: clampBingoCallInterval(rawBingoCallInterval),
         }
       : {}),
+    ...(isScrabbleGame(game_type) ? { game_duration_seconds: clampScrabbleGameDuration(rawGameDurationSeconds) } : {}),
     ...(isMonopolyGame(game_type)
       ? { game_duration_seconds: clampMonopolyGameDuration(rawGameDurationSeconds) }
       : isWhotGame(game_type)

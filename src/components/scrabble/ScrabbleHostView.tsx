@@ -25,6 +25,9 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { ScrabbleGamePanel } from '@/components/scrabble/ScrabbleBoard'
 import { ScrabbleFinalResultsShareBlock } from '@/components/scrabble/ScrabbleFinalResultsShareBlock'
 import { ScrabblePrimaryButton } from '@/components/scrabble/ScrabbleChrome'
+import { ScrabbleHostTimeExtension } from '@/components/scrabble/ScrabbleHostTimeExtension'
+import { ScrabbleGameTimerBar } from '@/components/scrabble/ScrabbleGameTimerBar'
+import { SCRABBLE_GAME_DURATION_OPTIONS, formatScrabbleGameDuration } from '@/lib/scrabble'
 
 type HostTab = 'play' | 'manage'
 type ScrabbleHostMode = 'spectator' | 'player'
@@ -262,18 +265,18 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
     }
   }
 
-  const saveTimer = async (seconds: number) => {
+  const savePatch = async (partial: Record<string, unknown>) => {
     try {
       const res = await fetch(`/api/games/${gameCode}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken, timer_seconds: seconds }),
+        body: JSON.stringify({ hostToken, ...partial }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to update')
       await load()
     } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to update timer')
+      toastError(err instanceof Error ? err.message : 'Failed to update settings')
     }
   }
 
@@ -410,19 +413,41 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
       {game.status === 'waiting' && (
         <div className="glass-card-strong p-5 space-y-3">
           <p className="label-caps">Game settings</p>
-          <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-[var(--foreground)]">Time per turn</span>
-            <select
-              value={[0, 60, 180, 300].includes(game.timer_seconds) ? game.timer_seconds : 0}
-              onChange={(e) => void saveTimer(Number(e.target.value))}
-              className="input-field w-full"
-            >
-              <option value={0}>No timer</option>
-              <option value={60}>1 minute</option>
-              <option value={180}>3 minutes</option>
-              <option value={300}>5 minutes</option>
-            </select>
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-semibold text-[var(--foreground)]">Time per turn</span>
+              <select
+                value={[0, 60, 180, 300].includes(game.timer_seconds) ? game.timer_seconds : 0}
+                onChange={(e) => void savePatch({ timer_seconds: Number(e.target.value) })}
+                className="input-field w-full"
+              >
+                <option value={0}>No timer</option>
+                <option value={60}>1 minute</option>
+                <option value={180}>3 minutes</option>
+                <option value={300}>5 minutes</option>
+              </select>
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-semibold text-[var(--foreground)]">Whole game</span>
+              <select
+                value={
+                  SCRABBLE_GAME_DURATION_OPTIONS.includes(
+                    (game.game_duration_seconds ?? 0) as (typeof SCRABBLE_GAME_DURATION_OPTIONS)[number]
+                  )
+                    ? (game.game_duration_seconds ?? 0)
+                    : 0
+                }
+                onChange={(e) => void savePatch({ game_duration_seconds: Number(e.target.value) })}
+                className="input-field w-full"
+              >
+                {SCRABBLE_GAME_DURATION_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {formatScrabbleGameDuration(s)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
       )}
 
@@ -446,17 +471,20 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
       )}
 
       {tab === 'play' && session && hostPlayerId && game.status === 'active' && !gameFinished && (
-        <ScrabbleGamePanel
-          session={session}
-          players={players}
-          playerStates={playerStates}
-          myPlayerId={hostPlayerId}
-          isMyTurn={isHostTurn}
-          onPlay={playWord}
-          onExchange={exchangeTiles}
-          onPass={passTurn}
-          acting={hostActing}
-        />
+        <div className="space-y-3">
+          <ScrabbleGameTimerBar gameCode={gameCode} game={game} />
+          <ScrabbleGamePanel
+            session={session}
+            players={players}
+            playerStates={playerStates}
+            myPlayerId={hostPlayerId}
+            isMyTurn={isHostTurn}
+            onPlay={playWord}
+            onExchange={exchangeTiles}
+            onPass={passTurn}
+            acting={hostActing}
+          />
+        </div>
       )}
 
       {(tab === 'manage' || !showPlayTab) && (
@@ -465,6 +493,15 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
             <p className="text-center">
               <GameRulesLink gameType="scrabble" variant="subtle" />
             </p>
+          )}
+
+          {game.status === 'active' && !gameFinished && (
+            <ScrabbleHostTimeExtension
+              gameCode={gameCode}
+              game={game}
+              hostToken={hostToken}
+              onExtended={() => void load()}
+            />
           )}
 
           {gameFinished && (
@@ -483,7 +520,8 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
             />
           )}
 
-          {session && game.status === 'active' && !gameFinished && (
+          {/* Spectator host (no Play tab) watches the board here; host+play uses the Play tab. */}
+          {!showPlayTab && session && game.status === 'active' && !gameFinished && (
             <ScrabbleGamePanel
               session={session}
               players={players}

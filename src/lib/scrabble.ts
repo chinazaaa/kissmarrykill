@@ -10,7 +10,7 @@ import {
   withPlacedTiles,
 } from '@/lib/scrabble-board'
 import { SCRABBLE_WORDS_RAW } from '@/lib/data/scrabble-words'
-import type { ScrabblePlacedTile, ScrabblePlayerState, ScrabbleSession } from '@/types'
+import type { Game, ScrabblePlacedTile, ScrabblePlayerState, ScrabbleSession } from '@/types'
 
 export const SCRABBLE_MIN_PLAYERS = 2
 export const SCRABBLE_MAX_PLAYERS = 4
@@ -22,6 +22,120 @@ export const SCRABBLE_TIMER_OPTIONS = [0, 60, 180, 300] as const
 export function clampScrabbleTimer(value: unknown): number {
   const n = Number(value)
   return (SCRABBLE_TIMER_OPTIONS as readonly number[]).includes(n) ? n : 0
+}
+
+// ── Whole-game session timer (so a game can't run for hours) ──────────────────
+
+/** Whole-game length options in seconds. 0 = no limit. */
+export const SCRABBLE_GAME_DURATION_OPTIONS = [0, 1800, 3600, 5400, 7200] as const
+/** How much time the host can add mid-game (seconds). */
+export const SCRABBLE_GAME_TIME_EXTENSION_OPTIONS = [600, 900, 1800] as const
+export const SCRABBLE_MAX_GAME_DURATION_SECONDS = 14_400
+
+export function clampScrabbleGameDuration(raw: unknown): number {
+  const n = Number(raw ?? 0)
+  return (SCRABBLE_GAME_DURATION_OPTIONS as readonly number[]).includes(n) ? n : 0
+}
+
+export function clampScrabbleTimeExtension(raw: unknown): number {
+  const n = Number(raw ?? 0)
+  return (SCRABBLE_GAME_TIME_EXTENSION_OPTIONS as readonly number[]).includes(n) ? n : 0
+}
+
+export function formatScrabbleGameDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return 'No limit'
+  if (seconds % 3600 === 0) return `${seconds / 3600} hour${seconds / 3600 === 1 ? '' : 's'}`
+  return `${Math.round(seconds / 60)} minutes`
+}
+
+export function scrabbleGameSessionExpired(
+  sessionStartedAt: string | null | undefined,
+  durationSeconds: number | null | undefined
+): boolean {
+  if (!durationSeconds || durationSeconds <= 0) return false
+  if (!sessionStartedAt) return false
+  const elapsed = (Date.now() - new Date(sessionStartedAt).getTime()) / 1000
+  return elapsed >= durationSeconds
+}
+
+/** End the game now because the session clock ran out: tally final scores (rack
+ *  penalties applied, as at a normal game end) and pick the winner by score. */
+async function finishScrabbleByTimeLimit(supabase: SupabaseClient, gameId: string): Promise<{ error: string | null }> {
+  const { data: sessionRaw } = await supabase.from('scrabble_sessions').select('*').eq('game_id', gameId).maybeSingle()
+  if (!sessionRaw) return { error: 'Session not found' }
+  if ((sessionRaw as ScrabbleSession).phase === 'finished') return { error: null }
+
+  const { data: statesRaw } = await supabase.from('scrabble_player_state').select('*').eq('game_id', gameId)
+  const states = (statesRaw ?? []) as ScrabblePlayerState[]
+  const { data: playersRaw } = await supabase.from('players').select('id,name').eq('game_id', gameId)
+  const names = new Map((playersRaw ?? []).map((p) => [p.id as string, p.name as string]))
+
+  const result = finalizeScores(states, names, null)
+  await persistFinalScores(supabase, states, result.finalScores)
+
+  const { error } = await supabase
+    .from('scrabble_sessions')
+    .update({
+      phase: 'finished',
+      winner_player_id: result.winnerPlayerId,
+      is_tie: result.isTie,
+      status_message: `Time's up! ${result.statusMessage}`,
+      turn_deadline_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+  if (error) return { error: error.message }
+
+  await markGameFinished(supabase, gameId)
+  return { error: null }
+}
+
+export async function finishExpiredScrabbleGame(
+  supabase: SupabaseClient,
+  game: Pick<Game, 'id' | 'status' | 'session_started_at' | 'game_duration_seconds'>
+): Promise<boolean> {
+  if (game.status !== 'active') return false
+  if (!scrabbleGameSessionExpired(game.session_started_at, game.game_duration_seconds)) return false
+  const { error } = await finishScrabbleByTimeLimit(supabase, game.id)
+  return !error
+}
+
+export async function extendScrabbleGameDuration(
+  supabase: SupabaseClient,
+  gameId: string,
+  extensionSeconds: number
+): Promise<{ error?: string; newDurationSeconds?: number }> {
+  const seconds = clampScrabbleTimeExtension(extensionSeconds)
+  if (seconds <= 0) return { error: 'Invalid extension' }
+
+  const { data: game } = await supabase
+    .from('games')
+    .select('id, status, game_duration_seconds')
+    .eq('id', gameId)
+    .maybeSingle()
+  if (!game) return { error: 'Game not found' }
+  if (game.status !== 'active') return { error: 'Game not active' }
+
+  const current = (game.game_duration_seconds as number | null) ?? 0
+  if (current <= 0) return { error: 'This game has no time limit to extend' }
+
+  const next = current + seconds
+  if (next > SCRABBLE_MAX_GAME_DURATION_SECONDS) {
+    return { error: `Total game time cannot exceed ${formatScrabbleGameDuration(SCRABBLE_MAX_GAME_DURATION_SECONDS)}` }
+  }
+
+  const { error: gameError } = await supabase.from('games').update({ game_duration_seconds: next }).eq('id', gameId)
+  if (gameError) return { error: gameError.message }
+
+  await supabase
+    .from('scrabble_sessions')
+    .update({
+      status_message: `Host added ${formatScrabbleGameDuration(seconds)} — game continues.`,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('game_id', gameId)
+
+  return { newDurationSeconds: next }
 }
 
 // Re-export the client-safe turn helpers so callers can grab everything from one place.

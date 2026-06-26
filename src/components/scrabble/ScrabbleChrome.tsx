@@ -47,9 +47,10 @@ export function ScrabbleShell({
             </header>
           )}
           {compact && title && (
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="text-lg leading-none">{cfg.card.emoji}</span>
-              <p className="text-sm font-bold text-[var(--foreground)] truncate">{title}</p>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl leading-none">{cfg.headerEmoji}</span>
+              <p className="text-base font-black text-[var(--foreground)] truncate">{title}</p>
+              <GameTypeBadge gameType="scrabble" />
             </div>
           )}
           {children}
