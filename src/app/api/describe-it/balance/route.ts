@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { z } from 'zod'
 import { parseGameType, isDescribeItGame } from '@/lib/game-types'
 import { balanceDescribeItTeams, clampDescribeItTeams } from '@/lib/describe-it'
+import { describeItBalanceSchema } from '@/lib/validation'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-const schema = z.object({
-  gameId: z.string().trim().min(1).max(12),
-  hostToken: z.string().min(1),
-})
-
 export async function POST(req: NextRequest) {
-  const parsed = schema.safeParse(await req.json())
+  const parsed = describeItBalanceSchema.safeParse(await req.json())
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }

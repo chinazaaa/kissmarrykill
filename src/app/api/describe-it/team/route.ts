@@ -30,11 +30,12 @@ export async function POST(req: NextRequest) {
 
   const { data: player } = await supabase
     .from('players')
-    .select('id')
+    .select('id, spectator')
     .eq('id', playerId)
     .eq('game_id', code)
     .maybeSingle()
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+  if (player.spectator) return NextResponse.json({ error: 'Spectators cannot join a team' }, { status: 403 })
 
   const { error } = await supabase
     .from('describe_it_players')

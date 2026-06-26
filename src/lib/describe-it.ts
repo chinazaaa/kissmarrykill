@@ -64,7 +64,10 @@ export function clueContainsWord(clue: string, word: string): boolean {
   const c = normalizeGuess(clue)
   const w = normalizeGuess(word)
   if (!w) return false
-  return c === w || c.split(' ').includes(w) || c.includes(w)
+  // Word-boundary match: reject the secret word as a whole word or phrase, but
+  // allow it as an incidental substring (e.g. "art" inside "smart" is fine).
+  // `w` is normalized to [a-z0-9 ] so it carries no regex metacharacters.
+  return new RegExp(`\\b${w}\\b`).test(c)
 }
 
 export function describeItWordPool(game: Pick<Game, 'question_source' | 'custom_questions'>): readonly string[] {
@@ -251,7 +254,7 @@ function buildTurn(
 export async function initializeDescribeItGame(
   supabase: SupabaseClient,
   gameId: string,
-  _playerIds: string[]
+  playerIds: string[]
 ): Promise<{ error?: string }> {
   const { data: game } = await supabase
     .from('games')
@@ -264,7 +267,22 @@ export async function initializeDescribeItGame(
   const totalRounds = clampDescribeItRounds(game.rounds_count)
   const turnSeconds = clampDescribeItTurnSeconds(game.timer_seconds)
 
-  const teamRows = await loadTeamRows(supabase, gameId)
+  // Auto-assign any joined players who never picked a team onto the smallest
+  // teams, so a player who skipped team selection isn't silently excluded.
+  const existingRows = await loadTeamRows(supabase, gameId)
+  const assignment = balanceDescribeItTeams(playerIds, existingRows, numTeams)
+  const existingIds = new Set(existingRows.map((r) => r.player_id))
+  const newRows = [...assignment.entries()]
+    .filter(([player_id]) => !existingIds.has(player_id))
+    .map(([player_id, team]) => ({ game_id: gameId, player_id, team }))
+  if (newRows.length > 0) {
+    const { error: assignError } = await supabase
+      .from('describe_it_players')
+      .upsert(newRows, { onConflict: 'game_id,player_id' })
+    if (assignError) return { error: assignError.message }
+  }
+
+  const teamRows = newRows.length > 0 ? await loadTeamRows(supabase, gameId) : existingRows
   const ready = describeItLobbyReady(teamRows, numTeams)
   if (!ready.ok) return { error: ready.error }
 
@@ -323,10 +341,14 @@ export async function processDescribeItClue(
   const history = session.current_clues ?? []
   const nextClues = history.some((c) => normalizeGuess(c) === normalizeGuess(trimmed)) ? history : [...history, trimmed]
 
+  // Scope the write to the turn we loaded; if the turn already ended, drop the
+  // stale clue rather than stamping it onto the next turn.
   const { error: updateError } = await supabase
     .from('describe_it_sessions')
     .update({ current_clue: trimmed, current_clues: nextClues, updated_at: new Date().toISOString() })
     .eq('game_id', gameId)
+    .eq('phase', 'turn')
+    .eq('turn_index', session.turn_index)
   if (updateError) return { error: updateError.message }
   return {}
 }
@@ -494,6 +516,8 @@ export async function processDescribeItExpireTurn(
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
+    .eq('phase', 'turn')
+    .eq('turn_index', session.turn_index)
   if (updateError) return { error: updateError.message }
   return {}
 }
@@ -532,8 +556,11 @@ export async function processDescribeItAdvance(
     session.used_words
   )
 
+  // Scope every transition to the break we observed, so concurrent advances
+  // (every client runs the timer) resolve to a single winner instead of each
+  // committing its own randomly-picked next word.
   if (!nextTurn) {
-    const { error: finishError } = await supabase
+    const { data: finished, error: finishError } = await supabase
       .from('describe_it_sessions')
       .update({
         phase: 'finished',
@@ -544,8 +571,11 @@ export async function processDescribeItAdvance(
         updated_at: new Date().toISOString(),
       })
       .eq('game_id', gameId)
+      .eq('phase', 'break')
+      .eq('turn_index', session.turn_index)
+      .select('id')
     if (finishError) return { error: finishError.message }
-    await markGameFinished(supabase, gameId)
+    if (finished && finished.length > 0) await markGameFinished(supabase, gameId)
     return {}
   }
 
@@ -557,6 +587,8 @@ export async function processDescribeItAdvance(
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
+    .eq('phase', 'break')
+    .eq('turn_index', session.turn_index)
   if (updateError) return { error: updateError.message }
   return {}
 }

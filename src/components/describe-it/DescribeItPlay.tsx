@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { computeDescribeItScores, teamForTurn, type DescribeItTeamScore } from '@/lib/describe-it'
+import { computeDescribeItScores, teamForTurn, totalDescribeItTurns, type DescribeItTeamScore } from '@/lib/describe-it'
 import type { DescribeItGuess, DescribeItSession, DescribeItWord, Player } from '@/types'
 import { DescribeItCard, DescribeItScoreboard, TeamBadge } from '@/components/describe-it/DescribeItChrome'
 
@@ -138,9 +138,13 @@ export function DescribeItPlayPanel({
         <DescribeItCard className="p-5 text-center space-y-2">
           <p className="text-3xl">⏭️</p>
           <p className="text-base font-bold">{session.status_message}</p>
-          <p className="flex items-center justify-center gap-1.5 text-faint text-sm">
-            Next up: <TeamBadge team={teamForTurn(session.turn_index + 1, session.num_teams)} /> in {breakLeft}s
-          </p>
+          {session.turn_index + 1 < totalDescribeItTurns(session.num_teams, session.total_rounds) ? (
+            <p className="flex items-center justify-center gap-1.5 text-faint text-sm">
+              Next up: <TeamBadge team={teamForTurn(session.turn_index + 1, session.num_teams)} /> in {breakLeft}s
+            </p>
+          ) : (
+            <p className="text-faint text-sm">Final results in {breakLeft}s</p>
+          )}
         </DescribeItCard>
       )}
 
