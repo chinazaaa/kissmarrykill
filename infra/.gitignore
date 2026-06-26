@@ -1,6 +1,6 @@
 # Local Terraform state, plugins, build artifacts, and real secrets.
+# Note: .terraform.lock.hcl is intentionally committed (pins provider versions).
 .terraform/
-.terraform.lock.hcl
 .build/
 *.tfstate
 *.tfstate.*
