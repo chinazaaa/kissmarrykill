@@ -24,10 +24,15 @@ import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useDescribeItTimer } from '@/hooks/useDescribeItTimer'
 import {
   clampDescribeItTeams,
+  clampDescribeItRounds,
   describeItLobbyReady,
   DESCRIBE_IT_MIN_PLAYERS,
+  DESCRIBE_IT_ROUND_OPTIONS,
+  DESCRIBE_IT_TEAM_OPTIONS,
+  DESCRIBE_IT_TURN_OPTIONS,
   isDescribeItResultsPhase,
 } from '@/lib/describe-it'
+import { parseStoredDescribeItWords } from '@/lib/describe-it-words'
 import {
   DescribeItCard,
   DescribeItPrimaryButton,
@@ -71,6 +76,9 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+  const [wordsDraft, setWordsDraft] = useState('')
+  const [savingWords, setSavingWords] = useState(false)
+  const wordsInitRef = useRef(false)
 
   useApplyGameTheme(game?.theme)
 
@@ -139,6 +147,31 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   }, [gameCode, scheduleLoad])
 
   usePolling(() => load(), [gameCode, load], { intervalMs: POLL_INTERVALS.realtimeFallback })
+
+  // Seed the words editor from the saved custom words once the game loads.
+  useEffect(() => {
+    if (wordsInitRef.current || !game) return
+    wordsInitRef.current = true
+    setWordsDraft(parseStoredDescribeItWords(game.custom_questions).join('\n'))
+  }, [game])
+
+  const saveSettings = async (partial: Record<string, unknown>) => {
+    try {
+      await post('settings', { hostToken, ...partial })
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to update settings')
+    }
+  }
+
+  const saveWords = async () => {
+    setSavingWords(true)
+    try {
+      await saveSettings({ words: wordsDraft })
+    } finally {
+      setSavingWords(false)
+    }
+  }
 
   const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, (id) => {
     if (id === hostPlayerId) {
@@ -465,6 +498,72 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
 
           {game.status === 'waiting' && (
             <>
+              <DescribeItCard className="p-4 space-y-3">
+                <p className="text-sm font-bold">Game settings</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="text-xs font-semibold text-faint space-y-1">
+                    <span>Teams</span>
+                    <select
+                      value={numTeams}
+                      onChange={(e) => void saveSettings({ numTeams: Number(e.target.value) })}
+                      className="input-field w-full text-sm"
+                    >
+                      {DESCRIBE_IT_TEAM_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold text-faint space-y-1">
+                    <span>Rounds</span>
+                    <select
+                      value={clampDescribeItRounds(game.rounds_count)}
+                      onChange={(e) => void saveSettings({ rounds: Number(e.target.value) })}
+                      className="input-field w-full text-sm"
+                    >
+                      {DESCRIBE_IT_ROUND_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold text-faint space-y-1">
+                    <span>Turn</span>
+                    <select
+                      value={game.timer_seconds}
+                      onChange={(e) => void saveSettings({ turnSeconds: Number(e.target.value) })}
+                      className="input-field w-full text-sm"
+                    >
+                      {DESCRIBE_IT_TURN_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n === 60 ? '1m' : n === 120 ? '2m' : `${n}s`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-faint">Your words (one per line, optional)</p>
+                  <textarea
+                    value={wordsDraft}
+                    onChange={(e) => setWordsDraft(e.target.value)}
+                    placeholder="pizza&#10;rainbow&#10;astronaut"
+                    rows={3}
+                    className="input-field w-full resize-y text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={saveWords}
+                    disabled={savingWords}
+                    className="text-xs font-bold rounded-lg border border-[var(--border-strong)] px-3 py-1.5 hover:bg-[var(--primary)]/10"
+                  >
+                    {savingWords ? 'Saving…' : 'Save words'}
+                  </button>
+                </div>
+              </DescribeItCard>
+
               <DescribeItCard className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold">Teams ({numTeams})</p>

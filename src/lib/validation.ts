@@ -790,6 +790,15 @@ export const describeItGameSchema = z.object({
   gameId: gameCodeString(),
 })
 
+export const describeItSettingsSchema = z.object({
+  gameId: z.string().trim().min(1).max(12),
+  hostToken: z.string().min(1),
+  numTeams: z.coerce.number().int().min(2).max(4).optional(),
+  turnSeconds: z.coerce.number().int().optional(),
+  rounds: z.coerce.number().int().optional(),
+  words: z.string().max(8000).optional(),
+})
+
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
 
