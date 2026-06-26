@@ -8,7 +8,8 @@ export const DESCRIBE_IT_MAX_PLAYERS = 20
 export const DESCRIBE_IT_DEFAULT_MAX_PLAYERS = 12
 
 export const DESCRIBE_IT_TEAM_OPTIONS = [2, 3, 4] as const
-export const DESCRIBE_IT_ROUND_OPTIONS = [2, 3, 4, 5] as const
+// Up to 10 so big teams can give everyone a turn to describe (describer rotates each round).
+export const DESCRIBE_IT_ROUND_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 10] as const
 export const DESCRIBE_IT_TURN_OPTIONS = [60, 90, 120] as const
 export const DESCRIBE_IT_MAX_PLAYER_OPTIONS = [6, 8, 10, 12, 16, 20] as const
 export const DESCRIBE_IT_DEFAULT_TURN_SECONDS = 90
