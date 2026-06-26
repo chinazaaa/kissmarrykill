@@ -189,6 +189,8 @@ export function DescribeItTeamRoster({
   describerId,
   onPick,
   picking,
+  onMoveTeam,
+  moving,
 }: {
   numTeams: number
   teamRows: { player_id: string; team: number }[]
@@ -197,6 +199,9 @@ export function DescribeItTeamRoster({
   describerId?: string | null
   onPick?: (team: number) => void
   picking?: boolean
+  /** Host-only: move any player to another team. Shows per-player team buttons. */
+  onMoveTeam?: (playerId: string, team: number) => void
+  moving?: boolean
 }) {
   const nameById = new Map(players.map((p) => [p.id, p.name]))
   const myTeam = teamRows.find((r) => r.player_id === myPlayerId)?.team ?? null
@@ -216,11 +221,29 @@ export function DescribeItTeamRoster({
             </div>
             <ul className="space-y-1 min-h-[1.5rem]">
               {members.map((m) => (
-                <li key={m.player_id} className="text-sm flex items-center gap-1 truncate">
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                <li key={m.player_id} className="text-sm flex items-center gap-1">
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} />
                   <span className="truncate">{nameById.get(m.player_id) ?? 'Player'}</span>
-                  {m.player_id === myPlayerId && <span className="text-faint text-[10px]">(you)</span>}
-                  {m.player_id === describerId && <span className="text-[10px]">🗣️</span>}
+                  {m.player_id === myPlayerId && <span className="text-faint text-[10px] shrink-0">(you)</span>}
+                  {m.player_id === describerId && <span className="text-[10px] shrink-0">🗣️</span>}
+                  {onMoveTeam && numTeams > 1 && (
+                    <span className="ml-auto flex items-center gap-0.5 shrink-0">
+                      {Array.from({ length: numTeams }, (_, j) => j + 1)
+                        .filter((t) => t !== team)
+                        .map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => onMoveTeam(m.player_id, t)}
+                            disabled={moving}
+                            title={`Move to ${teamLabel(t)}`}
+                            className={`flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-black leading-none disabled:opacity-50 ${teamStyle(t).badge}`}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

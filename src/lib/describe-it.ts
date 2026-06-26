@@ -64,23 +64,29 @@ export function clueContainsWord(clue: string, word: string): boolean {
   const c = normalizeGuess(clue)
   const w = normalizeGuess(word)
   if (!w) return false
-  return c === w || c.split(' ').includes(w) || c.includes(w)
+  // Word-boundary match: reject the secret word as a whole word or phrase, but
+  // allow it as an incidental substring (e.g. "art" inside "smart" is fine).
+  // `w` is normalized to [a-z0-9 ] so it carries no regex metacharacters.
+  return new RegExp(`\\b${w}\\b`).test(c)
 }
 
-export function describeItWordPool(game: Pick<Game, 'question_source' | 'custom_questions'>): readonly string[] {
-  if (game.question_source !== 'custom') return DESCRIBE_IT_WORD_POOL
+/**
+ * Words for the game as two tiers: `primary` is used first, `fallback` only tops
+ * up once the primary words run out within a game. When the host supplies their
+ * own words, those are the primary and the built-in bank is the overflow (so a
+ * short custom list still works across many rounds, but a big one — e.g. 80 —
+ * plays through on its own). With no custom words, the built-in bank is primary.
+ */
+export function describeItWordPools(game: Pick<Game, 'question_source' | 'custom_questions'>): {
+  primary: readonly string[]
+  fallback: readonly string[]
+} {
+  if (game.question_source !== 'custom') return { primary: DESCRIBE_IT_WORD_POOL, fallback: [] }
   const custom = parseStoredDescribeItWords(game.custom_questions as unknown)
-  if (custom.length === 0) return DESCRIBE_IT_WORD_POOL
-  // "Both": built-in bank plus the host's own words.
-  const seen = new Set(DESCRIBE_IT_WORD_POOL.map((w) => w.toLowerCase()))
-  const merged = [...DESCRIBE_IT_WORD_POOL]
-  for (const w of custom) {
-    if (!seen.has(w.toLowerCase())) {
-      seen.add(w.toLowerCase())
-      merged.push(w)
-    }
-  }
-  return merged
+  if (custom.length === 0) return { primary: DESCRIBE_IT_WORD_POOL, fallback: [] }
+  const customSet = new Set(custom.map((w) => w.toLowerCase()))
+  const fallback = DESCRIBE_IT_WORD_POOL.filter((w) => !customSet.has(w.toLowerCase()))
+  return { primary: custom, fallback }
 }
 
 export function totalDescribeItTurns(numTeams: number, totalRounds: number): number {
@@ -127,7 +133,11 @@ export function describeItLobbyReady(
   return { ok: true }
 }
 
-/** Auto-distribute any players that haven't picked a team onto the smallest teams. */
+/**
+ * Even out the teams. Keeps players on their current team where possible, places
+ * anyone unassigned on the smallest team, then moves players off oversized teams
+ * until every team is within one of the others. Returns the full assignment.
+ */
 export function balanceDescribeItTeams(
   playerIds: string[],
   existing: Array<{ player_id: string; team: number }>,
@@ -135,18 +145,38 @@ export function balanceDescribeItTeams(
 ): Map<string, number> {
   const assignment = new Map<string, number>()
   const counts = new Array(numTeams + 1).fill(0)
+  const members: string[][] = Array.from({ length: numTeams + 1 }, () => [])
   for (const row of existing) {
     if (row.team >= 1 && row.team <= numTeams && playerIds.includes(row.player_id)) {
       assignment.set(row.player_id, row.team)
       counts[row.team] += 1
+      members[row.team]!.push(row.player_id)
     }
   }
+  // Place anyone without a team on the smallest team.
   for (const id of playerIds) {
     if (assignment.has(id)) continue
     let smallest = 1
-    for (let t = 2; t <= numTeams; t += 1) if (counts[t] < counts[smallest]) smallest = t
+    for (let t = 2; t <= numTeams; t += 1) if (counts[t]! < counts[smallest]!) smallest = t
     assignment.set(id, smallest)
     counts[smallest] += 1
+    members[smallest]!.push(id)
+  }
+  // Move from the biggest team to the smallest until they differ by at most one.
+  for (let guard = 0; guard < playerIds.length; guard += 1) {
+    let big = 1
+    let small = 1
+    for (let t = 2; t <= numTeams; t += 1) {
+      if (counts[t]! > counts[big]!) big = t
+      if (counts[t]! < counts[small]!) small = t
+    }
+    if (counts[big]! - counts[small]! <= 1) break
+    const mover = members[big]!.pop()
+    if (mover == null) break
+    assignment.set(mover, small)
+    counts[big] -= 1
+    counts[small] += 1
+    members[small]!.push(mover)
   }
   return assignment
 }
@@ -225,14 +255,15 @@ function buildTurn(
   totalRounds: number,
   turnSeconds: number,
   roster: Map<number, string[]>,
-  pool: readonly string[],
+  primary: readonly string[],
+  fallback: readonly string[],
   usedWords: string[]
 ): Partial<DescribeItSession> | null {
   if (turnIndex >= totalDescribeItTurns(numTeams, totalRounds)) return null
   const round = roundForTurn(turnIndex, numTeams)
   const activeTeam = teamForTurn(turnIndex, numTeams)
   const describer = describerForTurn(roster.get(activeTeam) ?? [], round)
-  const word = pickDescribeWord(pool, usedWords)
+  const word = pickDescribeWord(primary, fallback, usedWords)
   return {
     phase: 'turn',
     turn_index: turnIndex,
@@ -251,7 +282,7 @@ function buildTurn(
 export async function initializeDescribeItGame(
   supabase: SupabaseClient,
   gameId: string,
-  _playerIds: string[]
+  playerIds: string[]
 ): Promise<{ error?: string }> {
   const { data: game } = await supabase
     .from('games')
@@ -264,20 +295,35 @@ export async function initializeDescribeItGame(
   const totalRounds = clampDescribeItRounds(game.rounds_count)
   const turnSeconds = clampDescribeItTurnSeconds(game.timer_seconds)
 
-  const teamRows = await loadTeamRows(supabase, gameId)
+  // Auto-assign any joined players who never picked a team onto the smallest
+  // teams, so a player who skipped team selection isn't silently excluded.
+  const existingRows = await loadTeamRows(supabase, gameId)
+  const assignment = balanceDescribeItTeams(playerIds, existingRows, numTeams)
+  const existingIds = new Set(existingRows.map((r) => r.player_id))
+  const newRows = [...assignment.entries()]
+    .filter(([player_id]) => !existingIds.has(player_id))
+    .map(([player_id, team]) => ({ game_id: gameId, player_id, team }))
+  if (newRows.length > 0) {
+    const { error: assignError } = await supabase
+      .from('describe_it_players')
+      .upsert(newRows, { onConflict: 'game_id,player_id' })
+    if (assignError) return { error: assignError.message }
+  }
+
+  const teamRows = newRows.length > 0 ? await loadTeamRows(supabase, gameId) : existingRows
   const ready = describeItLobbyReady(teamRows, numTeams)
   if (!ready.ok) return { error: ready.error }
 
   const roster = teamRoster(teamRows)
-  const pool = describeItWordPool(game as Pick<Game, 'question_source' | 'custom_questions'>)
+  const { primary, fallback } = describeItWordPools(game as Pick<Game, 'question_source' | 'custom_questions'>)
 
   // Carry word usage across Play again so each new game prefers fresh words.
-  // Once every word in the current pool has been used, start a new cycle.
-  const poolKeys = new Set(pool.map((w) => w.toLowerCase()))
-  let priorUsed = readUsedFromPoolUsage(game.pool_usage).filter((w) => poolKeys.has(w.toLowerCase()))
-  if (priorUsed.length >= pool.length) priorUsed = []
+  // Track the primary (cycled) pool; once all of it has been used, start fresh.
+  const primaryKeys = new Set(primary.map((w) => w.toLowerCase()))
+  let priorUsed = readUsedFromPoolUsage(game.pool_usage).filter((w) => primaryKeys.has(w.toLowerCase()))
+  if (priorUsed.length >= primary.length) priorUsed = []
 
-  const firstTurn = buildTurn(0, numTeams, totalRounds, turnSeconds, roster, pool, priorUsed)
+  const firstTurn = buildTurn(0, numTeams, totalRounds, turnSeconds, roster, primary, fallback, priorUsed)
   if (!firstTurn) return { error: 'Could not start the match' }
 
   const row = {
@@ -323,10 +369,14 @@ export async function processDescribeItClue(
   const history = session.current_clues ?? []
   const nextClues = history.some((c) => normalizeGuess(c) === normalizeGuess(trimmed)) ? history : [...history, trimmed]
 
+  // Scope the write to the turn we loaded; if the turn already ended, drop the
+  // stale clue rather than stamping it onto the next turn.
   const { error: updateError } = await supabase
     .from('describe_it_sessions')
     .update({ current_clue: trimmed, current_clues: nextClues, updated_at: new Date().toISOString() })
     .eq('game_id', gameId)
+    .eq('phase', 'turn')
+    .eq('turn_index', session.turn_index)
   if (updateError) return { error: updateError.message }
   return {}
 }
@@ -368,8 +418,8 @@ export async function processDescribeItGuess(
     .select('question_source, custom_questions')
     .eq('id', gameId)
     .maybeSingle()
-  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
-  const nextWord = pickDescribeWord(pool, session.used_words)
+  const { primary, fallback } = describeItWordPools((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
+  const nextWord = pickDescribeWord(primary, fallback, session.used_words)
   const name = await playerName(supabase, gameId, playerId)
 
   // Atomically "claim" the word by advancing it only while it's still the word
@@ -427,8 +477,8 @@ export async function processDescribeItSkip(
     .select('question_source, custom_questions')
     .eq('id', gameId)
     .maybeSingle()
-  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
-  const nextWord = pickDescribeWord(pool, session.used_words)
+  const { primary, fallback } = describeItWordPools((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
+  const nextWord = pickDescribeWord(primary, fallback, session.used_words)
 
   // Same atomic claim as a guess, so a skip can't skip a word that was just
   // guessed (or double-log) if a guess landed at the same moment.
@@ -494,6 +544,8 @@ export async function processDescribeItExpireTurn(
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
+    .eq('phase', 'turn')
+    .eq('turn_index', session.turn_index)
   if (updateError) return { error: updateError.message }
   return {}
 }
@@ -520,7 +572,7 @@ export async function processDescribeItAdvance(
     .select('question_source, custom_questions')
     .eq('id', gameId)
     .maybeSingle()
-  const pool = describeItWordPool((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
+  const { primary, fallback } = describeItWordPools((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
 
   const nextTurn = buildTurn(
     nextIndex,
@@ -528,12 +580,16 @@ export async function processDescribeItAdvance(
     session.total_rounds,
     session.turn_seconds,
     roster,
-    pool,
+    primary,
+    fallback,
     session.used_words
   )
 
+  // Scope every transition to the break we observed, so concurrent advances
+  // (every client runs the timer) resolve to a single winner instead of each
+  // committing its own randomly-picked next word.
   if (!nextTurn) {
-    const { error: finishError } = await supabase
+    const { data: finished, error: finishError } = await supabase
       .from('describe_it_sessions')
       .update({
         phase: 'finished',
@@ -544,8 +600,11 @@ export async function processDescribeItAdvance(
         updated_at: new Date().toISOString(),
       })
       .eq('game_id', gameId)
+      .eq('phase', 'break')
+      .eq('turn_index', session.turn_index)
+      .select('id')
     if (finishError) return { error: finishError.message }
-    await markGameFinished(supabase, gameId)
+    if (finished && finished.length > 0) await markGameFinished(supabase, gameId)
     return {}
   }
 
@@ -557,6 +616,8 @@ export async function processDescribeItAdvance(
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
+    .eq('phase', 'break')
+    .eq('turn_index', session.turn_index)
   if (updateError) return { error: updateError.message }
   return {}
 }

@@ -38,7 +38,7 @@ import {
   DESCRIBE_IT_TURN_OPTIONS,
   isDescribeItResultsPhase,
 } from '@/lib/describe-it'
-import { parseStoredDescribeItWords } from '@/lib/describe-it-words'
+import { parseDescribeItWords, parseExcelDescribeItWords, parseStoredDescribeItWords } from '@/lib/describe-it-words'
 import {
   DescribeItCard,
   DescribeItPrimaryButton,
@@ -76,6 +76,7 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [moving, setMoving] = useState(false)
 
   const [hostMode, setHostMode] = useState<HostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
@@ -85,7 +86,9 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   const [tab, setTab] = useState<HostTab>('manage')
   const [wordsDraft, setWordsDraft] = useState('')
   const [savingWords, setSavingWords] = useState(false)
+  const [wordsUploadError, setWordsUploadError] = useState<string | null>(null)
   const wordsInitRef = useRef(false)
+  const wordsFileRef = useRef<HTMLInputElement>(null)
 
   useApplyGameTheme(game?.theme)
 
@@ -253,6 +256,18 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
       toastError(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setActing(false)
+    }
+  }
+
+  const moveTeam = async (playerId: string, team: number) => {
+    setMoving(true)
+    try {
+      await post('team', { playerId, team })
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to move player')
+    } finally {
+      setMoving(false)
     }
   }
 
@@ -610,14 +625,54 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
                     rows={3}
                     className="input-field w-full resize-y text-sm"
                   />
-                  <button
-                    type="button"
-                    onClick={saveWords}
-                    disabled={savingWords}
-                    className="text-xs font-bold rounded-lg border border-[var(--border-strong)] px-3 py-1.5 hover:bg-[var(--primary)]/10"
-                  >
-                    {savingWords ? 'Saving…' : 'Save words'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => wordsFileRef.current?.click()}
+                      className="text-xs font-bold rounded-lg border border-[var(--border-strong)] px-3 py-1.5 hover:bg-[var(--primary)]/10"
+                    >
+                      Upload CSV / Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveWords}
+                      disabled={savingWords}
+                      className="text-xs font-bold rounded-lg border border-[var(--border-strong)] px-3 py-1.5 hover:bg-[var(--primary)]/10"
+                    >
+                      {savingWords ? 'Saving…' : 'Save words'}
+                    </button>
+                  </div>
+                  <input
+                    ref={wordsFileRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!file) return
+                      setWordsUploadError(null)
+                      const ext = file.name.split('.').pop()?.toLowerCase()
+                      try {
+                        const rows =
+                          ext === 'csv'
+                            ? parseDescribeItWords(await file.text())
+                            : ext === 'xlsx' || ext === 'xls'
+                              ? await parseExcelDescribeItWords(await file.arrayBuffer())
+                              : []
+                        if (rows.length === 0) {
+                          setWordsUploadError('No words found. Use one word per line or row.')
+                          return
+                        }
+                        const merged = parseDescribeItWords(`${wordsDraft}\n${rows.join('\n')}`)
+                        setWordsDraft(merged.join('\n'))
+                        await saveSettings({ words: merged.join('\n') })
+                      } catch {
+                        setWordsUploadError('Could not read that file. Try a .csv or .xlsx.')
+                      }
+                    }}
+                  />
+                  {wordsUploadError && <p className="text-rose-400 text-xs">{wordsUploadError}</p>}
                 </div>
                 <div className="pt-1 border-t border-[var(--border)]">
                   <HostAllowViewersField gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
@@ -643,7 +698,12 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
                   myPlayerId={hostPlays ? hostPlayerId : null}
                   onPick={hostPlays ? pickTeam : undefined}
                   picking={picking}
+                  onMoveTeam={moveTeam}
+                  moving={moving}
                 />
+                <p className="text-faint text-[11px] text-center">
+                  Tap a colored number to move a player to that team.
+                </p>
                 {!ready.ok && <p className="text-amber-400 text-xs text-center">{ready.error}</p>}
                 <p className="text-center">
                   <GameRulesLink gameType="describe_it" variant="subtle" />
@@ -655,6 +715,7 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
                 removingPlayerId={removingPlayerId}
                 onRemovePlayer={removePlayer}
                 highlightPlayerId={hostPlayerId}
+                alwaysShowReady
               />
 
               <HostLobbyWaitingFooter

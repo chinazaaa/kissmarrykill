@@ -12,6 +12,7 @@ type Props = {
   emptyMessage?: string
   hint?: string
   className?: string
+  alwaysShowReady?: boolean
   children?: React.ReactNode
 }
 
@@ -24,6 +25,7 @@ export function HostLobbyPlayersSection({
   emptyMessage,
   hint,
   className = '',
+  alwaysShowReady,
   children,
 }: Props) {
   return (
@@ -44,6 +46,7 @@ export function HostLobbyPlayersSection({
         highlightPlayerId={highlightPlayerId}
         emptyMessage={emptyMessage}
         hint={hint}
+        alwaysShowReady={alwaysShowReady}
       />
       {children}
     </div>

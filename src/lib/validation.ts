@@ -791,7 +791,7 @@ export const describeItGameSchema = z.object({
 })
 
 export const describeItSettingsSchema = z.object({
-  gameId: z.string().trim().min(1).max(12),
+  gameId: gameCodeString(),
   hostToken: z.string().min(1),
   numTeams: z.coerce.number().int().min(2).max(4).optional(),
   turnSeconds: z.coerce.number().int().optional(),
@@ -832,6 +832,16 @@ export const scrabbleExpireSchema = z.object({
 
 export type ScrabblePlayInput = z.infer<typeof scrabblePlaySchema>
 export type ScrabbleExchangeInput = z.infer<typeof scrabbleExchangeSchema>
+
+export const describeItAdvanceSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: z.string().min(1).optional(),
+})
+
+export const describeItBalanceSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
+})
 
 const codewordsTeamEnum = z.enum(['red', 'blue'])
 const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
