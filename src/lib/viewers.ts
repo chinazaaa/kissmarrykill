@@ -64,8 +64,7 @@ export function gameAllowsLatePlayerJoin(gameType: GameType): boolean {
     !isWhotGame(gameType) &&
     !isLudoGame(gameType) &&
     !isTicTacToeGame(gameType) &&
-    !isChessGame(gameType) &&
-    !isDescribeItGame(gameType)
+    !isChessGame(gameType)
   )
 }
 
@@ -74,6 +73,7 @@ export function gameOffersLateJoinChoice(gameType: GameType): boolean {
   return (
     isTriviaGame(gameType) ||
     isCodewordsGame(gameType) ||
+    isDescribeItGame(gameType) ||
     isBingoGame(gameType) ||
     isWordHuntGame(gameType) ||
     isWouldYouRather(gameType) ||

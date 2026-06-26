@@ -143,6 +143,27 @@ export function balanceDescribeItTeams(
   return assignment
 }
 
+/** Auto-assign a late-joining player to the team with the fewest members. */
+export async function assignDescribeItLateJoinTeam(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerId: string
+): Promise<{ team: number; error?: string }> {
+  const { data: game } = await supabase.from('games').select('describe_it_num_teams').eq('id', gameId).maybeSingle()
+  const numTeams = clampDescribeItTeams(game?.describe_it_num_teams)
+  const rows = await loadTeamRows(supabase, gameId)
+  const counts = new Array(numTeams + 1).fill(0)
+  for (const r of rows) if (r.team >= 1 && r.team <= numTeams) counts[r.team] += 1
+  let smallest = 1
+  for (let t = 2; t <= numTeams; t += 1) if (counts[t] < counts[smallest]) smallest = t
+
+  const { error } = await supabase
+    .from('describe_it_players')
+    .upsert({ game_id: gameId, player_id: playerId, team: smallest }, { onConflict: 'game_id,player_id' })
+  if (error) return { team: smallest, error: error.message }
+  return { team: smallest }
+}
+
 /** Words used across previous rounds (carried between Play again games). */
 function readUsedFromPoolUsage(poolUsage: unknown): string[] {
   if (!poolUsage || typeof poolUsage !== 'object') return []
