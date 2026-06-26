@@ -3,6 +3,7 @@
 import { useMemo, useRef, type ReactNode } from 'react'
 import { Chess, type Square } from 'chess.js'
 import type { ChessColor, Game, Player, ChessSession } from '@/types'
+import { chessResultDetail } from '@/lib/chess'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
@@ -76,6 +77,7 @@ export function ChessFinalResultsShareBlock({
     winnerName ?? (winnerPlayerId ? players.find((p) => p.id === winnerPlayerId)?.name : null) ?? null
   const isDraw = session?.is_draw === true
   const endedEarly = game.status === 'finished' && !displayWinner && !isDraw
+  const resultDetail = chessResultDetail(session?.result_reason)
 
   return (
     <div className="space-y-4">
@@ -85,6 +87,9 @@ export function ChessFinalResultsShareBlock({
         <p className="text-xl sm:text-2xl font-black text-center text-[var(--marry)]">
           {isDraw ? "It's a draw!" : displayWinner ? `${displayWinner} wins!` : endedEarly ? 'Game ended early' : 'Game over'}
         </p>
+        {resultDetail && !endedEarly && (
+          <p className="text-sm text-center text-faint -mt-2 capitalize">{resultDetail}</p>
+        )}
         {session && (
           <>
             <div className="flex items-center justify-between gap-3 text-sm px-1">

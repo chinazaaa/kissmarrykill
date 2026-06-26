@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Chess, type Square } from 'chess.js'
-import { colorForPlayer, currentTurnPlayerId } from '@/lib/chess'
+import { chessResultDetail, colorForPlayer, currentTurnPlayerId } from '@/lib/chess'
 import type { ChessColor, Player, ChessSession } from '@/types'
 import { ChessCard, ChessTurnBar } from '@/components/chess/ChessChrome'
 
@@ -257,8 +257,8 @@ export function ChessGamePanel({
         <ChessCard className="p-4 text-center space-y-1">
           <p className="text-2xl">{session.is_draw ? '🤝' : '🏆'}</p>
           <p className="text-lg font-black">{winnerName ? `${winnerName} wins!` : "It's a draw!"}</p>
-          {session.result_reason && (
-            <p className="text-xs text-faint capitalize">{session.result_reason.replace('_', ' ')}</p>
+          {chessResultDetail(session.result_reason) && (
+            <p className="text-xs text-faint capitalize">{chessResultDetail(session.result_reason)}</p>
           )}
         </ChessCard>
       )}

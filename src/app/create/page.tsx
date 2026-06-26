@@ -402,6 +402,9 @@ function CreateGameInner() {
               participant_mode: 'joiners' as const,
               anonymous: true,
               rounds_count: 1,
+              // Chess defaults to untimed — a per-move timer means losing on time,
+              // which is surprising for casual play. Host can still opt in.
+              timer_seconds: 0,
             }
           : {}),
         ...(isWhoSaidThis(type)

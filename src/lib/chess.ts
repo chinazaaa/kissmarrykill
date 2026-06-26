@@ -57,6 +57,28 @@ export async function canChessPlayAgain(
   return session?.status === 'finished'
 }
 
+/** Short human-readable phrase for how a finished game ended. */
+export function chessResultDetail(reason: string | null | undefined): string {
+  switch (reason) {
+    case 'checkmate':
+      return 'by checkmate'
+    case 'timeout':
+      return 'on time'
+    case 'resignation':
+      return 'by resignation'
+    case 'stalemate':
+      return 'draw by stalemate'
+    case 'threefold':
+      return 'draw by repetition'
+    case 'insufficient':
+      return 'draw — insufficient material'
+    case 'fifty_move':
+      return 'draw — fifty-move rule'
+    default:
+      return ''
+  }
+}
+
 export function isChessResultsPhase(
   gameStatus: string | undefined,
   session: Pick<ChessSession, 'status' | 'is_draw' | 'winner_player_id'> | null | undefined
