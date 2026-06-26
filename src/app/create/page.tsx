@@ -1676,8 +1676,8 @@ function CreateGameInner() {
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Teams race the clock: a describer gives clues for secret words while teammates type guesses. Every
-                  correct guess scores a point — most words across all rounds wins. Built-in words are included; your
-                  own words are mixed in.
+                  correct guess scores a point — most words across all rounds wins. Add your own words to use those
+                  first (the built-in bank only tops up if you run out); leave it blank for the built-in bank.
                 </p>
               </SettingsGroup>
             ) : isNpat ? (
