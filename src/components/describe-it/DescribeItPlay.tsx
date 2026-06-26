@@ -15,10 +15,8 @@ function GuessFeed({
   turnIndex: number
 }) {
   const nameById = new Map(players.map((p) => [p.id, p.name]))
-  const recent = guesses
-    .filter((g) => g.turn_index === turnIndex)
-    .slice(-7)
-    .reverse()
+  // `guesses` arrives newest-first, so the most recent for this turn are at the front.
+  const recent = guesses.filter((g) => g.turn_index === turnIndex).slice(0, 7)
   if (recent.length === 0) {
     return <p className="text-faint text-xs text-center py-2">Guesses appear here…</p>
   }

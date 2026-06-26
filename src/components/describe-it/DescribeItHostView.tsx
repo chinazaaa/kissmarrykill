@@ -107,8 +107,8 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
         .from('describe_it_guesses')
         .select(DESCRIBE_IT_GUESS_SELECT)
         .eq('game_id', gameCode)
-        .order('created_at', { ascending: true })
-        .limit(60),
+        .order('created_at', { ascending: false })
+        .limit(40),
     ])
     if (supabasePollOk(sessionRes)) setSession(sessionRes.data as DescribeItSession | null)
     if (supabasePollOk(teamRes)) setTeamRows((teamRes.data ?? []) as DescribeItPlayer[])
