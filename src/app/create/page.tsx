@@ -134,6 +134,7 @@ import {
   formatMonopolyGameDuration,
 } from '@/lib/monopoly'
 import { MONOPOLY_DEFAULT_TURN_TIMER } from '@/lib/supabase-selects'
+import { SCRABBLE_GAME_DURATION_OPTIONS, formatScrabbleGameDuration } from '@/lib/scrabble'
 import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
 import { WHOT_DEFAULT_MAX_PLAYERS, WHOT_GAME_DURATION_OPTIONS, formatWhotGameDuration } from '@/lib/whot'
 import { LUDO_DEFAULT_MAX_PLAYERS } from '@/lib/ludo'
@@ -254,6 +255,7 @@ function CreateGameInner() {
   const [ttlMaxPlayers, setTtlMaxPlayers] = useState(TTL_DEFAULT_MAX_PLAYERS)
   const [monopolyMaxPlayers, setMonopolyMaxPlayers] = useState(MONOPOLY_DEFAULT_MAX_PLAYERS)
   const [monopolyGameDuration, setMonopolyGameDuration] = useState(0)
+  const [scrabbleGameDuration, setScrabbleGameDuration] = useState(0)
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
   const [whotGameDuration, setWhotGameDuration] = useState(0)
@@ -1124,7 +1126,9 @@ function CreateGameInner() {
               ? whotGameDuration
               : isNpat
                 ? npatGameDuration
-                : undefined,
+                : isScrabble
+                  ? scrabbleGameDuration
+                  : undefined,
           whot_pick3_enabled: isWhot ? whotPick3Enabled : undefined,
           whot_cards_enabled: isWhot ? whotCardsEnabled : undefined,
           whot_number_calls_enabled: isWhot ? whotNumberCallsEnabled : undefined,
@@ -1607,12 +1611,26 @@ function CreateGameInner() {
                     <option value={300}>5 minutes</option>
                   </select>
                 </Field>
+                <Field label="Game length">
+                  <select
+                    value={scrabbleGameDuration}
+                    onChange={(e) => setScrabbleGameDuration(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {SCRABBLE_GAME_DURATION_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {formatScrabbleGameDuration(s)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <Field label="Late joiners">
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="scrabble" />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Build words on a 15×15 board, hit the premium squares, and outscore everyone. Every word is checked
-                  against a real dictionary; highest score when the tiles run out wins.
+                  against a real dictionary; highest score when the tiles run out wins. Set a game length so it
+                  can&apos;t run for hours.
                 </p>
               </SettingsGroup>
             ) : isDescribeIt ? (
