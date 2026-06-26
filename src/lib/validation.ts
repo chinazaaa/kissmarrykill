@@ -791,13 +791,23 @@ export const describeItGameSchema = z.object({
 })
 
 export const describeItSettingsSchema = z.object({
-  gameId: z.string().trim().min(1).max(12),
+  gameId: gameCodeString(),
   hostToken: z.string().min(1),
   numTeams: z.coerce.number().int().min(2).max(4).optional(),
   turnSeconds: z.coerce.number().int().optional(),
   rounds: z.coerce.number().int().optional(),
   maxPlayers: z.coerce.number().int().min(4).max(20).optional(),
   words: z.string().max(8000).optional(),
+})
+
+export const describeItAdvanceSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: z.string().min(1).optional(),
+})
+
+export const describeItBalanceSchema = z.object({
+  gameId: gameCodeString(),
+  hostToken: hostTokenString(),
 })
 
 const codewordsTeamEnum = z.enum(['red', 'blue'])
