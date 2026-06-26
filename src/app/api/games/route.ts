@@ -93,6 +93,7 @@ import {
 import { clampMonopolyGameDuration, clampMonopolyTurnTimer } from '@/lib/monopoly'
 import { clampWhotGameDuration } from '@/lib/whot'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
+import { clampChessTimer } from '@/lib/chess'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -447,9 +448,11 @@ export async function POST(req: NextRequest) {
               ? clampMonopolyTurnTimer(timer_seconds)
               : isWordHuntGame(game_type)
                 ? clampWordHuntTimer(timer_seconds)
-                : [15, 30, 60].includes(Number(timer_seconds))
-                  ? Number(timer_seconds)
-                  : 30,
+                : isChessGame(game_type)
+                  ? clampChessTimer(timer_seconds)
+                  : [15, 30, 60].includes(Number(timer_seconds))
+                    ? Number(timer_seconds)
+                    : 30,
     ...(isCodewordsGame(game_type)
       ? {
           operative_timer_seconds: clampCodewordsTimer(

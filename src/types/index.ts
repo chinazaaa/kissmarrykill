@@ -519,6 +519,11 @@ export interface ChessSession {
   /** Full move history in Portable Game Notation. */
   pgn: string
   current_turn: ChessColor
+  /** Remaining clock for each player in milliseconds; null when the game is untimed. */
+  white_time_ms: number | null
+  black_time_ms: number | null
+  /** When the player on the move started their clock — used to compute elapsed time. */
+  turn_started_at: string | null
   /** Squares of the most recent move, for highlighting (e.g. 'e2' -> 'e4'). */
   last_move_from: string | null
   last_move_to: string | null

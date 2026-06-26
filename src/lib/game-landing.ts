@@ -1188,7 +1188,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     keywords: ['chess online', 'play chess with friends', 'online chess 2 player', 'chess with a friend'],
     heroSubtitle: 'Classic chess, head-to-head — outsmart your friend and checkmate to win.',
     bodyParagraph:
-      'Chess on Fate Round is a clean two-player game of full standard chess. One player joins a room as White, the other as Black, and White moves first. Every move is validated by the rules — legal moves only, with castling, en passant, and pawn promotion all handled. Check, checkmate, stalemate, and draws are detected automatically. Add an optional per-turn timer to keep things moving: run out of time on your move and you lose.',
+      'Chess on Fate Round is a clean two-player game of full standard chess. One player joins a room as White, the other as Black, and White moves first. Every move is validated by the rules — legal moves only, with castling, en passant, and pawn promotion all handled. Check, checkmate, stalemate, and draws are detected automatically. Add an optional chess clock — each player gets their own time bank (3, 5, or 10 minutes) that only ticks on their turn, just like online chess, and the first to flag loses.',
     highlights: ['2 players', 'Full rules', 'Real-time board'],
     features: [
       {
@@ -1215,9 +1215,9 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     perfectFor: ['Quick matches', 'Friend rivalries', 'Chess fans'],
     extraFaqs: [
       {
-        question: 'What happens if my turn timer runs out?',
+        question: 'How does the clock work?',
         answer:
-          'If you set a per-turn timer and run out of time on your move, you lose the game on time. Leave the timer off for a relaxed, untimed match.',
+          'Each player has their own time bank that only counts down while it is their turn — making a move stops your clock and starts your opponent’s, just like chess.com. The first player to run out of time loses. Pick 3, 5, or 10 minutes each, or leave it off for an untimed match.',
       },
       {
         question: 'Can I resign?',

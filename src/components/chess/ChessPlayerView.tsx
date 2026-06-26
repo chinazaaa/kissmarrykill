@@ -32,7 +32,7 @@ import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } fr
 import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
-import { useChessTurnTimer } from '@/hooks/useChessTurnTimer'
+import { useChessClocks } from '@/hooks/useChessClocks'
 
 type Screen =
   | 'loading'
@@ -253,7 +253,7 @@ export function ChessPlayerView({ gameCode }: { gameCode: string }) {
   const isViewer = !!(game && activePlayer && playerIsViewer(activePlayer, game))
   const myName = activePlayer?.name ?? ''
 
-  const { secondsLeft, hasTimer, urgent } = useChessTurnTimer(gameCode, session, game?.status === 'active' && !isViewer)
+  const clocks = useChessClocks(gameCode, session, game?.status === 'active' && !isViewer)
 
   if (screen === 'loading') return <ChessLoadingScreen />
 
@@ -381,9 +381,7 @@ export function ChessPlayerView({ gameCode }: { gameCode: string }) {
           players={players}
           myPlayerId={myPlayerId}
           isMyTurn={isMyTurn && !isViewer}
-          secondsLeft={secondsLeft}
-          hasTimer={hasTimer}
-          urgent={urgent}
+          clocks={clocks}
           onMove={isMyTurn && !isViewer ? movePiece : undefined}
           onResign={!isViewer ? resign : undefined}
           acting={acting}

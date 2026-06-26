@@ -11,6 +11,19 @@ export const CHESS_STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w
 
 export type ChessMoveRequest = { from: string; to: string; promotion?: 'q' | 'r' | 'b' | 'n' }
 
+/** Per-player total clock options, in seconds (0 = untimed). Chess.com style. */
+export const CHESS_TIME_OPTIONS = [0, 180, 300, 600] as const
+export const CHESS_DEFAULT_TIME_SECONDS = 600
+
+export function clampChessTimer(value: unknown): number {
+  const n = Number(value)
+  return (CHESS_TIME_OPTIONS as readonly number[]).includes(n) ? n : CHESS_DEFAULT_TIME_SECONDS
+}
+
+export function chessIsTimed(session: Pick<ChessSession, 'white_time_ms' | 'black_time_ms'>): boolean {
+  return session.white_time_ms != null && session.black_time_ms != null
+}
+
 function shuffle<T>(items: T[]): T[] {
   const next = [...items]
   for (let i = next.length - 1; i > 0; i -= 1) {
@@ -18,11 +31,6 @@ function shuffle<T>(items: T[]): T[] {
     ;[next[i], next[j]] = [next[j], next[i]]
   }
   return next
-}
-
-export function chessTurnDeadline(timerSeconds: number): string | null {
-  if (!timerSeconds || timerSeconds <= 0) return null
-  return new Date(Date.now() + timerSeconds * 1000).toISOString()
 }
 
 export function colorForPlayer(session: ChessSession, playerId: string): ChessColor | null {
@@ -129,15 +137,20 @@ export async function initializeChessGame(
 
   const { data: gameRow } = await supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle()
   const timerSeconds = gameRow?.timer_seconds ?? 0
+  const initialMs = timerSeconds > 0 ? timerSeconds * 1000 : null
 
   const names = await loadPlayerNames(supabase, gameId)
 
+  const now = Date.now()
   const sessionRow = {
     player_white_id: whiteId,
     player_black_id: blackId,
     fen: CHESS_STARTING_FEN,
     pgn: '',
     current_turn: 'w' as const,
+    white_time_ms: initialMs,
+    black_time_ms: initialMs,
+    turn_started_at: new Date(now).toISOString(),
     last_move_from: null,
     last_move_to: null,
     in_check: false,
@@ -146,7 +159,7 @@ export async function initializeChessGame(
     winner_player_id: null,
     is_draw: false,
     status_message: `${names.get(whiteId) ?? 'White'}'s turn (White)`,
-    turn_deadline_at: chessTurnDeadline(timerSeconds),
+    turn_deadline_at: initialMs != null ? new Date(now + initialMs).toISOString() : null,
     updated_at: new Date().toISOString(),
   }
 
@@ -224,8 +237,6 @@ export async function processChessMove(
   if (!result) return { error: 'Illegal move' }
 
   const names = await loadPlayerNames(supabase, gameId)
-  const { data: gameRow } = await supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle()
-  const timerSeconds = gameRow?.timer_seconds ?? 0
 
   const nextTurn = chess.turn()
   const inCheck = chess.inCheck()
@@ -257,16 +268,46 @@ export async function processChessMove(
     reason = 'fifty_move'
   }
 
+  // --- Cumulative clock: deduct the time the mover spent on this turn. ---
+  const timed = chessIsTimed(session)
+  const now = Date.now()
+  let whiteMs = session.white_time_ms
+  let blackMs = session.black_time_ms
+
+  if (timed) {
+    const startedAt = session.turn_started_at ? new Date(session.turn_started_at).getTime() : now
+    const elapsed = Math.max(0, now - startedAt)
+    if (color === 'w') whiteMs = Math.max(0, (session.white_time_ms ?? 0) - elapsed)
+    else blackMs = Math.max(0, (session.black_time_ms ?? 0) - elapsed)
+
+    // Flag fall on the moving side (and the move wasn't already a checkmate/draw)
+    // means they ran out of time — the opponent wins.
+    const moverRemaining = (color === 'w' ? whiteMs : blackMs) ?? 0
+    if (moverRemaining <= 0 && !finished) {
+      finished = true
+      draw = false
+      reason = 'timeout'
+      winnerColor = color === 'w' ? 'b' : 'w'
+    }
+  }
+
   const winnerPlayerId = winnerColor ? playerIdForColor(session, winnerColor) : null
   const moverName = names.get(playerId) ?? (color === 'w' ? 'White' : 'Black')
   const nextPlayerId = nextTurn === 'w' ? session.player_white_id : session.player_black_id
   const nextName = names.get(nextPlayerId) ?? (nextTurn === 'w' ? 'White' : 'Black')
 
-  const statusMessage = winnerColor
-    ? `Checkmate — ${moverName} wins!`
-    : draw
-      ? `${describeDrawReason(reason ?? '')}it's a draw!`
-      : `${nextName}'s turn (${nextTurn === 'w' ? 'White' : 'Black'})${inCheck ? ' — check!' : ''}`
+  const statusMessage =
+    reason === 'timeout'
+      ? `${moverName} ran out of time — ${names.get(winnerPlayerId!) ?? 'Opponent'} wins!`
+      : winnerColor
+        ? `Checkmate — ${moverName} wins!`
+        : draw
+          ? `${describeDrawReason(reason ?? '')}it's a draw!`
+          : `${nextName}'s turn (${nextTurn === 'w' ? 'White' : 'Black'})${inCheck ? ' — check!' : ''}`
+
+  // The opponent's clock starts now (unless the game just ended).
+  const nextRemaining = nextTurn === 'w' ? whiteMs : blackMs
+  const nextDeadline = !finished && timed && nextRemaining != null ? new Date(now + nextRemaining).toISOString() : null
 
   const { error: updateError } = await supabase
     .from('chess_sessions')
@@ -274,6 +315,9 @@ export async function processChessMove(
       fen: chess.fen(),
       pgn: chess.pgn(),
       current_turn: nextTurn,
+      white_time_ms: whiteMs,
+      black_time_ms: blackMs,
+      turn_started_at: finished ? null : new Date(now).toISOString(),
       last_move_from: result.from,
       last_move_to: result.to,
       in_check: inCheck,
@@ -282,7 +326,7 @@ export async function processChessMove(
       winner_player_id: winnerPlayerId,
       is_draw: draw,
       status_message: statusMessage,
-      turn_deadline_at: finished ? null : chessTurnDeadline(timerSeconds),
+      turn_deadline_at: nextDeadline,
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
@@ -296,7 +340,7 @@ export async function processChessMove(
   return {}
 }
 
-/** Per-turn timer ran out — the player on the clock loses on time. */
+/** The player on the move ran out of their cumulative clock — the opponent wins. */
 export async function processChessExpireTurn(
   supabase: SupabaseClient,
   gameId: string
@@ -321,6 +365,10 @@ export async function processChessExpireTurn(
       result_reason: 'timeout',
       winner_player_id: winnerPlayerId,
       is_draw: false,
+      // Zero out the flagged player's clock so the final position reads correctly.
+      white_time_ms: loserColor === 'w' ? 0 : session.white_time_ms,
+      black_time_ms: loserColor === 'b' ? 0 : session.black_time_ms,
+      turn_started_at: null,
       status_message: `${loserName} ran out of time — ${winnerName} wins!`,
       turn_deadline_at: null,
       updated_at: new Date().toISOString(),

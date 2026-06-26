@@ -402,9 +402,8 @@ function CreateGameInner() {
               participant_mode: 'joiners' as const,
               anonymous: true,
               rounds_count: 1,
-              // Chess defaults to untimed — a per-move timer means losing on time,
-              // which is surprising for casual play. Host can still opt in.
-              timer_seconds: 0,
+              // Cumulative per-player clock (chess.com style). Default 10 minutes each.
+              timer_seconds: 600,
             }
           : {}),
         ...(isWhoSaidThis(type)
@@ -1525,24 +1524,24 @@ function CreateGameInner() {
             ) : isChess ? (
               <SettingsGroup title="Chess room">
                 <p className="text-faint text-sm">Exactly 2 players — the host can join as one of them.</p>
-                <Field label="Turn timer">
+                <Field label="Time per player">
                   <select
                     value={settings.timer_seconds}
                     onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
                     className="input-field w-full"
                   >
                     <option value={0}>No timer</option>
-                    <option value={30}>30 seconds</option>
-                    <option value={60}>60 seconds</option>
-                    <option value={120}>2 minutes</option>
+                    <option value={180}>3 minutes each</option>
+                    <option value={300}>5 minutes each</option>
+                    <option value={600}>10 minutes each</option>
                   </select>
                 </Field>
                 <Field label="Late joiners">
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="chess" />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Classic chess — White moves first, standard rules, checkmate to win. With a turn timer on, running out of
-                  time on your move loses the game.
+                  Classic chess — White moves first, standard rules, checkmate to win. Each player gets their own clock
+                  that only ticks on their turn; the first to run out of time loses.
                 </p>
               </SettingsGroup>
             ) : isNpat ? (

@@ -823,7 +823,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       points: [
         'Exactly 2 players join a room. The host can play too.',
         'One player is randomly assigned White, the other Black. White always moves first.',
-        'Optional per-turn timer — if your timer runs out on your move, you lose the game on time.',
+        'Optional chess clock — each player gets their own time bank (e.g. 10 minutes) that only counts down on their turn. Run out and you lose on time.',
       ],
     },
     {
