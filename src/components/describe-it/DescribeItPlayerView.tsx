@@ -38,6 +38,7 @@ import { preJoinScreen, playerIsViewer } from '@/lib/viewers'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useDescribeItTimer } from '@/hooks/useDescribeItTimer'
+import { useDescribeItSounds } from '@/hooks/useDescribeItSounds'
 
 type Screen = 'loading' | 'join' | 'game_started_waiting' | 'game_ended' | 'lobby' | 'active' | 'finished' | 'not_found'
 
@@ -212,11 +213,20 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
   const numTeams = clampDescribeItTeams(game?.describe_it_num_teams)
   const teamPlain = teamRows.map((r) => ({ player_id: r.player_id, team: r.team }))
 
+  const myTeam = teamRows.find((r) => r.player_id === myPlayerId)?.team ?? null
+
   const { secondsLeft, breakLeft, urgent } = useDescribeItTimer(
     gameCode,
     session,
     game?.status === 'active' && !isViewer
   )
+  useDescribeItSounds({
+    session,
+    words,
+    myTeam,
+    myPlayerId,
+    enabled: game?.status === 'active' && !isViewer,
+  })
 
   if (screen === 'loading') return <DescribeItLoadingScreen />
 

@@ -22,9 +22,11 @@ import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useDescribeItTimer } from '@/hooks/useDescribeItTimer'
+import { useDescribeItSounds } from '@/hooks/useDescribeItSounds'
 import {
   clampDescribeItTeams,
   clampDescribeItRounds,
+  computeDescribeItScores,
   describeItLobbyReady,
   DESCRIBE_IT_MIN_PLAYERS,
   DESCRIBE_IT_ROUND_OPTIONS,
@@ -36,6 +38,7 @@ import { parseStoredDescribeItWords } from '@/lib/describe-it-words'
 import {
   DescribeItCard,
   DescribeItPrimaryButton,
+  DescribeItScoreboard,
   DescribeItTeamRoster,
 } from '@/components/describe-it/DescribeItChrome'
 import { DescribeItPlayPanel } from '@/components/describe-it/DescribeItPlay'
@@ -328,6 +331,14 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   }
 
   const { secondsLeft, breakLeft, urgent } = useDescribeItTimer(gameCode, session, game?.status === 'active')
+  const hostTeam = teamRows.find((r) => r.player_id === hostPlayerId)?.team ?? null
+  useDescribeItSounds({
+    session,
+    words,
+    myTeam: hostTeam,
+    myPlayerId: hostPlayerId,
+    enabled: hostMode === 'player' && !!hostPlayerId && game?.status === 'active',
+  })
 
   if (loading) {
     return (
@@ -474,17 +485,28 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
 
           {game.status === 'active' && !gameFinished && session && (
             <>
-              <DescribeItPlayPanel
-                session={session}
-                players={players}
-                teamRows={teamPlain}
-                words={words}
-                guesses={guesses}
-                myPlayerId={null}
-                secondsLeft={secondsLeft}
-                breakLeft={breakLeft}
-                urgent={urgent}
-              />
+              {/* When the host is playing, Play shows the full game — Manage just needs
+                  the scoreboard + controls (no duplicate). Spectator hosts watch here. */}
+              {showPlayTab ? (
+                <DescribeItScoreboard
+                  scores={computeDescribeItScores(words, numTeams)}
+                  activeTeam={session.active_team}
+                  round={session.current_round}
+                  totalRounds={session.total_rounds}
+                />
+              ) : (
+                <DescribeItPlayPanel
+                  session={session}
+                  players={players}
+                  teamRows={teamPlain}
+                  words={words}
+                  guesses={guesses}
+                  myPlayerId={null}
+                  secondsLeft={secondsLeft}
+                  breakLeft={breakLeft}
+                  urgent={urgent}
+                />
+              )}
               {session.phase === 'break' && (
                 <button type="button" onClick={advanceTurn} disabled={advancing} className="btn-primary w-full py-2.5">
                   {advancing ? 'Starting…' : 'Next team now →'}
