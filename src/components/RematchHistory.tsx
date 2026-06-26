@@ -140,18 +140,13 @@ export function RematchHistory({
   const parsedType = parseGameType(gameType)
 
   if (isMostLikelyTo(parsedType)) {
-    const prevTally = tallyMltFromVotes(
-      lastSnapshot.snapshot_data.votes,
-      lastSnapshot.snapshot_data.participants
-    )
+    const prevTally = tallyMltFromVotes(lastSnapshot.snapshot_data.votes, lastSnapshot.snapshot_data.participants)
     const currentTally = tallyMltFromVotes(currentVotes, currentParticipants)
 
     const comparisons = currentParticipants
       .map((p) => {
         const curr = currentTally[p.id]
-        const prev = Object.values(prevTally).find(
-          (pp) => pp.name.toLowerCase() === p.name.toLowerCase()
-        )
+        const prev = Object.values(prevTally).find((pp) => pp.name.toLowerCase() === p.name.toLowerCase())
         if (!curr || !prev) return null
         if (curr.votes === prev.votes) return null
         return { name: p.name, curr, prev }
@@ -168,9 +163,7 @@ export function RematchHistory({
           aria-expanded={expanded}
           className="w-full flex items-center justify-between"
         >
-          <p className="text-muted text-xs uppercase tracking-wider">
-            Rematch History (Session {snapshots.length})
-          </p>
+          <p className="text-muted text-xs uppercase tracking-wider">Rematch History (Session {snapshots.length})</p>
           <span className="text-faint text-xs">{expanded ? '−' : '+'}</span>
         </button>
         {expanded && (
@@ -202,9 +195,7 @@ export function RematchHistory({
     const comparisons = currentParticipants
       .map((p) => {
         const curr = currentTally[p.id]
-        const prev = Object.values(prevTally).find(
-          (pp) => pp.name.toLowerCase() === p.name.toLowerCase()
-        )
+        const prev = Object.values(prevTally).find((pp) => pp.name.toLowerCase() === p.name.toLowerCase())
         if (!curr || !prev) return null
         const changed = slotKeys.some((k) => (curr.counts[k] ?? 0) !== (prev.counts[k] ?? 0))
         if (!changed) return null
@@ -226,9 +217,7 @@ export function RematchHistory({
           aria-expanded={expanded}
           className="w-full flex items-center justify-between"
         >
-          <p className="text-muted text-xs uppercase tracking-wider">
-            Rematch History (Session {snapshots.length})
-          </p>
+          <p className="text-muted text-xs uppercase tracking-wider">Rematch History (Session {snapshots.length})</p>
           <span className="text-faint text-xs">{expanded ? '−' : '+'}</span>
         </button>
         {expanded && (
@@ -266,9 +255,7 @@ export function RematchHistory({
   const comparisons = currentParticipants
     .map((p) => {
       const curr = currentTally[p.id]
-      const prev = Object.values(prevTally).find(
-        (pp) => pp.name.toLowerCase() === p.name.toLowerCase()
-      )
+      const prev = Object.values(prevTally).find((pp) => pp.name.toLowerCase() === p.name.toLowerCase())
       if (!curr || !prev) return null
       const changed = curr.smash !== prev.smash || curr.marry !== prev.marry || curr.kill !== prev.kill
       return changed ? { name: p.name, curr, prev } : null
@@ -291,9 +278,7 @@ export function RematchHistory({
         aria-expanded={expanded}
         className="w-full flex items-center justify-between"
       >
-        <p className="text-muted text-xs uppercase tracking-wider">
-          Rematch History (Session {snapshots.length})
-        </p>
+        <p className="text-muted text-xs uppercase tracking-wider">Rematch History (Session {snapshots.length})</p>
         <span className="text-faint text-xs">{expanded ? '−' : '+'}</span>
       </button>
       {expanded && (
