@@ -1,0 +1,23 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+aws_region  = "us-east-1"
+name_prefix = "fateround"
+
+instance_type        = "t3.small"
+asg_min_size         = 2
+asg_max_size         = 4
+asg_desired_capacity = 2
+
+# App config (from your Supabase project). The URL and anon key are public-by-
+# design; cron_secret is your own generated value (also set on the app).
+supabase_url      = "https://YOUR-PROJECT.supabase.co"
+supabase_anon_key = "REPLACE_WITH_ANON_KEY"
+cron_secret       = "REPLACE_WITH_A_LONG_RANDOM_STRING"
+
+# TLS / DNS — recommended for production. Provision an ACM cert in aws_region,
+# point your domain at the ALB, then:
+# enable_https        = true
+# acm_certificate_arn = "arn:aws:acm:us-east-1:1234567890:certificate/..."
+# app_base_url        = "https://play.example.com"
+
+tick_schedule = "rate(1 minute)"
