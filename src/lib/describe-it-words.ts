@@ -293,12 +293,24 @@ export function parseStoredDescribeItWords(raw: unknown): string[] {
 }
 
 /**
- * Pick the next word for a turn, avoiding ones already used this game. Falls back
- * to the full pool (allowing repeats) only if every word has been used.
+ * Pick the next word for a turn, avoiding ones already used this game. Prefers an
+ * unused `primary` word, then an unused `fallback` (overflow) word, and only
+ * repeats once everything has been used.
  */
-export function pickDescribeWord(pool: readonly string[], usedWords: readonly string[]): string {
+export function pickDescribeWord(
+  primary: readonly string[],
+  fallback: readonly string[],
+  usedWords: readonly string[]
+): string {
   const used = new Set(usedWords.map((w) => w.toLowerCase()))
-  const available = pool.filter((w) => !used.has(w.toLowerCase()))
-  const source = available.length > 0 ? available : pool
-  return source[Math.floor(Math.random() * source.length)] ?? pool[0] ?? 'mystery'
+  const pickUnused = (arr: readonly string[]): string | null => {
+    const avail = arr.filter((w) => !used.has(w.toLowerCase()))
+    return avail.length > 0 ? (avail[Math.floor(Math.random() * avail.length)] ?? null) : null
+  }
+  const fromPrimary = pickUnused(primary)
+  if (fromPrimary) return fromPrimary
+  const fromFallback = pickUnused(fallback)
+  if (fromFallback) return fromFallback
+  const all = [...primary, ...fallback]
+  return all[Math.floor(Math.random() * all.length)] ?? primary[0] ?? fallback[0] ?? 'mystery'
 }

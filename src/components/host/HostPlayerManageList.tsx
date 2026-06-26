@@ -11,6 +11,7 @@ export function HostPlayerManageList({
   hint = 'Remove to kick someone out',
   className = '',
   compact = false,
+  alwaysShowReady = false,
 }: {
   players: Player[]
   removingPlayerId?: string | null
@@ -20,12 +21,14 @@ export function HostPlayerManageList({
   hint?: string
   className?: string
   compact?: boolean
+  /** Keep the ✓/✗ ready column visible even when everyone is ready (no spectators). */
+  alwaysShowReady?: boolean
 }) {
   if (players.length === 0) {
     return <p className="text-muted text-sm">{emptyMessage}</p>
   }
 
-  const showReady = players.some((p) => p.spectator === true)
+  const showReady = alwaysShowReady || players.some((p) => p.spectator === true)
 
   return (
     <div className={`space-y-2 ${className}`}>
