@@ -21,11 +21,11 @@ merging (`gh pr update-branch <n>` or merge `origin/dev` in).
 
 CI must be green, **and** the review skills must be run on the diff:
 
-| Gate | How | What it catches |
-|------|-----|-----------------|
-| **Code review** | `/code-review` (or `/review <PR>`) | correctness bugs, reuse/simplification, conventions |
-| **QA** | `/verify` | does the change actually work when the app runs |
-| **Security review** | `/security-review` | auth bypass, injection, data exposure on the diff |
+| Gate                | How                                | What it catches                                     |
+| ------------------- | ---------------------------------- | --------------------------------------------------- |
+| **Code review**     | `/code-review` (or `/review <PR>`) | correctness bugs, reuse/simplification, conventions |
+| **QA**              | `/verify`                          | does the change actually work when the app runs     |
+| **Security review** | `/security-review`                 | auth bypass, injection, data exposure on the diff   |
 
 Run them in order: **code review → QA → security**. Reconcile findings (a
 security pass may down- or up-grade a code-review finding). Address or
@@ -41,8 +41,8 @@ consciously accept each finding before promoting to `main`.
 - **Build**
 
 Branch protection on `main` and `dev` should require a PR plus these four
-checks, and block direct/force pushes to `main`. *(Setting protection rules
-needs repo-admin access.)*
+checks, and block direct/force pushes to `main`. _(Setting protection rules
+needs repo-admin access.)_
 
 ## Always parallelize with subagents
 
