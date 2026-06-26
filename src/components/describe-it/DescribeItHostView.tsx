@@ -27,8 +27,11 @@ import { useDescribeItSounds } from '@/hooks/useDescribeItSounds'
 import {
   clampDescribeItTeams,
   clampDescribeItRounds,
+  clampDescribeItMaxPlayers,
   computeDescribeItScores,
   describeItLobbyReady,
+  DESCRIBE_IT_DEFAULT_MAX_PLAYERS,
+  DESCRIBE_IT_MAX_PLAYER_OPTIONS,
   DESCRIBE_IT_MIN_PLAYERS,
   DESCRIBE_IT_ROUND_OPTIONS,
   DESCRIBE_IT_TEAM_OPTIONS,
@@ -363,6 +366,12 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   const numTeams = clampDescribeItTeams(game.describe_it_num_teams)
   const teamPlain = teamRows.map((r) => ({ player_id: r.player_id, team: r.team }))
   const ready = describeItLobbyReady(teamPlain, numTeams)
+  // Biggest team — everyone describes only if there are at least this many rounds.
+  const biggestTeamSize = Math.max(
+    0,
+    ...Array.from({ length: numTeams }, (_, i) => teamPlain.filter((r) => r.team === i + 1).length)
+  )
+  const currentRounds = clampDescribeItRounds(game.rounds_count)
   const readyPlayers = players.filter((p) => p.spectator !== true)
   const canStart = readyPlayers.length >= DESCRIBE_IT_MIN_PLAYERS && ready.ok
   const gameFinished = isDescribeItResultsPhase(game.status, session)
@@ -528,6 +537,12 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
             <>
               <DescribeItCard className="p-4 space-y-3">
                 <p className="text-sm font-bold">Game settings</p>
+                {biggestTeamSize > currentRounds && (
+                  <p className="text-amber-400 text-xs">
+                    A new teammate describes each round. Your biggest team has {biggestTeamSize} players — pick{' '}
+                    {biggestTeamSize}+ rounds so everyone gets a turn to describe.
+                  </p>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <label className="text-xs font-semibold text-faint space-y-1">
                     <span>Teams</span>
@@ -572,6 +587,20 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
                     </select>
                   </label>
                 </div>
+                <label className="text-xs font-semibold text-faint space-y-1 block">
+                  <span>Max players</span>
+                  <select
+                    value={clampDescribeItMaxPlayers(game.max_players ?? DESCRIBE_IT_DEFAULT_MAX_PLAYERS)}
+                    onChange={(e) => void saveSettings({ maxPlayers: Number(e.target.value) })}
+                    className="input-field w-full text-sm"
+                  >
+                    {DESCRIBE_IT_MAX_PLAYER_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n} players
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-faint">Your words (one per line, optional)</p>
                   <textarea
