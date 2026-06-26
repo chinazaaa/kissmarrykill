@@ -1,12 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
-import type { TicTacToeMark, TicTacToeSession } from '@/types'
+import type { TicTacToeBoardResult, TicTacToeMark, TicTacToeSession } from '@/types'
 
 export const TIC_TAC_TOE_MIN_PLAYERS = 2
 export const TIC_TAC_TOE_MAX_PLAYERS = 2
 export const TIC_TAC_TOE_DEFAULT_MAX_PLAYERS = 2
 
-const EMPTY_BOARD: (TicTacToeMark | null)[] = Array(9).fill(null)
+/** Ultimate Tic-Tac-Toe: nine 3x3 sub-boards (81 cells total). */
+export const TIC_TAC_TOE_SUB_BOARDS = 9
+export const TIC_TAC_TOE_CELLS = 81
+
+const EMPTY_BOARD: (TicTacToeMark | null)[] = Array(TIC_TAC_TOE_CELLS).fill(null)
+const EMPTY_BOARD_WINNERS: TicTacToeBoardResult[] = Array(TIC_TAC_TOE_SUB_BOARDS).fill(null)
 
 const WIN_LINES: readonly number[][] = [
   [0, 1, 2],
@@ -18,6 +23,24 @@ const WIN_LINES: readonly number[][] = [
   [0, 4, 8],
   [2, 4, 6],
 ]
+
+/** Cells belonging to sub-board `boardIndex` (0-8), in row-major order. */
+export function subBoardCells(board: (TicTacToeMark | null)[], boardIndex: number): (TicTacToeMark | null)[] {
+  return board.slice(boardIndex * 9, boardIndex * 9 + 9)
+}
+
+/** Overall game winner — three sub-boards won by the same mark in a row. */
+export function checkOverallWinner(
+  boardWinners: TicTacToeBoardResult[]
+): { mark: TicTacToeMark; line: number[] } | null {
+  const marks = boardWinners.map((w) => (w === 'X' || w === 'O' ? w : null))
+  return checkWinner(marks)
+}
+
+/** True once every sub-board has been decided (won or drawn). */
+export function isUltimateBoardComplete(boardWinners: TicTacToeBoardResult[]): boolean {
+  return boardWinners.length === TIC_TAC_TOE_SUB_BOARDS && boardWinners.every((w) => w !== null)
+}
 
 function shuffle<T>(items: T[]): T[] {
   const next = [...items]
@@ -78,13 +101,17 @@ export async function canTicTacToePlayAgain(
 
 export function isTicTacToeResultsPhase(
   gameStatus: string | undefined,
-  session: Pick<TicTacToeSession, 'status' | 'is_draw' | 'winner_player_id' | 'board'> | null | undefined
+  session:
+    | Pick<TicTacToeSession, 'status' | 'is_draw' | 'winner_player_id' | 'board_winners'>
+    | null
+    | undefined
 ): boolean {
   if (!gameStatus || gameStatus === 'waiting') return false
   if (gameStatus === 'finished') return true
   if (!session) return false
   if (session.status === 'finished' || session.is_draw || session.winner_player_id) return true
-  if (session.board?.length === 9 && (checkWinner(session.board) || isBoardFull(session.board))) return true
+  const boardWinners = session.board_winners ?? []
+  if (checkOverallWinner(boardWinners) || isUltimateBoardComplete(boardWinners)) return true
   return false
 }
 
@@ -130,6 +157,8 @@ export async function initializeTicTacToeGame(
     player_x_id: playerXId,
     player_o_id: playerOId,
     board: EMPTY_BOARD,
+    board_winners: EMPTY_BOARD_WINNERS,
+    active_board: null,
     current_turn_mark: 'X' as const,
     status: 'active' as const,
     winner_player_id: null,
@@ -169,47 +198,72 @@ export async function processTicTacToeMove(
   const mark = markForPlayer(session, playerId)
   if (!mark) return { error: 'You are not in this game' }
   if (mark !== session.current_turn_mark) return { error: "It's not your turn" }
-  if (cellIndex < 0 || cellIndex > 8) return { error: 'Invalid cell' }
+  if (cellIndex < 0 || cellIndex >= TIC_TAC_TOE_CELLS) return { error: 'Invalid cell' }
+
+  const boardIndex = Math.floor(cellIndex / 9)
+  const cellPos = cellIndex % 9
+
+  const boardWinners: TicTacToeBoardResult[] = [...(session.board_winners ?? EMPTY_BOARD_WINNERS)]
+
+  if (session.active_board != null && boardIndex !== session.active_board) {
+    return { error: 'You must play in the highlighted board' }
+  }
+  if (boardWinners[boardIndex] != null) return { error: 'That board is already finished' }
   if (session.board[cellIndex] !== null) return { error: 'That cell is already taken' }
 
   const board = [...session.board]
   board[cellIndex] = mark
 
+  // Re-evaluate the sub-board that was just played in.
+  const subBoard = subBoardCells(board, boardIndex)
+  const subWin = checkWinner(subBoard)
+  if (subWin) boardWinners[boardIndex] = mark
+  else if (isBoardFull(subBoard)) boardWinners[boardIndex] = 'draw'
+
+  // The cell position you played dictates which board your opponent is sent to.
+  // If that board is already decided, they may play anywhere.
+  const nextActiveBoard = boardWinners[cellPos] != null ? null : cellPos
+
+  const overallWin = checkOverallWinner(boardWinners)
+  const draw = !overallWin && isUltimateBoardComplete(boardWinners)
+
   const { data: playerRows } = await supabase.from('players').select('id, name').eq('game_id', gameId)
   const names = new Map<string, string>()
   for (const p of playerRows ?? []) names.set(p.id, p.name)
 
-  const win = checkWinner(board)
-  const draw = !win && isBoardFull(board)
   const nextMark: TicTacToeMark = mark === 'X' ? 'O' : 'X'
-  const winnerPlayerId = win ? (win.mark === 'X' ? session.player_x_id : session.player_o_id) : null
+  const winnerPlayerId = overallWin ? (overallWin.mark === 'X' ? session.player_x_id : session.player_o_id) : null
 
   const { data: gameRow } = await supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle()
   const timerSeconds = gameRow?.timer_seconds ?? 0
 
-  const statusMessage = win
+  const statusMessage = overallWin
     ? `${names.get(winnerPlayerId!) ?? 'Player'} wins!`
     : draw
       ? "It's a draw!"
       : `${names.get(nextMark === 'X' ? session.player_x_id : session.player_o_id) ?? 'Player'}'s turn (${nextMark})`
 
+  const finished = !!overallWin || draw
+
   const { error: updateError } = await supabase
     .from('tic_tac_toe_sessions')
     .update({
       board,
+      board_winners: boardWinners,
+      active_board: finished ? null : nextActiveBoard,
       current_turn_mark: nextMark,
-      status: win || draw ? 'finished' : 'active',
+      status: finished ? 'finished' : 'active',
       winner_player_id: winnerPlayerId,
       is_draw: draw,
       status_message: statusMessage,
-      turn_deadline_at: win || draw ? null : ticTacToeTurnDeadline(timerSeconds),
+      turn_deadline_at: finished ? null : ticTacToeTurnDeadline(timerSeconds),
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
 
   if (updateError) return { error: updateError.message }
 
-  if (win || draw) {
+  if (finished) {
     await markGameFinished(supabase, gameId)
   }
 

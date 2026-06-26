@@ -1121,23 +1121,34 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
   }),
 
   tic_tac_toe: landing('tic_tac_toe', {
-    seoTitle: 'Tic-Tac-Toe Online — Play with a Friend',
+    seoTitle: 'Ultimate Tic-Tac-Toe Online — Play with a Friend',
     seoDescription:
-      'Play Tic-Tac-Toe online with a friend. Take turns placing X or O on a 3x3 grid — first to get three in a row wins.',
-    keywords: ['tic tac toe online', 'play tic tac toe with friends', 'noughts and crosses online', 'XO game online'],
-    heroSubtitle: 'The classic 3x3 grid game — take turns, get three in a row, and win.',
+      'Play Ultimate (Super) Tic-Tac-Toe online with a friend. Nine boards in one — your move sends your opponent to the next board. Win three boards in a row to win.',
+    keywords: [
+      'ultimate tic tac toe online',
+      'super tic tac toe',
+      'play tic tac toe with friends',
+      'noughts and crosses online',
+      'XO game online',
+    ],
+    heroSubtitle: 'Ultimate Tic-Tac-Toe — nine boards in one, win three boards in a row to win it all.',
     bodyParagraph:
-      'Tic-Tac-Toe on Fate Round follows the classic rules: two players join a room, one is X and the other O, and you take turns placing your mark on the 3x3 grid. First to line up three marks across, down, or diagonally wins. No row for anyone once the grid fills up means a draw.',
-    highlights: ['2 players', 'Classic rules', 'Real-time board'],
+      'Ultimate Tic-Tac-Toe on Fate Round takes the classic game deeper: the board is nine small 3x3 boards arranged in one big 3x3 grid. Two players join a room, one is X and the other O, and the cell you play decides which board your opponent must play in next. Win a small board by lining up three of your marks inside it, and win the whole game by claiming three small boards in a row — across, down, or diagonally.',
+    highlights: ['2 players', 'Nine boards in one', 'Real-time board'],
     features: [
       {
-        title: 'Take turns',
-        description: 'X goes first — tap any empty cell on your turn to place your mark.',
-        emoji: '✕',
+        title: 'Boards within boards',
+        description: 'Nine mini Tic-Tac-Toe boards make up one giant board — strategy on two levels.',
+        emoji: '🎯',
       },
       {
-        title: 'Three in a row wins',
-        description: 'Line up three matching marks across, down, or diagonally to win instantly.',
+        title: 'Your move sends them',
+        description: 'The cell you pick forces your opponent into the matching board next turn.',
+        emoji: '➡️',
+      },
+      {
+        title: 'Three boards in a row wins',
+        description: 'Win three small boards across, down, or diagonally to take the whole game.',
         emoji: '🏆',
       },
       SHARED_FEATURES.mobile,
@@ -1145,10 +1156,13 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
     ],
     steps: [
       { title: 'Join a room', description: 'Two players join with their name — the host can join as a player too.' },
-      { title: 'Take turns', description: 'X and O alternate placing marks on the 3x3 grid.' },
       {
-        title: 'Get three in a row',
-        description: 'First to line up three marks wins. A full grid with no winner is a draw.',
+        title: 'Play and send',
+        description: 'Place your mark — the cell you choose sends your opponent to the matching board.',
+      },
+      {
+        title: 'Win three boards in a row',
+        description: 'Win small boards with three in a row, then line up three boards to win the game.',
       },
     ],
     perfectFor: ['Quick matches', 'Friend groups', 'Killing time'],

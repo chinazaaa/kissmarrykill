@@ -979,7 +979,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
   tic_tac_toe: {
     id: 'tic_tac_toe',
     label: 'Tic-Tac-Toe',
-    tagline: 'Classic 3x3 grid — get three in a row before they do',
+    tagline: 'Ultimate Tic-Tac-Toe — nine boards in one, win three in a row to win it all',
     headerEmoji: '⭕❌',
     card: {
       accent: '#0ea5e9',
@@ -1266,7 +1266,7 @@ export function gameHowItWorks(
     case 'ludo':
       return 'Players join with their name. Roll two dice each turn and use each die separately — a 6 brings pieces out; doubles earn another roll after both dice are played. Capture opponents, block with pairs — first to finish all four pieces wins!'
     case 'tic_tac_toe':
-      return "Two players join with their name. The host can play too. Take turns placing X or O on the 3x3 grid — first to get three in a row (across, down, or diagonal) wins. No row? It's a draw."
+      return 'Two players join with their name. The host can play too. Ultimate Tic-Tac-Toe is nine small 3x3 boards in one big grid — the cell you play sends your opponent to the matching board. Win a small board with three in a row, and win the game by taking three boards in a row.'
     case 'word_hunt':
       return 'Players join with their name. Everyone gets the same 4×4 letter grid — connect adjacent letters to spell valid words (3+ letters) before the timer runs out. Longer words score more points.'
     case 'i_call_on':
