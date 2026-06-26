@@ -272,7 +272,6 @@ export function ChessGamePanel({
           isMyTurn={isMyTurn}
           secondsLeft={clocks?.activeSeconds ?? 0}
           hasTimer={clocks?.timed}
-          urgent={clocks?.urgent}
           inCheck={session.in_check}
         />
       )}

@@ -135,14 +135,13 @@ export function ChessTurnBar({
   isMyTurn,
   secondsLeft,
   hasTimer,
-  urgent,
   inCheck,
 }: {
   turnPlayerName?: string
   isMyTurn?: boolean
+  /** Only used for the low-time ticking sound — the visible clocks live on the board. */
   secondsLeft?: number
   hasTimer?: boolean
-  urgent?: boolean
   inCheck?: boolean
 }) {
   useTimerTickSound(secondsLeft ?? 0, !!hasTimer)
@@ -150,20 +149,16 @@ export function ChessTurnBar({
   return (
     <div
       className={[
-        'flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-semibold border',
+        'flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold border',
         isMyTurn
           ? 'bg-[var(--primary)]/15 border-[var(--primary)]/40 text-[var(--foreground)]'
           : 'bg-[var(--surface-inset-bg)] border-[var(--border)] text-muted',
-        urgent ? 'animate-pulse border-amber-400/60 bg-amber-500/10' : '',
       ].join(' ')}
     >
       <span>
         {isMyTurn ? 'Your turn' : turnPlayerName ? `${turnPlayerName}'s turn` : 'Waiting…'}
         {inCheck && <span className="ml-1.5 text-rose-400 font-black">Check!</span>}
       </span>
-      {hasTimer && secondsLeft != null && secondsLeft > 0 && (
-        <span className={urgent ? 'text-amber-400 font-black tabular-nums' : 'tabular-nums'}>{secondsLeft}s</span>
-      )}
     </div>
   )
 }
