@@ -50,13 +50,13 @@ type PendingTile = ScrabblePlacedTile & { rackIndex: number }
 function premiumStyle(prem: ScrabblePremium): { bg: string; label: string } {
   switch (prem) {
     case 'TW':
-      return { bg: 'bg-rose-600/80', label: 'TW' }
+      return { bg: 'bg-rose-600', label: 'TW' }
     case 'DW':
-      return { bg: 'bg-pink-400/70', label: 'DW' }
+      return { bg: 'bg-pink-500', label: 'DW' }
     case 'TL':
-      return { bg: 'bg-blue-600/80', label: 'TL' }
+      return { bg: 'bg-blue-600', label: 'TL' }
     case 'DL':
-      return { bg: 'bg-sky-400/70', label: 'DL' }
+      return { bg: 'bg-sky-500', label: 'DL' }
     default:
       return { bg: 'bg-[var(--surface-inset-bg)]', label: '' }
   }
@@ -78,9 +78,15 @@ function LetterTile({
   return (
     <span
       className={[
-        'relative flex items-center justify-center rounded-[2px] font-black leading-none w-full h-full',
-        pending ? 'bg-amber-300 text-amber-950 ring-2 ring-inset ring-emerald-500' : 'bg-amber-200 text-amber-950',
-        size === 'rack' ? 'text-xl sm:text-2xl rounded-md shadow' : 'text-[2.4vw] sm:text-base',
+        // Raised "wooden" tile: light-to-dark gradient + inset top highlight + thicker
+        // bottom edge + drop shadow give a 3D bevel.
+        'relative flex items-center justify-center font-black leading-none w-full h-full text-amber-950',
+        'border border-amber-500/60 border-b-[3px] border-b-amber-600/70',
+        'shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_2px_rgba(0,0,0,0.35)]',
+        pending
+          ? 'bg-gradient-to-b from-amber-200 to-amber-400 ring-2 ring-inset ring-emerald-600'
+          : 'bg-gradient-to-b from-amber-100 to-amber-300',
+        size === 'rack' ? 'text-xl sm:text-2xl rounded-md shadow-md' : 'text-[2.4vw] sm:text-base rounded-[3px]',
       ].join(' ')}
     >
       {letter.toUpperCase()}
@@ -155,20 +161,25 @@ function BoardCell({
       }}
       {...dragProps}
       className={[
-        'relative aspect-square flex items-center justify-center p-0',
+        'relative aspect-square flex items-center justify-center p-0 border border-black/15',
         tile ? 'bg-transparent' : bg,
         isOver ? 'ring-2 ring-inset ring-emerald-400' : '',
         interactive && !exchangeMode ? 'cursor-pointer' : 'cursor-default',
       ].join(' ')}
     >
-      {isLastMoveCell && !pendingTile && <span className="absolute inset-0 bg-yellow-300/30" />}
       {tile ? (
         <LetterTile letter={tile.letter} isBlank={tile.isBlank} pending={!!pendingTile} size="board" />
       ) : isCenter ? (
-        <span className="text-[2.4vw] sm:text-sm leading-none text-amber-50/80">★</span>
+        <span className="text-[2.4vw] sm:text-sm leading-none text-amber-50/90">★</span>
       ) : label ? (
-        <span className="text-[1.3vw] sm:text-[0.55rem] font-black leading-none text-white/90">{label}</span>
+        <span className="text-[1.3vw] sm:text-[0.55rem] font-black leading-none text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]">
+          {label}
+        </span>
       ) : null}
+      {/* Clear highlight of the most recently played tiles — a bright ring + glow on top. */}
+      {isLastMoveCell && (
+        <span className="pointer-events-none absolute inset-0 z-10 rounded-[3px] ring-2 ring-inset ring-yellow-400 shadow-[0_0_7px_2px_rgba(250,204,21,0.7)]" />
+      )}
     </button>
   )
 }
@@ -360,6 +371,18 @@ export function ScrabbleGamePanel({
       setRackOrder(null)
     }
   }, [rack])
+
+  // When your turn ends — including when the timer runs out — return any tentatively
+  // placed (un-submitted) tiles to the rack and drop any in-progress selections.
+  useEffect(() => {
+    if (!isMyTurn) {
+      setPending([])
+      setSelectedRackIndex(null)
+      setBlankTarget(null)
+      setExchangeMode(false)
+      setExchangeSelection([])
+    }
+  }, [isMyTurn])
 
   const orderedRackIndices = useMemo(() => {
     if (rackOrder && rackOrder.length === rack.length) return rackOrder
@@ -561,7 +584,9 @@ export function ScrabbleGamePanel({
   // ── Render ────────────────────────────────────────────────────────────────
   const lastMove = session.last_move
   const lastMovePlayer = lastMove ? players.find((p) => p.id === lastMove.player_id) : null
-  const showShuffle = interactive && !exchangeMode && rack.length > 1
+  // Shuffling/arranging is purely cosmetic, so allow it whenever you hold tiles —
+  // even when it isn't your turn.
+  const showShuffle = !!myState && !finished && !exchangeMode && rack.length > 1
 
   return (
     <div>
