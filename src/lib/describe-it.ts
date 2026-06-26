@@ -130,7 +130,11 @@ export function describeItLobbyReady(
   return { ok: true }
 }
 
-/** Auto-distribute any players that haven't picked a team onto the smallest teams. */
+/**
+ * Even out the teams. Keeps players on their current team where possible, places
+ * anyone unassigned on the smallest team, then moves players off oversized teams
+ * until every team is within one of the others. Returns the full assignment.
+ */
 export function balanceDescribeItTeams(
   playerIds: string[],
   existing: Array<{ player_id: string; team: number }>,
@@ -138,18 +142,38 @@ export function balanceDescribeItTeams(
 ): Map<string, number> {
   const assignment = new Map<string, number>()
   const counts = new Array(numTeams + 1).fill(0)
+  const members: string[][] = Array.from({ length: numTeams + 1 }, () => [])
   for (const row of existing) {
     if (row.team >= 1 && row.team <= numTeams && playerIds.includes(row.player_id)) {
       assignment.set(row.player_id, row.team)
       counts[row.team] += 1
+      members[row.team]!.push(row.player_id)
     }
   }
+  // Place anyone without a team on the smallest team.
   for (const id of playerIds) {
     if (assignment.has(id)) continue
     let smallest = 1
-    for (let t = 2; t <= numTeams; t += 1) if (counts[t] < counts[smallest]) smallest = t
+    for (let t = 2; t <= numTeams; t += 1) if (counts[t]! < counts[smallest]!) smallest = t
     assignment.set(id, smallest)
     counts[smallest] += 1
+    members[smallest]!.push(id)
+  }
+  // Move from the biggest team to the smallest until they differ by at most one.
+  for (let guard = 0; guard < playerIds.length; guard += 1) {
+    let big = 1
+    let small = 1
+    for (let t = 2; t <= numTeams; t += 1) {
+      if (counts[t]! > counts[big]!) big = t
+      if (counts[t]! < counts[small]!) small = t
+    }
+    if (counts[big]! - counts[small]! <= 1) break
+    const mover = members[big]!.pop()
+    if (mover == null) break
+    assignment.set(mover, small)
+    counts[big] -= 1
+    counts[small] += 1
+    members[small]!.push(mover)
   }
   return assignment
 }
