@@ -58,6 +58,7 @@ import {
   isLudoGame,
   isTicTacToeGame,
   isChessGame,
+  isDescribeItGame,
   isICallOnGame,
   isSudokuGame,
   isWordHuntGame,
@@ -146,6 +147,14 @@ import {
   NPAT_TIMER_OPTIONS,
 } from '@/lib/npat'
 import { WORD_HUNT_DEFAULT_MAX_PLAYERS, WORD_HUNT_DEFAULT_TIMER, WORD_HUNT_TIMER_OPTIONS } from '@/lib/word-hunt'
+import {
+  DESCRIBE_IT_DEFAULT_ROUNDS,
+  DESCRIBE_IT_DEFAULT_TURN_SECONDS,
+  DESCRIBE_IT_ROUND_OPTIONS,
+  DESCRIBE_IT_TEAM_OPTIONS,
+  DESCRIBE_IT_TURN_OPTIONS,
+} from '@/lib/describe-it'
+import { parseDescribeItWords } from '@/lib/describe-it-words'
 import { getCodeDefaultLimits, playerCountOptions, type GamePlayerLimitsMap } from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
@@ -169,6 +178,7 @@ interface Settings {
   theme: ThemeId
   participant_filter: 'all' | 'joined'
   gender_based: boolean
+  describe_it_num_teams: number
 }
 
 type Step = 'settings' | 'participants' | 'done'
@@ -196,7 +206,9 @@ function CreateGameInner() {
     theme: 'default',
     participant_filter: 'all' as 'all' | 'joined',
     gender_based: true,
+    describe_it_num_teams: 2,
   })
+  const [describeItWords, setDescribeItWords] = useState('')
   const [participants, setParticipants] = useState<ParticipantInput[]>([])
   const [nameInput, setNameInput] = useState('')
   const [defaultGender, setDefaultGender] = useState<ParticipantGender>('female')
@@ -408,6 +420,15 @@ function CreateGameInner() {
               timer_seconds: 600,
             }
           : {}),
+        ...(isDescribeItGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: DESCRIBE_IT_DEFAULT_ROUNDS,
+              timer_seconds: DESCRIBE_IT_DEFAULT_TURN_SECONDS,
+              describe_it_num_teams: 2,
+            }
+          : {}),
         ...(isWhoSaidThis(type)
           ? {
               participant_mode: 'import' as const,
@@ -467,6 +488,7 @@ function CreateGameInner() {
   const isLudo = isLudoGame(settings.game_type)
   const isTicTacToe = isTicTacToeGame(settings.game_type)
   const isChess = isChessGame(settings.game_type)
+  const isDescribeIt = isDescribeItGame(settings.game_type)
   const isNpat = isICallOnGame(settings.game_type)
   const isSudoku = isSudokuGame(settings.game_type)
   const isWordHunt = isWordHuntGame(settings.game_type)
@@ -562,6 +584,7 @@ function CreateGameInner() {
     isLudo ||
     isTicTacToe ||
     isChess ||
+    isDescribeIt ||
     isNpat ||
     isSudoku ||
     isWordHunt
@@ -1012,7 +1035,11 @@ function CreateGameInner() {
           rounds_count: isWst ? Math.max(participants.length, 2) : settings.rounds_count,
           question_source: isCodewords
             ? questionSource
-            : isTot
+            : isDescribeIt
+              ? parseDescribeItWords(describeItWords).length > 0
+                ? 'custom'
+                : 'platform'
+              : isTot
               ? 'custom'
               : isLobbyQuestions
                 ? questionSource === 'library'
@@ -1023,7 +1050,11 @@ function CreateGameInner() {
             ? questionSource === 'custom'
               ? customCodewordsWords
               : null
-            : isLobbyQuestions && (isTot || questionSource === 'custom' || questionSource === 'library')
+            : isDescribeIt
+              ? parseDescribeItWords(describeItWords).length > 0
+                ? parseDescribeItWords(describeItWords)
+                : null
+              : isLobbyQuestions && (isTot || questionSource === 'custom' || questionSource === 'library')
               ? isWyr || isTot
                 ? customWyrQuestions
                 : isTrivia
@@ -1545,6 +1576,66 @@ function CreateGameInner() {
                 <p className="text-faint text-sm leading-relaxed">
                   Classic chess — White moves first, standard rules, checkmate to win. Each player gets their own clock
                   that only ticks on their turn; the first to run out of time loses.
+                </p>
+              </SettingsGroup>
+            ) : isDescribeIt ? (
+              <SettingsGroup title="Describe It room">
+                <p className="text-faint text-sm">Players join with a name and split into teams. 4+ players.</p>
+                <Field label="Teams">
+                  <select
+                    value={settings.describe_it_num_teams}
+                    onChange={(e) => setSettings({ ...settings, describe_it_num_teams: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    {DESCRIBE_IT_TEAM_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n} teams
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Rounds (each team plays once per round)">
+                  <select
+                    value={settings.rounds_count}
+                    onChange={(e) => setSettings({ ...settings, rounds_count: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    {DESCRIBE_IT_ROUND_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n} rounds
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Time per turn">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    {DESCRIBE_IT_TURN_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n === 60 ? '1 minute' : n === 120 ? '2 minutes' : `${n} seconds`}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Add your own words (optional, one per line)">
+                  <textarea
+                    value={describeItWords}
+                    onChange={(e) => setDescribeItWords(e.target.value)}
+                    placeholder="pizza&#10;rainbow&#10;astronaut"
+                    rows={3}
+                    className="input-field w-full resize-y"
+                  />
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="describe_it" />
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Teams race the clock: a describer gives clues for secret words while teammates type guesses. Every
+                  correct guess scores a point — most words across all rounds wins. Built-in words are included; your own
+                  words are mixed in.
                 </p>
               </SettingsGroup>
             ) : isNpat ? (
