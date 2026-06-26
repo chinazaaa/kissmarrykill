@@ -133,9 +133,10 @@ export function RematchHistory({
     load()
   }, [gameId])
 
-  if (loading || snapshots.length === 0) return null
+  if (loading || snapshots.length < 2) return null
 
-  const lastSnapshot = snapshots[snapshots.length - 1]
+  // Compare against previous session, not current (last snapshot is current session's data)
+  const lastSnapshot = snapshots[snapshots.length - 2]
   const parsedType = parseGameType(gameType)
 
   if (isMostLikelyTo(parsedType)) {
@@ -168,13 +169,13 @@ export function RematchHistory({
           className="w-full flex items-center justify-between"
         >
           <p className="text-muted text-xs uppercase tracking-wider">
-            Rematch History (Session {snapshots.length + 1})
+            Rematch History (Session {snapshots.length})
           </p>
           <span className="text-faint text-xs">{expanded ? '−' : '+'}</span>
         </button>
         {expanded && (
           <div className="space-y-2">
-            <p className="text-faint text-[10px]">Compared to session {snapshots.length}</p>
+            <p className="text-faint text-[10px]">Compared to session {snapshots.length - 1}</p>
             {comparisons.map((c) => (
               <div key={c.name} className="glass-card p-3 space-y-1">
                 <p className="font-bold text-body text-sm">{c.name}</p>
@@ -226,13 +227,13 @@ export function RematchHistory({
           className="w-full flex items-center justify-between"
         >
           <p className="text-muted text-xs uppercase tracking-wider">
-            Rematch History (Session {snapshots.length + 1})
+            Rematch History (Session {snapshots.length})
           </p>
           <span className="text-faint text-xs">{expanded ? '−' : '+'}</span>
         </button>
         {expanded && (
           <div className="space-y-2">
-            <p className="text-faint text-[10px]">Compared to session {snapshots.length}</p>
+            <p className="text-faint text-[10px]">Compared to session {snapshots.length - 1}</p>
             {comparisons.map((c) => (
               <div key={c.name} className="glass-card p-3 space-y-1">
                 <p className="font-bold text-body text-sm">{c.name}</p>
@@ -291,13 +292,13 @@ export function RematchHistory({
         className="w-full flex items-center justify-between"
       >
         <p className="text-muted text-xs uppercase tracking-wider">
-          Rematch History (Session {snapshots.length + 1})
+          Rematch History (Session {snapshots.length})
         </p>
         <span className="text-faint text-xs">{expanded ? '−' : '+'}</span>
       </button>
       {expanded && (
         <div className="space-y-2">
-          <p className="text-faint text-[10px]">Compared to session {snapshots.length}</p>
+          <p className="text-faint text-[10px]">Compared to session {snapshots.length - 1}</p>
           {comparisons.map((c) => (
             <div key={c.name} className="glass-card p-3 space-y-1">
               <p className="font-bold text-body text-sm">{c.name}</p>
