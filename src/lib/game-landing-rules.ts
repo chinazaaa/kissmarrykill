@@ -844,6 +844,41 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
     },
   ],
 
+  scrabble: [
+    {
+      title: 'Objective',
+      points: [
+        'Score the most points by building interlocking words on a 15×15 board.',
+        'Each letter has a point value; premium squares multiply letters and whole words.',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        '2–4 players join a room. The host can play too.',
+        'Everyone draws 7 random tiles onto their rack. Tiles stay hidden from opponents.',
+        'The first word of the game must cross the centre star.',
+      ],
+    },
+    {
+      title: 'Taking a turn',
+      points: [
+        'On your turn, place tiles from your rack to form a single word (across or down) that connects to tiles already on the board.',
+        'Every word you make — the main word and any crosswords — must be a valid dictionary word, or the play is rejected.',
+        'Instead of playing, you can swap any number of tiles back into the bag, or pass.',
+        'A blank tile can be any letter (worth 0). Use all 7 tiles in one turn for a 50-point bonus.',
+      ],
+    },
+    {
+      title: 'Winning',
+      points: [
+        'The game ends when the bag is empty and a player uses their last tile, or when everyone passes twice in a row.',
+        'Each player subtracts the value of tiles left on their rack; a player who used all their tiles gains the total of everyone else’s leftovers.',
+        'The highest score wins. Tap Play again to start a fresh game.',
+      ],
+    },
+  ],
+
   word_hunt: [
     {
       title: 'Objective',

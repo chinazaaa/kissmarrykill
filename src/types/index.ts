@@ -36,6 +36,7 @@ export type GameType =
   | 'tic_tac_toe'
   | 'word_hunt'
   | 'chess'
+  | 'scrabble'
 
 export type NpatPhase = 'letter_pick' | 'writing' | 'marking' | 'host_review' | 'reveal'
 export type NpatCategory = 'name' | 'animal' | 'place' | 'thing' | 'food'
@@ -537,6 +538,68 @@ export interface ChessSession {
   turn_deadline_at: string | null
   created_at: string
   updated_at: string
+}
+
+// ── Scrabble ──
+/** A single board cell. null when empty, else a placed tile. */
+export interface ScrabbleBoardCell {
+  /** Resolved letter A–Z. For a blank tile, this is the letter the player chose. */
+  letter: string
+  /** True if this came from a blank tile (always scores 0). */
+  isBlank: boolean
+}
+
+/** 15×15 grid, row-major. board[row][col]. */
+export type ScrabbleBoard = (ScrabbleBoardCell | null)[][]
+
+/** A tile the mover is placing this turn. letter is A–Z (chosen letter for a blank). */
+export interface ScrabblePlacedTile {
+  row: number
+  col: number
+  letter: string
+  isBlank: boolean
+}
+
+/** Summary of the last action, for board highlighting and the activity log. */
+export interface ScrabbleLastMove {
+  player_id: string
+  kind: 'play' | 'exchange' | 'pass'
+  words: string[]
+  score: number
+  /** Cells newly filled this turn (for highlight). Empty for exchange/pass. */
+  tiles: { row: number; col: number }[]
+}
+
+export interface ScrabbleSession {
+  id: string
+  game_id: string
+  /** Player ids in seating/turn order. */
+  turn_order: string[]
+  current_turn_index: number
+  board: ScrabbleBoard
+  /** Remaining tiles in the bag; '?' represents a blank. */
+  bag: string[]
+  phase: 'playing' | 'finished'
+  /** Number of consecutive scoreless turns (pass/exchange); game ends at 2×players. */
+  consecutive_passes: number
+  last_move: ScrabbleLastMove | null
+  winner_player_id: string | null
+  is_tie: boolean
+  status_message: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ScrabblePlayerState {
+  id: string
+  game_id: string
+  player_id: string
+  /** Up to 7 tiles on the rack; '?' represents a blank. */
+  rack: string[]
+  score: number
+  player_order: number
+  created_at: string
 }
 
 export interface TriviaQuestion {

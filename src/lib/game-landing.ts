@@ -54,6 +54,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   tic_tac_toe: 'tic-tac-toe',
   word_hunt: 'word-hunt',
   chess: 'chess',
+  scrabble: 'scrabble',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -1229,6 +1230,64 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       {
         question: 'Can more than 2 people play?',
         answer: 'No — chess is strictly 2 players. The host can play as one of the two if they want in on the match.',
+      },
+    ],
+  }),
+  scrabble: landing('scrabble', {
+    seoTitle: 'Scrabble Online — Play with Friends',
+    seoDescription:
+      'Play Scrabble online with 2–4 friends. Standard 15×15 board, premium squares, blanks, and full dictionary word-checking. No sign-up.',
+    keywords: [
+      'scrabble online',
+      'play scrabble with friends',
+      'online scrabble multiplayer',
+      'word game with friends',
+    ],
+    heroSubtitle: 'The classic crossword tile game — build words, hit the premium squares, outscore your friends.',
+    bodyParagraph:
+      'Scrabble on Fate Round is the classic word game for 2–4 players on a full standard 15×15 board. Draw seven tiles, take turns building interlocking words outward from the centre star, and rack up points — letters are worth their standard values, and double/triple letter and word squares multiply your score. Every word you form is checked against a real dictionary, so only valid plays count. Use a blank tile as any letter, swap tiles you do not want, or pass. When the bag is empty and someone uses their last tile, the game ends and the highest score wins.',
+    highlights: ['2–4 players', 'Real dictionary', 'Premium squares'],
+    features: [
+      {
+        title: 'Real dictionary check',
+        description: 'Every word is validated against a full word list — no made-up words slip through.',
+        emoji: '📖',
+      },
+      {
+        title: 'Premium squares & blanks',
+        description: 'Double and triple letter/word squares, blank tiles, and the 50-point bingo bonus all handled.',
+        emoji: '🔠',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: '2–4 players join with their name — the host can play too.' },
+      {
+        title: 'Build words',
+        description:
+          'Tap tiles from your rack onto the board to form words. The first word must cross the centre star.',
+      },
+      {
+        title: 'Outscore everyone',
+        description: 'Hit premium squares for big points. Highest score when the tiles run out wins.',
+      },
+    ],
+    perfectFor: ['Word lovers', 'Family game night', 'Friend rivalries'],
+    extraFaqs: [
+      {
+        question: 'How are words checked?',
+        answer:
+          'Every word you form — the main word and any crosswords it creates — is checked against a standard English word list. If any of them is not a valid word, the play is rejected and you can try again.',
+      },
+      {
+        question: 'How do blank tiles work?',
+        answer:
+          'A blank can stand in for any letter — you choose which when you place it. It scores zero points but lets you complete words you otherwise could not.',
+      },
+      {
+        question: 'How many people can play?',
+        answer: 'Scrabble supports 2 to 4 players. The host can join as one of the players.',
       },
     ],
   }),

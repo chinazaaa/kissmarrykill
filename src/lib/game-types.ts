@@ -1191,6 +1191,49 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       },
     },
   },
+  scrabble: {
+    id: 'scrabble',
+    label: 'Scrabble',
+    tagline: 'Spell words on the board, rack up points, outscore your friends',
+    headerEmoji: '🔠',
+    card: {
+      accent: '#10b981',
+      accentSoft: 'rgba(16, 185, 129, 0.15)',
+      emoji: '🔡',
+      players: '2–4 players',
+      vibe: 'Word duel',
+      featured: true,
+    },
+    slots: {
+      kiss: {
+        emoji: '🔠',
+        label: 'Letters',
+        color: '#10b981',
+        leaderboardLabel: 'Tiles played',
+        activeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-400',
+        borderClass: 'border-emerald-500/50 bg-emerald-500/10',
+        textColor: '#6ee7b7',
+      },
+      marry: {
+        emoji: '📖',
+        label: 'Words',
+        color: '#3b82f6',
+        leaderboardLabel: 'Words played',
+        activeClass: 'bg-blue-500/20 text-blue-100 border-blue-400',
+        borderClass: 'border-blue-500/50 bg-blue-500/10',
+        textColor: '#93c5fd',
+      },
+      kill: {
+        emoji: '🏆',
+        label: 'Winner',
+        color: '#fbbf24',
+        leaderboardLabel: 'Winner',
+        activeClass: 'bg-amber-500/20 text-amber-100 border-amber-400',
+        borderClass: 'border-amber-500/50 bg-amber-500/10',
+        textColor: '#fcd34d',
+      },
+    },
+  },
 }
 
 /** Home page “Popular games” grid — order is display order. */
@@ -1231,6 +1274,7 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'tic_tac_toe',
   'word_hunt',
   'chess',
+  'scrabble',
 ]
 
 export function parseGameType(raw: unknown): GameType {
@@ -1260,6 +1304,7 @@ export function parseGameType(raw: unknown): GameType {
   if (raw === 'tic_tac_toe') return 'tic_tac_toe'
   if (raw === 'word_hunt') return 'word_hunt'
   if (raw === 'chess') return 'chess'
+  if (raw === 'scrabble') return 'scrabble'
   return 'smash_marry_kill'
 }
 
@@ -1652,6 +1697,10 @@ export function isTicTacToeGame(gameType: GameType | string | undefined): boolea
 
 export function isChessGame(gameType: GameType | string | undefined): boolean {
   return parseGameType(gameType) === 'chess'
+}
+
+export function isScrabbleGame(gameType: GameType | string | undefined): boolean {
+  return parseGameType(gameType) === 'scrabble'
 }
 
 export function isICallOnGame(gameType: GameType | string | undefined): boolean {
