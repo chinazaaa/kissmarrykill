@@ -286,6 +286,8 @@ export const GAME_LANDING_OG_BY_SLUG: Record<string, string> = {
   'hot-seat': '/og/hot-seat.png',
   'custom-game': '/og/custom-game.png',
   sudoku: '/og/sudoku.png',
+  'tic-tac-toe': '/og/tic-tac-toe.png',
+  'word-hunt': '/og/word-hunt.png',
 }
 
 export function gameLandingOgPath(slug: string): string {
