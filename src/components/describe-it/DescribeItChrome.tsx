@@ -9,7 +9,12 @@ import type { Player } from '@/types'
 /** Per-team accent classes. `badge` is a solid high-contrast pill for the team name. */
 export const TEAM_STYLES: { chip: string; ring: string; badge: string; dot: string }[] = [
   { chip: 'bg-sky-500/20 border-sky-500/60', ring: 'ring-sky-400', badge: 'bg-sky-600 text-white', dot: 'bg-sky-500' },
-  { chip: 'bg-pink-500/20 border-pink-500/60', ring: 'ring-pink-400', badge: 'bg-pink-600 text-white', dot: 'bg-pink-500' },
+  {
+    chip: 'bg-pink-500/20 border-pink-500/60',
+    ring: 'ring-pink-400',
+    badge: 'bg-pink-600 text-white',
+    dot: 'bg-pink-500',
+  },
   {
     chip: 'bg-emerald-500/20 border-emerald-500/60',
     ring: 'ring-emerald-400',
@@ -219,7 +224,9 @@ export function DescribeItTeamRoster({
                 disabled={picking || mine}
                 className={[
                   'w-full rounded-lg border py-1.5 text-xs font-bold transition-colors',
-                  mine ? 'border-[var(--border)] text-faint' : 'border-[var(--border-strong)] hover:bg-[var(--primary)]/10',
+                  mine
+                    ? 'border-[var(--border)] text-faint'
+                    : 'border-[var(--border-strong)] hover:bg-[var(--primary)]/10',
                 ].join(' ')}
               >
                 {mine ? 'Your team' : 'Join'}

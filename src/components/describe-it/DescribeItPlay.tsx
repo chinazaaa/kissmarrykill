@@ -113,7 +113,11 @@ export function DescribeItPlayPanel({
   const isDescriber = !!myPlayerId && session.describer_player_id === myPlayerId
   const onActiveTeam = myTeam === activeTeam
   const describerName = players.find((p) => p.id === session.describer_player_id)?.name ?? 'Someone'
-  const clues = session.current_clues?.length ? session.current_clues : session.current_clue ? [session.current_clue] : []
+  const clues = session.current_clues?.length
+    ? session.current_clues
+    : session.current_clue
+      ? [session.current_clue]
+      : []
 
   return (
     <div className="space-y-4">
@@ -161,7 +165,9 @@ export function DescribeItPlayPanel({
               )}
               {clues.length > 0 && (
                 <div className="text-left space-y-1">
-                  <p className="text-faint text-[11px] font-semibold uppercase tracking-wide">Clues you&apos;ve given</p>
+                  <p className="text-faint text-[11px] font-semibold uppercase tracking-wide">
+                    Clues you&apos;ve given
+                  </p>
                   <div className="flex flex-wrap gap-1">
                     {clues.map((c, i) => (
                       <span key={i} className="rounded-md bg-[var(--surface-inset-bg)] px-2 py-0.5 text-xs">
@@ -206,9 +212,7 @@ export function DescribeItPlayPanel({
                   disabled={!!acting}
                 />
               ) : (
-                <p className="text-center text-faint text-xs">
-                  {myTeam ? 'Waiting for your team’s turn' : 'Watching'}
-                </p>
+                <p className="text-center text-faint text-xs">{myTeam ? 'Waiting for your team’s turn' : 'Watching'}</p>
               )}
             </DescribeItCard>
           )}

@@ -89,7 +89,11 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
 
     const [sessionRes, teamRes, wordRes, guessRes] = await Promise.all([
       supabase.from('describe_it_sessions').select(DESCRIBE_IT_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
-      supabase.from('describe_it_players').select(DESCRIBE_IT_PLAYER_SELECT).eq('game_id', gameCode).order('created_at'),
+      supabase
+        .from('describe_it_players')
+        .select(DESCRIBE_IT_PLAYER_SELECT)
+        .eq('game_id', gameCode)
+        .order('created_at'),
       supabase.from('describe_it_words').select(DESCRIBE_IT_WORD_SELECT).eq('game_id', gameCode),
       supabase
         .from('describe_it_guesses')
@@ -322,9 +326,7 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
   if (screen === 'finished') {
     return (
       <DescribeItShell compact>
-        {game && (
-          <DescribeItFinalResultsShareBlock game={game} players={players} words={words} numTeams={numTeams} />
-        )}
+        {game && <DescribeItFinalResultsShareBlock game={game} players={players} words={words} numTeams={numTeams} />}
         {myPlayerId && myName && (
           <PlayerSessionControls
             gameCode={gameCode}

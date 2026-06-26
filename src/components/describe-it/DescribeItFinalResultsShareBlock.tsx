@@ -25,7 +25,8 @@ export function DescribeItFinalResultsShareBlock({
   const scores = computeDescribeItScores(words, numTeams)
   const winners = describeItWinningTeams(scores)
   const isTie = winners.length > 1
-  const winnerLabel = winners.length === 0 ? 'No words guessed' : isTie ? "It's a tie!" : `${teamLabel(winners[0]!)} wins!`
+  const winnerLabel =
+    winners.length === 0 ? 'No words guessed' : isTie ? "It's a tie!" : `${teamLabel(winners[0]!)} wins!`
 
   // Top guessers across the match (for a fun stat).
   const guessCounts = new Map<string, number>()
@@ -82,7 +83,14 @@ export function DescribeItFinalResultsShareBlock({
       <HostGameFinishedActions
         playAgainButton={playAgainButton}
         shareButton={
-          <ShareResults captureRef={captureRef} game={game} participants={[]} votes={[]} rounds={[]} players={players} />
+          <ShareResults
+            captureRef={captureRef}
+            game={game}
+            participants={[]}
+            votes={[]}
+            rounds={[]}
+            players={players}
+          />
         }
       />
     </div>

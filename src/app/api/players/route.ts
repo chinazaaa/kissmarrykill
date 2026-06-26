@@ -545,11 +545,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'playerName is required' }, { status: 400 })
     }
 
-    const limitKey = isChessGame(rowGameType)
-      ? 'chess'
-      : isDescribeItGame(rowGameType)
-        ? 'describe_it'
-        : 'tic_tac_toe'
+    const limitKey = isChessGame(rowGameType) ? 'chess' : isDescribeItGame(rowGameType) ? 'describe_it' : 'tic_tac_toe'
     const maxPlayers = lobbyMaxPlayersFromGame(limitKey, gameRow, lobbyLimits)
     const { count: playerCount } = await supabase
       .from('players')

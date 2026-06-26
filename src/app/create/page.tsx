@@ -1042,12 +1042,12 @@ function CreateGameInner() {
                 ? 'custom'
                 : 'platform'
               : isTot
-              ? 'custom'
-              : isLobbyQuestions
-                ? questionSource === 'library'
-                  ? 'custom'
-                  : questionSource
-                : 'platform',
+                ? 'custom'
+                : isLobbyQuestions
+                  ? questionSource === 'library'
+                    ? 'custom'
+                    : questionSource
+                  : 'platform',
           custom_questions: isCodewords
             ? questionSource === 'custom'
               ? customCodewordsWords
@@ -1057,12 +1057,12 @@ function CreateGameInner() {
                 ? parseDescribeItWords(describeItWords)
                 : null
               : isLobbyQuestions && (isTot || questionSource === 'custom' || questionSource === 'library')
-              ? isWyr || isTot
-                ? customWyrQuestions
-                : isTrivia
-                  ? customTriviaQuestions
-                  : customMltQuestions
-              : null,
+                ? isWyr || isTot
+                  ? customWyrQuestions
+                  : isTrivia
+                    ? customTriviaQuestions
+                    : customMltQuestions
+                : null,
           trivia_category: isTrivia ? triviaCategory : undefined,
           participants: isJoinersMode ? [] : participants,
           wst_quote_source: isWst ? wstQuoteSource : undefined,
@@ -1676,8 +1676,8 @@ function CreateGameInner() {
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Teams race the clock: a describer gives clues for secret words while teammates type guesses. Every
-                  correct guess scores a point — most words across all rounds wins. Built-in words are included; your own
-                  words are mixed in.
+                  correct guess scores a point — most words across all rounds wins. Built-in words are included; your
+                  own words are mixed in.
                 </p>
               </SettingsGroup>
             ) : isNpat ? (

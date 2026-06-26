@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not a Describe It game' }, { status: 400 })
   }
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  if (game.status !== 'waiting') return NextResponse.json({ error: 'Settings are locked once the game starts' }, { status: 400 })
+  if (game.status !== 'waiting')
+    return NextResponse.json({ error: 'Settings are locked once the game starts' }, { status: 400 })
 
   const update: Record<string, unknown> = {}
   if (numTeams != null) update.describe_it_num_teams = clampDescribeItTeams(numTeams)

@@ -1,11 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
 import type { DescribeItSession, DescribeItWord, Game } from '@/types'
-import {
-  DESCRIBE_IT_WORD_POOL,
-  parseStoredDescribeItWords,
-  pickDescribeWord,
-} from '@/lib/describe-it-words'
+import { DESCRIBE_IT_WORD_POOL, parseStoredDescribeItWords, pickDescribeWord } from '@/lib/describe-it-words'
 
 export const DESCRIBE_IT_MIN_PLAYERS = 4
 export const DESCRIBE_IT_MAX_PLAYERS = 20
@@ -524,7 +520,10 @@ export async function processDescribeItAdvance(
 export type DescribeItTeamScore = { team: number; score: number }
 
 /** Team scores = number of words guessed, highest first. */
-export function computeDescribeItScores(words: Pick<DescribeItWord, 'team' | 'status'>[], numTeams: number): DescribeItTeamScore[] {
+export function computeDescribeItScores(
+  words: Pick<DescribeItWord, 'team' | 'status'>[],
+  numTeams: number
+): DescribeItTeamScore[] {
   const counts = new Map<number, number>()
   for (let t = 1; t <= numTeams; t += 1) counts.set(t, 0)
   for (const w of words) {

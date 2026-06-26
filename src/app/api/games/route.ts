@@ -323,12 +323,12 @@ export async function POST(req: NextRequest) {
         : isWhoSaidThis(game_type)
           ? wstAutoRoundCount(participants.length)
           : isHotSeat(game_type)
-          ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
-          : isPickANumber(game_type)
-            ? clampPanRounds(rounds_count ?? 5)
-            : isTriviaGame(game_type)
-              ? Math.min(Math.max(Number(rounds_count) || TRIVIA_DEFAULT_ROUNDS, 1), maxRounds)
-              : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
+            ? clampHotSeatMaxCap(rounds_count ?? HOT_SEAT_MIN_PLAYERS, hotSeatMaxCapUpperBound(0, participants.length))
+            : isPickANumber(game_type)
+              ? clampPanRounds(rounds_count ?? 5)
+              : isTriviaGame(game_type)
+                ? Math.min(Math.max(Number(rounds_count) || TRIVIA_DEFAULT_ROUNDS, 1), maxRounds)
+                : Math.min(Math.max(Number(rounds_count) || 3, 1), maxRounds)
 
   if (
     question_source === 'custom' &&
@@ -478,9 +478,7 @@ export async function POST(req: NextRequest) {
             game_duration_seconds: clampNpatGameDuration(rawGameDurationSeconds ?? NPAT_DEFAULT_GAME_DURATION),
           }
         : {}),
-    ...(isDescribeItGame(game_type)
-      ? { describe_it_num_teams: clampDescribeItTeams(rawDescribeItNumTeams) }
-      : {}),
+    ...(isDescribeItGame(game_type) ? { describe_it_num_teams: clampDescribeItTeams(rawDescribeItNumTeams) } : {}),
     ...(gameSupportsViewerSetting(game_type)
       ? { allow_viewers: viewersAllowed, allow_late_players: latePlayersAllowed }
       : {}),
