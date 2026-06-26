@@ -36,15 +36,12 @@ const PROMOTION_PIECES: { piece: 'q' | 'r' | 'b' | 'n'; label: string }[] = [
 
 const CAPTURABLE_TYPES = ['q', 'r', 'b', 'n', 'p'] as const
 const STARTING_COUNT: Record<string, number> = { q: 1, r: 2, b: 2, n: 2, p: 8 }
-const PIECE_VALUE: Record<string, number> = { q: 9, r: 5, b: 3, n: 3, p: 1 }
 
 type Material = {
   /** Black pieces removed from the board — i.e. captured by White. */
   capturedByWhite: string[]
   /** White pieces removed from the board — i.e. captured by Black. */
   capturedByBlack: string[]
-  /** Positive when White leads on material, negative when Black leads. */
-  advantage: number
 }
 
 function computeMaterial(chess: Chess): Material {
@@ -60,12 +57,8 @@ function computeMaterial(chess: Chess): Material {
 
   const capturedByWhite: string[] = []
   const capturedByBlack: string[] = []
-  let whitePoints = 0
-  let blackPoints = 0
 
   for (const type of CAPTURABLE_TYPES) {
-    whitePoints += counts.w[type] * PIECE_VALUE[type]
-    blackPoints += counts.b[type] * PIECE_VALUE[type]
     // Promotions can leave more than the starting count; clamp at 0.
     const missingBlack = Math.max(0, STARTING_COUNT[type] - counts.b[type])
     const missingWhite = Math.max(0, STARTING_COUNT[type] - counts.w[type])
@@ -73,22 +66,20 @@ function computeMaterial(chess: Chess): Material {
     for (let i = 0; i < missingWhite; i += 1) capturedByBlack.push(type)
   }
 
-  return { capturedByWhite, capturedByBlack, advantage: whitePoints - blackPoints }
+  return { capturedByWhite, capturedByBlack }
 }
 
-/** A player's row: name, captured opponent pieces, material lead, and clock. */
+/** A player's row: name, captured opponent pieces, and clock. */
 function CapturedTray({
   name,
   pieces,
   glyphColor,
-  advantage,
   clockMs,
   clockActive,
 }: {
   name: string
   pieces: string[]
   glyphColor: ChessColor
-  advantage: number
   clockMs?: number | null
   clockActive?: boolean
 }) {
@@ -113,7 +104,6 @@ function CapturedTray({
           </span>
         ))}
       </div>
-      {advantage > 0 && <span className="text-xs font-bold text-emerald-400 shrink-0">+{advantage}</span>}
       {clockMs != null && (
         <span
           className={[
@@ -228,7 +218,6 @@ export function ChessGamePanel({
     name: (color === 'w' ? white : black)?.name ?? (color === 'w' ? 'White' : 'Black'),
     pieces: color === 'w' ? material.capturedByWhite : material.capturedByBlack,
     glyphColor: (color === 'w' ? 'b' : 'w') as ChessColor,
-    advantage: color === 'w' ? Math.max(0, material.advantage) : Math.max(0, -material.advantage),
   })
 
   const bottomColor: ChessColor = flip ? 'b' : 'w'
