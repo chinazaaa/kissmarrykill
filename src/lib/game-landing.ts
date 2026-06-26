@@ -53,6 +53,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   sudoku: 'sudoku',
   tic_tac_toe: 'tic-tac-toe',
   word_hunt: 'word-hunt',
+  chess: 'chess',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
@@ -1176,6 +1177,56 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
         question: 'Can more than 2 people play?',
         answer:
           'No — Tic-Tac-Toe is strictly 2 players. The host can play as one of the two if they want in on the match.',
+      },
+    ],
+  }),
+
+  chess: landing('chess', {
+    seoTitle: 'Chess Online — Play with a Friend',
+    seoDescription:
+      'Play chess online with a friend. Two players, full standard rules and move validation — checkmate your opponent to win. No sign-up.',
+    keywords: ['chess online', 'play chess with friends', 'online chess 2 player', 'chess with a friend'],
+    heroSubtitle: 'Classic chess, head-to-head — outsmart your friend and checkmate to win.',
+    bodyParagraph:
+      'Chess on Fate Round is a clean two-player game of full standard chess. One player joins a room as White, the other as Black, and White moves first. Every move is validated by the rules — legal moves only, with castling, en passant, and pawn promotion all handled. Check, checkmate, stalemate, and draws are detected automatically. Add an optional per-turn timer to keep things moving: run out of time on your move and you lose.',
+    highlights: ['2 players', 'Full rules', 'Real-time board'],
+    features: [
+      {
+        title: 'Real chess rules',
+        description: 'Legal moves only — castling, en passant, and promotion all handled for you.',
+        emoji: '♟️',
+      },
+      {
+        title: 'Checkmate to win',
+        description: 'Check, checkmate, stalemate, and draws are detected automatically.',
+        emoji: '♚',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: 'Two players join with their name — the host can join as a player too.' },
+      { title: 'White moves first', description: 'One player is White, the other Black. Tap a piece, then its destination.' },
+      {
+        title: 'Checkmate to win',
+        description: 'Trap the enemy king with no legal escape. Stalemate or insufficient material is a draw.',
+      },
+    ],
+    perfectFor: ['Quick matches', 'Friend rivalries', 'Chess fans'],
+    extraFaqs: [
+      {
+        question: 'What happens if my turn timer runs out?',
+        answer:
+          'If you set a per-turn timer and run out of time on your move, you lose the game on time. Leave the timer off for a relaxed, untimed match.',
+      },
+      {
+        question: 'Can I resign?',
+        answer: 'Yes — there is a Resign button during play. Resigning hands the win to your opponent.',
+      },
+      {
+        question: 'Can more than 2 people play?',
+        answer:
+          'No — chess is strictly 2 players. The host can play as one of the two if they want in on the match.',
       },
     ],
   }),

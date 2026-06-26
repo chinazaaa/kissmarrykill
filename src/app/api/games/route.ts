@@ -34,6 +34,7 @@ import {
   isWhotGame,
   isLudoGame,
   isTicTacToeGame,
+  isChessGame,
   isICallOnGame,
   isSudokuGame,
   isWordHuntGame,
@@ -255,7 +256,8 @@ export async function POST(req: NextRequest) {
     isLudoGame(game_type) ||
     isSudokuGame(game_type) ||
     isWordHuntGame(game_type) ||
-    isTicTacToeGame(game_type)
+    isTicTacToeGame(game_type) ||
+    isChessGame(game_type)
       ? 'joiners'
       : isWhoSaidThis(game_type)
         ? 'import'
@@ -308,7 +310,8 @@ export async function POST(req: NextRequest) {
     isLudoGame(game_type) ||
     isSudokuGame(game_type) ||
     isWordHuntGame(game_type) ||
-    isTicTacToeGame(game_type)
+    isTicTacToeGame(game_type) ||
+    isChessGame(game_type)
       ? 1
       : isWhoSaidThis(game_type)
         ? wstAutoRoundCount(participants.length)
@@ -407,6 +410,12 @@ export async function POST(req: NextRequest) {
                               'tic_tac_toe',
                               rawMaxPlayers,
                               lobbyDefaultMaxPlayers('tic_tac_toe', lobbyLimits)
+                            )
+                          : isChessGame(game_type)
+                          ? resolveMaxPlayers(
+                              'chess',
+                              rawMaxPlayers,
+                              lobbyDefaultMaxPlayers('chess', lobbyLimits)
                             )
                           : null
   const isSecret = isSecretMessageGame(game_type)
