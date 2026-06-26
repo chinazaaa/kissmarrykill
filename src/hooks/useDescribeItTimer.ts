@@ -9,11 +9,13 @@ function secondsUntil(at: string | null | undefined): number {
 }
 
 /**
- * Drives the Describe It clocks. During a turn it counts down the turn timer and
- * reports expiry; during the break it counts down and asks the server to advance
- * to the next turn. Both server checks are idempotent and deadline-gated.
+ * Drives the Describe It clocks. The countdown is displayed for everyone watching
+ * (players and viewers alike). Only clients with `canDrive` set ask the server to
+ * advance — during a turn it reports expiry, during the break it advances to the
+ * next turn. Both server checks are idempotent and deadline-gated, so viewers
+ * still see the same numbers without ever firing a transition.
  */
-export function useDescribeItTimer(gameCode: string, session: DescribeItSession | null, enabled: boolean) {
+export function useDescribeItTimer(gameCode: string, session: DescribeItSession | null, canDrive: boolean) {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [breakLeft, setBreakLeft] = useState(0)
   const firingRef = useRef(false)
@@ -24,7 +26,7 @@ export function useDescribeItTimer(gameCode: string, session: DescribeItSession 
   const status = session?.status ?? null
 
   useEffect(() => {
-    if (!enabled || status === 'finished') {
+    if (status === 'finished') {
       setSecondsLeft(0)
       setBreakLeft(0)
       return
@@ -34,7 +36,7 @@ export function useDescribeItTimer(gameCode: string, session: DescribeItSession 
       if (phase === 'turn') {
         const left = secondsUntil(turnDeadline)
         setSecondsLeft(left)
-        if (left <= 0 && turnDeadline && !firingRef.current) {
+        if (canDrive && left <= 0 && turnDeadline && !firingRef.current) {
           firingRef.current = true
           try {
             await fetch('/api/describe-it/expire-turn', {
@@ -49,7 +51,7 @@ export function useDescribeItTimer(gameCode: string, session: DescribeItSession 
       } else if (phase === 'break') {
         const left = secondsUntil(breakDeadline)
         setBreakLeft(left)
-        if (left <= 0 && breakDeadline && !firingRef.current) {
+        if (canDrive && left <= 0 && breakDeadline && !firingRef.current) {
           firingRef.current = true
           try {
             await fetch('/api/describe-it/advance', {
@@ -67,7 +69,7 @@ export function useDescribeItTimer(gameCode: string, session: DescribeItSession 
     void tick()
     const id = window.setInterval(() => void tick(), 500)
     return () => window.clearInterval(id)
-  }, [enabled, phase, turnDeadline, breakDeadline, status, gameCode])
+  }, [canDrive, phase, turnDeadline, breakDeadline, status, gameCode])
 
   return {
     secondsLeft,
