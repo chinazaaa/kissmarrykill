@@ -76,6 +76,7 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [moving, setMoving] = useState(false)
 
   const [hostMode, setHostMode] = useState<HostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
@@ -255,6 +256,18 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
       toastError(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setActing(false)
+    }
+  }
+
+  const moveTeam = async (playerId: string, team: number) => {
+    setMoving(true)
+    try {
+      await post('team', { playerId, team })
+      await load()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to move player')
+    } finally {
+      setMoving(false)
     }
   }
 
@@ -685,7 +698,12 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
                   myPlayerId={hostPlays ? hostPlayerId : null}
                   onPick={hostPlays ? pickTeam : undefined}
                   picking={picking}
+                  onMoveTeam={moveTeam}
+                  moving={moving}
                 />
+                <p className="text-faint text-[11px] text-center">
+                  Tap a colored number to move a player to that team.
+                </p>
                 {!ready.ok && <p className="text-amber-400 text-xs text-center">{ready.error}</p>}
                 <p className="text-center">
                   <GameRulesLink gameType="describe_it" variant="subtle" />
@@ -697,6 +715,7 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
                 removingPlayerId={removingPlayerId}
                 onRemovePlayer={removePlayer}
                 highlightPlayerId={hostPlayerId}
+                alwaysShowReady
               />
 
               <HostLobbyWaitingFooter
