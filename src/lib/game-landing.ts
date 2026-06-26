@@ -54,7 +54,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   tic_tac_toe: 'tic-tac-toe',
   word_hunt: 'word-hunt',
   chess: 'chess',
-  describe_it: 'describe-it',
+  describe_it: 'text-charades',
 }
 
 const SLUG_TO_GAME_TYPE = Object.fromEntries(
