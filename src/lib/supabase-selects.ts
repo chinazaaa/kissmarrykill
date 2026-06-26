@@ -68,6 +68,11 @@ export const DESCRIBE_IT_WORD_SELECT =
 
 export const DESCRIBE_IT_GUESS_SELECT = 'id,game_id,turn_index,player_id,team,text,correct,created_at'
 
+export const SCRABBLE_SESSION_SELECT =
+  'id,game_id,turn_order,current_turn_index,board,bag,phase,consecutive_passes,last_move,winner_player_id,is_tie,status_message,turn_deadline_at,created_at,updated_at'
+
+export const SCRABBLE_PLAYER_STATE_SELECT = 'id,game_id,player_id,rack,score,player_order,created_at'
+
 export const BINGO_CALLED_NUMBER_SELECT = 'id,game_id,number,called_at'
 
 export const BINGO_CLAIM_SELECT = 'id,game_id,player_id,pattern,status,created_at'
