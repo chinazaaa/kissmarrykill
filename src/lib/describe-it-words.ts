@@ -64,6 +64,16 @@ export function parseDescribeItWords(text: string): string[] {
   return out
 }
 
+/** Parse words from an uploaded .xlsx/.xls file (first sheet, any column). */
+export async function parseExcelDescribeItWords(buffer: ArrayBuffer): Promise<string[]> {
+  const XLSX = await import('xlsx')
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const sheet = workbook.Sheets[workbook.SheetNames[0]!]
+  if (!sheet) return []
+  const grid = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' }) as string[][]
+  return parseDescribeItWords(grid.flat().map((cell) => String(cell ?? '')).join('\n'))
+}
+
 /** Validate a stored custom-word array. */
 export function parseStoredDescribeItWords(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []

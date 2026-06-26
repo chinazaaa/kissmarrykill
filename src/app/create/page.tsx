@@ -154,7 +154,7 @@ import {
   DESCRIBE_IT_TEAM_OPTIONS,
   DESCRIBE_IT_TURN_OPTIONS,
 } from '@/lib/describe-it'
-import { parseDescribeItWords } from '@/lib/describe-it-words'
+import { parseDescribeItWords, parseExcelDescribeItWords } from '@/lib/describe-it-words'
 import { getCodeDefaultLimits, playerCountOptions, type GamePlayerLimitsMap } from '@/lib/game-limits'
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
@@ -209,6 +209,8 @@ function CreateGameInner() {
     describe_it_num_teams: 2,
   })
   const [describeItWords, setDescribeItWords] = useState('')
+  const [describeItUploadError, setDescribeItUploadError] = useState<string | null>(null)
+  const describeItFileRef = useRef<HTMLInputElement>(null)
   const [participants, setParticipants] = useState<ParticipantInput[]>([])
   const [nameInput, setNameInput] = useState('')
   const [defaultGender, setDefaultGender] = useState<ParticipantGender>('female')
@@ -1628,6 +1630,46 @@ function CreateGameInner() {
                     rows={3}
                     className="input-field w-full resize-y"
                   />
+                  <div className="flex items-center gap-3 pt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => describeItFileRef.current?.click()}
+                      className="text-xs font-bold rounded-lg border border-[var(--border-strong)] px-3 py-1.5 hover:bg-[var(--primary)]/10"
+                    >
+                      Upload CSV / Excel
+                    </button>
+                    <span className="text-faint text-xs">one word per row</span>
+                  </div>
+                  <input
+                    ref={describeItFileRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!file) return
+                      setDescribeItUploadError(null)
+                      const ext = file.name.split('.').pop()?.toLowerCase()
+                      try {
+                        const rows =
+                          ext === 'csv'
+                            ? parseDescribeItWords(await file.text())
+                            : ext === 'xlsx' || ext === 'xls'
+                              ? await parseExcelDescribeItWords(await file.arrayBuffer())
+                              : []
+                        if (rows.length === 0) {
+                          setDescribeItUploadError('No words found. Use one word per line or row.')
+                          return
+                        }
+                        // Merge with whatever's already in the box, de-duplicated.
+                        setDescribeItWords((prev) => parseDescribeItWords(`${prev}\n${rows.join('\n')}`).join('\n'))
+                      } catch {
+                        setDescribeItUploadError('Could not read that file. Try a .csv or .xlsx.')
+                      }
+                    }}
+                  />
+                  {describeItUploadError && <p className="text-rose-400 text-xs pt-1">{describeItUploadError}</p>}
                 </Field>
                 <Field label="Late joiners">
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="describe_it" />
