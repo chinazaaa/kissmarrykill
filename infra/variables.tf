@@ -26,6 +26,11 @@ variable "app_port" {
   description = "Container's internal port; published on host :80."
   type        = number
   default     = 3000
+
+  validation {
+    condition     = var.app_port >= 1 && var.app_port <= 65535 && floor(var.app_port) == var.app_port
+    error_message = "app_port must be a whole number between 1 and 65535."
+  }
 }
 
 variable "app_image_tag" {
@@ -37,24 +42,44 @@ variable "app_image_tag" {
 variable "supabase_url" {
   description = "Supabase project URL (NEXT_PUBLIC_SUPABASE_URL)."
   type        = string
+
+  validation {
+    condition     = trimspace(var.supabase_url) != ""
+    error_message = "supabase_url is required."
+  }
 }
 
 variable "supabase_anon_key" {
   description = "Supabase anonymous (public) API key (NEXT_PUBLIC_SUPABASE_ANON_KEY)."
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = trimspace(var.supabase_anon_key) != ""
+    error_message = "supabase_anon_key is required."
+  }
 }
 
 variable "cron_secret" {
   description = "Bearer token for the local freeze-recovery tick."
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = trimspace(var.cron_secret) != ""
+    error_message = "cron_secret is required."
+  }
 }
 
 variable "tick_interval_seconds" {
   description = "How often the on-box systemd timer hits /api/describe-it/tick."
   type        = number
   default     = 60
+
+  validation {
+    condition     = var.tick_interval_seconds > 0 && floor(var.tick_interval_seconds) == var.tick_interval_seconds
+    error_message = "tick_interval_seconds must be a positive whole number of seconds."
+  }
 }
 
 variable "cloudflare_enabled" {

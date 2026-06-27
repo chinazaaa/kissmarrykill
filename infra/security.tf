@@ -38,4 +38,14 @@ resource "aws_security_group" "app" {
   tags = {
     Name = "${var.name_prefix}-app-sg"
   }
+
+  lifecycle {
+    # Locking the origin to Cloudflare IPs only makes sense if traffic actually
+    # arrives via a proxied Cloudflare record — otherwise the origin is
+    # unreachable. Fail fast on that self-blocking combination.
+    precondition {
+      condition     = !var.restrict_to_cloudflare || (var.cloudflare_enabled && var.cloudflare_proxied)
+      error_message = "restrict_to_cloudflare = true requires cloudflare_enabled = true and cloudflare_proxied = true, or the origin can't be reached."
+    }
+  }
 }

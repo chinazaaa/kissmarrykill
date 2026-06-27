@@ -108,12 +108,16 @@ docker buildx build --platform linux/amd64 \
 
 ### d. Roll out / redeploy
 
-The instance pulls the image **on boot** via user-data. To deploy a new image,
-push the tag again, then get the box to re-run its bootstrap, either:
+The instance pulls the image **on boot** via user-data. Note: re-applying with the
+**same `app_image_tag` is a no-op** (no Terraform diff), and a plain **reboot does
+not re-run user-data** on Amazon Linux 2023. So the deterministic redeploy paths are:
 
-- `terraform apply -var-file=...` (re-applies user-data on relevant changes), or
-- `aws ssm start-session --target <instance_id>` and re-run the user-data script
-  (or just **reboot** the instance) to re-pull and restart the container.
+- **Recommended — immutable tag per release:** push the image under a unique tag
+  (e.g. the git SHA), set `app_image_tag` to it, and `terraform apply` — the
+  changed user-data forces the instance to replace and pull the new image.
+- **Manual:** `aws ssm start-session --target <instance_id>`, then
+  `docker pull <repo>:<tag> && docker rm -f app && <re-run the docker run>` (or
+  re-run `/var/lib/cloud/instance/user-data.txt`).
 
 ### e. DNS & TLS
 
@@ -121,13 +125,16 @@ When `cloudflare_enabled = true`, Terraform creates an **A record** for
 `cloudflare_record_name` pointing at the Elastic IP (proxied through Cloudflare
 when `cloudflare_proxied = true`). The container serves **HTTP on host port 80**.
 
-For TLS, recommended order:
+TLS today is **terminated at Cloudflare's edge** (the container serves plain HTTP
+on port 80; this stack does not run an origin TLS listener or reverse proxy). To
+keep the Cloudflare→origin hop safe:
 
-- **Best:** Cloudflare SSL mode **Full** with a **free Cloudflare Origin
-  Certificate** installed on the box, for end-to-end encryption between
-  Cloudflare and the origin.
-- **At minimum:** set `restrict_to_cloudflare = true` so the origin is only
-  reachable through Cloudflare and can't be hit directly on its public IP.
+- **Set `restrict_to_cloudflare = true`** so the origin only accepts connections
+  from Cloudflare's edge IPs and can't be hit directly on its public IP. Use
+  Cloudflare SSL mode **Full**.
+- **For end-to-end TLS to the origin (Full (strict)):** add a reverse proxy on
+  the box (e.g. Caddy/nginx) terminating HTTPS with a free **Cloudflare Origin
+  Certificate**, and open 443 to it. Not wired up by default — it's a follow-up.
 
 See [Cloudflare (optional)](#cloudflare-optional) for details.
 

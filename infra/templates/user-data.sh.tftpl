@@ -41,6 +41,7 @@ docker rm -f app 2>/dev/null || true
 docker run -d --name app --restart always \
   -p "80:$APP_PORT" \
   -e NODE_ENV=production \
+  -e PORT="$APP_PORT" \
   -e NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_URL" \
   -e NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
   -e CRON_SECRET="$CRON_SECRET" \
