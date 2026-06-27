@@ -11,6 +11,7 @@ import { RoomChat } from '@/components/rooms/RoomChat'
 import { RoomLeaderboard } from '@/components/rooms/RoomLeaderboard'
 import { RoomGameHistory } from '@/components/rooms/RoomGameHistory'
 import { RoomLiveGames } from '@/components/rooms/RoomLiveGames'
+import { AudioChat } from '@/components/AudioChat'
 import {
   OPEN_IN_NEW_TAB,
   roomGameBannerDetails,
@@ -796,6 +797,7 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
           onUpdated={setRoom}
         />
       )}
+      {identity && <AudioChat roomCode={roomCode} playerName={identity.displayName} />}
     </>
   )
 }
