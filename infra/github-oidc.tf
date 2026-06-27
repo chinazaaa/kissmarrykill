@@ -49,9 +49,13 @@ data "aws_iam_policy_document" "gha_assume" {
       values   = ["sts.amazonaws.com"]
     }
     condition {
-      test     = "StringLike"
+      # Only the deploy branches may assume the role (not any feature branch).
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/*"]
+      values = [
+        "repo:${var.github_repo}:ref:refs/heads/dev",
+        "repo:${var.github_repo}:ref:refs/heads/main",
+      ]
     }
   }
 }
