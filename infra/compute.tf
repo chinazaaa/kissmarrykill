@@ -24,6 +24,10 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = [aws_security_group.app.id]
   iam_instance_profile   = aws_iam_instance_profile.app.name
 
+  # The EIP only attaches AFTER the instance exists, so give it a public IP at
+  # launch — otherwise user_data has no outbound internet (dnf/curl/ecr/ssm fail).
+  associate_public_ip_address = true
+
   metadata_options {
     http_endpoint = "enabled"
     http_tokens   = "required"
@@ -47,6 +51,10 @@ resource "aws_instance" "app" {
     app_port              = var.app_port
     tick_interval_seconds = var.tick_interval_seconds
   })
+
+  # Re-run the bootstrap when config changes (app_image_tag, app_port, tick): a
+  # user_data change alone updates in place without rerunning it, so replace.
+  user_data_replace_on_change = true
 
   tags = {
     Name = "${var.name_prefix}-app"

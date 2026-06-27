@@ -55,7 +55,8 @@ After=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" http://localhost:80/api/describe-it/tick
+TimeoutStartSec=30
+ExecStart=/usr/bin/curl -fsS --max-time 20 -X POST -H "Authorization: Bearer $CRON_SECRET" http://localhost:80/api/describe-it/tick
 EOF
 chmod 600 /etc/systemd/system/fateround-tick.service
 
