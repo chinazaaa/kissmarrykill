@@ -431,6 +431,18 @@ export async function processScrabblePlay(
   const dictId = await loadDictionaryId(supabase, gameId)
   const tileSet = tileSetForDictionary(dictId)
 
+  // Every placed letter — including the letter chosen for a blank — must belong to
+  // the selected edition's alphabet. The rack check above only consumes '?' for a
+  // blank, so without this a direct API call could place a letter from outside this
+  // edition (e.g. Ñ in an English game).
+  const allowedLetters = new Set(tileSet.alphabet)
+  for (const t of tiles) {
+    const letter = t.letter.toUpperCase()
+    if (!allowedLetters.has(letter)) {
+      return { error: `"${letter}" is not available in this Scrabble edition` }
+    }
+  }
+
   const placement = scorePlacement(session.board, tiles, tileSet.values)
   if (!placement.valid) return { error: placement.error ?? 'Invalid placement' }
 
