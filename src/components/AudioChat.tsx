@@ -210,10 +210,10 @@ function AudioChatInner({ localPlayerName }: AudioChatInnerProps) {
       <div className="flex gap-2 border-t border-theme pt-3 mt-auto">
         <button
           onClick={toggleMute}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold text-white border shadow-sm transition-all active:scale-95 ${
             isMicrophoneEnabled
-              ? 'bg-slate-800 hover:bg-slate-700 text-body border-theme'
-              : 'bg-red-500/20 hover:bg-red-500/30 text-red-200 border-red-500/30'
+              ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500'
+              : 'bg-red-600 hover:bg-red-500 border-red-500'
           }`}
         >
           <span>{isMicrophoneEnabled ? '🔇' : '🎙️'}</span>
