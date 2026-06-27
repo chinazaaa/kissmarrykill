@@ -71,8 +71,8 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
-      {/* Floating Join/Leave Button */}
+    <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-2">
+      {/* Floating Join/Leave Button — offset up so it clears the feedback button */}
       {!token ? (
         <button
           onClick={joinAudio}
