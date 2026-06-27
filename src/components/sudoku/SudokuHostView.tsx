@@ -412,8 +412,15 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
-                {solution && puzzle && (
-                  <SudokuBoard puzzle={puzzle} solution={solution} blockScorers={blockScorers} readOnly />
+                {puzzle && (
+                  // Hide the solution while the host is also competing — they'd be able to
+                  // copy answers from Manage into the Play tab. Spectator hosts still see it.
+                  <SudokuBoard
+                    puzzle={puzzle}
+                    solution={hostPlays ? undefined : solution ?? undefined}
+                    blockScorers={blockScorers}
+                    readOnly
+                  />
                 )}
 
                 <div className="space-y-3">
