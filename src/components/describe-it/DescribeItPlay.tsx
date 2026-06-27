@@ -21,10 +21,15 @@ function GuessFeed({
   guesses,
   players,
   turnIndex,
+  myPlayerId,
+  hideOthersText,
 }: {
   guesses: DescribeItGuess[]
   players: Player[]
   turnIndex: number
+  myPlayerId: string | null
+  /** Individual mode: never show another player's guess text, so nobody can copy it. */
+  hideOthersText?: boolean
 }) {
   const nameById = new Map(players.map((p) => [p.id, p.name]))
   // `guesses` arrives newest-first, so the most recent for this turn are at the front.
@@ -34,13 +39,26 @@ function GuessFeed({
   }
   return (
     <div className="space-y-1 max-h-40 overflow-y-auto">
-      {recent.map((g) => (
-        <div key={g.id} className="flex items-center gap-1.5 text-sm">
-          <span className="text-faint shrink-0 truncate max-w-[40%]">{nameById.get(g.player_id) ?? 'Player'}:</span>
-          <span className={g.correct ? 'font-black text-emerald-400' : 'text-[var(--foreground)]'}>{g.text}</span>
-          {g.correct && <span>✅</span>}
-        </div>
-      ))}
+      {recent.map((g) => {
+        const mask = hideOthersText && g.player_id !== myPlayerId
+        return (
+          <div key={g.id} className="flex items-center gap-1.5 text-sm">
+            <span className="text-faint shrink-0 truncate max-w-[45%]">{nameById.get(g.player_id) ?? 'Player'}:</span>
+            {mask ? (
+              g.correct ? (
+                <span className="font-bold text-emerald-400">guessed it ✅</span>
+              ) : (
+                <span className="text-faint italic">guessing…</span>
+              )
+            ) : (
+              <>
+                <span className={g.correct ? 'font-black text-emerald-400' : 'text-[var(--foreground)]'}>{g.text}</span>
+                {g.correct && <span>✅</span>}
+              </>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -281,7 +299,13 @@ export function DescribeItPlayPanel({
           )}
 
           <DescribeItCard className="p-3">
-            <GuessFeed guesses={guesses} players={players} turnIndex={session.turn_index} />
+            <GuessFeed
+              guesses={guesses}
+              players={players}
+              turnIndex={session.turn_index}
+              myPlayerId={myPlayerId}
+              hideOthersText={isIndividual}
+            />
           </DescribeItCard>
         </>
       )}
