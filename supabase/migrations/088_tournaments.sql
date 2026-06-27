@@ -52,3 +52,16 @@ create policy "tournament_games_all" on tournament_games for all using (true) wi
 alter publication supabase_realtime add table tournaments;
 alter publication supabase_realtime add table tournament_players;
 alter publication supabase_realtime add table tournament_games;
+
+-- Atomic point increment
+create or replace function increment_tournament_points(
+  p_player_id uuid,
+  p_points integer
+) returns void as $$
+begin
+  update tournament_players
+  set total_points = total_points + p_points,
+      games_played = games_played + 1
+  where id = p_player_id;
+end;
+$$ language plpgsql;
