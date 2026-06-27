@@ -188,7 +188,19 @@ Get tournament state including players, games, and leaderboard.
 
 ### `PATCH /api/tournaments/[code]`
 
-Update tournament settings (title, placement points, target game count). Host token required.
+Update tournament settings. Host token required.
+
+**Request:**
+```json
+{
+  "hostToken": "abc123...",
+  "title": "Saturday Game Night",
+  "placementPoints": [10, 7, 5, 3, 2, 1],
+  "targetGameCount": 8
+}
+```
+
+All fields except `hostToken` are optional. Returns `{ success: true }`. Returns 403 if host token doesn't match.
 
 ### `POST /api/tournaments/[code]/games`
 
@@ -276,7 +288,7 @@ The hub for the entire tournament. Players and host both use this page.
 The placement computation hooks into the existing `finish-game` API route. After `markGameFinished()` is called, if the game has a `tournament_id`:
 
 1. Fetch tournament players and the game's player list
-2. Build a map: game `player_id` → `tournament_player_id` (matched by name)
+2. Build a map: game `player_id` → `tournament_player_id` (matched by case-insensitive name via `player_name.toLowerCase()`. Players must join games with their exact tournament name — the auto-join button enforces this.)
 3. Call `computeTournamentPlacements()` for the game type
 4. Store placements in `tournament_games.placements`
 5. Calculate points from placements using the tournament's `placement_points` array
@@ -306,14 +318,15 @@ The placement computation hooks into the existing `finish-game` API route. After
 
 ## Edge Cases
 
-- **Name collision:** Unique constraint on `(tournament_id, player_name)` prevents duplicates. Join API returns error if name is taken.
+- **Name collision:** Unique constraint on `(tournament_id, player_name)` prevents duplicates. Join API returns 409 with `{ error: "Name already taken" }`.
 - **Host leaves:** Tournament persists in DB. Any holder of the `host_token` can resume control.
 - **Game abandoned:** If a game is finished early via "End Game," placements are still computed from whatever data exists (partial results are better than no results).
-- **Empty game:** If no tournament players join a game, no placements are recorded. The game still counts toward `target_game_count`.
-- **Concurrent games:** Tournaments are strictly sequential — one active game at a time. The API rejects creating a new game while one is active.
+- **Empty game:** If no tournament players join a game, `tournament_games.placements` is set to `{}` (empty object). The game still counts toward `target_game_count`.
+- **Concurrent games:** Tournaments are strictly sequential — one active game at a time. A game is considered "active" if `tournament_games.status` is `'active'` (covers both `game.status = 'waiting'` and `game.status = 'active'`). The `POST /api/tournaments/[code]/games` route returns 400 with `{ error: "A game is already in progress" }` if an active tournament game exists.
+- **Team game placements:** For Describe-It, the adapter fetches `describe_it_players` to get each player's `team` assignment, computes team scores via `computeDescribeItScores()`, then assigns each player their team's rank. For Codewords, the adapter fetches `codewords_player_roles` for team mapping and `codewords_boards.winner` for the winning team.
 
 ## DB Migration
 
-File: `supabase/migrations/090_tournaments.sql`
+File: `supabase/migrations/088_tournaments.sql`
 
 Creates all 3 tables, adds `tournament_id` to `games`, sets up RLS policies, and adds tables to `supabase_realtime` publication.
