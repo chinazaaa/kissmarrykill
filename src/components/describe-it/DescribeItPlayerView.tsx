@@ -328,6 +328,7 @@ export function DescribeItPlayerView({ gameCode }: { gameCode: string }) {
           players={players}
           myPlayerId={myPlayerId}
           myPlayerName={myName}
+          activityFirst={!isIndividual}
           onRenamed={() => void load()}
           onLeft={handlePlayerLeft}
           title="Waiting for host to start"
