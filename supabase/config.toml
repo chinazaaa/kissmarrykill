@@ -10,7 +10,7 @@
 # `supabase init` (after `brew install supabase/tap/supabase`) regenerates the
 # full default file with every section if you want finer control.
 
-project_id = "REPLACE_WITH_PROD_PROJECT_REF"
+project_id = "skhvbzitwvnbhqxfitgh"
 
 [db]
-major_version = 15
+major_version = 17
