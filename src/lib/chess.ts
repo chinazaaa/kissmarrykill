@@ -454,3 +454,53 @@ export async function processChessResign(
 export async function clearChessSessionData(_supabase: SupabaseClient, _gameId: string): Promise<{ error?: string }> {
   return {}
 }
+
+/**
+ * Remove a player from a Chess game (they left or were kicked). Chess is heads-up,
+ * so leaving an active game is a forfeit: the other player wins by resignation.
+ * Mirrors processChessResign, but uses a plain (non-CAS) update so the removal
+ * always lands. If the game is already finished or still in the lobby, we just
+ * delete the player row.
+ */
+export async function removeChessPlayer(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerId: string,
+  playerName?: string
+): Promise<{ error: string | null }> {
+  const { data: sessionRaw } = await supabase.from('chess_sessions').select('*').eq('game_id', gameId).maybeSingle()
+  const session = sessionRaw as ChessSession | null
+
+  if (
+    session &&
+    session.status === 'active' &&
+    (session.player_white_id === playerId || session.player_black_id === playerId)
+  ) {
+    const otherId = session.player_white_id === playerId ? session.player_black_id : session.player_white_id
+    const names = await loadPlayerNames(supabase, gameId)
+    const loserName = playerName ?? names.get(playerId) ?? (session.player_white_id === playerId ? 'White' : 'Black')
+    const winnerName = names.get(otherId) ?? 'Opponent'
+
+    const { error: sessionError } = await supabase
+      .from('chess_sessions')
+      .update({
+        status: 'finished',
+        result_reason: 'resignation',
+        winner_player_id: otherId,
+        is_draw: false,
+        status_message: `${loserName} left — ${winnerName} wins!`,
+        turn_deadline_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('game_id', gameId)
+    if (sessionError) return { error: sessionError.message }
+
+    await markGameFinished(supabase, gameId)
+    const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
+    return { error: error?.message ?? null }
+  }
+
+  // Already finished, still in the lobby, or not one of the seated players — just drop the row.
+  const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
+  return { error: error?.message ?? null }
+}
