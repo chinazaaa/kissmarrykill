@@ -1280,14 +1280,7 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
 }
 
 /** Home page “Popular games” grid — order is display order. */
-export const HOMEPAGE_FEATURED_GAMES: GameType[] = [
-  'monopoly',
-  'yahtzee',
-  'codewords',
-  'bingo',
-  'trivia',
-  'anonymous_messages',
-]
+export const HOMEPAGE_FEATURED_GAMES: GameType[] = ['yahtzee', 'whot', 'monopoly', 'codewords', 'bingo', 'trivia']
 
 export const GAME_TYPE_OPTIONS: GameType[] = [
   'smash_marry_kill',
