@@ -27,7 +27,13 @@ function ShapeGraphic({ shape, color }: { shape: WhotShape; color: string }) {
     case 'square':
       return <rect x="3" y="3" width="18" height="18" rx="2.5" fill={color} />
     case 'star':
-      return <polygon points="12,2.25 14.6,9.4 22.1,9.4 16.4,13.9 18.5,21 12,16.7 5.6,21 7.7,13.9 1.9,9.4 9.4,9.4" fill={color} strokeLinejoin="round" />
+      return (
+        <polygon
+          points="12,2.25 14.6,9.4 22.1,9.4 16.4,13.9 18.5,21 12,16.7 5.6,21 7.7,13.9 1.9,9.4 9.4,9.4"
+          fill={color}
+          strokeLinejoin="round"
+        />
+      )
     case 'whot':
       return <polygon points="12,2 22,12 12,22 2,12" fill={color} strokeLinejoin="round" />
   }

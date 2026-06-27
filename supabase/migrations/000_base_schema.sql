@@ -140,6 +140,7 @@ create table if not exists wst_quote_pool (
 create index if not exists idx_wst_quote_pool_game_id on wst_quote_pool(game_id);
 
 alter table wst_quote_pool enable row level security;
+drop policy if exists "public_wst_quote_pool" on wst_quote_pool;
 create policy "public_wst_quote_pool" on wst_quote_pool for all to anon using (true) with check (true);
 
 -- If upgrading an existing database for Who Said This quote pool, run:
@@ -189,12 +190,19 @@ alter table votes enable row level security;
 alter table confessions enable row level security;
 alter table app_feedback enable row level security;
 
+drop policy if exists "public_games" on games;
 create policy "public_games"        on games        for all to anon using (true) with check (true);
+drop policy if exists "public_participants" on participants;
 create policy "public_participants" on participants  for all to anon using (true) with check (true);
+drop policy if exists "public_players" on players;
 create policy "public_players"      on players      for all to anon using (true) with check (true);
+drop policy if exists "public_rounds" on rounds;
 create policy "public_rounds"       on rounds       for all to anon using (true) with check (true);
+drop policy if exists "public_votes" on votes;
 create policy "public_votes"        on votes        for all to anon using (true) with check (true);
+drop policy if exists "public_confessions" on confessions;
 create policy "public_confessions"  on confessions  for all to anon using (true) with check (true);
+drop policy if exists "public_app_feedback_insert" on app_feedback;
 create policy "public_app_feedback_insert" on app_feedback for insert to anon with check (true);
 
 -- Player-submitted questions (lobby phase, WYR/MLT only)
@@ -211,15 +219,16 @@ create table if not exists player_questions (
 create index if not exists idx_player_questions_game_id on player_questions(game_id);
 
 alter table player_questions enable row level security;
+drop policy if exists "public_player_questions" on player_questions;
 create policy "public_player_questions" on player_questions for all to anon using (true) with check (true);
 
 -- Enable Realtime
-alter publication supabase_realtime add table games;
-alter publication supabase_realtime add table players;
-alter publication supabase_realtime add table rounds;
-alter publication supabase_realtime add table votes;
-alter publication supabase_realtime add table wst_quote_pool;
-alter publication supabase_realtime add table player_questions;
+do $$ begin alter publication supabase_realtime add table games; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table players; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table rounds; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table votes; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table wst_quote_pool; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table player_questions; exception when duplicate_object then null; end $$;
 
 -- ============================================================================
 -- Anime Who Said This — schema additions
@@ -252,6 +261,7 @@ CREATE TABLE anime_quote_pool (
 );
 
 ALTER TABLE anime_quote_pool ENABLE ROW LEVEL SECURITY;
+drop policy if exists "anime_quote_pool_public" on anime_quote_pool;
 CREATE POLICY "anime_quote_pool_public" ON anime_quote_pool FOR ALL USING (true) WITH CHECK (true);
 
 -- New columns on existing tables
@@ -279,6 +289,7 @@ create table if not exists hot_seat_submissions (
 );
 create index if not exists idx_hot_seat_submissions_round on hot_seat_submissions(round_id);
 alter table hot_seat_submissions enable row level security;
+drop policy if exists "public_hot_seat_submissions" on hot_seat_submissions;
 create policy "public_hot_seat_submissions" on hot_seat_submissions for all to anon using (true) with check (true);
 
 -- If upgrading:
@@ -366,16 +377,20 @@ alter table room_members enable row level security;
 alter table room_games enable row level security;
 alter table room_messages enable row level security;
 
+drop policy if exists "public_rooms" on rooms;
 create policy "public_rooms"         on rooms         for all to anon using (true) with check (true);
+drop policy if exists "public_room_members" on room_members;
 create policy "public_room_members"  on room_members  for all to anon using (true) with check (true);
+drop policy if exists "public_room_games" on room_games;
 create policy "public_room_games"    on room_games    for all to anon using (true) with check (true);
+drop policy if exists "public_room_messages" on room_messages;
 create policy "public_room_messages" on room_messages for all to anon using (true) with check (true);
 
 -- Enable Realtime
-alter publication supabase_realtime add table rooms;
-alter publication supabase_realtime add table room_members;
-alter publication supabase_realtime add table room_games;
-alter publication supabase_realtime add table room_messages;
+do $$ begin alter publication supabase_realtime add table rooms; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table room_members; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table room_games; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table room_messages; exception when duplicate_object then null; end $$;
 
 -- If upgrading an existing database, run the following:
 -- create table if not exists rooms ( id text primary key, name text not null, created_at timestamptz not null default now() );
