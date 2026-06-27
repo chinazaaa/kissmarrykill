@@ -5,6 +5,7 @@ import type {
   ParticipantGender,
   ParticipantMode,
   GameType,
+  DescribeItMode,
   PairVoteMode,
   QuestionSource,
   ThemeId,
@@ -152,6 +153,8 @@ import { WORD_HUNT_DEFAULT_MAX_PLAYERS, WORD_HUNT_DEFAULT_TIMER, WORD_HUNT_TIMER
 import {
   DESCRIBE_IT_DEFAULT_ROUNDS,
   DESCRIBE_IT_DEFAULT_TURN_SECONDS,
+  DESCRIBE_IT_MIN_PLAYERS,
+  DESCRIBE_IT_MIN_PLAYERS_INDIVIDUAL,
   DESCRIBE_IT_ROUND_OPTIONS,
   DESCRIBE_IT_TEAM_OPTIONS,
   DESCRIBE_IT_TURN_OPTIONS,
@@ -181,6 +184,7 @@ interface Settings {
   participant_filter: 'all' | 'joined'
   gender_based: boolean
   describe_it_num_teams: number
+  describe_it_mode: DescribeItMode
 }
 
 type Step = 'settings' | 'participants' | 'done'
@@ -209,6 +213,7 @@ function CreateGameInner() {
     participant_filter: 'all' as 'all' | 'joined',
     gender_based: true,
     describe_it_num_teams: 2,
+    describe_it_mode: 'team',
   })
   const [describeItWords, setDescribeItWords] = useState('')
   const [describeItUploadError, setDescribeItUploadError] = useState<string | null>(null)
@@ -441,6 +446,7 @@ function CreateGameInner() {
               rounds_count: DESCRIBE_IT_DEFAULT_ROUNDS,
               timer_seconds: DESCRIBE_IT_DEFAULT_TURN_SECONDS,
               describe_it_num_teams: 2,
+              describe_it_mode: 'team' as const,
             }
           : {}),
         ...(isWhoSaidThis(type)
@@ -1078,6 +1084,7 @@ function CreateGameInner() {
                     : customMltQuestions
                 : null,
           trivia_category: isTrivia ? triviaCategory : undefined,
+          describe_it_mode: isDescribeIt ? settings.describe_it_mode : undefined,
           participants: isJoinersMode ? [] : participants,
           wst_quote_source: isWst ? wstQuoteSource : undefined,
           custom_slots: isCustom ? customSlots : null,
@@ -1635,21 +1642,63 @@ function CreateGameInner() {
               </SettingsGroup>
             ) : isDescribeIt ? (
               <SettingsGroup title="Text Charades room">
-                <p className="text-faint text-sm">Players join with a name and split into teams. 4+ players.</p>
-                <Field label="Teams">
-                  <select
-                    value={settings.describe_it_num_teams}
-                    onChange={(e) => setSettings({ ...settings, describe_it_num_teams: Number(e.target.value) })}
-                    className="input-field w-full"
-                  >
-                    {DESCRIBE_IT_TEAM_OPTIONS.map((n) => (
-                      <option key={n} value={n}>
-                        {n} teams
-                      </option>
-                    ))}
-                  </select>
+                <p className="text-faint text-sm">
+                  {settings.describe_it_mode === 'individual'
+                    ? `Players take turns describing a word while everyone races to guess. ${DESCRIBE_IT_MIN_PLAYERS_INDIVIDUAL}+ players.`
+                    : `Players join with a name and split into teams. ${DESCRIBE_IT_MIN_PLAYERS}+ players.`}
+                </p>
+                <Field label="Mode">
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSettings({ ...settings, describe_it_mode: 'team' })}
+                      className={[
+                        'rounded-2xl border-2 px-4 py-4 text-left',
+                        settings.describe_it_mode !== 'individual'
+                          ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                          : 'border-[var(--border-strong)] text-muted',
+                      ].join(' ')}
+                    >
+                      <span className="font-bold block text-base">Teams</span>
+                      <span className="text-faint text-xs sm:text-sm">Teams race to guess</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSettings({ ...settings, describe_it_mode: 'individual' })}
+                      className={[
+                        'rounded-2xl border-2 px-4 py-4 text-left',
+                        settings.describe_it_mode === 'individual'
+                          ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
+                          : 'border-[var(--border-strong)] text-muted',
+                      ].join(' ')}
+                    >
+                      <span className="font-bold block text-base">Individual</span>
+                      <span className="text-faint text-xs sm:text-sm">Solo — fastest guess wins</span>
+                    </button>
+                  </div>
                 </Field>
-                <Field label="Rounds (each team plays once per round)">
+                {settings.describe_it_mode !== 'individual' && (
+                  <Field label="Teams">
+                    <select
+                      value={settings.describe_it_num_teams}
+                      onChange={(e) => setSettings({ ...settings, describe_it_num_teams: Number(e.target.value) })}
+                      className="input-field w-full"
+                    >
+                      {DESCRIBE_IT_TEAM_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n} teams
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+                <Field
+                  label={
+                    settings.describe_it_mode === 'individual'
+                      ? 'Rounds (everyone describes once per round)'
+                      : 'Rounds (each team plays once per round)'
+                  }
+                >
                   <select
                     value={settings.rounds_count}
                     onChange={(e) => setSettings({ ...settings, rounds_count: Number(e.target.value) })}
@@ -1728,9 +1777,11 @@ function CreateGameInner() {
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="describe_it" />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Teams race the clock: a describer gives clues for secret words while teammates type guesses. Every
-                  correct guess scores a point — most words across all rounds wins. Add your own words to use those
-                  first (the built-in bank only tops up if you run out); leave it blank for the built-in bank.
+                  {settings.describe_it_mode === 'individual'
+                    ? 'Everyone takes turns describing one word while the rest race to guess it. Guessers score by speed and the describer scores per correct guess — highest total on the leaderboard wins.'
+                    : 'Teams race the clock: a describer gives clues for secret words while teammates type guesses. Every correct guess scores a point — most words across all rounds wins.'}{' '}
+                  Add your own words to use those first (the built-in bank only tops up if you run out); leave it blank
+                  for the built-in bank.
                 </p>
               </SettingsGroup>
             ) : isNpat ? (
@@ -2742,7 +2793,9 @@ function CreateGameInner() {
 
             <SettingsGroup title="How it works">
               <p className="text-faint text-sm leading-relaxed">
-                {gameHowItWorks(settings.game_type, settings.participant_mode)}
+                {isDescribeIt && settings.describe_it_mode === 'individual'
+                  ? 'Players join with their name — no teams. Each round, every player takes a turn describing a secret word by typing clues (without saying it) while everyone else races to type the word. Guessers score more the faster they guess; the describer scores for each player who gets it. Highest total on the leaderboard wins.'
+                  : gameHowItWorks(settings.game_type, settings.participant_mode)}
               </p>
             </SettingsGroup>
           </div>

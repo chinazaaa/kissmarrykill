@@ -97,7 +97,7 @@ import { clampWhotGameDuration } from '@/lib/whot'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
 import { clampChessTimer } from '@/lib/chess'
 import { clampScrabbleTimer, clampScrabbleGameDuration } from '@/lib/scrabble'
-import { clampDescribeItRounds, clampDescribeItTeams } from '@/lib/describe-it'
+import { clampDescribeItMode, clampDescribeItRounds, clampDescribeItTeams } from '@/lib/describe-it'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -213,6 +213,7 @@ export async function POST(req: NextRequest) {
     codewords_late_join: rawCodewordsLateJoin,
     codewords_randomize_teams: rawCodewordsRandomizeTeams,
     describe_it_num_teams: rawDescribeItNumTeams,
+    describe_it_mode: rawDescribeItMode,
     allow_viewers: rawAllowViewers,
     allow_late_players: rawAllowLatePlayers,
     late_join_policy: rawLateJoinPolicy,
@@ -490,7 +491,12 @@ export async function POST(req: NextRequest) {
             game_duration_seconds: clampNpatGameDuration(rawGameDurationSeconds ?? NPAT_DEFAULT_GAME_DURATION),
           }
         : {}),
-    ...(isDescribeItGame(game_type) ? { describe_it_num_teams: clampDescribeItTeams(rawDescribeItNumTeams) } : {}),
+    ...(isDescribeItGame(game_type)
+      ? {
+          describe_it_num_teams: clampDescribeItTeams(rawDescribeItNumTeams),
+          describe_it_mode: clampDescribeItMode(rawDescribeItMode),
+        }
+      : {}),
     ...(gameSupportsViewerSetting(game_type)
       ? { allow_viewers: viewersAllowed, allow_late_players: latePlayersAllowed }
       : {}),
