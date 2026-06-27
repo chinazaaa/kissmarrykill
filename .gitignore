@@ -43,3 +43,7 @@ next-env.d.ts
 CLAUDE.md
 .venv
 .claude/
+.worktrees/
+
+# local MCP server config
+.mcp.json
