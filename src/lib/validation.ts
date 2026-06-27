@@ -137,6 +137,15 @@ export const createGameSchema = z.object({
   whot_pick3_enabled: z.boolean().optional(),
   whot_cards_enabled: z.boolean().optional(),
   whot_number_calls_enabled: z.boolean().optional(),
+  ai_questions_enabled: z.boolean().optional(),
+  ai_questions_config: z
+    .object({
+      ratio: z.enum(['all_ai', 'mostly_ai', 'half', 'mostly_platform']),
+      theme: z.string().max(100).optional(),
+      customPrompt: z.string().max(500).optional(),
+    })
+    .optional()
+    .nullable(),
   custom_slots: z
     .object({
       slots: z

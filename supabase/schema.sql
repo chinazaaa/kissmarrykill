@@ -294,6 +294,10 @@ ALTER TABLE games ADD COLUMN IF NOT EXISTS custom_slots jsonb;
 
 ALTER TABLE games ADD COLUMN IF NOT EXISTS gender_based boolean NOT NULL DEFAULT true;
 
+ALTER TABLE games ADD COLUMN IF NOT EXISTS ai_questions_enabled boolean DEFAULT false;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS ai_questions_config jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS ai_generated_questions jsonb DEFAULT '[]'::jsonb;
+
 -- If upgrading:
 -- alter table games add column if not exists gender_based boolean not null default true;
 -- alter table games drop constraint if exists games_game_type_check;

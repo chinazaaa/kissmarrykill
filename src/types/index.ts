@@ -188,6 +188,17 @@ export interface CustomSlotsConfig {
   gender_based?: boolean
 }
 
+export interface AiQuestionsConfig {
+  ratio: 'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform'
+  theme?: string
+  customPrompt?: string
+}
+
+export type AiGeneratedQuestions =
+  | { type: 'wyr'; questions: { optionA: string; optionB: string }[] }
+  | { type: 'mlt'; questions: string[] }
+  | { type: 'nhie'; questions: string[] }
+
 export interface Game {
   id: string
   title: string
@@ -253,6 +264,9 @@ export interface Game {
   whot_cards_enabled?: boolean
   /** Whot — allow calling a number when playing WHOT. */
   whot_number_calls_enabled?: boolean
+  ai_questions_enabled?: boolean
+  ai_questions_config?: AiQuestionsConfig | null
+  ai_generated_questions?: AiGeneratedQuestions | null
 }
 
 export type MonopolyPhase = 'roll' | 'buy' | 'jail' | 'pay_rent' | 'auction' | 'raise_funds' | 'finished'
