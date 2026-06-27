@@ -1,12 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-  useLocalParticipant,
-  useParticipants,
-} from '@livekit/components-react'
+import { LiveKitRoom, RoomAudioRenderer, useLocalParticipant, useParticipants } from '@livekit/components-react'
 import { useToast } from '@/components/ui/Toast'
 
 interface AudioChatProps {
@@ -28,7 +23,9 @@ export function AudioChat({ roomCode, playerName }: AudioChatProps) {
     setIsConnecting(true)
     setError(null)
     try {
-      const res = await fetch(`/api/audio-token?roomName=${roomCode.toUpperCase()}&participantName=${encodeURIComponent(playerName)}`)
+      const res = await fetch(
+        `/api/audio-token?roomName=${roomCode.toUpperCase()}&participantName=${encodeURIComponent(playerName)}`
+      )
       if (!res.ok) {
         const errData = await res.json()
         throw new Error(errData.error || 'Failed to fetch audio token')
@@ -150,7 +147,9 @@ function AudioChatInner({ localPlayerName }: AudioChatInnerProps) {
             <span className="text-xs">👤</span>
             <span className="font-semibold text-body truncate">{localPlayerName} (You)</span>
             {isLocalSpeaking && (
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1 rounded animate-pulse">Speaking</span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1 rounded animate-pulse">
+                Speaking
+              </span>
             )}
           </div>
           <span className="text-xs">{isMicrophoneEnabled ? '🎙️' : '🔇'}</span>
@@ -166,14 +165,18 @@ function AudioChatInner({ localPlayerName }: AudioChatInnerProps) {
               <div
                 key={p.sid}
                 className={`flex items-center justify-between text-xs p-1.5 rounded transition-colors ${
-                  isSpeaking ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-transparent border border-transparent'
+                  isSpeaking
+                    ? 'bg-emerald-500/10 border border-emerald-500/20'
+                    : 'bg-transparent border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate">
                   <span className="text-xs">👥</span>
                   <span className="text-body truncate">{p.identity}</span>
                   {isSpeaking && (
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1 rounded animate-pulse">Speaking</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1 rounded animate-pulse">
+                      Speaking
+                    </span>
                   )}
                 </div>
                 <span className="text-xs">{isMuted ? '🔇' : '🎙️'}</span>
@@ -182,9 +185,7 @@ function AudioChatInner({ localPlayerName }: AudioChatInnerProps) {
           })}
 
         {participants.length === 1 && (
-          <div className="text-xs text-faint text-center my-4 italic">
-            Waiting for others to join...
-          </div>
+          <div className="text-xs text-faint text-center my-4 italic">Waiting for others to join...</div>
         )}
       </div>
 

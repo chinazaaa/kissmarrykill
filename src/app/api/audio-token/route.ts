@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
   const apiSecret = process.env.LIVEKIT_API_SECRET
 
   if (!apiKey || !apiSecret) {
-    return NextResponse.json({ error: 'LIVEKIT_API_KEY or LIVEKIT_API_SECRET not set in environment variables' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'LIVEKIT_API_KEY or LIVEKIT_API_SECRET not set in environment variables' },
+      { status: 500 }
+    )
   }
 
   try {
@@ -43,7 +46,10 @@ export async function POST(req: NextRequest) {
     const apiSecret = process.env.LIVEKIT_API_SECRET
 
     if (!apiKey || !apiSecret) {
-      return NextResponse.json({ error: 'LIVEKIT_API_KEY or LIVEKIT_API_SECRET not set in environment variables' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'LIVEKIT_API_KEY or LIVEKIT_API_SECRET not set in environment variables' },
+        { status: 500 }
+      )
     }
 
     const at = new AccessToken(apiKey, apiSecret, {
