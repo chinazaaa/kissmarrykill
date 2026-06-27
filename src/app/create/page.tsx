@@ -1058,7 +1058,7 @@ function CreateGameInner() {
           question_source: isCodewords
             ? questionSource
             : isDescribeIt
-              ? parseDescribeItWords(describeItWords).length > 0
+              ? questionSource === 'custom' && parseDescribeItWords(describeItWords).length > 0
                 ? 'custom'
                 : 'platform'
               : isTot
@@ -1073,7 +1073,7 @@ function CreateGameInner() {
               ? customCodewordsWords
               : null
             : isDescribeIt
-              ? parseDescribeItWords(describeItWords).length > 0
+              ? questionSource === 'custom' && parseDescribeItWords(describeItWords).length > 0
                 ? parseDescribeItWords(describeItWords)
                 : null
               : isLobbyQuestions && (isTot || questionSource === 'custom' || questionSource === 'library')
@@ -1724,55 +1724,70 @@ function CreateGameInner() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Add your own words (optional, one per line)">
-                  <textarea
-                    value={describeItWords}
-                    onChange={(e) => setDescribeItWords(e.target.value)}
-                    placeholder="pizza&#10;rainbow&#10;astronaut"
-                    rows={3}
-                    className="input-field w-full resize-y"
+                <Field label="Words">
+                  <SegmentedControl
+                    value={questionSource === 'custom' ? 'custom' : 'platform'}
+                    onChange={(v) => setQuestionSource(v as QuestionSource)}
+                    options={[
+                      { value: 'platform', label: 'Platform', hint: 'Use our built-in word bank.' },
+                      { value: 'custom', label: 'Your own', hint: 'Add your own words or upload a file.' },
+                    ]}
                   />
-                  <div className="flex items-center gap-3 pt-1.5">
-                    <button
-                      type="button"
-                      onClick={() => describeItFileRef.current?.click()}
-                      className="text-xs font-bold rounded-lg border border-[var(--border-strong)] px-3 py-1.5 hover:bg-[var(--primary)]/10"
-                    >
-                      Upload CSV / Excel
-                    </button>
-                    <span className="text-faint text-xs">one word per row</span>
-                  </div>
-                  <input
-                    ref={describeItFileRef}
-                    type="file"
-                    accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      e.target.value = ''
-                      if (!file) return
-                      setDescribeItUploadError(null)
-                      const ext = file.name.split('.').pop()?.toLowerCase()
-                      try {
-                        const rows =
-                          ext === 'csv'
-                            ? parseDescribeItWords(await file.text())
-                            : ext === 'xlsx' || ext === 'xls'
-                              ? await parseExcelDescribeItWords(await file.arrayBuffer())
-                              : []
-                        if (rows.length === 0) {
-                          setDescribeItUploadError('No words found. Use one word per line or row.')
-                          return
-                        }
-                        // Merge with whatever's already in the box, de-duplicated.
-                        setDescribeItWords((prev) => parseDescribeItWords(`${prev}\n${rows.join('\n')}`).join('\n'))
-                      } catch {
-                        setDescribeItUploadError('Could not read that file. Try a .csv or .xlsx.')
-                      }
-                    }}
-                  />
-                  {describeItUploadError && <p className="text-rose-400 text-xs pt-1">{describeItUploadError}</p>}
                 </Field>
+
+                {questionCustomHint && <CustomContentAiTip hint={questionCustomHint} />}
+
+                {questionSource === 'custom' && (
+                  <Field label="Your words (one per line)">
+                    <textarea
+                      value={describeItWords}
+                      onChange={(e) => setDescribeItWords(e.target.value)}
+                      placeholder="pizza&#10;rainbow&#10;astronaut"
+                      rows={4}
+                      className="input-field w-full resize-y"
+                    />
+                    <div className="flex items-center gap-3 pt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => describeItFileRef.current?.click()}
+                        className="text-xs font-bold rounded-lg border border-[var(--border-strong)] px-3 py-1.5 hover:bg-[var(--primary)]/10"
+                      >
+                        Upload CSV / Excel
+                      </button>
+                      <span className="text-faint text-xs">one word per row</span>
+                    </div>
+                    <input
+                      ref={describeItFileRef}
+                      type="file"
+                      accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ''
+                        if (!file) return
+                        setDescribeItUploadError(null)
+                        const ext = file.name.split('.').pop()?.toLowerCase()
+                        try {
+                          const rows =
+                            ext === 'csv'
+                              ? parseDescribeItWords(await file.text())
+                              : ext === 'xlsx' || ext === 'xls'
+                                ? await parseExcelDescribeItWords(await file.arrayBuffer())
+                                : []
+                          if (rows.length === 0) {
+                            setDescribeItUploadError('No words found. Use one word per line or row.')
+                            return
+                          }
+                          // Merge with whatever's already in the box, de-duplicated.
+                          setDescribeItWords((prev) => parseDescribeItWords(`${prev}\n${rows.join('\n')}`).join('\n'))
+                        } catch {
+                          setDescribeItUploadError('Could not read that file. Try a .csv or .xlsx.')
+                        }
+                      }}
+                    />
+                    {describeItUploadError && <p className="text-rose-400 text-xs pt-1">{describeItUploadError}</p>}
+                  </Field>
+                )}
                 <Field label="Late joiners">
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="describe_it" />
                 </Field>
