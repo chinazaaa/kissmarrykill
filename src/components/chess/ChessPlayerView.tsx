@@ -430,6 +430,7 @@ export function ChessPlayerView({ gameCode }: { gameCode: string }) {
           myPlayerId={myPlayerId}
           isMyTurn={isMyTurn && !isViewer}
           timeControlSeconds={game?.timer_seconds ?? 0}
+          appearanceDefaults={{ boardTheme: game?.chess_board_theme, pieceSet: game?.chess_piece_set }}
           onMove={isMyTurn && !isViewer ? movePiece : undefined}
           onResign={!isViewer ? resign : undefined}
           acting={acting}

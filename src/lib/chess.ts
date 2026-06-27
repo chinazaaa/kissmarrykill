@@ -20,6 +20,26 @@ export function clampChessTimer(value: unknown): number {
   return (CHESS_TIME_OPTIONS as readonly number[]).includes(n) ? n : CHESS_DEFAULT_TIME_SECONDS
 }
 
+// Host-chosen default board look. These id lists are the server-side source of
+// truth for validation; the matching visual definitions live in
+// src/lib/chess-appearance.ts and must stay in sync with these ids.
+export const CHESS_BOARD_THEME_IDS = ['classic', 'emerald', 'ocean', 'midnight', 'walnut', 'frost', 'grape', 'rosewood'] as const
+export const CHESS_PIECE_SET_IDS = ['classic', 'outline', 'ink', 'neon', 'gold'] as const
+export const CHESS_DEFAULT_BOARD_THEME = 'classic'
+export const CHESS_DEFAULT_PIECE_SET = 'classic'
+
+export function clampChessBoardTheme(value: unknown): string {
+  return (CHESS_BOARD_THEME_IDS as readonly string[]).includes(value as string)
+    ? (value as string)
+    : CHESS_DEFAULT_BOARD_THEME
+}
+
+export function clampChessPieceSet(value: unknown): string {
+  return (CHESS_PIECE_SET_IDS as readonly string[]).includes(value as string)
+    ? (value as string)
+    : CHESS_DEFAULT_PIECE_SET
+}
+
 export function chessIsTimed(session: Pick<ChessSession, 'white_time_ms' | 'black_time_ms'>): boolean {
   return session.white_time_ms != null && session.black_time_ms != null
 }

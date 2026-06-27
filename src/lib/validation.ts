@@ -150,6 +150,8 @@ export const createGameSchema = z.object({
     .nullable(),
   whot_pick2_stacking: z.boolean().optional(),
   scrabble_dictionary_id: z.enum(SCRABBLE_DICTIONARY_OPTIONS).optional(),
+  chess_board_theme: z.string().optional(),
+  chess_piece_set: z.string().optional(),
   custom_slots: z
     .object({
       slots: z

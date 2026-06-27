@@ -5,6 +5,14 @@ import { Chess, type Square } from 'chess.js'
 import { chessResultDetail, colorForPlayer, currentTurnPlayerId } from '@/lib/chess'
 import type { ChessColor, Player, ChessSession } from '@/types'
 import { ChessCard, ChessTurnBar } from '@/components/chess/ChessChrome'
+import { ChessAppearancePicker } from '@/components/chess/ChessAppearancePicker'
+import {
+  type ChessAppearanceDefaults,
+  type ChessPieceSet,
+  type ChessPieceType,
+  pieceGlyph,
+  useChessAppearance,
+} from '@/lib/chess-appearance'
 
 /** Format remaining clock ms as m:ss (always reads as a clock, e.g. 10:00, 0:14, 0:05). */
 function formatClock(ms: number): string {
@@ -56,19 +64,6 @@ function ChessClockChip({ session, color }: { session: ChessSession; color: Ches
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const
 
-// U+FE0E (text variation selector) forces monochrome TEXT rendering so our CSS
-// `color` applies. Without it, iOS renders these chess characters as emoji
-// (which ignore `color`), so White's pieces came out dark — looking black.
-const VS_TEXT = '\uFE0E'
-const GLYPH: Record<string, string> = {
-  p: `♟${VS_TEXT}`,
-  r: `♜${VS_TEXT}`,
-  n: `♞${VS_TEXT}`,
-  b: `♝${VS_TEXT}`,
-  q: `♛${VS_TEXT}`,
-  k: `♚${VS_TEXT}`,
-}
-
 const PROMOTION_PIECES: { piece: 'q' | 'r' | 'b' | 'n'; label: string }[] = [
   { piece: 'q', label: '♛ Queen' },
   { piece: 'r', label: '♜ Rook' },
@@ -116,13 +111,16 @@ function CapturedTray({
   name,
   pieces,
   glyphColor,
+  set,
   clock,
 }: {
   name: string
   pieces: string[]
   glyphColor: ChessColor
+  set: ChessPieceSet
   clock?: ReactNode
 }) {
+  const face = glyphColor === 'w' ? set.white : set.black
   return (
     <div className="flex items-center gap-1.5 min-h-[1.75rem] px-1">
       <span className="text-xs font-bold shrink-0">
@@ -133,15 +131,9 @@ function CapturedTray({
           <span
             key={`${type}-${i}`}
             className="text-xl sm:text-2xl leading-none"
-            style={{
-              color: glyphColor === 'w' ? '#f8fafc' : '#1e293b',
-              textShadow:
-                glyphColor === 'w'
-                  ? '0 0 1px #0f172a, 0 1px 1px rgba(0,0,0,0.55)'
-                  : '0 0 1px #f8fafc, 0 1px 1px rgba(255,255,255,0.4)',
-            }}
+            style={{ color: face.color, textShadow: face.shadow }}
           >
-            {GLYPH[type]}
+            {pieceGlyph(set, glyphColor, type as ChessPieceType)}
           </span>
         ))}
       </div>
@@ -150,17 +142,14 @@ function CapturedTray({
   )
 }
 
-function Piece({ type, color }: { type: string; color: ChessColor }) {
+function Piece({ type, color, set }: { type: string; color: ChessColor; set: ChessPieceSet }) {
+  const face = color === 'w' ? set.white : set.black
   return (
     <span
       className="relative z-10 select-none leading-none text-[9vw] sm:text-[2.9rem] lg:text-[3.5rem]"
-      style={{
-        color: color === 'w' ? '#f8fafc' : '#1e293b',
-        textShadow:
-          color === 'w' ? '0 0 1px #0f172a, 0 1px 2px rgba(0,0,0,0.45)' : '0 0 1px #f8fafc, 0 1px 2px rgba(0,0,0,0.35)',
-      }}
+      style={{ color: face.color, textShadow: face.shadow }}
     >
-      {GLYPH[type]}
+      {pieceGlyph(set, color, type as ChessPieceType)}
     </span>
   )
 }
@@ -171,6 +160,7 @@ export function ChessGamePanel({
   myPlayerId,
   isMyTurn,
   timeControlSeconds,
+  appearanceDefaults,
   onMove,
   onResign,
   acting,
@@ -180,12 +170,14 @@ export function ChessGamePanel({
   myPlayerId: string | null
   isMyTurn: boolean
   timeControlSeconds?: number
+  appearanceDefaults?: ChessAppearanceDefaults
   onMove?: (from: string, to: string, promotion?: 'q' | 'r' | 'b' | 'n') => void
   onResign?: () => void
   acting?: boolean
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null)
+  const { boardTheme, pieceSet } = useChessAppearance(appearanceDefaults)
 
   const myColor = myPlayerId ? colorForPlayer(session, myPlayerId) : null
   const flip = myColor === 'b'
@@ -309,7 +301,7 @@ export function ChessGamePanel({
       )}
 
       <div className="max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto w-full space-y-1.5">
-        <CapturedTray {...trayFor(topColor)} clock={<ChessClockChip session={session} color={topColor} />} />
+        <CapturedTray {...trayFor(topColor)} set={pieceSet} clock={<ChessClockChip session={session} color={topColor} />} />
         <div className="grid grid-cols-8 rounded-lg overflow-hidden border-2 border-[var(--border-strong)] shadow-lg">
           {orderedRanks.map((rank) =>
             orderedFiles.map((file) => {
@@ -327,16 +319,16 @@ export function ChessGamePanel({
                   type="button"
                   onClick={() => handleSquareClick(square)}
                   disabled={!interactive}
+                  style={{ backgroundColor: isLight ? boardTheme.light : boardTheme.dark }}
                   className={[
                     'relative aspect-square flex items-center justify-center',
-                    isLight ? 'bg-[#eed9b5]' : 'bg-[#b58863]',
                     interactive ? 'cursor-pointer' : 'cursor-default',
                   ].join(' ')}
                 >
                   {isLastMove && <span className="absolute inset-0 z-0 bg-yellow-300/40" />}
                   {isCheck && <span className="absolute inset-0 z-0 bg-rose-500/50" />}
                   {isSelected && <span className="absolute inset-0 z-20 ring-2 ring-inset ring-[var(--primary)]" />}
-                  {piece && <Piece type={piece.type} color={piece.color} />}
+                  {piece && <Piece type={piece.type} color={piece.color} set={pieceSet} />}
                   {target && !piece && <span className="absolute z-20 w-1/4 h-1/4 rounded-full bg-black/30" />}
                   {target && piece && <span className="absolute inset-1 z-20 rounded-full ring-4 ring-black/30" />}
                 </button>
@@ -344,8 +336,10 @@ export function ChessGamePanel({
             })
           )}
         </div>
-        <CapturedTray {...trayFor(bottomColor)} clock={<ChessClockChip session={session} color={bottomColor} />} />
+        <CapturedTray {...trayFor(bottomColor)} set={pieceSet} clock={<ChessClockChip session={session} color={bottomColor} />} />
       </div>
+
+      <ChessAppearancePicker defaults={appearanceDefaults} />
 
       {pendingPromotion && (
         <ChessCard className="p-3 space-y-2">
