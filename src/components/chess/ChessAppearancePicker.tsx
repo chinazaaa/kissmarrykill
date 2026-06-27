@@ -45,7 +45,9 @@ export function ChessAppearancePicker({ defaults }: { defaults?: ChessAppearance
         <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] shrink-0">
           <span aria-hidden>✏️</span>
           {open ? 'Done' : 'Change'}
-          <span aria-hidden className="text-faint">{open ? '▴' : '▾'}</span>
+          <span aria-hidden className="text-faint">
+            {open ? '▴' : '▾'}
+          </span>
         </span>
       </button>
 
@@ -97,9 +99,7 @@ export function ChessAppearancePicker({ defaults }: { defaults?: ChessAppearance
                     className={[
                       'flex flex-col items-center gap-0.5 rounded-md px-2 py-1.5 transition-transform',
                       // a neutral board-ish backdrop so light pieces stay visible
-                      active
-                        ? 'ring-2 ring-[var(--primary)] scale-105'
-                        : 'ring-1 ring-[var(--border)] hover:scale-105',
+                      active ? 'ring-2 ring-[var(--primary)] scale-105' : 'ring-1 ring-[var(--border)] hover:scale-105',
                     ].join(' ')}
                     style={{ backgroundColor: '#b58863' }}
                   >

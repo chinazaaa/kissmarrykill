@@ -1677,7 +1677,9 @@ function CreateGameInner() {
                           aria-pressed={active}
                           className={[
                             'flex flex-col items-center gap-0.5 rounded-md px-2 py-1.5 transition-transform',
-                            active ? 'ring-2 ring-[var(--primary)] scale-105' : 'ring-1 ring-[var(--border)] hover:scale-105',
+                            active
+                              ? 'ring-2 ring-[var(--primary)] scale-105'
+                              : 'ring-1 ring-[var(--border)] hover:scale-105',
                           ].join(' ')}
                           style={{ backgroundColor: '#b58863' }}
                         >
@@ -1694,7 +1696,9 @@ function CreateGameInner() {
                       )
                     })}
                   </div>
-                  <p className="text-faint mt-1 text-xs">Your default look — players can switch their own board in-game.</p>
+                  <p className="text-faint mt-1 text-xs">
+                    Your default look — players can switch their own board in-game.
+                  </p>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Classic chess — White moves first, standard rules, checkmate to win. Each player gets their own clock

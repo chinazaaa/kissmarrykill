@@ -23,7 +23,16 @@ export function clampChessTimer(value: unknown): number {
 // Host-chosen default board look. These id lists are the server-side source of
 // truth for validation; the matching visual definitions live in
 // src/lib/chess-appearance.ts and must stay in sync with these ids.
-export const CHESS_BOARD_THEME_IDS = ['classic', 'emerald', 'ocean', 'midnight', 'walnut', 'frost', 'grape', 'rosewood'] as const
+export const CHESS_BOARD_THEME_IDS = [
+  'classic',
+  'emerald',
+  'ocean',
+  'midnight',
+  'walnut',
+  'frost',
+  'grape',
+  'rosewood',
+] as const
 export const CHESS_PIECE_SET_IDS = ['classic', 'outline', 'ink', 'neon', 'gold'] as const
 export const CHESS_DEFAULT_BOARD_THEME = 'classic'
 export const CHESS_DEFAULT_PIECE_SET = 'classic'

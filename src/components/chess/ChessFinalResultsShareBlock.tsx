@@ -4,7 +4,12 @@ import { useMemo, useRef, type ReactNode } from 'react'
 import { Chess, type Square } from 'chess.js'
 import type { Game, Player, ChessSession } from '@/types'
 import { chessResultDetail } from '@/lib/chess'
-import { type ChessAppearanceDefaults, type ChessPieceType, pieceGlyph, useChessAppearance } from '@/lib/chess-appearance'
+import {
+  type ChessAppearanceDefaults,
+  type ChessPieceType,
+  pieceGlyph,
+  useChessAppearance,
+} from '@/lib/chess-appearance'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'

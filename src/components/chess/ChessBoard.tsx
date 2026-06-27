@@ -301,7 +301,11 @@ export function ChessGamePanel({
       )}
 
       <div className="max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto w-full space-y-1.5">
-        <CapturedTray {...trayFor(topColor)} set={pieceSet} clock={<ChessClockChip session={session} color={topColor} />} />
+        <CapturedTray
+          {...trayFor(topColor)}
+          set={pieceSet}
+          clock={<ChessClockChip session={session} color={topColor} />}
+        />
         <div className="grid grid-cols-8 rounded-lg overflow-hidden border-2 border-[var(--border-strong)] shadow-lg">
           {orderedRanks.map((rank) =>
             orderedFiles.map((file) => {
@@ -336,7 +340,11 @@ export function ChessGamePanel({
             })
           )}
         </div>
-        <CapturedTray {...trayFor(bottomColor)} set={pieceSet} clock={<ChessClockChip session={session} color={bottomColor} />} />
+        <CapturedTray
+          {...trayFor(bottomColor)}
+          set={pieceSet}
+          clock={<ChessClockChip session={session} color={bottomColor} />}
+        />
       </div>
 
       <ChessAppearancePicker defaults={appearanceDefaults} />
