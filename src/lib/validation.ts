@@ -192,6 +192,15 @@ export const updateGameSchema = z.object({
   pair_vote_mode: pairVoteModeEnum.optional(),
   player_questions_enabled: z.boolean().optional(),
   player_questions_order: playerQuestionsOrderEnum.optional(),
+  ai_questions_enabled: z.boolean().optional(),
+  ai_questions_config: z
+    .object({
+      ratio: z.enum(['all_ai', 'mostly_ai', 'half', 'mostly_platform']),
+      theme: z.string().max(100).optional(),
+      customPrompt: z.string().max(500).optional(),
+    })
+    .optional()
+    .nullable(),
   allow_viewers: z.boolean().optional(),
   allow_late_players: z.boolean().optional(),
   late_join_policy: z.enum(['lobby_only', 'viewers_only', 'viewers_and_players']).optional(),
