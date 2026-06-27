@@ -22,7 +22,7 @@ tick_interval_seconds = 60
 # Cloudflare. The token is read from the CLOUDFLARE_API_TOKEN env var
 # (kept in ~/.config/shell/secrets.sh), NOT here.
 cloudflare_enabled     = true
-cloudflare_zone_id     = "REPLACE_WITH_ZONE_ID"
-cloudflare_record_name = "dev" # -> dev.<yourdomain>
+cloudflare_zone_id     = "fff141dbd5d5f15aadf4497bcd46f3fc" # fateround.com zone
+cloudflare_record_name = "dev"                              # -> dev.fateround.com
 cloudflare_proxied     = true
 # restrict_to_cloudflare = true   # optional: lock the instance SG to Cloudflare IPs

@@ -20,10 +20,13 @@ tick_interval_seconds = 60
 
 # Cloudflare. Token via CLOUDFLARE_API_TOKEN env, not here.
 cloudflare_enabled     = true
-cloudflare_zone_id     = "REPLACE_WITH_ZONE_ID"
-cloudflare_record_name = "app" # -> app.<yourdomain>
+cloudflare_zone_id     = "fff141dbd5d5f15aadf4497bcd46f3fc" # fateround.com zone
+cloudflare_record_name = "@"                                # -> fateround.com (apex)
 cloudflare_proxied     = true
 restrict_to_cloudflare = true # lock the origin to Cloudflare's edge IPs
+# NOTE: fateround.com may already have a Cloudflare record (current prod). Before
+# applying prod, delete/repoint that record or `terraform import` it into
+# cloudflare_record.app[0] so this stack doesn't conflict with it.
 
 # TLS: with the record proxied, use Cloudflare SSL "Full" and put a free
 # Cloudflare Origin Certificate on the box for end-to-end encryption.
