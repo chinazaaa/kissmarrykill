@@ -4,6 +4,8 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PollGamePlayerExperience } from '@/components/poll-game/PollGamePlayerExperience'
+import { AudioChat } from '@/components/AudioChat'
+import { getPlayerSession } from '@/lib/utils'
 
 function TournamentBanner({ gameCode }: { gameCode: string }) {
   const [tournamentId, setTournamentId] = useState<string | null>(null)
@@ -38,10 +40,31 @@ export default function GamePage() {
   const searchParams = useSearchParams()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
   const initialName = searchParams.get('name') ?? undefined
+  const [playerName, setPlayerName] = useState<string | null>(null)
+  const [playerId, setPlayerId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const checkSession = () => {
+      const session = getPlayerSession(gameCode)
+      if (session?.playerName) {
+        setPlayerName(session.playerName)
+        setPlayerId(session.playerId)
+      } else {
+        setPlayerName(null)
+        setPlayerId(null)
+      }
+    }
+    checkSession()
+    const timer = setInterval(checkSession, 1500)
+    return () => clearInterval(timer)
+  }, [gameCode])
 
   return (
     <>
       <PollGamePlayerExperience gameCode={gameCode} initialName={initialName} />
+      {playerName && playerId && (
+        <AudioChat roomCode={gameCode} playerName={playerName} identity={playerId} auth={{ kind: 'player' }} />
+      )}
       <TournamentBanner gameCode={gameCode} />
     </>
   )
