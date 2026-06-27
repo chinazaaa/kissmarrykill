@@ -239,6 +239,11 @@ function CreateGameInner() {
   const [questionSource, setQuestionSource] = useState<QuestionSource>('platform')
   const [playerQuestionsEnabled, setPlayerQuestionsEnabled] = useState(true)
   const [playerQuestionsOrder, setPlayerQuestionsOrder] = useState<PlayerQuestionsOrder>('players_first')
+  const [aiQuestionsEnabled, setAiQuestionsEnabled] = useState(false)
+  const [aiQuestionsRatio, setAiQuestionsRatio] = useState<'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform'>('half')
+  const [aiQuestionsTheme, setAiQuestionsTheme] = useState('')
+  const [aiQuestionsCustomPrompt, setAiQuestionsCustomPrompt] = useState('')
+  const [aiQuestionsApiKey, setAiQuestionsApiKey] = useState('')
   const [questionTab, setQuestionTab] = useState<QuestionTab>('upload')
   const [customWyrQuestions, setCustomWyrQuestions] = useState<WyrQuestion[]>([])
   const [customMltQuestions, setCustomMltQuestions] = useState<string[]>([])
@@ -1101,6 +1106,15 @@ function CreateGameInner() {
           gender_based: supportsGender ? settings.gender_based : undefined,
           player_questions_enabled: isPlayerSubmissions ? playerQuestionsEnabled : undefined,
           player_questions_order: isPlayerSubmissions ? playerQuestionsOrder : undefined,
+          ai_questions_enabled: isLobbyQuestions && !isTrivia ? aiQuestionsEnabled : undefined,
+          ai_questions_config:
+            isLobbyQuestions && !isTrivia && aiQuestionsEnabled
+              ? {
+                  ratio: aiQuestionsRatio,
+                  ...(aiQuestionsTheme ? { theme: aiQuestionsTheme } : {}),
+                  ...(aiQuestionsCustomPrompt ? { customPrompt: aiQuestionsCustomPrompt } : {}),
+                }
+              : undefined,
           max_players: isAnonymousRoom
             ? anonymousMaxPlayers
             : isBingo
@@ -2488,6 +2502,83 @@ function CreateGameInner() {
                               }
                             </p>
                           </Field>
+                        )}
+
+                        {(isWyr || isMlt || isNhie) && (
+                          <Field label="AI-generated questions">
+                            <SegmentedControl
+                              value={aiQuestionsEnabled ? 'on' : 'off'}
+                              onChange={(v) => setAiQuestionsEnabled(v === 'on')}
+                              options={[
+                                { value: 'off', label: 'Off' },
+                                { value: 'on', label: 'Enabled' },
+                              ]}
+                            />
+                            <p className="text-faint text-xs mt-2">
+                              {aiQuestionsEnabled
+                                ? 'AI will generate personalized questions using player names in the lobby.'
+                                : 'Only platform and player-submitted questions will be used.'}
+                            </p>
+                          </Field>
+                        )}
+
+                        {(isWyr || isMlt || isNhie) && aiQuestionsEnabled && (
+                          <>
+                            <Field label="AI question ratio">
+                              <SegmentedControl
+                                value={aiQuestionsRatio}
+                                onChange={(v) =>
+                                  setAiQuestionsRatio(v as 'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform')
+                                }
+                                options={[
+                                  { value: 'all_ai', label: 'All AI' },
+                                  { value: 'mostly_ai', label: 'Mostly AI' },
+                                  { value: 'half', label: 'Half & Half' },
+                                  { value: 'mostly_platform', label: 'Mostly Platform' },
+                                ]}
+                              />
+                            </Field>
+
+                            <Field label="Theme (optional)">
+                              <select
+                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body"
+                                value={aiQuestionsTheme}
+                                onChange={(e) => setAiQuestionsTheme(e.target.value)}
+                              >
+                                <option value="">General / Fun</option>
+                                <option value="Work party">Work party</option>
+                                <option value="College friends">College friends</option>
+                                <option value="Family reunion">Family reunion</option>
+                                <option value="Birthday party">Birthday party</option>
+                                <option value="Date night">Date night</option>
+                              </select>
+                            </Field>
+
+                            <Field label="Custom prompt (optional)">
+                              <textarea
+                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body resize-none"
+                                rows={2}
+                                maxLength={500}
+                                placeholder="e.g. We're all coworkers at a tech company who love hiking"
+                                value={aiQuestionsCustomPrompt}
+                                onChange={(e) => setAiQuestionsCustomPrompt(e.target.value)}
+                              />
+                              <p className="text-faint text-xs mt-1">{aiQuestionsCustomPrompt.length}/500</p>
+                            </Field>
+
+                            <Field label="Your Claude API key (optional)">
+                              <input
+                                type="password"
+                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body"
+                                placeholder="sk-ant-..."
+                                value={aiQuestionsApiKey}
+                                onChange={(e) => setAiQuestionsApiKey(e.target.value)}
+                              />
+                              <p className="text-faint text-xs mt-1">
+                                Leave blank to use the server&apos;s key. Your key is never stored.
+                              </p>
+                            </Field>
+                          </>
                         )}
                       </>
                     )}
