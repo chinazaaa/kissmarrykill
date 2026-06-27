@@ -110,7 +110,11 @@ function extractJson(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (fenced) return fenced[1].trim()
   const bracketStart = text.indexOf('[')
-  if (bracketStart !== -1) return text.slice(bracketStart)
+  if (bracketStart !== -1) {
+    const bracketEnd = text.lastIndexOf(']')
+    if (bracketEnd > bracketStart) return text.slice(bracketStart, bracketEnd + 1)
+    return text.slice(bracketStart)
+  }
   return text
 }
 
@@ -118,7 +122,7 @@ export async function generateAiQuestions(params: GenerateAiQuestionsParams): Pr
   const apiKey = params.apiKey || process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('No Anthropic API key available')
 
-  const client = new Anthropic({ apiKey })
+  const client = new Anthropic({ apiKey, timeout: 30_000 })
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',

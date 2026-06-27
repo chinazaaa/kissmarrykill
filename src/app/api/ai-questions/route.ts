@@ -62,8 +62,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
 
-    const questionCount =
-      result.type === 'wyr' ? result.questions.length : (result as { questions: string[] }).questions.length
+    const questionCount = (result as { questions: unknown[] }).questions.length
 
     return NextResponse.json({ success: true, questionCount })
   } catch (err) {

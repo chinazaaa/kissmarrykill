@@ -2344,23 +2344,25 @@ function CreateGameInner() {
                           </Field>
                         )}
 
-                        <Field label="AI-generated questions">
-                          <SegmentedControl
-                            value={aiQuestionsEnabled ? 'on' : 'off'}
-                            onChange={(v) => setAiQuestionsEnabled(v === 'on')}
-                            options={[
-                              { value: 'off', label: 'Off' },
-                              { value: 'on', label: 'Enabled' },
-                            ]}
-                          />
-                          <p className="text-faint text-xs mt-2">
-                            {aiQuestionsEnabled
-                              ? 'AI will generate personalized questions using player names in the lobby.'
-                              : 'Only platform and player-submitted questions will be used.'}
-                          </p>
-                        </Field>
+                        {(isWyr || isMlt || isNhie) && (
+                          <Field label="AI-generated questions">
+                            <SegmentedControl
+                              value={aiQuestionsEnabled ? 'on' : 'off'}
+                              onChange={(v) => setAiQuestionsEnabled(v === 'on')}
+                              options={[
+                                { value: 'off', label: 'Off' },
+                                { value: 'on', label: 'Enabled' },
+                              ]}
+                            />
+                            <p className="text-faint text-xs mt-2">
+                              {aiQuestionsEnabled
+                                ? 'AI will generate personalized questions using player names in the lobby.'
+                                : 'Only platform and player-submitted questions will be used.'}
+                            </p>
+                          </Field>
+                        )}
 
-                        {aiQuestionsEnabled && (
+                        {(isWyr || isMlt || isNhie) && aiQuestionsEnabled && (
                           <>
                             <Field label="AI question ratio">
                               <SegmentedControl
