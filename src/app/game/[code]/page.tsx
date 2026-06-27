@@ -62,7 +62,9 @@ export default function GamePage() {
   return (
     <>
       <PollGamePlayerExperience gameCode={gameCode} initialName={initialName} />
-      {playerName && <AudioChat roomCode={gameCode} playerName={playerName} identity={playerId ?? undefined} />}
+      {playerName && playerId && (
+        <AudioChat roomCode={gameCode} playerName={playerName} identity={playerId} auth={{ kind: 'player' }} />
+      )}
       <TournamentBanner gameCode={gameCode} />
     </>
   )

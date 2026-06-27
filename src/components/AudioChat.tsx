@@ -4,6 +4,11 @@ import { useState } from 'react'
 import { LiveKitRoom, RoomAudioRenderer, useLocalParticipant, useParticipants } from '@livekit/components-react'
 import { useToast } from '@/components/ui/Toast'
 
+/** Proof the caller is allowed in the room, verified server-side before a
+ * token is minted. `player`/`member` are authorized by their secret `identity`
+ * (a server-generated UUID); `host` proves itself with the game's host token. */
+export type AudioAuth = { kind: 'player' } | { kind: 'member' } | { kind: 'host'; token: string }
+
 interface AudioChatProps {
   roomCode: string
   playerName: string
@@ -11,9 +16,10 @@ interface AudioChatProps {
    * distinct value (e.g. a member/player id) to avoid identity collisions
    * when display names are not unique. */
   identity?: string
+  auth: AudioAuth
 }
 
-export function AudioChat({ roomCode, playerName, identity }: AudioChatProps) {
+export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatProps) {
   const { error: toastError } = useToast()
   const [token, setToken] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -34,6 +40,7 @@ export function AudioChat({ roomCode, playerName, identity }: AudioChatProps) {
           roomName: roomCode.toUpperCase(),
           identity: identity || playerName,
           name: playerName,
+          auth,
         }),
       })
       if (!res.ok) {

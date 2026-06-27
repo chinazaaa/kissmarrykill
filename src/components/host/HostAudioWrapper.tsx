@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { AudioChat } from '@/components/AudioChat'
 
@@ -24,8 +24,17 @@ function useHostIdentity(gameCode: string): string {
 
 export function HostAudioWrapper() {
   const { code } = useParams<{ code: string }>()
+  const searchParams = useSearchParams()
   const gameCode = code ? (Array.isArray(code) ? code[0] : code).toUpperCase() : ''
   const hostIdentity = useHostIdentity(gameCode)
-  if (!gameCode) return null
-  return <AudioChat roomCode={gameCode} playerName="Host" identity={hostIdentity} />
+  const hostToken = searchParams.get('token') ?? ''
+  if (!gameCode || !hostToken) return null
+  return (
+    <AudioChat
+      roomCode={gameCode}
+      playerName="Host"
+      identity={hostIdentity}
+      auth={{ kind: 'host', token: hostToken }}
+    />
+  )
 }
