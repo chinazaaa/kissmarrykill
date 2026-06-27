@@ -797,7 +797,7 @@ export function RoomLobby({ roomCode }: { roomCode: string }) {
           onUpdated={setRoom}
         />
       )}
-      {identity && <AudioChat roomCode={roomCode} playerName={identity.displayName} />}
+      {identity && <AudioChat roomCode={roomCode} playerName={identity.displayName} identity={identity.memberId} />}
     </>
   )
 }

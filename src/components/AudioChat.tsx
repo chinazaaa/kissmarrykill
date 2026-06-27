@@ -7,9 +7,13 @@ import { useToast } from '@/components/ui/Toast'
 interface AudioChatProps {
   roomCode: string
   playerName: string
+  /** Stable, unique LiveKit identity. Defaults to playerName, but pass a
+   * distinct value (e.g. a member/player id) to avoid identity collisions
+   * when display names are not unique. */
+  identity?: string
 }
 
-export function AudioChat({ roomCode, playerName }: AudioChatProps) {
+export function AudioChat({ roomCode, playerName, identity }: AudioChatProps) {
   const { error: toastError } = useToast()
   const [token, setToken] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -23,9 +27,15 @@ export function AudioChat({ roomCode, playerName }: AudioChatProps) {
     setIsConnecting(true)
     setError(null)
     try {
-      const res = await fetch(
-        `/api/audio-token?roomName=${roomCode.toUpperCase()}&participantName=${encodeURIComponent(playerName)}`
-      )
+      const res = await fetch('/api/audio-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomName: roomCode.toUpperCase(),
+          identity: identity || playerName,
+          name: playerName,
+        }),
+      })
       if (!res.ok) {
         const errData = await res.json()
         throw new Error(errData.error || 'Failed to fetch audio token')
@@ -172,7 +182,7 @@ function AudioChatInner({ localPlayerName }: AudioChatInnerProps) {
               >
                 <div className="flex items-center gap-2 truncate">
                   <span className="text-xs">👥</span>
-                  <span className="text-body truncate">{p.identity}</span>
+                  <span className="text-body truncate">{p.name || p.identity}</span>
                   {isSpeaking && (
                     <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1 rounded animate-pulse">
                       Speaking

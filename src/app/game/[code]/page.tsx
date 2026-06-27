@@ -41,14 +41,17 @@ export default function GamePage() {
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
   const initialName = searchParams.get('name') ?? undefined
   const [playerName, setPlayerName] = useState<string | null>(null)
+  const [playerId, setPlayerId] = useState<string | null>(null)
 
   useEffect(() => {
     const checkSession = () => {
       const session = getPlayerSession(gameCode)
       if (session?.playerName) {
         setPlayerName(session.playerName)
+        setPlayerId(session.playerId)
       } else {
         setPlayerName(null)
+        setPlayerId(null)
       }
     }
     checkSession()
@@ -59,7 +62,7 @@ export default function GamePage() {
   return (
     <>
       <PollGamePlayerExperience gameCode={gameCode} initialName={initialName} />
-      {playerName && <AudioChat roomCode={gameCode} playerName={playerName} />}
+      {playerName && <AudioChat roomCode={gameCode} playerName={playerName} identity={playerId ?? undefined} />}
       <TournamentBanner gameCode={gameCode} />
     </>
   )
