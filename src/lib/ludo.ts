@@ -985,3 +985,80 @@ export function setLudoHostMode(gameCode: string, mode: LudoHostMode): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(`${LUDO_HOST_MODE_KEY}_${gameCode}`, mode)
 }
+
+/**
+ * Remove a player from a Ludo game (they left or were kicked). Without this the
+ * player's id stayed in `turn_order`, so the game kept handing them turns — a ghost
+ * with no name, and a timer counting down on a player who was gone. Drop them from
+ * the turn order (fixing current_turn_index), delete their piece state, end the game
+ * if fewer than two players remain (lone survivor wins), then delete their player row.
+ *
+ * The session write is a plain (non-CAS) update on purpose: a removal must always
+ * land — a lost optimistic-concurrency race would otherwise leave the ghost behind.
+ */
+export async function removeLudoPlayer(
+  supabase: SupabaseClient,
+  gameId: string,
+  playerId: string,
+  playerName?: string
+): Promise<{ error: string | null }> {
+  const { data: sessionRaw } = await supabase.from('ludo_sessions').select('*').eq('game_id', gameId).maybeSingle()
+  const session = sessionRaw as LudoSession | null
+  const order = session ? [...(session.turn_order ?? [])] : []
+  const removedIndex = order.indexOf(playerId)
+
+  if (session && removedIndex >= 0 && session.phase !== 'finished') {
+    const turnOrder = order.filter((id) => id !== playerId)
+    let currentTurnIndex = session.current_turn_index
+    if (removedIndex < currentTurnIndex) currentTurnIndex -= 1
+    else if (removedIndex === currentTurnIndex && turnOrder.length > 0) currentTurnIndex %= turnOrder.length
+    if (turnOrder.length === 0) currentTurnIndex = 0
+
+    const removedName = playerName ?? 'A player'
+    const { data: gameRow } = await supabase.from('games').select('timer_seconds').eq('id', gameId).maybeSingle()
+    const timerSeconds = gameRow?.timer_seconds ?? 0
+    const { data: playerRows } = await supabase.from('players').select('id, name').eq('game_id', gameId)
+    const names = new Map<string, string>()
+    for (const p of playerRows ?? []) names.set(p.id, p.name)
+
+    const update: Record<string, unknown> = {
+      turn_order: turnOrder,
+      current_turn_index: currentTurnIndex,
+      remaining_dice: null,
+      extra_turn: false,
+      consecutive_sixes: 0,
+      updated_at: new Date().toISOString(),
+    }
+
+    const finishing = turnOrder.length < 2
+    if (finishing) {
+      // Not enough players to keep going — the lone remaining player wins.
+      const winnerPlayerId = turnOrder[0] ?? null
+      const winnerName = winnerPlayerId ? (names.get(winnerPlayerId) ?? 'Winner') : null
+      update.phase = 'finished'
+      update.winner_player_id = winnerPlayerId
+      update.status_message = winnerName
+        ? `${removedName} left — ${winnerName} wins!`
+        : `${removedName} left — game over.`
+      update.turn_deadline_at = null
+    } else {
+      const nextPlayerId = turnOrder[currentTurnIndex]
+      update.phase = 'roll'
+      update.status_message = `${removedName} left. ${names.get(nextPlayerId) ?? 'Next player'}'s turn`
+      update.turn_deadline_at = ludoTurnDeadline(timerSeconds)
+    }
+
+    const { error: sessionError } = await supabase.from('ludo_sessions').update(update).eq('game_id', gameId)
+    if (sessionError) return { error: sessionError.message }
+
+    await supabase.from('ludo_player_state').delete().eq('game_id', gameId).eq('player_id', playerId)
+    if (finishing) await markGameFinished(supabase, gameId)
+    const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
+    return { error: error?.message ?? null }
+  }
+
+  // Lobby, spectator, already-finished, or not in the turn order — just drop their state + row.
+  await supabase.from('ludo_player_state').delete().eq('game_id', gameId).eq('player_id', playerId)
+  const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
+  return { error: error?.message ?? null }
+}
