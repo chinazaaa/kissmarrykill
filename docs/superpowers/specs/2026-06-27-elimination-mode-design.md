@@ -165,7 +165,7 @@ Internally dispatches to game-specific logic:
 
 **Two-truths adapter:**
 - Query `ttl_guesses` where `round_id` matches the current round
-- Count correct guesses (where `points > 0`) per player
+- Count correct guesses (where `is_correct = true`) per player
 - Return sorted desc
 
 ### Tournament lives hook
@@ -218,7 +218,7 @@ The following locations reset `spectator = false` and must add `.eq('is_eliminat
 - `npat.ts` — round participant reset
 - `two-truths.ts` — round participant reset (~line 191)
 - `viewers.ts` — spectator-to-player conversion (~line 121, add `|| player.is_eliminated` guard)
-- Any other game lib that does `.update({ spectator: false })` on the players table
+- `viewers.ts` — `resetSpectatorsForLobby` (~line 213, add `.eq('is_eliminated', false)` to the update query)
 
 ## Host UI
 
@@ -239,6 +239,22 @@ When creating a tournament, the host sees an optional "Lives" section:
 - Toggle: "Enable lives" (off by default)
 - When enabled: set starting lives count + bottom-N per game
 - Config stored as `elimination_config` JSONB on the tournament
+
+### Game creation API
+
+The `POST /api/games` route (`src/app/api/games/route.ts`) must accept `elimination_config` in the request body and pass it through to the games table insert. Currently the insert block (~line 452) does not include this field — it must be added as `elimination_config: body.elimination_config ?? null`.
+
+Similarly, `POST /api/tournaments` must accept and store `elimination_config` on the tournaments table.
+
+### Elimination-compatible game type utility
+
+A utility constant or function is needed to gate the host UI:
+
+```typescript
+const ELIMINATION_COMPATIBLE_TYPES = ['trivia', 'npat', 'two-truths'] as const;
+```
+
+The host UI only shows the elimination config section when the selected game type is in this list.
 
 ### Lock after start
 
@@ -306,6 +322,6 @@ interface EliminationEvent {
 
 ## DB Migration
 
-File: `supabase/migrations/089_elimination.sql`
+File: `supabase/migrations/088_elimination.sql`
 
 Adds columns to `players`, `tournament_players`, `games`, `tournaments`. Creates `elimination_events` table with index. Adds to realtime publication. Fully permissive RLS.
