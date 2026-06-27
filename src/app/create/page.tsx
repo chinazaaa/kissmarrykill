@@ -2366,9 +2366,7 @@ function CreateGameInner() {
                               <SegmentedControl
                                 value={aiQuestionsRatio}
                                 onChange={(v) =>
-                                  setAiQuestionsRatio(
-                                    v as 'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform'
-                                  )
+                                  setAiQuestionsRatio(v as 'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform')
                                 }
                                 options={[
                                   { value: 'all_ai', label: 'All AI' },

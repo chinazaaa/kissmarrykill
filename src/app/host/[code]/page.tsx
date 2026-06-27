@@ -2629,9 +2629,7 @@ export default function HostPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-muted text-xs uppercase tracking-wider">
-                        Claude API key (optional)
-                      </p>
+                      <p className="text-muted text-xs uppercase tracking-wider">Claude API key (optional)</p>
                       <input
                         type="password"
                         className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body"
@@ -2655,12 +2653,10 @@ export default function HostPage() {
                         : game.ai_generated_questions &&
                             typeof game.ai_generated_questions === 'object' &&
                             'questions' in (game.ai_generated_questions as Record<string, unknown>) &&
-                            Array.isArray(
-                              (game.ai_generated_questions as Record<string, unknown>).questions
-                            )
-                          ? `Re-generate (${(
-                              (game.ai_generated_questions as Record<string, unknown>).questions as unknown[]
-                            ).length} ready)`
+                            Array.isArray((game.ai_generated_questions as Record<string, unknown>).questions)
+                          ? `Re-generate (${
+                              ((game.ai_generated_questions as Record<string, unknown>).questions as unknown[]).length
+                            } ready)`
                           : 'Generate AI Questions'}
                     </button>
                   </>
