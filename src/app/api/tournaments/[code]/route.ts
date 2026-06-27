@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: tournament, error } = await supabase
     .from('tournaments')
-    .select('*')
+    .select('id, title, status, placement_points, target_game_count, created_at')
     .eq('id', tournamentId)
     .maybeSingle()
 

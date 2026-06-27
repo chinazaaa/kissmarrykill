@@ -184,6 +184,17 @@ export default function TournamentLobbyPage() {
   const finishedGames = games.filter((g) => g.status === 'finished')
   const isFinished = tournament.status === 'finished'
 
+  const playerRanks: number[] = []
+  for (let i = 0; i < players.length; i++) {
+    if (i === 0) {
+      playerRanks.push(1)
+    } else if (players[i].total_points === players[i - 1].total_points) {
+      playerRanks.push(playerRanks[i - 1])
+    } else {
+      playerRanks.push(i + 1)
+    }
+  }
+
   return (
     <main className="min-h-dvh p-6 space-y-6 max-w-lg mx-auto">
       {/* Header */}
@@ -276,7 +287,7 @@ export default function TournamentLobbyPage() {
                             : 'text-faint'
                     }`}
                   >
-                    {i + 1}
+                    {playerRanks[i]}
                   </span>
                   <span className="font-medium text-body">{p.player_name}</span>
                 </div>

@@ -51,6 +51,15 @@ export async function awardTournamentPlacements(supabase: SupabaseClient, gameId
 
   const tournamentId = game.tournament_id
 
+  const { data: existingGame } = await supabase
+    .from('tournament_games')
+    .select('status')
+    .eq('tournament_id', tournamentId)
+    .eq('game_id', gameId)
+    .maybeSingle()
+
+  if (existingGame?.status === 'finished') return
+
   const { data: tournament } = await supabase
     .from('tournaments')
     .select('placement_points')
@@ -99,11 +108,15 @@ export async function awardTournamentPlacements(supabase: SupabaseClient, gameId
 
   const points = computePlacementPoints(placements, tournament.placement_points as number[])
 
-  await supabase
+  const { data: updatedGames } = await supabase
     .from('tournament_games')
     .update({ status: 'finished', placements })
     .eq('tournament_id', tournamentId)
     .eq('game_id', gameId)
+    .eq('status', 'active')
+    .select('id')
+
+  if (!updatedGames?.length) return
 
   for (const [tpId, earned] of Object.entries(points)) {
     const { error: rpcError } = await supabase.rpc('increment_tournament_points', {

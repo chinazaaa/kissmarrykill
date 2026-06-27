@@ -50,6 +50,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .single()
 
   if (error) {
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'Name already taken' }, { status: 409 })
+    }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

@@ -114,7 +114,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   try {
     await awardTournamentPlacements(supabase, gameId)
-  } catch {
+  } catch (err) {
+    console.error('[tournament] scoring failed:', err)
     // Tournament scoring is best-effort — never block game finish
   }
 
