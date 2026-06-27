@@ -42,15 +42,15 @@ export function HomePage() {
         <div className="w-full max-w-sm lg:max-w-4xl flex flex-col gap-2 sm:gap-2.5 lg:grid lg:grid-cols-2 lg:gap-x-10 lg:gap-y-5 lg:items-start">
           <div className="text-center lg:text-left space-y-2.5 lg:space-y-4 shrink-0 lg:col-start-1 lg:row-start-1 lg:pb-2">
             <h1 className="text-[1.875rem] sm:text-[2.25rem] lg:text-[2.5rem] font-black tracking-tighter leading-[0.95] lg:leading-[1.02] gradient-title">
-              Vote.
+              Play.
               <br />
-              Laugh.
+              Compete.
               <br />
-              Reveal.
+              Win.
             </h1>
 
             <p className="text-muted text-xs sm:text-sm lg:text-[0.9375rem] leading-relaxed max-w-xs mx-auto lg:mx-0">
-              {GAME_TYPE_OPTIONS.length} game modes, one link. Create a room, share the code, and let the chaos begin.
+              {GAME_TYPE_OPTIONS.length} game modes, one link. Create a game, share the code, and let the games begin.
             </p>
           </div>
 

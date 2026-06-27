@@ -14,6 +14,7 @@ import {
 import { SITE_NAME, faqPageJsonLd, gameJsonLd, gameLandingOgPath } from '@/lib/seo'
 import { getGameLandingCustomContentHints } from '@/lib/custom-content-hints'
 import { CustomContentAiTip } from '@/components/ui/CustomContentAiTip'
+import { SiteFooter } from '@/components/SiteFooter'
 import type { GameType } from '@/types'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -330,6 +331,8 @@ export default async function GameLandingRoute({ params }: Props) {
           </div>
         </section>
       </div>
+
+      <SiteFooter />
     </>
   )
 }
