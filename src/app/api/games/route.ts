@@ -97,7 +97,12 @@ import { clampWhotGameDuration } from '@/lib/whot'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
 import { clampChessTimer } from '@/lib/chess'
 import { clampScrabbleTimer, clampScrabbleGameDuration } from '@/lib/scrabble'
-import { clampDescribeItMode, clampDescribeItRounds, clampDescribeItTeams } from '@/lib/describe-it'
+import {
+  clampDescribeItMode,
+  clampDescribeItRounds,
+  clampDescribeItTeams,
+  clampDescribeItTurnSeconds,
+} from '@/lib/describe-it'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -471,9 +476,11 @@ export async function POST(req: NextRequest) {
                   ? clampChessTimer(timer_seconds)
                   : isScrabbleGame(game_type)
                     ? clampScrabbleTimer(timer_seconds)
-                    : [15, 30, 60].includes(Number(timer_seconds))
-                      ? Number(timer_seconds)
-                      : 30,
+                    : isDescribeItGame(game_type)
+                      ? clampDescribeItTurnSeconds(timer_seconds)
+                      : [15, 30, 60].includes(Number(timer_seconds))
+                        ? Number(timer_seconds)
+                        : 30,
     ...(isCodewordsGame(game_type)
       ? {
           operative_timer_seconds: clampCodewordsTimer(
