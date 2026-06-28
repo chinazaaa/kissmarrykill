@@ -6,7 +6,9 @@
 /** Whole seconds remaining until `at` (an ISO timestamp), clamped at 0. */
 export function secondsUntil(at: string | null | undefined): number {
   if (!at) return 0
-  return Math.max(0, Math.ceil((new Date(at).getTime() - Date.now()) / 1000))
+  const deadlineMs = new Date(at).getTime()
+  if (!Number.isFinite(deadlineMs)) return 0 // malformed timestamp → treat as expired (not NaN)
+  return Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000))
 }
 
 /** Format a duration as `h:mm:ss`, dropping the hours segment when under an hour. */

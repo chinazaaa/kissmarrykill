@@ -10,6 +10,9 @@ describe('secondsUntil', () => {
   it('returns 0 for a deadline in the past', () => {
     expect(secondsUntil(new Date(Date.now() - 60_000).toISOString())).toBe(0)
   })
+  it('returns 0 (not NaN) for a malformed timestamp', () => {
+    expect(secondsUntil('not-a-date')).toBe(0)
+  })
   it('ceils the remaining whole seconds', () => {
     const r = secondsUntil(new Date(Date.now() + 5_500).toISOString())
     expect(r).toBeGreaterThanOrEqual(5)
