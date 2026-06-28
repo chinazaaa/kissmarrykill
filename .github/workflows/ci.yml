@@ -101,6 +101,9 @@ jobs:
     # unmerged PR (and PRs from forks can't read secrets anyway).
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    # Select the matching GitHub Environment so secrets.SUPABASE_* resolve to the
+    # right project's credentials: main -> Production, dev -> Preview.
+    environment: ${{ github.ref_name == 'main' && 'Production' || 'Preview' }}
     # Read-only repo access — this job only reads migrations and pushes to the DB.
     permissions:
       contents: read
@@ -114,22 +117,23 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.108.0
-      # Apply migrations to the environment's own Supabase project. Skips cleanly
-      # until the secrets are configured. Only main targets prod; dev is wired to
-      # its own project once it exists (two-project setup) — never migrate prod
-      # from a dev push.
+      # Apply migrations to the environment's own Supabase project, using that
+      # GitHub Environment's secrets (DB password differs per project).
+      #   main -> Production project (skhvbzitwvnbhqxfitgh)
+      #   dev  -> Preview project    (xzvsrzbbgxbaagqwtpts)
       # --include-all pushes migrations whose version is older than the latest one
       # already applied remotely (migrations land from separate PRs, out of order).
       - name: Apply migrations
         run: |
           if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] || [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
-            echo "Supabase secrets not configured — skipping DB migrate."
+            echo "Supabase secrets not configured for this environment — skipping DB migrate."
             exit 0
           fi
           case "${GITHUB_REF_NAME}" in
-            main) REF="skhvbzitwvnbhqxfitgh" ;;  # prod
+            main) REF="skhvbzitwvnbhqxfitgh" ;;  # production
+            dev)  REF="xzvsrzbbgxbaagqwtpts" ;;  # preview
             *)
-              echo "No Supabase project wired for '${GITHUB_REF_NAME}' yet — skipping."
+              echo "No Supabase project wired for '${GITHUB_REF_NAME}' — skipping."
               exit 0
               ;;
           esac
