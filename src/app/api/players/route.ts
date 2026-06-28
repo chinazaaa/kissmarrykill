@@ -1421,13 +1421,13 @@ export async function DELETE(req: NextRequest) {
   }
 
   if (isWhotGame(gameType)) {
-    const { error } = await removeWhotPlayer(supabase, id, playerId, player.name)
+    const { error } = await removeWhotPlayer(getSupabaseAdmin(), id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isLudoGame(gameType)) {
-    const { error } = await removeLudoPlayer(supabase, id, playerId, player.name)
+    const { error } = await removeLudoPlayer(getSupabaseAdmin(), id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }
@@ -1441,13 +1441,13 @@ export async function DELETE(req: NextRequest) {
   }
 
   if (isYahtzeeGame(gameType)) {
-    const { error } = await removeYahtzeePlayer(supabase, id, playerId, player.name)
+    const { error } = await removeYahtzeePlayer(getSupabaseAdmin(), id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isChessGame(gameType)) {
-    const { error } = await removeChessPlayer(supabase, id, playerId, player.name)
+    const { error } = await removeChessPlayer(getSupabaseAdmin(), id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }

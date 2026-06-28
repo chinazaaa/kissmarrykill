@@ -684,7 +684,8 @@ export type MonopolyJailInput = z.infer<typeof monopolyJailSchema>
 
 export const yahtzeeRollSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const yahtzeeHoldSchema = yahtzeeRollSchema.extend({
@@ -721,7 +722,8 @@ const whotShapeEnum = z.enum(['circle', 'cross', 'triangle', 'square', 'star', '
 
 export const whotActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const whotPlaySchema = whotActionSchema.extend({
@@ -743,7 +745,8 @@ export type WhotChooseInput = z.infer<typeof whotChooseSchema>
 
 export const ludoActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const ludoMoveSchema = ludoActionSchema.extend({
@@ -793,7 +796,8 @@ const chessSquare = z.string().regex(/^[a-h][1-8]$/, 'Invalid square')
 
 export const chessMoveSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   from: chessSquare,
   to: chessSquare,
   promotion: z.enum(['q', 'r', 'b', 'n']).optional(),
@@ -805,7 +809,8 @@ export const chessExpireSchema = z.object({
 
 export const chessResignSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export type ChessMoveInput = z.infer<typeof chessMoveSchema>

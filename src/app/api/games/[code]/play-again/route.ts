@@ -277,17 +277,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isYahtzeeGame(gameType)) {
-    const { error: clearError } = await clearYahtzeeSessionData(supabase, gameId)
+    const { error: clearError } = await clearYahtzeeSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isWhotGame(gameType)) {
-    const { error: clearError } = await clearWhotSessionData(supabase, gameId)
+    const { error: clearError } = await clearWhotSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isLudoGame(gameType)) {
-    const { error: clearError } = await clearLudoSessionData(supabase, gameId)
+    const { error: clearError } = await clearLudoSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
@@ -298,7 +298,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isChessGame(gameType)) {
-    const { error: clearError } = await clearChessSessionData(supabase, gameId)
+    const { error: clearError } = await clearChessSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
   if (isDescribeItGame(gameType)) {
