@@ -96,7 +96,7 @@ import { clampMonopolyGameDuration, clampMonopolyTurnTimer } from '@/lib/monopol
 import { clampWhotGameDuration } from '@/lib/whot'
 import { clampBoardGameTurnTimer } from '@/lib/board-game-lobby-settings'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
-import { clampChessTimer } from '@/lib/chess'
+import { clampChessTimer, clampChessBoardTheme, clampChessPieceSet } from '@/lib/chess'
 import { clampScrabbleTimer, clampScrabbleGameDuration } from '@/lib/scrabble'
 import { parseScrabbleDictionaryId } from '@/lib/scrabble-dictionary-meta'
 import {
@@ -233,6 +233,8 @@ export async function POST(req: NextRequest) {
     whot_number_calls_enabled: rawWhotNumberCallsEnabled,
     whot_pick2_stacking: rawWhotPick2Stacking,
     scrabble_dictionary_id: rawScrabbleDictionaryId,
+    chess_board_theme: rawChessBoardTheme,
+    chess_piece_set: rawChessPieceSet,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -581,6 +583,12 @@ export async function POST(req: NextRequest) {
       ? {
           game_duration_seconds: clampScrabbleGameDuration(rawGameDurationSeconds),
           scrabble_dictionary_id: parseScrabbleDictionaryId(rawScrabbleDictionaryId),
+        }
+      : {}),
+    ...(isChessGame(game_type)
+      ? {
+          chess_board_theme: clampChessBoardTheme(rawChessBoardTheme),
+          chess_piece_set: clampChessPieceSet(rawChessPieceSet),
         }
       : {}),
     ...(isMonopolyGame(game_type)

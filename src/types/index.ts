@@ -207,6 +207,9 @@ export interface Game {
   timer_seconds: number
   /** Scrabble — which word list to validate plays against (default 'enable'). */
   scrabble_dictionary_id?: string | null
+  /** Chess — host's default board theme / piece set (players may override locally). */
+  chess_board_theme?: string | null
+  chess_piece_set?: string | null
   /** Codewords — operative guess phase timer. */
   operative_timer_seconds?: number | null
   anonymous: boolean

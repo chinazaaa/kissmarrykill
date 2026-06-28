@@ -2,27 +2,23 @@
 
 import { useMemo, useRef, type ReactNode } from 'react'
 import { Chess, type Square } from 'chess.js'
-import type { ChessColor, Game, Player, ChessSession } from '@/types'
+import type { Game, Player, ChessSession } from '@/types'
 import { chessResultDetail } from '@/lib/chess'
+import {
+  type ChessAppearanceDefaults,
+  type ChessPieceType,
+  pieceGlyph,
+  useChessAppearance,
+} from '@/lib/chess-appearance'
 import { HostGameFinishedActions } from '@/components/host/HostGameFinishedActions'
 import { ShareResultsCaptureHeader } from '@/components/ShareResultsCaptureHeader'
 import { ShareResults } from '@/components/ShareResults'
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const
-// U+FE0E forces monochrome text rendering so our CSS `color` applies (iOS would
-// otherwise render these as emoji, making White's pieces look dark/black).
-const VS = '\uFE0E'
-const GLYPH: Record<string, string> = {
-  p: `♟${VS}`,
-  r: `♜${VS}`,
-  n: `♞${VS}`,
-  b: `♝${VS}`,
-  q: `♛${VS}`,
-  k: `♚${VS}`,
-}
 
-function ReadOnlyBoard({ fen }: { fen: string }) {
+function ReadOnlyBoard({ fen, defaults }: { fen: string; defaults?: ChessAppearanceDefaults }) {
+  const { boardTheme, pieceSet } = useChessAppearance(defaults)
   const chess = useMemo(() => {
     const c = new Chess()
     try {
@@ -40,20 +36,19 @@ function ReadOnlyBoard({ fen }: { fen: string }) {
           const square = `${file}${rank}`
           const piece = chess.get(square as Square)
           const isLight = (FILES.indexOf(file) + rank) % 2 === 1
+          const face = piece ? (piece.color === 'w' ? pieceSet.white : pieceSet.black) : null
           return (
             <div
               key={square}
-              className={[
-                'aspect-square flex items-center justify-center',
-                isLight ? 'bg-[#eed9b5]' : 'bg-[#b58863]',
-              ].join(' ')}
+              className="aspect-square flex items-center justify-center"
+              style={{ backgroundColor: isLight ? boardTheme.light : boardTheme.dark }}
             >
-              {piece && (
+              {piece && face && (
                 <span
                   className="text-[3.4vw] sm:text-base leading-none"
-                  style={{ color: (piece.color as ChessColor) === 'w' ? '#f8fafc' : '#1e293b' }}
+                  style={{ color: face.color, textShadow: face.shadow }}
                 >
-                  {GLYPH[piece.type]}
+                  {pieceGlyph(pieceSet, piece.color, piece.type as ChessPieceType)}
                 </span>
               )}
             </div>
@@ -120,7 +115,10 @@ export function ChessFinalResultsShareBlock({
                 {black?.id === highlightPlayerId ? ' (you)' : ''}
               </span>
             </div>
-            <ReadOnlyBoard fen={session.fen} />
+            <ReadOnlyBoard
+              fen={session.fen}
+              defaults={{ boardTheme: game.chess_board_theme, pieceSet: game.chess_piece_set }}
+            />
           </>
         )}
       </div>

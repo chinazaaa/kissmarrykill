@@ -395,6 +395,7 @@ export function ChessHostView({ gameCode, hostToken }: { gameCode: string; hostT
           myPlayerId={hostPlayerId}
           isMyTurn={isHostTurn}
           timeControlSeconds={game?.timer_seconds ?? 0}
+          appearanceDefaults={{ boardTheme: game?.chess_board_theme, pieceSet: game?.chess_piece_set }}
           onMove={movePiece}
           onResign={resign}
           acting={hostActing}
@@ -431,6 +432,7 @@ export function ChessHostView({ gameCode, hostToken }: { gameCode: string; hostT
               myPlayerId={hostPlayerId}
               isMyTurn={false}
               timeControlSeconds={game?.timer_seconds ?? 0}
+              appearanceDefaults={{ boardTheme: game?.chess_board_theme, pieceSet: game?.chess_piece_set }}
             />
           )}
 

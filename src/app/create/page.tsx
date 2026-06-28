@@ -65,6 +65,7 @@ import {
   isSudokuGame,
   isWordHuntGame,
 } from '@/lib/game-types'
+import { BOARD_THEMES, PIECE_SETS, pieceGlyph } from '@/lib/chess-appearance'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
@@ -275,6 +276,8 @@ function CreateGameInner() {
   const [monopolyGameDuration, setMonopolyGameDuration] = useState(0)
   const [scrabbleGameDuration, setScrabbleGameDuration] = useState(0)
   const [scrabbleDictionary, setScrabbleDictionary] = useState<ScrabbleDictionaryId>(SCRABBLE_DEFAULT_DICTIONARY)
+  const [chessBoardTheme, setChessBoardTheme] = useState('classic')
+  const [chessPieceSet, setChessPieceSet] = useState('classic')
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
   const [whotGameDuration, setWhotGameDuration] = useState(0)
@@ -728,6 +731,15 @@ function CreateGameInner() {
             timer_seconds: 60,
           }
         : {}),
+      ...(isChessGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            // Cumulative per-player clock (chess.com style). Default 10 minutes each.
+            timer_seconds: 600,
+          }
+        : {}),
       ...(isICallOnGame(type)
         ? {
             participant_mode: 'joiners' as const,
@@ -1165,6 +1177,8 @@ function CreateGameInner() {
           whot_cards_enabled: isWhot ? whotCardsEnabled : undefined,
           whot_number_calls_enabled: isWhot ? whotNumberCallsEnabled : undefined,
           scrabble_dictionary_id: isScrabble ? scrabbleDictionary : undefined,
+          chess_board_theme: isChess ? chessBoardTheme : undefined,
+          chess_piece_set: isChess ? chessPieceSet : undefined,
         }),
       })
       const data = await res.json()
@@ -1629,6 +1643,71 @@ function CreateGameInner() {
                 </Field>
                 <Field label="Late joiners">
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="chess" />
+                </Field>
+                <Field label="Board">
+                  <div className="flex flex-wrap gap-2">
+                    {BOARD_THEMES.map((theme) => {
+                      const active = theme.id === chessBoardTheme
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setChessBoardTheme(theme.id)}
+                          title={theme.name}
+                          aria-label={`${theme.name} board`}
+                          aria-pressed={active}
+                          className={[
+                            'h-9 w-9 rounded-md overflow-hidden grid grid-cols-2 grid-rows-2 transition-transform',
+                            active
+                              ? 'ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--card)] scale-105'
+                              : 'ring-1 ring-[var(--border)] hover:scale-105',
+                          ].join(' ')}
+                        >
+                          <span style={{ backgroundColor: theme.light }} />
+                          <span style={{ backgroundColor: theme.dark }} />
+                          <span style={{ backgroundColor: theme.dark }} />
+                          <span style={{ backgroundColor: theme.light }} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Field>
+                <Field label="Pieces">
+                  <div className="flex flex-wrap gap-2">
+                    {PIECE_SETS.map((set) => {
+                      const active = set.id === chessPieceSet
+                      return (
+                        <button
+                          key={set.id}
+                          type="button"
+                          onClick={() => setChessPieceSet(set.id)}
+                          title={set.name}
+                          aria-label={`${set.name} pieces`}
+                          aria-pressed={active}
+                          className={[
+                            'flex flex-col items-center gap-0.5 rounded-md px-2 py-1.5 transition-transform',
+                            active
+                              ? 'ring-2 ring-[var(--primary)] scale-105'
+                              : 'ring-1 ring-[var(--border)] hover:scale-105',
+                          ].join(' ')}
+                          style={{ backgroundColor: '#b58863' }}
+                        >
+                          <span className="leading-none text-xl flex gap-0.5">
+                            <span style={{ color: set.white.color, textShadow: set.white.shadow }}>
+                              {pieceGlyph(set, 'w', 'n')}
+                            </span>
+                            <span style={{ color: set.black.color, textShadow: set.black.shadow }}>
+                              {pieceGlyph(set, 'b', 'n')}
+                            </span>
+                          </span>
+                          <span className="text-[10px] font-semibold text-white/90 leading-none">{set.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-faint mt-1 text-xs">
+                    Your default look — players can switch their own board in-game.
+                  </p>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Classic chess — White moves first, standard rules, checkmate to win. Each player gets their own clock
