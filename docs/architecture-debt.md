@@ -12,13 +12,14 @@ Legend: `[ ]` todo · `[x]` done · `[~]` in progress
 
 - [x] **`feedbackGameTypeEnum` was stale** → fixed. It omitted 9 games (chess, scrabble, sudoku, tic_tac_toe, word_hunt, pick_a_number, i_call_on, describe_it, snake_and_ladder), so feedback for them was rejected. Now derived from `gameTypeEnum.options` (+ `'general'`) so it can't drift. `src/lib/validation.ts`.
 - [x] **Copy-paste bug** → fixed. Removed the duplicated identical `isICallOnGame` payload spread in `src/app/create/page.tsx`.
-- [~] **Unguarded `await req.json()` → 500 instead of 400.** Added `parseJsonBody(req, schema)` helper (`src/lib/parse-body.ts`, try/catch + safeParse) and adopted it in `finish-game/route.ts` as the reference. **TODO: roll out across the remaining ~120 routes** that still do `schema.safeParse(await req.json())` inline. **Sev High · Eff M (remaining rollout)**
+- [~] **Unguarded `await req.json()` → 500 instead of 400.** Added `parseJsonBody(req, schema)` helper (`src/lib/parse-body.ts`, try/catch + safeParse). Adopted in `finish-game` (reference) + the **9 one-liner `safeParse(await req.json())` routes** (8 `describe-it/*` + `players/promote`). _Audit's "~120" was overcounted: only ~9 used the one-liner shape; ~90 routes use the **two-step** `const raw = await req.json(); schema.safeParse(raw)` form — those are the remaining rollout (a separate large, mechanical batch)._ **Sev High · Eff M (remaining rollout)**
 - [x] **"Room points not awarded" — investigated, FALSE POSITIVE.** The audit grep matched `status:'finished'` on the **rounds** table (`finish-game:48`, `end-round:57`) and the **tournaments** table (`tournaments/[code]/finish`), not the `games` table. The actual game-finish path already routes through `markGameFinished` (`finish-game:115`). _Open sub-question (separate item): confirm each game-specific early-finish fn (`finishMonopolyGameEarly`, `finishScrabbleGameEarly`, `finishCodewordsGame`, `finishAnonymousRoomSession`, `finishSecretMessageBoard`) awards room points._
 - [ ] **Duplicate realtime channels.** `useGameChannel` (setState) and `useGameRealtime` (react-query invalidation) are _both_ mounted in `host/[code]/page.tsx` on the same tables (half-finished migration). → Pick one, delete the other. _Deferred: it's a frontend realtime behavior change — do carefully (ideally after Phase 1 tests)._ **Sev Med · Eff S–M**
 
 ## Phase 1 — Safety net (prerequisite for everything below)
 
 - [x] **No automated tests** → fixed (#144). Added Vitest (node env) + a CI `Test` job; 29 unit tests over pure logic (scrabble scoring/geometry, language tile sets, `parseGameType`/guards, round generation). The harness everything below relies on.
+  - [x] **Component/hook harness** — added jsdom + React Testing Library + `@vitejs/plugin-react`, with a dummy-Supabase `test.env` so components that build a client at import don't throw. Per-file `// @vitest-environment jsdom` opt-in keeps pure-logic tests on node. This is the prerequisite for safely doing the **Phase 4 god-file decomposition** & realtime-view refactors.
 
 ## Phase 2 — Make dispatch fail-fast (cheap safety, surfaces existing gaps)
 
