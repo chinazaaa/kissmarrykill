@@ -1491,7 +1491,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       },
       {
         title: 'Ladders & snakes',
-        description: 'Ladders shoot you up the board; snakes drag you back down. The board can change everything in one roll.',
+        description:
+          'Ladders shoot you up the board; snakes drag you back down. The board can change everything in one roll.',
         emoji: '🪜',
       },
       SHARED_FEATURES.mobile,

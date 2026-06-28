@@ -450,7 +450,9 @@ export async function removeSnakeAndLadderPlayer(
       const winnerName = winnerPlayerId ? (names.get(winnerPlayerId) ?? 'Winner') : null
       update.phase = 'finished'
       update.winner_player_id = winnerPlayerId
-      update.status_message = winnerName ? `${removedName} left — ${winnerName} wins!` : `${removedName} left — game over.`
+      update.status_message = winnerName
+        ? `${removedName} left — ${winnerName} wins!`
+        : `${removedName} left — game over.`
       update.turn_deadline_at = null
     } else {
       const nextPlayerId = turnOrder[currentTurnIndex]

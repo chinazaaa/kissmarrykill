@@ -148,7 +148,11 @@ export function SnakeLadderPlayerView({ gameCode }: { gameCode: string }) {
   useEffect(() => {
     const channel = supabase
       .channel(`snake-ladder-player-${gameCode}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` }, scheduleLoad)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
+        scheduleLoad
+      )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'snake_ladder_sessions', filter: `game_id=eq.${gameCode}` },

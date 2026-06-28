@@ -148,14 +148,7 @@ export function SnakeLadderBoard({
             const cy = center.y + Math.sin(angle) * radius
             return (
               <g key={occ.player_id}>
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={7}
-                  fill={SNAKE_LADDER_COLOR_HEX[occ.color]}
-                  stroke="#fff"
-                  strokeWidth={2}
-                />
+                <circle cx={cx} cy={cy} r={7} fill={SNAKE_LADDER_COLOR_HEX[occ.color]} stroke="#fff" strokeWidth={2} />
                 <title>{`${nameFor(occ.player_id)} — square ${square}`}</title>
               </g>
             )

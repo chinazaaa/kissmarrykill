@@ -1169,11 +1169,11 @@ function CreateGameInner() {
                               ? snakeLadderMaxPlayers
                               : isNpat
                                 ? npatMaxPlayers
-                              : isSudoku
-                                ? sudokuMaxPlayers
-                                : isWordHunt
-                                  ? wordHuntMaxPlayers
-                                  : undefined,
+                                : isSudoku
+                                  ? sudokuMaxPlayers
+                                  : isWordHunt
+                                    ? wordHuntMaxPlayers
+                                    : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : isNpat ? npatMarkingTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? lateJoinPolicy === 'viewers_and_players' : undefined,
@@ -1635,14 +1635,13 @@ function CreateGameInner() {
                     onChange={(e) => setSnakeLadderMaxPlayers(Number(e.target.value))}
                     className="input-field w-full"
                   >
-                    {playerCountOptions(
-                      effectiveLimits.snake_and_ladder.min,
-                      effectiveLimits.snake_and_ladder.max
-                    ).map((n) => (
-                      <option key={n} value={n}>
-                        {n} players
-                      </option>
-                    ))}
+                    {playerCountOptions(effectiveLimits.snake_and_ladder.min, effectiveLimits.snake_and_ladder.max).map(
+                      (n) => (
+                        <option key={n} value={n}>
+                          {n} players
+                        </option>
+                      )
+                    )}
                   </select>
                 </Field>
                 <Field label="Turn timer">
@@ -1666,8 +1665,8 @@ function CreateGameInner() {
                   />
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
-                  Classic Snakes &amp; Ladders — roll one die, climb the ladders, dodge the snakes. Roll a 6 to go again.
-                  First to land on 100 exactly wins!
+                  Classic Snakes &amp; Ladders — roll one die, climb the ladders, dodge the snakes. Roll a 6 to go
+                  again. First to land on 100 exactly wins!
                 </p>
               </SettingsGroup>
             ) : isTicTacToe ? (
