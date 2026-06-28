@@ -96,6 +96,52 @@ For each game:
 
 ---
 
+## Progress log
+
+### Snake & Ladder (canary) — code-complete, ⏳ live verification pending
+
+Proves the full pattern end-to-end. Snake & Ladder was a clean first case because all
+its writes already lived in `src/lib/snake-and-ladder.ts` functions that take a
+`SupabaseClient` param (Phase 2 was effectively already done) — every writer just needed
+the service-role client.
+
+Changed:
+- `snakeLadderActionSchema`: `playerId` → `resumeToken` (`src/lib/validation.ts`).
+- `/api/snake-and-ladder/roll`: service role + `assertPlayer` (token → authoritative
+  `player.id`); no longer trusts a client `playerId`.
+- `/api/snake-and-ladder/expire-turn`: service role; system/timer, deadline-guarded.
+- `/api/games/[code]/start`, `/play-again`, `/api/players` (DELETE): the snake-specific
+  lib calls now receive `getSupabaseAdmin()` (surgical — other games' writes on these
+  shared routes are untouched until their own slice).
+- Clients send `resumeToken` instead of `playerId` (`SnakeLadderPlayerView`,
+  `SnakeLadderHostView`); host-as-player works because the host joins via `/api/players`
+  and gets its own `resume_token`.
+- `0106_rls_lockdown_snake_and_ladder.sql`: SELECT-only policies on
+  `snake_ladder_sessions` / `snake_ladder_player_state`; rollback drafted in-file.
+
+Verified locally: `pnpm typecheck` clean; eslint 0 errors (pre-existing warnings only).
+
+**Still needs live verification against Supabase** (cannot run from this environment):
+- Apply `0106`; play create → join → roll loop → finish with RLS locked.
+- Cross-device resume: join on A, roll on B via token.
+- Negative: anon-key `update`/`delete` on snake tables rejected; anon `select` + realtime
+  still work; roll with wrong/absent `resumeToken` → 403.
+
+> **Shared-route insight (affects sequencing for the rest):** writes to a game's tables are
+> spread across per-game routes *and* shared routes (`start`, `play-again`, `players`). The
+> lib-takes-a-client pattern lets us hand just the service-role client to a game's calls
+> inside those shared routes, keeping each slice isolated. Games whose write logic is inline
+> in client components (not lib functions taking a client) will need real Phase-2 work first.
+
+### Players DELETE — follow-up noted
+
+The non-host self-removal path (`/api/players` DELETE, else-branch) authorizes the *session*
+but doesn't verify the target `playerId` belongs to the caller — a player could remove
+another. Pre-existing; fix in the players-route slice (add `assertPlayer` and require the
+removed id to match, unless host).
+
+---
+
 ## Inventory (generated — refine per slice)
 
 ### Write routes (direct `.insert/.update/.delete/.upsert` in the route)

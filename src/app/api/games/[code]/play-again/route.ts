@@ -52,6 +52,7 @@ import {
 import { extractRoundUsage, extractCodewordsBoardUsage, mergePoolUsageState, parsePoolUsage } from '@/lib/pool-usage'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { resetSpectatorsForLobby } from '@/lib/viewers'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -291,7 +292,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isSnakeAndLadderGame(gameType)) {
-    const { error: clearError } = await clearSnakeAndLadderSessionData(supabase, gameId)
+    // Snake & Ladder tables are RLS-locked to anon writes — clear via service role.
+    const { error: clearError } = await clearSnakeAndLadderSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 

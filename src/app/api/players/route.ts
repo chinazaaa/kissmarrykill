@@ -56,6 +56,7 @@ import {
 } from '@/lib/viewers'
 import type { Game } from '@/types'
 import { linkPlayerToRoomMember, resolveRoomMemberForGame } from '@/lib/room-points'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -1432,7 +1433,9 @@ export async function DELETE(req: NextRequest) {
   }
 
   if (isSnakeAndLadderGame(gameType)) {
-    const { error } = await removeSnakeAndLadderPlayer(supabase, id, playerId, player.name)
+    // Snake & Ladder tables are RLS-locked to anon writes — remove via service role.
+    // (Caller authority — host, or the player removing themselves — is enforced above.)
+    const { error } = await removeSnakeAndLadderPlayer(getSupabaseAdmin(), id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }

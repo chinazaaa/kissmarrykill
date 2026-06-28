@@ -108,6 +108,7 @@ import { buildSudokuRoundRow, SUDOKU_MIN_PLAYERS } from '@/lib/sudoku'
 import { buildWordHuntRoundRow, WORD_HUNT_MIN_PLAYERS } from '@/lib/word-hunt'
 import { buildWordHuntMetadata } from '@/lib/word-hunt-dictionary'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -452,8 +453,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       return NextResponse.json({ error: `Need at least ${SNAKE_LADDER_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
+    // Snake & Ladder tables are RLS-locked to anon writes — initialize via the
+    // service role. (Host authority is already enforced above for this route.)
     const { error: initError } = await initializeSnakeAndLadderGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )

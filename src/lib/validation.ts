@@ -761,7 +761,10 @@ export type LudoMoveInput = z.infer<typeof ludoMoveSchema>
 
 export const snakeLadderActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Authorization is by the secret resume_token (resolved to a player server-side),
+  // not a client-supplied playerId. The token travels with the player across devices,
+  // so cross-device resume keeps working.
+  resumeToken: z.string().min(4),
 })
 
 export const snakeLadderExpireSchema = z.object({
