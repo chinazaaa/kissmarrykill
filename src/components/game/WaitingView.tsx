@@ -12,7 +12,7 @@ import { wstVoteTargets } from '@/lib/who-said-this'
 import type { Game, Participant, Player, WstQuotePoolEntry } from '@/types'
 import type { PlayerQuestion } from '@/hooks/queries/usePlayerQuestions'
 import type { UseMutationResult } from '@tanstack/react-query'
-import { leaveButtonClassName } from '@/components/ui/LeaveGameButton'
+import { leaveButtonQuietClassName } from '@/components/ui/LeaveGameButton'
 import { WhatsAppChannelLink } from '@/components/WhatsAppChannelLink'
 
 interface WaitingViewProps {
@@ -542,7 +542,7 @@ export function WaitingView({
         <button type="button" onClick={openEditJoin} className="btn-secondary text-sm py-2.5">
           {isNameOnlyJoin || !joinNeedsGender ? 'Change name' : 'Change name or gender'}
         </button>
-        <button type="button" onClick={leaveGame} disabled={joining} className={leaveButtonClassName}>
+        <button type="button" onClick={leaveGame} disabled={joining} className={leaveButtonQuietClassName}>
           Leave game
         </button>
       </div>

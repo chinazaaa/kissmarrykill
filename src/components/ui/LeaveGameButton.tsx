@@ -16,7 +16,7 @@ export function LeaveGameButton({
   gameCode,
   playerId,
   onLeft,
-  className = leaveButtonClassName,
+  className = leaveButtonQuietClassName,
   label = 'Leave game',
   confirmTitle = 'Leave this game?',
   confirmMessage = 'You can rejoin with the same name if there is room.',
