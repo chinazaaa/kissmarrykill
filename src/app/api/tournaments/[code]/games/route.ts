@@ -22,7 +22,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: `Game type "${gameType}" is not eligible for tournaments` }, { status: 400 })
   }
 
-  const { data: tournament } = await getSupabaseAdmin().from('tournaments').select('*').eq('id', tournamentId).maybeSingle()
+  const { data: tournament } = await getSupabaseAdmin()
+    .from('tournaments')
+    .select('*')
+    .eq('id', tournamentId)
+    .maybeSingle()
 
   if (!tournament) {
     return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })

@@ -258,7 +258,11 @@ export default function GameHistoryPage() {
       }
 
       if (isAnonymousMessagesGame(gameType)) {
-        const { data: plrs } = await supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at')
+        const { data: plrs } = await supabase
+          .from('players')
+          .select(PLAYER_SELECT)
+          .eq('game_id', gameCode)
+          .order('joined_at')
         setGame(gameData)
         setPlayers(plrs ?? [])
         setParticipants([])
