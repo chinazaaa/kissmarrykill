@@ -29,7 +29,8 @@ Legend: `[ ]` todo · `[x]` done · `[~]` in progress
 
 - [~] **Introduce `GAME_REGISTRY: Record<GameType, GameDefinition>`** carrying `{ config, slug, landing, rules, selects, maxPlayers, validation, initialize, clearSession, canPlayAgain, PlayerView, HostView, score }`. Migrate incrementally: **(a)** client view dispatch first (mechanical — the views take uniform props: player views `gameCode`, host views `gameCode` + `hostToken`), **(b)** config/landing/selects, **(c)** server `start`/`clearSession`. Collapses ~22 edit-sites → ~1. **Sev High · Eff L**
   - [x] **(a) client view dispatch** — `PLAYER_VIEW_REGISTRY` (`game-player-views.ts`) + `HOST_VIEW_REGISTRY` (`game-host-views.ts`) replace the two 18-branch `if (isXGame) return <XView/>` chains with a `parseGameType` lookup (behavior-identical: every guard was `parseGameType(x) === literal`). Removed ~196 lines from the two god files; adding a game's views is now one registry entry each.
-  - [ ] (b) config/landing/selects · [ ] (c) server `start`/`clearSession`
+  - [~] **(c) server `clearSession`** — Play Again's 15-branch `if (isXGame) clear*SessionData()` chain replaced by a `SESSION_CLEARERS` registry lookup (one clearer runs per request, so behavior-identical). `trivia`/`anonymous`/`secret_message` stay special (delete-order / anon-client / early-return). `start/route.ts` consolidation still to do.
+  - [ ] (b) config/landing/selects · [ ] (c) server `start`
 - [ ] **`GameEngine` interface + `clearSessionTables(supabase, gameId, tables[])` helper** — replaces ~12 copy-pasted `clear*SessionData` and the duplicated `initialize*Game`/`can*PlayAgain` shapes; fixes `{error?}` vs `{error:null}` return drift. **Sev Med-High · Eff M**
 
 ## Phase 4 — Decompose god files & adopt existing abstractions
