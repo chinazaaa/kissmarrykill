@@ -30,66 +30,56 @@ export async function assertPlayer(supabase: SupabaseClient, gameCode: string, r
   return { error: null, status: 200 as const, player, id }
 }
 
-export async function assertHostGame(supabase: SupabaseClient, gameCode: string, hostToken: string) {
+/**
+ * Shared host-authorization check: loads the game, verifies the host token, and
+ * enforces that the game's status is one of `allowedStatuses`. The exported
+ * assertHost* wrappers below differ only by their allowed-status set and message.
+ */
+async function assertHost(
+  supabase: SupabaseClient,
+  gameCode: string,
+  hostToken: string,
+  opts: { allowedStatuses: readonly string[]; statusError: string }
+) {
   const id = gameCode.toUpperCase()
   const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
   if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
   if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
-  if (game.status !== 'waiting') {
-    return { error: 'Game has already started', status: 400 as const, game: null, id }
+  if (!opts.allowedStatuses.includes(game.status)) {
+    return { error: opts.statusError, status: 400 as const, game: null, id }
   }
   return { error: null, status: 200 as const, game, id }
+}
+
+export async function assertHostGame(supabase: SupabaseClient, gameCode: string, hostToken: string) {
+  return assertHost(supabase, gameCode, hostToken, {
+    allowedStatuses: ['waiting'],
+    statusError: 'Game has already started',
+  })
 }
 
 /** Host may remove a player while the lobby is open or the game is in progress. */
 export async function assertHostPlayerRemove(supabase: SupabaseClient, gameCode: string, hostToken: string) {
-  const id = gameCode.toUpperCase()
-  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
-  if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
-  if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
-  if (game.status !== 'waiting' && game.status !== 'active') {
-    return {
-      error: 'Players can only be removed while the lobby or game is open',
-      status: 400 as const,
-      game: null,
-      id,
-    }
-  }
-  return { error: null, status: 200 as const, game, id }
+  return assertHost(supabase, gameCode, hostToken, {
+    allowedStatuses: ['waiting', 'active'],
+    statusError: 'Players can only be removed while the lobby or game is open',
+  })
 }
 
 /** Host may tweak lobby/finished settings before the next game starts. */
 export async function assertHostGameSettings(supabase: SupabaseClient, gameCode: string, hostToken: string) {
-  const id = gameCode.toUpperCase()
-  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
-  if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
-  if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
-  if (game.status !== 'waiting' && game.status !== 'finished') {
-    return {
-      error: 'Settings can only be changed in the lobby or after the game ends',
-      status: 400 as const,
-      game: null,
-      id,
-    }
-  }
-  return { error: null, status: 200 as const, game, id }
+  return assertHost(supabase, gameCode, hostToken, {
+    allowedStatuses: ['waiting', 'finished'],
+    statusError: 'Settings can only be changed in the lobby or after the game ends',
+  })
 }
 
 /** Host may change who can join after start — including while a game is live. */
 export async function assertHostLateJoinSettings(supabase: SupabaseClient, gameCode: string, hostToken: string) {
-  const id = gameCode.toUpperCase()
-  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
-  if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
-  if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
-  if (game.status !== 'waiting' && game.status !== 'active' && game.status !== 'finished') {
-    return {
-      error: 'Late join settings cannot be changed for this game',
-      status: 400 as const,
-      game: null,
-      id,
-    }
-  }
-  return { error: null, status: 200 as const, game, id }
+  return assertHost(supabase, gameCode, hostToken, {
+    allowedStatuses: ['waiting', 'active', 'finished'],
+    statusError: 'Late join settings cannot be changed for this game',
+  })
 }
 
 export async function findJoinerParticipant(supabase: SupabaseClient, gameId: string, playerName: string) {
