@@ -130,14 +130,7 @@ export async function syncTwoTruthsGameState(
   }
 
   if (pointerRound && pointerRound.status === 'finished') {
-    const isLast = pointerRound.round_number >= game.rounds_count
-    if (isLast) {
-      const { error: finishError } = await markGameFinished(supabase, gameId)
-      if (finishError) console.error('Failed to mark game finished:', finishError)
-      return { ok: true, code: 'advanced_finish' }
-    }
-
-    // Elimination hook
+    // Elimination hook: run before isLast so final-round eliminations are recorded
     const { data: gameForElim, error: elimConfigError } = await supabase
       .from('games')
       .select('elimination_config')
@@ -155,6 +148,13 @@ export async function syncTwoTruthsGameState(
         if (finishError) console.error('Failed to mark game finished after elimination:', finishError)
         return { ok: true, code: 'advanced_finish' }
       }
+    }
+
+    const isLast = pointerRound.round_number >= game.rounds_count
+    if (isLast) {
+      const { error: finishError } = await markGameFinished(supabase, gameId)
+      if (finishError) console.error('Failed to mark game finished:', finishError)
+      return { ok: true, code: 'advanced_finish' }
     }
 
     const nextRound = roundList.find((r) => r.round_number === pointerRound.round_number + 1)
