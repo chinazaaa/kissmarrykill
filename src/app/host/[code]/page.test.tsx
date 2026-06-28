@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 // Mutable state the hoisted mocks read from (vi.hoisted so it exists when mocks run).
@@ -47,10 +47,14 @@ beforeEach(() => {
   h.gameRow = null
   h.verifyOk = true
   h.verifyResponseOk = true
-  global.fetch = vi.fn(async () => ({
-    ok: h.verifyResponseOk,
-    json: async () => ({ ok: h.verifyOk }),
-  })) as unknown as typeof fetch
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({ ok: h.verifyResponseOk, json: async () => ({ ok: h.verifyOk }) }))
+  )
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals() // restore the real global.fetch so it can't leak into other suites
 })
 
 describe('HostPage dispatcher', () => {
