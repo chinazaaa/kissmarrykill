@@ -97,9 +97,10 @@ jobs:
   migrate:
     name: DB Migrate
     needs: [build]
-    # Only deploy migrations on merge/push to dev or main — never from an
-    # unmerged PR (and PRs from forks can't read secrets anyway).
-    if: github.event_name == 'push'
+    # Only on a push to dev or main — never an unmerged PR, and never another
+    # branch (gating here, before `environment` attaches, keeps the Preview/
+    # Production secrets off unrelated branch pushes).
+    if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'main')
     runs-on: ubuntu-latest
     # Select the matching GitHub Environment so secrets.SUPABASE_* resolve to the
     # right project's credentials: main -> Production, dev -> Preview.
