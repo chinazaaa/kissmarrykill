@@ -1,14 +1,13 @@
-# Supabase config, read by the CLI and by Supabase Branching.
+# Supabase CLI config. Used by the "DB Migrate" CI job (supabase link + db push)
+# to apply supabase/migrations to each environment's own project.
 #
-# REQUIRED before Branching works:
-#   - project_id: your PRODUCTION project's Reference ID
-#     (Dashboard → Project Settings → General → Reference ID).
-#   - [db].major_version: match your project's Postgres version
-#     (Dashboard → Database → Infrastructure).
+# Two-project setup (not Branching):
+#   - prod = skhvbzitwvnbhqxfitgh
+#   - dev  = its own project (free project in a separate org)
+# The migrate job selects the project per branch via `supabase link --project-ref`,
+# so project_id below is only the default/fallback for local CLI use.
 #
-# This is a minimal config sufficient for migrations + Branching. Running
-# `supabase init` (after `brew install supabase/tap/supabase`) regenerates the
-# full default file with every section if you want finer control.
+# `supabase init` regenerates the full default file if you want finer control.
 
 project_id = "skhvbzitwvnbhqxfitgh"
 
