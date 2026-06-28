@@ -289,7 +289,7 @@ routes, and the lockdown migrations.
 | `player-questions` | player_questions | playerId only | `resumeToken` + assertPlayer |
 | `player-participants` | participants | playerId only | `resumeToken` + assertPlayer |
 | `photos` | participants, players | playerId only | `resumeToken` + assertPlayer |
-| `confessions` | confessions | **no authz** (anonymous) | policy decision (see open questions) |
+| `confessions` | confessions | **no authz** (anonymous) | gate with `resume_token` + assertPlayer (player-facing anonymity preserved; stops anon spam) |
 | `hot-seat` | hot_seat_submissions | playerId only | `resumeToken` + assertPlayer |
 | `wst-quotes` | wst_quote_pool | host + playerId | host path keeps hostToken; player submissions get `resumeToken` |
 | `quote` | who-said-this lobby submission | playerId only | `resumeToken` + assertPlayer |
@@ -352,12 +352,15 @@ routes, and the lockdown migrations.
   with a wrong `member_code` → 403.
 - `pnpm typecheck` + `eslint` per slice.
 
-## Open questions (need input before building)
+## Decisions (resolved)
 
-1. **Confessions** (anonymous post-round messages): gate behind a player `resumeToken` (loses
-   true anonymity from the server's view but stops spam), or keep an explicit anon INSERT-only
-   policy? 
-2. **Rooms scope:** how locked should public rooms be — is `member_code` sufficient as the
-   per-member credential, and should `creator_token` gate all room edits/locks/kicks?
-3. **Game creation / room creation** are currently open to anon — any anti-abuse desired
-   (rate limit / captcha), or just move the write server-side and leave creation open?
+1. **Confessions** → **gate with `resume_token`** (route through the service role + `assertPlayer`).
+   Player-facing anonymity is unchanged (other players still never see the author); the token
+   only proves the poster is a real player in the game, which stops anon-key spam. No public
+   anon INSERT policy.
+2. **Rooms** → **`member_code` + `creator_token`** model: member actions (join/message/leave)
+   gated by `member_code`; room edits/locks/kicks gated by `creator_token`; hide both from anon
+   reads (mirror Phase 3). Rooms is its own slice (Slice 3).
+3. **Game / room creation** → **keep open, just move the write server-side** (service role) so it
+   works under the lockdown. No new friction. Rate limiting / captcha is noted as a **future
+   follow-up**, not part of this phase.
