@@ -217,7 +217,7 @@ function CreateGameInner() {
     auto_submit_behavior: 'no_answer',
     participant_mode: 'import',
     pair_vote_mode: 'one_each',
-    game_type: 'smash_marry_kill',
+    game_type: 'monopoly',
     theme: 'default',
     participant_filter: 'all' as 'all' | 'joined',
     gender_based: true,

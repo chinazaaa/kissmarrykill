@@ -559,7 +559,6 @@ export const GAME_TYPE_CONFIG: Record<GameType, GameTypeConfig> = {
       emoji: '🎭',
       players: '2+ players',
       vibe: 'Anonymous chat',
-      featured: true,
     },
     slots: {
       kiss: {
@@ -1312,6 +1311,34 @@ export const GAME_TYPE_OPTIONS: GameType[] = [
   'chess',
   'describe_it',
   'scrabble',
+]
+
+// Games pinned to the top of the picker / games list, in this exact order.
+// Anything not listed here follows in GAME_TYPE_OPTIONS order.
+const PINNED_GAME_TYPES: GameType[] = [
+  'monopoly',
+  'yahtzee',
+  'codewords',
+  'trivia',
+  'whot',
+  'ludo',
+  'tic_tac_toe',
+  'sudoku',
+  'chess',
+  'scrabble',
+  'word_hunt',
+  'describe_it',
+  'i_call_on',
+  'smash_marry_kill',
+  'bingo',
+  'this_or_that',
+  'two_truths',
+]
+
+// Display order: pinned games first, then the remaining games in their default order.
+export const GAME_TYPE_DISPLAY_ORDER: GameType[] = [
+  ...PINNED_GAME_TYPES,
+  ...GAME_TYPE_OPTIONS.filter((type) => !PINNED_GAME_TYPES.includes(type)),
 ]
 
 export function parseGameType(raw: unknown): GameType {
