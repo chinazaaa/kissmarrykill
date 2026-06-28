@@ -1164,8 +1164,13 @@ export default function HostPage() {
 
   const removeAnimeQuote = async (quoteId: string) => {
     if (!game) return
-    const { error } = await supabase.from('anime_quote_pool').update({ removed: true }).eq('id', quoteId)
-    if (!error) {
+    // anime_quote_pool is RLS-locked to anon writes — remove via the host-authorized route.
+    const res = await fetch('/api/anime-quotes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId: gameCode, hostToken, quoteId }),
+    })
+    if (res.ok) {
       setAnimePool((prev) => prev.filter((q) => q.id !== quoteId))
     }
   }
