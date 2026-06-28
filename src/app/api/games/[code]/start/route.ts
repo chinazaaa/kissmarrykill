@@ -116,6 +116,18 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 import type { ParticipantForRounds } from '@/lib/utils'
+
+async function initializeEliminationLives(gameCode: string, eliminationConfig: unknown) {
+  if (!eliminationConfig) return
+  const elimConfig = eliminationConfig as EliminationConfig
+  if (elimConfig.mode === 'lives' && elimConfig.startingLives) {
+    await getSupabaseAdmin()
+      .from('players')
+      .update({ lives_remaining: elimConfig.startingLives })
+      .eq('game_id', gameCode)
+      .eq('spectator', false)
+  }
+}
 import type { AiGeneratedQuestions, AiQuestionsConfig } from '@/types'
 
 /** Same-gender round groups for custom games with 4–5 slots. */
@@ -313,17 +325,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
 
-    // Initialize lives for elimination mode
-    if (game.elimination_config) {
-      const elimConfig = game.elimination_config as EliminationConfig
-      if (elimConfig.mode === 'lives' && elimConfig.startingLives) {
-        await getSupabaseAdmin()
-          .from('players')
-          .update({ lives_remaining: elimConfig.startingLives })
-          .eq('game_id', code.toUpperCase())
-          .eq('spectator', false)
-      }
-    }
+    await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
 
     return NextResponse.json({ success: true })
   }
@@ -758,17 +760,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
 
-    // Initialize lives for elimination mode
-    if (game.elimination_config) {
-      const elimConfig = game.elimination_config as EliminationConfig
-      if (elimConfig.mode === 'lives' && elimConfig.startingLives) {
-        await getSupabaseAdmin()
-          .from('players')
-          .update({ lives_remaining: elimConfig.startingLives })
-          .eq('game_id', code.toUpperCase())
-          .eq('spectator', false)
-      }
-    }
+    await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
 
     return NextResponse.json({ success: true })
   }
@@ -801,17 +793,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
 
-    // Initialize lives for elimination mode
-    if (game.elimination_config) {
-      const elimConfig = game.elimination_config as EliminationConfig
-      if (elimConfig.mode === 'lives' && elimConfig.startingLives) {
-        await getSupabaseAdmin()
-          .from('players')
-          .update({ lives_remaining: elimConfig.startingLives })
-          .eq('game_id', code.toUpperCase())
-          .eq('spectator', false)
-      }
-    }
+    await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
 
     return NextResponse.json({ success: true })
   }
