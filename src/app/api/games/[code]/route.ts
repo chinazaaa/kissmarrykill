@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { assertHostGameSettings, assertHostLateJoinSettings } from '@/lib/game-admin'
 import { questionPoolCap } from '@/lib/custom-questions'
 import { parseTimerSeconds, updateGameSchema } from '@/lib/validation'
+import { HOST_GAME_SELECT } from '@/lib/supabase-selects'
 import {
   parseGameType,
   isHotSeat,
@@ -250,7 +251,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     .from('games')
     .update(updatePayload)
     .eq('id', auth.id)
-    .select()
+    // Return the host-safe column set — never echo host_token back to the client.
+    .select(HOST_GAME_SELECT)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

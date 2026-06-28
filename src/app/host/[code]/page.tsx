@@ -401,21 +401,27 @@ export default function HostPage() {
       try {
         await Promise.race([
           (async () => {
-            const gameRes = await supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle()
-            if (!supabasePollOk(gameRes)) throw new Error('unavailable')
-            const gameData = gameRes.data
-            if (!gameData) {
-              if (!cancelled) setAuthError(true)
-              return
-            }
-            // host_token is no longer client-readable (migration 0122) — verify via server.
+            // Verify the host token FIRST (host_token is no longer client-readable, migration
+            // 0122) so an invalid-token visitor never receives host-only game fields.
             const verifyRes = await fetch(`/api/games/${gameCode}/verify-host`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ hostToken }),
             })
-            const verifyData = (await verifyRes.json().catch(() => ({ ok: false }))) as { ok?: boolean }
+            if (!verifyRes.ok) throw new Error('unavailable')
+            const verifyData = (await verifyRes.json().catch(() => ({ ok: false }))) as {
+              ok?: boolean
+              notFound?: boolean
+            }
             if (!verifyData.ok) {
+              if (!cancelled) setAuthError(true)
+              return
+            }
+
+            const gameRes = await supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle()
+            if (!supabasePollOk(gameRes)) throw new Error('unavailable')
+            const gameData = gameRes.data
+            if (!gameData) {
               if (!cancelled) setAuthError(true)
               return
             }

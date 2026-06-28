@@ -169,12 +169,22 @@ export function useJoinFlow(deps: JoinFlowDeps) {
               : { joinAsViewer: true }
           : {}
 
+      const isSelfEdit = Boolean(editingJoin && myPlayerId)
+      let editResumeToken: string | null = null
+      if (isSelfEdit) {
+        editResumeToken = getPlayerSession(gameCode)?.resumeToken ?? null
+        if (!editResumeToken) {
+          toast.error('Your player session expired — rejoin to continue')
+          return
+        }
+      }
+
       const res = await fetch('/api/players', {
-        method: editingJoin && myPlayerId ? 'PATCH' : 'POST',
+        method: isSelfEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          editingJoin && myPlayerId
-            ? { ...body, playerId: myPlayerId }
+          isSelfEdit
+            ? { ...body, playerId: myPlayerId, resumeToken: editResumeToken }
             : { ...body, ...activeJoinExtras, ...joinExtras }
         ),
       })

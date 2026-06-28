@@ -16,7 +16,9 @@ export async function POST(req: NextRequest) {
   const { count, gameId, hostToken } = parsed.data
   const gameCode = gameId.toUpperCase()
 
-  const { data: game } = await getSupabaseAdmin()
+  const admin = getSupabaseAdmin()
+
+  const { data: game } = await admin
     .from('games')
     .select('host_token, status, game_type')
     .eq('id', gameCode)
@@ -40,11 +42,11 @@ export async function POST(req: NextRequest) {
         choices: q.choices,
       }))
 
-      const { error } = await supabase.from('anime_quote_pool').insert(rows)
+      const { error } = await admin.from('anime_quote_pool').insert(rows)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const { data: pool } = await supabase
+    const { data: pool } = await admin
       .from('anime_quote_pool')
       .select('*')
       .eq('game_id', gameCode)

@@ -41,6 +41,7 @@ import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/par
 import {
   assertHostGame,
   assertHostPlayerRemove,
+  assertPlayer,
   deleteJoinerPair,
   findJoinerParticipant,
   pollGenderForPlayer,
@@ -1030,6 +1031,7 @@ export async function PATCH(req: NextRequest) {
     identityGender: rawIdentityGender,
     participantId: rawParticipantId,
     hostToken,
+    resumeToken,
   } = parsedPatch.data
 
   let game: { participant_mode: string } | null
@@ -1043,6 +1045,10 @@ export async function PATCH(req: NextRequest) {
   } else {
     const session = await assertPlayerSessionGame(gameCode)
     if (session.error) return NextResponse.json({ error: session.error }, { status: session.status })
+    // Non-host callers may only edit their OWN player — prove ownership via resume_token.
+    const owner = await assertPlayer(getSupabaseAdmin(), gameCode, resumeToken)
+    if (owner.error) return NextResponse.json({ error: owner.error }, { status: owner.status })
+    if (owner.player.id !== playerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     game = session.game
     id = session.id
   }
@@ -1348,7 +1354,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: parsedDel.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { gameCode, playerId, hostToken } = parsedDel.data
+  const { gameCode, playerId, hostToken, resumeToken } = parsedDel.data
 
   let game: { participant_mode: string } | null
   let id: string
@@ -1392,6 +1398,10 @@ export async function DELETE(req: NextRequest) {
   } else {
     const session = await assertPlayerSessionGame(gameCode)
     if (session.error) return NextResponse.json({ error: session.error }, { status: session.status })
+    // Non-host callers may only remove themselves — prove ownership via resume_token.
+    const owner = await assertPlayer(getSupabaseAdmin(), gameCode, resumeToken)
+    if (owner.error) return NextResponse.json({ error: owner.error }, { status: owner.status })
+    if (owner.player.id !== playerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     game = session.game
     id = session.id
   }

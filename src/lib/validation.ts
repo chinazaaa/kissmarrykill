@@ -327,6 +327,9 @@ export const updatePlayerSchema = z.object({
   identityGender: z.string().optional(),
   participantId: z.string().optional(),
   hostToken: z.string().optional(),
+  // Non-host callers must prove ownership of the target player with their resume_token
+  // (a player may only edit themselves). Host callers use hostToken instead.
+  resumeToken: z.string().optional(),
 })
 
 export type UpdatePlayerInput = z.infer<typeof updatePlayerSchema>
@@ -339,6 +342,8 @@ export const deletePlayerSchema = z.object({
   gameCode: gameCodeString(),
   playerId: uuidString('playerId'),
   hostToken: z.string().optional(),
+  // Non-host callers (a player removing themselves) must prove ownership with resume_token.
+  resumeToken: z.string().optional(),
 })
 
 export type DeletePlayerInput = z.infer<typeof deletePlayerSchema>

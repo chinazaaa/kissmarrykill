@@ -503,7 +503,9 @@ export function useGameSession(deps: GameSessionDeps) {
           if (voteGender) {
             setMyPlayerGender(voteGender)
             const existing = getPlayerSession(gameCode)
-            setPlayerSession(gameCode, p.id, p.name, voteGender, existing?.resumeToken ?? p.resume_token)
+            // Never persist a token from the realtime row — resume_token is no longer
+            // exposed to anon (migration 0122); rely on the local session only.
+            setPlayerSession(gameCode, p.id, p.name, voteGender, existing?.resumeToken ?? null)
           }
         }
       },

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/Toast'
+import { getPlayerSession } from '@/lib/utils'
 
 export const leaveButtonClassName =
   'w-full rounded-[0.875rem] border border-red-500/50 bg-red-500 py-3.5 text-[0.9375rem] font-bold text-white shadow-[0_4px_14px_rgba(239,68,68,0.35)] transition-[background-color,transform,box-shadow] duration-150 hover:bg-red-600 hover:shadow-[0_6px_22px_rgba(239,68,68,0.45)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99] disabled:opacity-35 disabled:cursor-not-allowed'
@@ -38,12 +39,18 @@ export function LeaveGameButton({
     })
     if (!ok) return
 
+    const resumeToken = getPlayerSession(gameCode)?.resumeToken
+    if (!resumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
+
     setLeaving(true)
     try {
       const res = await fetch('/api/players', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerId }),
+        body: JSON.stringify({ gameCode, playerId, resumeToken }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to leave')
