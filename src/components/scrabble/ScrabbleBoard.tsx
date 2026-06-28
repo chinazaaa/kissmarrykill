@@ -273,18 +273,28 @@ function BoardScores({
   topScore: number
   compact?: boolean
 }) {
-  const rows = session.turn_order.map((pid) => {
-    const player = players.find((p) => p.id === pid)
-    const score = stateByPlayer.get(pid)?.score ?? 0
-    return {
-      pid,
-      name: player?.name ?? 'Player',
-      score,
-      onTurn: pid === turnPlayerId && !finished,
-      isMe: pid === myPlayerId,
-      isLeader: score > 0 && score === topScore,
-    }
-  })
+  const rows = session.turn_order
+    .map((pid) => {
+      const player = players.find((p) => p.id === pid)
+      const st = stateByPlayer.get(pid)
+      const score = st?.score ?? 0
+      return {
+        pid,
+        name: player?.name ?? 'Player',
+        score,
+        order: st?.player_order ?? 0,
+        onTurn: pid === turnPlayerId && !finished,
+        isMe: pid === myPlayerId,
+        isLeader: score > 0 && score === topScore,
+      }
+    })
+    // Highest score first (like Snake & Ladder). Tie-break: player on the move
+    // first, then stable join order so equal scores don't jitter.
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      if (a.onTurn !== b.onTurn) return a.onTurn ? -1 : 1
+      return a.order - b.order
+    })
 
   if (compact) {
     return (
