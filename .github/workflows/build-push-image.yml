@@ -5,6 +5,18 @@ name: Build & Push Image
 # All values below are non-secret (NEXT_PUBLIC_* ship in the client bundle; the
 # role ARN / region / repo are public identifiers).
 on:
+  # Auto-build the dev image when app code lands on dev (infra/docs-only changes skip it).
+  push:
+    branches: [dev]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "next.config.ts"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".github/workflows/build-push-image.yml"
   workflow_dispatch:
     inputs:
       image_tag:
