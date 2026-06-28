@@ -32,6 +32,28 @@ const SUIT_COLORS: Record<CrazyEightsSuit, string> = {
 /** Wild cards (the 8 and Jokers) get a distinct violet face. */
 const WILD_COLORS = 'from-violet-500/40 to-purple-600/30 border-violet-400/70'
 
+const RANK_NAMES: Record<number, string> = {
+  1: 'Ace',
+  2: 'Two',
+  3: 'Three',
+  4: 'Four',
+  5: 'Five',
+  6: 'Six',
+  7: 'Seven',
+  8: 'Eight',
+  9: 'Nine',
+  10: 'Ten',
+  11: 'Jack',
+  12: 'Queen',
+  13: 'King',
+}
+
+/** Spoken accessible name for a card (the suit icon is aria-hidden). */
+function cardAriaLabel(card: CrazyEightsCardType): string {
+  if (card.suit === 'joker') return 'Joker'
+  return `${RANK_NAMES[card.rank] ?? card.rank} of ${CRAZY8_SUIT_LABELS[card.suit]}`
+}
+
 function directionGlyph(direction: number): string {
   return direction < 0 ? '↺' : '↻'
 }
@@ -63,6 +85,7 @@ export function CrazyEightsPlayingCard({
       type="button"
       onClick={onClick}
       disabled={!onClick}
+      aria-label={`${cardAriaLabel(card)}${playable === false ? ', not playable' : ''}`}
       className={[
         'relative flex flex-col items-center justify-center gap-0.5 rounded-xl border-2 bg-linear-to-br font-black transition-all overflow-hidden',
         sizeStyles.box,

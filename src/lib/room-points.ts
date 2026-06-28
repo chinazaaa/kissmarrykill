@@ -203,7 +203,9 @@ async function getCompetitiveStandings(
         if (aSum !== bSum) return aSum - bSum
         const aCount = Array.isArray(a.cards) ? a.cards.length : 0
         const bCount = Array.isArray(b.cards) ? b.cards.length : 0
-        return aCount - bCount
+        if (aCount !== bCount) return aCount - bCount
+        // Stable final tiebreak so equal hands rank deterministically.
+        return String(a.player_id).localeCompare(String(b.player_id))
       })
       .map((h) => h.player_id as string)
   }

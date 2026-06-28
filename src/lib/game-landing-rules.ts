@@ -681,7 +681,7 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
         'Jack — Skip: the next player loses their turn.',
         'Queen — Reverse: the direction of play flips (acts as a skip in a 2-player game).',
         'Ace — Skip: the next player loses their turn.',
-        'Joker (optional) — Wild + Draw: next player draws 5, then you name the new suit.',
+        'Joker (optional) — Wild + Draw: the next player draws 5 (the Joker penalty cannot be stacked), then you name the new suit.',
         'The 2 / Jack / Queen / Ace powers are an optional host setting — turn them off to play with only the 8 as wild.',
       ],
     },

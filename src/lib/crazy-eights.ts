@@ -189,7 +189,7 @@ export function specialCardMessage(card: CrazyEightsCard, rules: CrazyEightsRule
   if (!rules.actionCards) return null
   switch (card.rank) {
     case 2:
-      return 'Pick 2 — next player draws 2 or stacks a 2'
+      return rules.pick2Stacking ? 'Pick 2 — next player draws 2 or stacks a 2' : 'Pick 2 — next player draws 2'
     case 1:
       return 'Skip — next player loses their turn'
     case 11:
@@ -382,15 +382,16 @@ function drawStarter(
   rules: CrazyEightsRules
 ): { top: CrazyEightsCard; rest: CrazyEightsCard[] } {
   const pile = [...deck]
-  while (pile.length > 0) {
+  // Prefer a non-special starter. findIndex is bounded — a pop()/unshift() rotation
+  // would spin forever if every remaining card is special.
+  const idx = pile.findIndex((c) => !isStarterSpecial(c, rules))
+  if (idx === -1) {
+    // Everything left is special — just take the top card as the starter.
     const top = pile.pop()!
-    if (!isStarterSpecial(top, rules)) {
-      return { top, rest: pile }
-    }
-    pile.unshift(top)
+    return { top, rest: pile }
   }
-  const top = pile.pop()!
-  return { top, rest: pile }
+  const [top] = pile.splice(idx, 1)
+  return { top: top!, rest: pile }
 }
 
 export async function initializeCrazyEightsGame(
@@ -459,7 +460,11 @@ export async function initializeCrazyEightsGame(
   }))
 
   const { error: handsError } = await supabase.from('crazy_eights_player_hands').insert(handRows)
-  if (handsError) return { error: handsError.message }
+  if (handsError) {
+    // Roll back the session row so a failed deal doesn't strand a half-initialized game.
+    await supabase.from('crazy_eights_sessions').delete().eq('game_id', gameId)
+    return { error: handsError.message }
+  }
 
   return {}
 }

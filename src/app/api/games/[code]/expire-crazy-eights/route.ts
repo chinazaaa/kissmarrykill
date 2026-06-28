@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { parseGameType, isCrazyEightsGame } from '@/lib/game-types'
 import { finishExpiredCrazyEightsGame, crazyEightsGameSessionExpired } from '@/lib/crazy-eights'
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const gameId = code.toUpperCase()
+  // Service role: the finalization write hits RLS read-only crazy_eights tables.
+  const supabase = getSupabaseAdmin()
 
   const { data: game } = await supabase
     .from('games')
