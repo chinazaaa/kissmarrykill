@@ -358,18 +358,27 @@ async function startNextLetterCycle(
   const liveGame = freshGame ?? game
 
   if (await shouldFinishNpatSession(supabase, liveGame)) {
-    await markGameFinished(supabase, code)
+    const { error: finishError } = await markGameFinished(supabase, code)
+    if (finishError) console.error('Failed to mark game finished:', finishError)
     return { ok: true, code: 'advanced_finish' }
   }
 
   // Elimination hook
-  const { data: gameForElim } = await supabase.from('games').select('elimination_config').eq('id', code).maybeSingle()
+  const { data: gameForElim, error: elimConfigError } = await supabase
+    .from('games')
+    .select('elimination_config')
+    .eq('id', code)
+    .maybeSingle()
+  if (elimConfigError) {
+    console.error('Failed to load elimination config:', elimConfigError.message)
+  }
 
   if (gameForElim?.elimination_config) {
     const elimConfig = gameForElim.elimination_config as EliminationConfig
     const result = await applyEliminationRule(supabase, code, 'npat', finishedRound.round_number, elimConfig)
     if (result.gameFinished) {
-      await markGameFinished(supabase, code)
+      const { error: finishError } = await markGameFinished(supabase, code)
+      if (finishError) console.error('Failed to mark game finished after elimination:', finishError)
       return { ok: true, code: 'advanced_finish' }
     }
 
@@ -396,7 +405,8 @@ async function startNextLetterCycle(
     const timedOut = duration > 0 && npatSessionExpired(liveGame.session_started_at, duration)
     const callerOrderEmpty = metadata.caller_order.length === 0
     if (lettersPlayed >= NPAT_MAX_LETTERS || timedOut || (playerIds.length === 0 && callerOrderEmpty)) {
-      await markGameFinished(supabase, code)
+      const { error: finishError } = await markGameFinished(supabase, code)
+      if (finishError) console.error('Failed to mark game finished:', finishError)
       return { ok: true, code: 'advanced_finish' }
     }
     return { ok: false, code: 'not_finished' }

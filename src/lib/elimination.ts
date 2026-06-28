@@ -127,7 +127,12 @@ export async function applyEliminationRule(
     .eq('spectator', false)
 
   const activeIds = new Set((activePlayers ?? []).map((p) => p.id))
-  const activeScores = scores.filter((s) => activeIds.has(s.playerId))
+  const activeScores = [...activeIds]
+    .map((id) => {
+      const found = scores.find((s) => s.playerId === id)
+      return { playerId: id, score: found?.score ?? 0 }
+    })
+    .sort((a, b) => b.score - a.score)
 
   if (activeScores.length === 0) return { eliminated: [], gameFinished: false }
 

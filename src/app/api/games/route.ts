@@ -111,6 +111,7 @@ import {
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, type LateJoinPolicy } from '@/lib/viewers'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { z } from 'zod/v4'
+import { ELIMINATION_COMPATIBLE_TYPES } from '@/types/elimination'
 
 const eliminationConfigSchema = z
   .object({
@@ -257,9 +258,12 @@ export async function POST(req: NextRequest) {
   } = parsed.data
 
   const elimParsed = eliminationConfigSchema.safeParse((body as Record<string, unknown>).elimination_config)
-  const eliminationConfig = elimParsed.success ? (elimParsed.data ?? null) : null
+  let eliminationConfig = elimParsed.success ? (elimParsed.data ?? null) : null
 
   const game_type = parseGameType(rawGameType)
+  if (eliminationConfig && !ELIMINATION_COMPATIBLE_TYPES.includes(game_type as any)) {
+    eliminationConfig = null
+  }
   const gender_based = supportsGenderToggle(game_type)
     ? (rawGenderBased ??
       (isCustomGame(game_type) ? custom_slots?.gender_based === true : defaultGenderBasedForType(game_type)))

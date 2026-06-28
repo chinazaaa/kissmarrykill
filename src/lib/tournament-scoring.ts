@@ -184,7 +184,16 @@ export async function awardTournamentPlacements(supabase: SupabaseClient, gameId
     const elimConfig = tournament.elimination_config as EliminationConfig
     if (elimConfig.mode === 'lives') {
       const sortedByPlacement = Object.entries(placements).sort((a, b) => b[1] - a[1])
-      const bottomN = sortedByPlacement.slice(0, elimConfig.eliminateCount ?? 1)
+      const eliminateCount = elimConfig.eliminateCount ?? 1
+      const cutoffPlacement = sortedByPlacement[Math.min(eliminateCount, sortedByPlacement.length) - 1]?.[1]
+      const belowCutoff = sortedByPlacement.filter(([, p]) => p > cutoffPlacement)
+      const atCutoff = sortedByPlacement.filter(([, p]) => p === cutoffPlacement)
+      const bottomN =
+        belowCutoff.length >= eliminateCount
+          ? belowCutoff.slice(0, eliminateCount)
+          : atCutoff.length > 1
+            ? belowCutoff
+            : sortedByPlacement.slice(0, eliminateCount)
 
       for (const [tpId] of bottomN) {
         const { data: tp } = await supabase

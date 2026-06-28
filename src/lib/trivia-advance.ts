@@ -96,11 +96,14 @@ async function advanceAfterReveal(supabase: SupabaseClient, game: Game, force: b
   }
 
   // Elimination hook: apply elimination rule after reveal
-  const { data: gameForElim } = await supabase
+  const { data: gameForElim, error: elimConfigError } = await supabase
     .from('games')
     .select('elimination_config, game_type')
     .eq('id', code)
     .maybeSingle()
+  if (elimConfigError) {
+    console.error('Failed to load elimination config:', elimConfigError.message)
+  }
 
   if (gameForElim?.elimination_config) {
     const elimConfig = gameForElim.elimination_config as EliminationConfig
@@ -112,7 +115,8 @@ async function advanceAfterReveal(supabase: SupabaseClient, game: Game, force: b
       elimConfig
     )
     if (result.gameFinished) {
-      await markGameFinished(supabase, code)
+      const { error: finishError } = await markGameFinished(supabase, code)
+      if (finishError) console.error('Failed to mark game finished after elimination:', finishError)
       return { ok: true, code: 'advanced_finish' }
     }
   }

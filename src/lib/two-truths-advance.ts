@@ -132,22 +132,27 @@ export async function syncTwoTruthsGameState(
   if (pointerRound && pointerRound.status === 'finished') {
     const isLast = pointerRound.round_number >= game.rounds_count
     if (isLast) {
-      await markGameFinished(supabase, gameId)
+      const { error: finishError } = await markGameFinished(supabase, gameId)
+      if (finishError) console.error('Failed to mark game finished:', finishError)
       return { ok: true, code: 'advanced_finish' }
     }
 
     // Elimination hook
-    const { data: gameForElim } = await supabase
+    const { data: gameForElim, error: elimConfigError } = await supabase
       .from('games')
       .select('elimination_config')
       .eq('id', gameId)
       .maybeSingle()
+    if (elimConfigError) {
+      console.error('Failed to load elimination config:', elimConfigError.message)
+    }
 
     if (gameForElim?.elimination_config) {
       const elimConfig = gameForElim.elimination_config as EliminationConfig
       const result = await applyEliminationRule(supabase, gameId, 'two-truths', pointerRound.round_number, elimConfig)
       if (result.gameFinished) {
-        await markGameFinished(supabase, gameId)
+        const { error: finishError } = await markGameFinished(supabase, gameId)
+        if (finishError) console.error('Failed to mark game finished after elimination:', finishError)
         return { ok: true, code: 'advanced_finish' }
       }
     }
@@ -184,7 +189,8 @@ export async function syncTwoTruthsGameState(
         }
 
         if (!replacement) {
-          await markGameFinished(supabase, gameId)
+          const { error: finishError } = await markGameFinished(supabase, gameId)
+          if (finishError) console.error('Failed to mark game finished after elimination:', finishError)
           return { ok: true, code: 'advanced_finish' }
         }
 

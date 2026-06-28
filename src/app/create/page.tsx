@@ -1247,13 +1247,15 @@ function CreateGameInner() {
                 ? {
                     mode: 'per-round' as const,
                     rule: eliminationRule,
-                    ...(eliminationRule === 'bottom-n' ? { eliminateCount } : { threshold: scoreThreshold }),
+                    ...(eliminationRule === 'bottom-n'
+                      ? { eliminateCount: Math.min(10, Math.max(1, Math.trunc(eliminateCount) || 1)) }
+                      : { threshold: Math.max(0, Math.trunc(scoreThreshold) || 0) }),
                   }
                 : {
                     mode: 'lives' as const,
-                    startingLives,
+                    startingLives: Math.min(10, Math.max(1, Math.trunc(startingLives) || 1)),
                     livesLostRule: 'bottom-n' as const,
-                    eliminateCount,
+                    eliminateCount: Math.min(10, Math.max(1, Math.trunc(eliminateCount) || 1)),
                   }
               : undefined,
         }),
@@ -3284,6 +3286,7 @@ function CreateGameInner() {
                       <div className="flex gap-2">
                         <button
                           type="button"
+                          aria-pressed={eliminationMode === 'per-round'}
                           onClick={() => setEliminationMode('per-round')}
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
                             eliminationMode === 'per-round' ? 'bg-accent text-white' : 'bg-surface text-muted'
@@ -3293,6 +3296,7 @@ function CreateGameInner() {
                         </button>
                         <button
                           type="button"
+                          aria-pressed={eliminationMode === 'lives'}
                           onClick={() => setEliminationMode('lives')}
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
                             eliminationMode === 'lives' ? 'bg-accent text-white' : 'bg-surface text-muted'
@@ -3307,6 +3311,7 @@ function CreateGameInner() {
                           <div className="flex gap-2">
                             <button
                               type="button"
+                              aria-pressed={eliminationRule === 'bottom-n'}
                               onClick={() => setEliminationRule('bottom-n')}
                               className={`px-3 py-1.5 rounded-lg text-xs ${
                                 eliminationRule === 'bottom-n' ? 'bg-accent text-white' : 'bg-surface text-muted'
@@ -3316,6 +3321,7 @@ function CreateGameInner() {
                             </button>
                             <button
                               type="button"
+                              aria-pressed={eliminationRule === 'score-threshold'}
                               onClick={() => setEliminationRule('score-threshold')}
                               className={`px-3 py-1.5 rounded-lg text-xs ${
                                 eliminationRule === 'score-threshold' ? 'bg-accent text-white' : 'bg-surface text-muted'

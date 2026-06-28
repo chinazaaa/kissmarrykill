@@ -11,8 +11,10 @@ export function EliminationBanner({ player }: EliminationBannerProps) {
     if (player.lives_remaining != null && player.lives_remaining > 0) {
       return (
         <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 px-4 py-2 text-center text-sm text-yellow-400">
-          {'❤️'.repeat(player.lives_remaining)} {player.lives_remaining}{' '}
-          {player.lives_remaining === 1 ? 'life' : 'lives'} remaining
+          <span aria-hidden="true">{'❤️'.repeat(player.lives_remaining)}</span>
+          <span className="sr-only">
+            {player.lives_remaining} {player.lives_remaining === 1 ? 'life' : 'lives'} remaining
+          </span>
         </div>
       )
     }

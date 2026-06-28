@@ -17,6 +17,7 @@ export interface TournamentPlayer {
   joined_at: string
   lives_remaining: number | null
   is_eliminated: boolean
+  eliminated_at?: string | null
 }
 
 export interface TournamentGame {

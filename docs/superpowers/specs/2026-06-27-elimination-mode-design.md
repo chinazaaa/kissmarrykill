@@ -322,6 +322,6 @@ interface EliminationEvent {
 
 ## DB Migration
 
-File: `supabase/migrations/088_elimination.sql`
+File: `supabase/migrations/20260628131324_elimination.sql`
 
 Adds columns to `players`, `tournament_players`, `games`, `tournaments`. Creates `elimination_events` table with index. Adds to realtime publication. Fully permissive RLS.

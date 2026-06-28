@@ -117,16 +117,21 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 
 import type { ParticipantForRounds } from '@/lib/utils'
 
-async function initializeEliminationLives(gameCode: string, eliminationConfig: unknown) {
-  if (!eliminationConfig) return
+async function initializeEliminationLives(
+  gameCode: string,
+  eliminationConfig: unknown
+): Promise<{ error: string | null }> {
+  if (!eliminationConfig) return { error: null }
   const elimConfig = eliminationConfig as EliminationConfig
   if (elimConfig.mode === 'lives' && elimConfig.startingLives) {
-    await getSupabaseAdmin()
+    const { error } = await getSupabaseAdmin()
       .from('players')
       .update({ lives_remaining: elimConfig.startingLives })
       .eq('game_id', gameCode)
       .eq('spectator', false)
+    if (error) return { error: error.message }
   }
+  return { error: null }
 }
 import type { AiGeneratedQuestions, AiQuestionsConfig } from '@/types'
 
@@ -325,7 +330,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
 
-    await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
+    const { error: elimError } = await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
+    if (elimError) return NextResponse.json({ error: elimError }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -760,7 +766,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
 
-    await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
+    const { error: elimError } = await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
+    if (elimError) return NextResponse.json({ error: elimError }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -793,7 +800,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
 
-    await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
+    const { error: elimError } = await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
+    if (elimError) return NextResponse.json({ error: elimError }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }

@@ -1102,6 +1102,7 @@ git commit -m "feat(elimination): add tournament lives hook and npat/two-truths 
 
 **Files:**
 - Modify: `src/components/PlayAgainSetup.tsx` (add elimination config section)
+  > **Note:** The actual implementation was placed in `src/app/create/page.tsx`, not `PlayAgainSetup.tsx`.
 
 **Interfaces:**
 - Consumes: `ELIMINATION_COMPATIBLE_TYPES` from `src/types/elimination.ts`; `isTriviaGame`, `isICallOnGame`, `isTwoTruthsGame` from `src/lib/game-types.ts`
