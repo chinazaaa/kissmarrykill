@@ -15,6 +15,8 @@ export interface TournamentPlayer {
   total_points: number
   games_played: number
   joined_at: string
+  lives_remaining: number | null
+  is_eliminated: boolean
 }
 
 export interface TournamentGame {
