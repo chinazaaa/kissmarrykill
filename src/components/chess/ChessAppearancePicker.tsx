@@ -62,7 +62,11 @@ export function ChessAppearancePicker({ defaults }: { defaults?: ChessAppearance
                   <button
                     key={theme.id}
                     type="button"
-                    onClick={() => setBoardTheme(theme.id)}
+                    onClick={() => {
+                      // Only persist an override when the player actually changes the
+                      // selection — re-clicking the inherited host default keeps it inherited.
+                      if (!active) setBoardTheme(theme.id)
+                    }}
                     title={theme.name}
                     aria-label={`${theme.name} board${active ? ' (selected)' : ''}`}
                     aria-pressed={active}
@@ -92,7 +96,9 @@ export function ChessAppearancePicker({ defaults }: { defaults?: ChessAppearance
                   <button
                     key={set.id}
                     type="button"
-                    onClick={() => setPieceSet(set.id)}
+                    onClick={() => {
+                      if (!active) setPieceSet(set.id)
+                    }}
                     title={set.name}
                     aria-label={`${set.name} pieces${active ? ' (selected)' : ''}`}
                     aria-pressed={active}

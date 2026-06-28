@@ -106,7 +106,7 @@ export const BOARD_THEMES: ChessBoardTheme[] = [
   { id: 'walnut', name: 'Walnut', light: '#e3c6a0', dark: '#7a4a2b' },
   { id: 'frost', name: 'Frost', light: '#eef4f8', dark: '#7393b3' },
   { id: 'grape', name: 'Grape', light: '#e9e1f3', dark: '#7a5ca8' },
-  { id: 'rose', name: 'Rosewood', light: '#f0d9b5', dark: '#a5685e' },
+  { id: 'rosewood', name: 'Rosewood', light: '#f0d9b5', dark: '#a5685e' },
 ]
 
 export const DEFAULT_BOARD_THEME = BOARD_THEMES[0]

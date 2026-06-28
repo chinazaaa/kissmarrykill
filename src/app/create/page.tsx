@@ -731,6 +731,15 @@ function CreateGameInner() {
             timer_seconds: 60,
           }
         : {}),
+      ...(isChessGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            // Cumulative per-player clock (chess.com style). Default 10 minutes each.
+            timer_seconds: 600,
+          }
+        : {}),
       ...(isICallOnGame(type)
         ? {
             participant_mode: 'joiners' as const,
