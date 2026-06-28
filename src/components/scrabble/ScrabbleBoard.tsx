@@ -274,7 +274,7 @@ function BoardScores({
   compact?: boolean
 }) {
   const rows = session.turn_order
-    .map((pid) => {
+    .map((pid, index) => {
       const player = players.find((p) => p.id === pid)
       const st = stateByPlayer.get(pid)
       const score = st?.score ?? 0
@@ -282,7 +282,9 @@ function BoardScores({
         pid,
         name: player?.name ?? 'Player',
         score,
-        order: st?.player_order ?? 0,
+        // Fall back to the turn_order index (not 0) so players without a state
+        // row keep their join order on tied scores instead of jumping ahead.
+        order: st?.player_order ?? index,
         onTurn: pid === turnPlayerId && !finished,
         isMe: pid === myPlayerId,
         isLeader: score > 0 && score === topScore,
