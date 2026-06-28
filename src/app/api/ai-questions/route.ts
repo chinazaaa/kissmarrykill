@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { generateAiQuestions } from '@/lib/ai-questions'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { parseJsonBody } from '@/lib/parse-body'
 
 const requestSchema = z.object({
   gameId: z.string().min(1),
@@ -18,19 +19,10 @@ const requestSchema = z.object({
 export async function POST(req: NextRequest) {
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-  let body: unknown
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-  }
+  const { data: body, error: bodyError } = await parseJsonBody(req, requestSchema)
+  if (bodyError) return bodyError
 
-  const parsed = requestSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
-  }
-
-  const { gameId, hostToken, playerNames, gameType, count, theme, customPrompt, apiKey } = parsed.data
+  const { gameId, hostToken, playerNames, gameType, count, theme, customPrompt, apiKey } = body
 
   const { data: game } = await getSupabaseAdmin()
     .from('games')
