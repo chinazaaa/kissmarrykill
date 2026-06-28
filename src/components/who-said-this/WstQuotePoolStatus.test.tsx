@@ -30,7 +30,8 @@ describe('WstQuotePoolStatus', () => {
       />
     )
     expect(screen.getByText('Submitted')).toBeInTheDocument()
-    expect(screen.getByText(/Ann/)).toBeInTheDocument()
+    expect(screen.getByText('✓ Ann')).toBeInTheDocument() // single quote → no count shown
+    expect(screen.queryByText(/Ann \(1\)/)).not.toBeInTheDocument()
     expect(screen.getByText(/Bo \(3\)/)).toBeInTheDocument() // count shown when >1
   })
 
