@@ -355,6 +355,9 @@ export type DeletePlayerInput = z.infer<typeof deletePlayerSchema>
 export const promotePlayerSchema = z.object({
   gameCode: gameCodeString(),
   playerId: uuidString('playerId'),
+  // Self-promotion (spectator → player) is authorized by the caller's resume_token, which
+  // must resolve to the same playerId.
+  resumeToken: z.string().min(4),
 })
 
 export type PromotePlayerInput = z.infer<typeof promotePlayerSchema>
@@ -391,6 +394,9 @@ export const createConfessionSchema = z.object({
   gameId: gameCodeString(),
   roundId: uuidString('roundId').optional().nullable(),
   text: sanitizedString(1, 500),
+  // Confessions are anonymous to other players, but the poster must still be a real player
+  // in the game — gate by resume_token (resolved server-side) to stop anon-key spam.
+  resumeToken: z.string().min(4),
 })
 
 export type CreateConfessionInput = z.infer<typeof createConfessionSchema>
@@ -975,7 +981,8 @@ export const codewordsChatSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const createQuoteSchema = z.object({
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   gameId: gameCodeString(),
   quoteText: sanitizedString(1, 500),
@@ -1017,7 +1024,8 @@ const hotSeatSubmissionTypeEnum = z.enum(['compliment', 'roast', 'observation'])
 export const hotSeatSubmissionSchema = z.object({
   gameId: gameCodeString(),
   roundId: uuidString('roundId'),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   text: sanitizedString(1, 300),
   submissionType: hotSeatSubmissionTypeEnum,
 })

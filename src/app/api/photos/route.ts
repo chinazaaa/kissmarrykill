@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { assertPlayer } from '@/lib/game-admin'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE = 2 * 1024 * 1024 // 2MB
@@ -39,11 +41,16 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File | null
     const gameId = formData.get('gameId') as string | null
     const participantId = formData.get('participantId') as string | null
-    const playerId = formData.get('playerId') as string | null
+    const resumeToken = formData.get('resumeToken') as string | null
 
-    if (!file || !gameId || !participantId || !playerId) {
-      return NextResponse.json({ error: 'Missing file, gameId, participantId, or playerId' }, { status: 400 })
+    if (!file || !gameId || !participantId || !resumeToken) {
+      return NextResponse.json({ error: 'Missing file, gameId, participantId, or resumeToken' }, { status: 400 })
     }
+
+    // Service role: anon can no longer read players.resume_token, so the admin
+    // client is required to authorize the player. It also performs the storage
+    // write (upsert into the avatars bucket), which is fine under service role.
+    const supabaseAdmin = getSupabaseAdmin()
 
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -63,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate game exists and is in waiting status
-    const { data: game } = await supabase.from('games').select('id, status').eq('id', gameId).maybeSingle()
+    const { data: game } = await supabaseAdmin.from('games').select('id, status').eq('id', gameId).maybeSingle()
 
     if (!game) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 })
@@ -72,19 +79,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Photos can only be uploaded while the game is waiting' }, { status: 400 })
     }
 
-    // Authorization: verify the uploader owns this participant
-    const { data: player } = await supabase
-      .from('players')
-      .select('id, participant_id')
-      .eq('id', playerId)
-      .eq('game_id', gameId)
-      .maybeSingle()
-    if (!player || player.participant_id !== participantId) {
+    // Authorize by the secret resume_token; the resolved player is authoritative
+    // (the client no longer supplies its own playerId).
+    const auth = await assertPlayer(supabaseAdmin, gameId, resumeToken)
+    if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+    // The uploader may only set a photo for the participant linked to their own player.
+    if (auth.player.participant_id !== participantId) {
       return NextResponse.json({ error: 'You can only upload photos for your own profile' }, { status: 403 })
     }
 
     // Validate participant exists and belongs to this game
-    const { data: participant } = await supabase
+    const { data: participant } = await supabaseAdmin
       .from('participants')
       .select('id, game_id')
       .eq('id', participantId)
@@ -101,10 +107,10 @@ export async function POST(req: NextRequest) {
     // Clean up old files with different extensions
     const otherExts = ['jpg', 'png', 'webp', 'gif'].filter((e) => e !== ext)
     const oldPaths = otherExts.map((e) => `${gameId}/${participantId}.${e}`)
-    if (oldPaths.length > 0) await supabase.storage.from('avatars').remove(oldPaths)
+    if (oldPaths.length > 0) await supabaseAdmin.storage.from('avatars').remove(oldPaths)
 
     // Upload (upsert) to Supabase Storage
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(storagePath, buffer, {
+    const { error: uploadError } = await supabaseAdmin.storage.from('avatars').upload(storagePath, buffer, {
       contentType: file.type,
       upsert: true,
     })
@@ -115,12 +121,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Get public URL
-    const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(storagePath)
+    const { data: publicUrlData } = supabaseAdmin.storage.from('avatars').getPublicUrl(storagePath)
 
     const publicUrl = publicUrlData.publicUrl
 
     // Update participant record
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('participants')
       .update({ photo_url: publicUrl })
       .eq('id', participantId)

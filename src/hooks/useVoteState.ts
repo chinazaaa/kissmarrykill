@@ -253,11 +253,16 @@ export function useVoteState(deps: VoteStateDeps) {
 
   const sendConfession = async () => {
     if (!confessionText.trim() || confessionSent) return
+    const resumeToken = getPlayerSession(gameCode)?.resumeToken
+    if (!resumeToken) {
+      toast.error('Your player session expired — rejoin to continue')
+      return
+    }
     setConfessionSent(true)
     const res = await fetch('/api/confessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId: gameCode, roundId: currentRound?.id, text: confessionText }),
+      body: JSON.stringify({ resumeToken, gameId: gameCode, roundId: currentRound?.id, text: confessionText }),
     })
     if (res.ok) playConfessionSound()
   }
