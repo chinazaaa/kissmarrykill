@@ -94,6 +94,13 @@ resource "aws_ssm_parameter" "origin_cert" {
   type  = "SecureString"
   value = base64encode(var.origin_cert)
   tags  = { Name = "${var.name_prefix}-origin-cert" }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(var.origin_cert) != ""
+      error_message = "origin_cert is required when enable_origin_tls = true (set TF_VAR_origin_cert)."
+    }
+  }
 }
 
 resource "aws_ssm_parameter" "origin_key" {
@@ -102,4 +109,11 @@ resource "aws_ssm_parameter" "origin_key" {
   type  = "SecureString"
   value = base64encode(var.origin_key)
   tags  = { Name = "${var.name_prefix}-origin-key" }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(var.origin_key) != ""
+      error_message = "origin_key is required when enable_origin_tls = true (set TF_VAR_origin_key)."
+    }
+  }
 }
