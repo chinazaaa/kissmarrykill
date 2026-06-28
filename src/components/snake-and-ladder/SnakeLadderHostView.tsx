@@ -39,9 +39,12 @@ import {
 } from '@/hooks/useSnakeLadder'
 import { SnakeLadderGamePanel } from '@/components/snake-and-ladder/SnakeLadderBoard'
 import { SnakeLadderFinalResultsShareBlock } from '@/components/snake-and-ladder/SnakeLadderFinalResultsShareBlock'
-import { SnakeLadderPrimaryButton } from '@/components/snake-and-ladder/SnakeLadderChrome'
+import { SnakeLadderCard, SnakeLadderPrimaryButton } from '@/components/snake-and-ladder/SnakeLadderChrome'
 
 const ROLL_MIN_MS = 700
+/** After someone reaches 100, linger on the board so everyone sees the winning
+ *  move before the final leaderboard appears. */
+const WIN_HOLD_MS = 9000
 
 type HostTab = 'play' | 'manage'
 
@@ -64,6 +67,9 @@ export function SnakeLadderHostView({ gameCode, hostToken }: { gameCode: string;
   const [hostActing, setHostActing] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [displayRoll, setDisplayRoll] = useState<number | null>(null)
+  const [holdWin, setHoldWin] = useState(false)
+  const winHandledRef = useRef(false)
+  const sawActiveRef = useRef(false)
   const rollStartedRef = useRef(0)
   const [tab, setTab] = useState<HostTab>('manage')
 
@@ -309,6 +315,27 @@ export function SnakeLadderHostView({ gameCode, hostToken }: { gameCode: string;
 
   useHostAutoReady(gameCode, game?.status, hostPlayerId, players, load)
 
+  // Linger on the finished board for a few seconds so the winning move is visible
+  // before showing the final leaderboard. Only triggers when we witnessed live
+  // play (so opening an already-finished game doesn't re-hold), and survives a
+  // status/winner update race via sawActiveRef. Resets on replay.
+  useEffect(() => {
+    const status = game?.status
+    if (status === 'active') sawActiveRef.current = true
+    const finishedWithWinner = status === 'finished' && !!session?.winner_player_id
+    if (finishedWithWinner && sawActiveRef.current && !winHandledRef.current) {
+      winHandledRef.current = true
+      setHoldWin(true)
+      const t = setTimeout(() => setHoldWin(false), WIN_HOLD_MS)
+      return () => clearTimeout(t)
+    }
+    if (status !== 'finished') {
+      winHandledRef.current = false
+      setHoldWin(false)
+      if (status === 'waiting') sawActiveRef.current = false
+    }
+  }, [game?.status, session?.winner_player_id])
+
   if (notFound) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-center px-6">
@@ -437,7 +464,28 @@ export function SnakeLadderHostView({ gameCode, hostToken }: { gameCode: string;
             <GameRulesLink gameType="snake_and_ladder" variant="subtle" />
           </p>
 
-          {game.status === 'finished' && (
+          {/* Victory hold: keep the finished board on screen briefly before the
+              leaderboard so everyone sees the winning move. */}
+          {game.status === 'finished' && holdWin && session && (
+            <>
+              <SnakeLadderCard className="p-3 text-center">
+                <p className="text-lg font-black">🏆 {winner?.name ?? 'Winner'} wins!</p>
+                <p className="text-xs text-muted">Final results in a moment…</p>
+              </SnakeLadderCard>
+              <SnakeLadderGamePanel
+                session={session}
+                states={states}
+                players={players}
+                myPlayerId={hostPlayerId}
+                isMyTurn={false}
+                secondsLeft={secondsLeft}
+                hasTimer={hasTimer}
+                urgent={urgent}
+              />
+            </>
+          )}
+
+          {game.status === 'finished' && !holdWin && (
             <SnakeLadderFinalResultsShareBlock
               game={game}
               players={players}

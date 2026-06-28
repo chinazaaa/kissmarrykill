@@ -45,6 +45,9 @@ import {
 } from '@/hooks/useSnakeLadder'
 
 const ROLL_MIN_MS = 700
+/** After someone reaches 100, linger on the board so everyone sees the winning
+ *  move before the final leaderboard appears. */
+const WIN_HOLD_MS = 9000
 
 type Screen =
   | 'loading'
@@ -73,6 +76,9 @@ export function SnakeLadderPlayerView({ gameCode }: { gameCode: string }) {
   const [acting, setActing] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [displayRoll, setDisplayRoll] = useState<number | null>(null)
+  const [holdWin, setHoldWin] = useState(false)
+  const winHandledRef = useRef(false)
+  const sawActiveRef = useRef(false)
   const rollStartedRef = useRef(0)
 
   useApplyGameTheme(screen === 'game_ended' ? 'default' : game?.theme)
@@ -286,8 +292,32 @@ export function SnakeLadderPlayerView({ gameCode }: { gameCode: string }) {
     session,
     myPlayerId,
     players,
-    enabled: screen === 'active' && !isViewer,
+    enabled: (screen === 'active' || holdWin) && !isViewer,
   })
+
+  // Hold on the finished board for a few seconds so the winning move is visible
+  // before switching to the final leaderboard. Only triggers when we witnessed
+  // live play (so opening an already-finished game for replay doesn't re-hold),
+  // and survives a status/winner update race via sawActiveRef. Resets on replay.
+  useEffect(() => {
+    const status = game?.status
+    if (status === 'active') sawActiveRef.current = true
+    const finishedWithWinner = status === 'finished' && !!session?.winner_player_id
+    if (finishedWithWinner && sawActiveRef.current && !winHandledRef.current) {
+      winHandledRef.current = true
+      setHoldWin(true)
+      const t = setTimeout(() => setHoldWin(false), WIN_HOLD_MS)
+      return () => clearTimeout(t)
+    }
+    if (status !== 'finished') {
+      winHandledRef.current = false
+      setHoldWin(false)
+      if (status === 'waiting') sawActiveRef.current = false
+    }
+  }, [game?.status, session?.winner_player_id])
+
+  // While holding, keep rendering the active board instead of the leaderboard.
+  const effectiveScreen = holdWin && screen === 'finished' && session && states.length > 0 ? 'active' : screen
 
   if (screen === 'loading') return <SnakeLadderLoadingScreen />
 
@@ -384,7 +414,7 @@ export function SnakeLadderPlayerView({ gameCode }: { gameCode: string }) {
     )
   }
 
-  if (screen === 'finished') {
+  if (effectiveScreen === 'finished') {
     const iWon = myPlayerId != null && session?.winner_player_id === myPlayerId
     const shareWinnerName = iWon ? myName : winner?.name
 
@@ -423,6 +453,12 @@ export function SnakeLadderPlayerView({ gameCode }: { gameCode: string }) {
   return (
     <SnakeLadderShell title={game?.title ?? cfg.label} compact wide>
       {isViewer && <ViewerModeBanner />}
+      {holdWin && winner && (
+        <SnakeLadderCard className="p-3 text-center">
+          <p className="text-lg font-black">🏆 {winner.name} wins!</p>
+          <p className="text-xs text-muted">Final results in a moment…</p>
+        </SnakeLadderCard>
+      )}
       {session && (
         <SnakeLadderGamePanel
           session={session}
