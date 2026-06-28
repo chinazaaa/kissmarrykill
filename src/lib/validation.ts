@@ -67,6 +67,7 @@ const gameTypeEnum = z.enum([
   'monopoly',
   'yahtzee',
   'whot',
+  'crazy_eights',
   'ludo',
   'i_call_on',
   'sudoku',
