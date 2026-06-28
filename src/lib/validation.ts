@@ -364,7 +364,9 @@ export type PromotePlayerInput = z.infer<typeof promotePlayerSchema>
 // ---------------------------------------------------------------------------
 
 export const createVoteSchema = z.object({
-  playerId: uuidString('playerId'),
+  // Voter authorized by the secret resume_token (resolved to a player server-side),
+  // not a client-supplied playerId (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   gameId: gameCodeString(),
   kiss: z.string().optional().nullable(),

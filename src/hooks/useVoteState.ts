@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getPlayerSession } from '@/lib/utils'
 import {
   emptyAssignment,
   parseGameType,
@@ -217,12 +218,17 @@ export function useVoteState(deps: VoteStateDeps) {
                       marry: isThreeChoiceGame(submitGameType) ? assignment.marry : null,
                       kill: assignment.kill,
                     }
+    const resumeToken = getPlayerSession(gameCode)?.resumeToken
+    if (!resumeToken) {
+      toast.error('Your player session expired — rejoin to continue')
+      return
+    }
     try {
       const res = await fetch('/api/votes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          playerId: myPlayerId,
+          resumeToken,
           roundId: currentRound.id,
           gameId: gameCode,
           ...voteBody,
