@@ -9,6 +9,7 @@ import { HostAllowViewersField } from '@/components/HostAllowViewersField'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { HostPlayerManageList } from '@/components/host/HostPlayerManageList'
+import { ExitIcon } from '@/components/host/host-icons'
 import { TwoTruthsShareBlock } from '@/components/two-truths/TwoTruthsShareBlock'
 import {
   formatTtlChoiceLabel,
@@ -43,6 +44,7 @@ export function TwoTruthsHostManagePanel({
   onRemovePlayer,
   removingPlayerId,
   onGameUpdate,
+  section = 'all',
 }: {
   game: Game
   gameCode: string
@@ -64,6 +66,8 @@ export function TwoTruthsHostManagePanel({
   onRemovePlayer?: (playerId: string, playerName: string) => void | Promise<void | boolean>
   removingPlayerId?: string | null
   onGameUpdate: (game: Game) => void
+  /** Which slice to render: gameplay ('watch'), controls/settings ('manage'), results ('finished'). */
+  section?: 'watch' | 'manage' | 'finished' | 'all'
 }) {
   const inLobby = game.status === 'waiting'
   const playerIds = players.map((p) => p.id)
@@ -88,9 +92,13 @@ export function TwoTruthsHostManagePanel({
   const showActiveRoundPanel = game.status === 'active' && activeRound && metadata
   const showRevealPanel = game.status === 'active' && !activeRound && lastFinished && revealRemaining > 0
 
+  const showManage = section === 'manage' || section === 'all'
+  const showWatch = section === 'watch' || section === 'all'
+  const showFinished = section === 'finished' || section === 'all'
+
   return (
     <div className="space-y-5">
-      {inLobby && (
+      {showManage && inLobby && (
         <div className="glass-card p-5 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
@@ -196,7 +204,7 @@ export function TwoTruthsHostManagePanel({
         </div>
       )}
 
-      {game.status === 'active' && (
+      {showManage && game.status === 'active' && (
         <>
           <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={onGameUpdate} />
           <div className="glass-card p-5 space-y-3">
@@ -221,7 +229,7 @@ export function TwoTruthsHostManagePanel({
         </>
       )}
 
-      {(showActiveRoundPanel || showRevealPanel) && (
+      {showWatch && (showActiveRoundPanel || showRevealPanel) && (
         <LiveLeaderboardLayout sidebar={liveLeaderboard}>
           {showActiveRoundPanel && (
             <div className="glass-card p-5 space-y-3">
@@ -282,7 +290,9 @@ export function TwoTruthsHostManagePanel({
         </LiveLeaderboardLayout>
       )}
 
-      {game.status === 'finished' && (
+      {showWatch && game.status === 'active' && !showActiveRoundPanel && !showRevealPanel && liveLeaderboard}
+
+      {showFinished && game.status === 'finished' && (
         <div className="space-y-4">
           <TwoTruthsShareBlock game={game}>
             <div className="glass-card p-6 text-center space-y-2">
@@ -301,18 +311,21 @@ export function TwoTruthsHostManagePanel({
         </div>
       )}
 
-      {game.status === 'active' && (
-        <>
+      {showManage && game.status === 'active' && (
+        <div className="glass-card-strong p-5 sm:p-6 space-y-3">
+          <p className="label-caps">Game controls</p>
+          <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-secondary w-full">
+            {playingAgain ? 'Resetting…' : 'End & return to lobby'}
+          </button>
           <HostEndGameButton
             gameCode={gameCode}
             hostToken={hostToken}
             onEnded={onReload}
-            className="btn-secondary w-full"
+            label="End game"
+            icon={<ExitIcon size={16} />}
+            className="btn-danger-soft"
           />
-          <button type="button" onClick={onPlayAgain} disabled={playingAgain} className="btn-secondary w-full">
-            {playingAgain ? 'Resetting…' : 'End & return to lobby'}
-          </button>
-        </>
+        </div>
       )}
     </div>
   )

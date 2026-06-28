@@ -15,6 +15,7 @@ import { shareImageBlob } from '@/lib/share-image'
 import type { AnonymousMessage, Game } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { CreateNewGameButton } from '@/components/ui/CreateNewGameButton'
+import { ExitIcon } from '@/components/host/host-icons'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
@@ -185,7 +186,13 @@ export function SecretMessageHostView({ gameCode, hostToken }: { gameCode: strin
             <p className="text-body font-semibold">Board is open</p>
             <p className="text-faint text-xs mt-0.5">Senders can post right now · inbox trims at 1,000 messages</p>
           </div>
-          <button type="button" onClick={closeBoard} disabled={ending} className="btn-secondary text-sm py-2 px-4">
+          <button
+            type="button"
+            onClick={closeBoard}
+            disabled={ending}
+            className="btn-danger-soft !w-auto text-sm py-2 px-4"
+          >
+            <ExitIcon size={15} />
             {ending ? 'Closing…' : 'Close board'}
           </button>
         </div>

@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostManageSection } from '@/components/host/HostManageSection'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
 import { HostBoardGameLobbyPanel } from '@/components/host-lobby/HostBoardGameLobbyPanel'
-import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
@@ -30,7 +31,7 @@ import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
-import { GameRulesLink } from '@/components/ui/GameRulesLink'
+import { ExitIcon } from '@/components/host/host-icons'
 import { useCrazyEightsTurnTimer } from '@/hooks/useCrazyEightsTurnTimer'
 import { useCrazyEightsNotifications, playCrazyEightsActionSound } from '@/hooks/useCrazyEightsNotifications'
 import { CrazyEightsChoosePanel, CrazyEightsHand, CrazyEightsTable } from '@/components/crazy-eights/CrazyEightsBoard'
@@ -95,15 +96,11 @@ export function CrazyEightsHostView({ gameCode, hostToken }: { gameCode: string;
     }
   }, [gameCode, load])
 
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage when it ends.
   useEffect(() => {
-    if (game?.status === 'finished') setTab('manage')
+    if (game?.status === 'active') setTab('play')
+    else if (game?.status === 'finished') setTab('manage')
   }, [game?.status])
-
-  useEffect(() => {
-    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
-      setTab('play')
-    }
-  }, [hostMode, hostPlayerId, game?.status])
 
   useEffect(() => {
     const channel = supabase
@@ -248,7 +245,6 @@ export function CrazyEightsHostView({ gameCode, hostToken }: { gameCode: string;
   const turnPlayer = players.find((p) => p.id === turnPlayerId)
   const winner = players.find((p) => p.id === session?.winner_player_id)
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status !== 'waiting' && game?.status !== 'finished'
   const isHostTurn = turnPlayerId === hostPlayerId
 
   const { secondsLeft, hasTimer, urgent } = useCrazyEightsTurnTimer(gameCode, session, game?.status === 'active')
@@ -297,223 +293,172 @@ export function CrazyEightsHostView({ gameCode, hostToken }: { gameCode: string;
     )
   }
 
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = game.status !== 'finished'
+  const gameStarted = game.status === 'active'
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
 
-  return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      <HostGameHeader game={game} />
-
-      {game.status === 'waiting' && (
-        <div className="glass-card-strong p-5 space-y-3">
-          <p className="label-caps">Host mode</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => changeHostMode('spectator')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'spectator'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host only</span>
-              <span className="text-faint text-xs">Spectate from Manage</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeHostMode('player')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'player'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host + play</span>
-              <span className="text-faint text-xs">Play tab + Manage tab</span>
-            </button>
-          </div>
-          {hostMode === 'player' && !hostPlayerId && (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={hostJoinName}
-                onChange={(e) => setHostJoinName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                placeholder="Your name"
-                className="input-field flex-1"
-                maxLength={40}
-              />
-              <button
-                type="button"
-                onClick={() => void hostJoinGame()}
-                disabled={!hostJoinName.trim() || hostJoining}
-                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-              >
-                {hostJoining ? 'Joining…' : 'Join'}
-              </button>
-            </div>
-          )}
-        </div>
+  // Primary tab: interactive board when the host is playing, read-only board otherwise.
+  const interactivePlay = session && hostPlayerId && (
+    <div className="space-y-3">
+      <CrazyEightsGameTimerBar gameCode={gameCode} game={game} />
+      <CrazyEightsTable
+        session={session}
+        players={players}
+        myPlayerId={hostPlayerId}
+        handCounts={handCounts}
+        {...tableTimerProps}
+      />
+      {isHostTurn && session.phase === 'choose_suit' && (
+        <CrazyEightsChoosePanel
+          acting={hostActing}
+          onChooseSuit={(suit: CrazyEightsCalledSuit) => void postHostAction('/api/crazy-eights/choose', { suit })}
+        />
       )}
-
-      {showPlayTab && (
-        <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
-          <button
-            type="button"
-            onClick={() => setTab('play')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('manage')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Manage
-          </button>
-        </div>
-      )}
-
-      {tab === 'play' && session && hostPlayerId && (
-        <div className="space-y-3">
-          <CrazyEightsGameTimerBar gameCode={gameCode} game={game} />
-          <CrazyEightsTable
-            session={session}
-            players={players}
-            myPlayerId={hostPlayerId}
-            handCounts={handCounts}
-            {...tableTimerProps}
-          />
-          {isHostTurn && session.phase === 'choose_suit' && (
-            <CrazyEightsChoosePanel
-              acting={hostActing}
-              onChooseSuit={(suit: CrazyEightsCalledSuit) => void postHostAction('/api/crazy-eights/choose', { suit })}
-            />
-          )}
-          {session.phase === 'playing' && (
-            <>
-              <CrazyEightsHand
-                cards={myHand}
-                session={session}
-                acting={hostActing}
-                rules={crazyEightsRules}
-                onPlay={(cardId) => void postHostAction('/api/crazy-eights/play', { cardId })}
-              />
-              {isHostTurn && !(drawDepleted && hostCanPlay) && (
-                <CrazyEightsPrimaryButton
-                  onClick={() => void postHostAction('/api/crazy-eights/draw')}
-                  loading={hostActing}
-                >
-                  {drawDepleted
-                    ? 'Pass turn'
-                    : penalties.pickTwo > 0
-                      ? `Draw ${penalties.pickTwo} (Pick 2)`
-                      : penalties.jokerPenalty > 0
-                        ? `Draw ${penalties.jokerPenalty} (Joker)`
-                        : 'Draw 1 card'}
-                </CrazyEightsPrimaryButton>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {(tab === 'manage' || !showPlayTab) && (
+      {session.phase === 'playing' && (
         <>
-          <p className="text-center">
-            <GameRulesLink gameType="crazy_eights" variant="subtle" />
-          </p>
-
-          {session && (
-            <>
-              <CrazyEightsGameTimerBar gameCode={gameCode} game={game} />
-              <CrazyEightsTable
-                session={session}
-                players={players}
-                myPlayerId={hostPlayerId}
-                handCounts={handCounts}
-                {...tableTimerProps}
-                isMyTurn={false}
-              />
-            </>
-          )}
-
-          {(game.status === 'waiting' || game.status === 'active') && (
-            <HostLobbyPlayersSection
-              players={players}
-              removingPlayerId={removingPlayerId}
-              onRemovePlayer={removePlayer}
-              highlightPlayerId={hostPlayerId}
-            />
-          )}
-
-          {game.status === 'waiting' && (
-            <>
-              <HostBoardGameLobbyPanel
-                gameCode={gameCode}
-                hostToken={hostToken}
-                game={game}
-                boardGameType="crazy_eights"
-                playerCount={players.length}
-                onGameUpdate={setGame}
-              />
-              <HostLobbyWaitingFooter
-                gameCode={gameCode}
-                hostToken={hostToken}
-                onStart={() => void startGame()}
-                onEnded={load}
-                canStart={canStart}
-                starting={starting}
-                startDisabledHint={
-                  canStart
-                    ? null
-                    : `Need at least ${CRAZY8_MIN_PLAYERS} players to start (${players.length}/${CRAZY8_MIN_PLAYERS})`
-                }
-                className="space-y-3"
-              />
-            </>
-          )}
-
-          {game.status === 'active' && (
-            <>
-              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-              <HostEndGameButton
-                gameCode={gameCode}
-                hostToken={hostToken}
-                onEnded={load}
-                label="End game early"
-                confirmTitle="End this game early?"
-                confirmMessage="The current game will end and players will see the results screen."
-                className="btn-secondary w-full py-3"
-              />
-            </>
-          )}
-
-          {game.status === 'finished' && (
-            <CrazyEightsFinalResultsShareBlock
-              game={game}
-              players={players}
-              hands={hands}
-              session={session}
-              winnerName={winner?.name}
-              highlightPlayerId={hostPlayerId}
-              playAgainButton={
-                <button
-                  type="button"
-                  onClick={() => void playAgain()}
-                  disabled={playingAgain}
-                  className="btn-primary w-full py-3"
-                >
-                  {playingAgain ? 'Resetting…' : 'Play again'}
-                </button>
-              }
-            />
+          <CrazyEightsHand
+            cards={myHand}
+            session={session}
+            acting={hostActing}
+            rules={crazyEightsRules}
+            onPlay={(cardId) => void postHostAction('/api/crazy-eights/play', { cardId })}
+          />
+          {isHostTurn && !(drawDepleted && hostCanPlay) && (
+            <CrazyEightsPrimaryButton onClick={() => void postHostAction('/api/crazy-eights/draw')} loading={hostActing}>
+              {drawDepleted
+                ? 'Pass turn'
+                : penalties.pickTwo > 0
+                  ? `Draw ${penalties.pickTwo} (Pick 2)`
+                  : penalties.jokerPenalty > 0
+                    ? `Draw ${penalties.jokerPenalty} (Joker)`
+                    : 'Draw 1 card'}
+            </CrazyEightsPrimaryButton>
           )}
         </>
       )}
-    </HostPageShell>
+    </div>
+  )
+
+  const watchBoard = session ? (
+    <div className="space-y-3">
+      <CrazyEightsGameTimerBar gameCode={gameCode} game={game} />
+      <CrazyEightsTable
+        session={session}
+        players={players}
+        myPlayerId={hostPlayerId}
+        handCounts={handCounts}
+        {...tableTimerProps}
+        isMyTurn={false}
+      />
+    </div>
+  ) : (
+    <p className="text-muted text-sm text-center">Waiting for the round to begin…</p>
+  )
+
+  const manage = (
+    <HostManageSection
+      game={game}
+      players={players}
+      highlightPlayerId={hostPlayerId}
+      removingPlayerId={removingPlayerId}
+      onRemovePlayer={removePlayer}
+      gameType="crazy_eights"
+      top={
+        game.status === 'waiting' ? (
+          <HostModeSelector
+            mode={hostMode}
+            onChange={changeHostMode}
+            joinedPlayerId={hostPlayerId}
+            joinedPlayerName={hostPlayerName}
+            joinName={hostJoinName}
+            onJoinNameChange={setHostJoinName}
+            onJoin={() => void hostJoinGame()}
+            joining={hostJoining}
+            spectatorHint="Spectate from the Watch tab"
+          />
+        ) : undefined
+      }
+      settings={
+        <>
+          {game.status === 'waiting' && (
+            <HostBoardGameLobbyPanel
+              gameCode={gameCode}
+              hostToken={hostToken}
+              game={game}
+              boardGameType="crazy_eights"
+              playerCount={players.length}
+              onGameUpdate={setGame}
+            />
+          )}
+          {game.status === 'active' && (
+            <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
+          )}
+        </>
+      }
+      footer={
+        game.status === 'waiting' ? (
+          <HostLobbyWaitingFooter
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onStart={() => void startGame()}
+            onEnded={load}
+            canStart={canStart}
+            starting={starting}
+            startDisabledHint={
+              canStart
+                ? null
+                : `Need at least ${CRAZY8_MIN_PLAYERS} players to start (${players.length}/${CRAZY8_MIN_PLAYERS})`
+            }
+            className="space-y-3"
+          />
+        ) : game.status === 'active' ? (
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={load}
+            label="End game early"
+            icon={<ExitIcon size={16} />}
+            confirmTitle="End this game early?"
+            confirmMessage="The current game will end and players will see the results screen."
+            className="btn-danger-soft"
+          />
+        ) : null
+      }
+    />
+  )
+
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={<HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchBoard}
+      manage={manage}
+      finished={
+        <CrazyEightsFinalResultsShareBlock
+          game={game}
+          players={players}
+          hands={hands}
+          session={session}
+          winnerName={winner?.name}
+          highlightPlayerId={hostPlayerId}
+          playAgainButton={
+            <button
+              type="button"
+              onClick={() => void playAgain()}
+              disabled={playingAgain}
+              className="btn-primary w-full py-3"
+            >
+              {playingAgain ? 'Resetting…' : 'Play again'}
+            </button>
+          }
+        />
+      }
+    />
   )
 }

@@ -276,14 +276,20 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
 
   if (!game || !myPlayerId) return null
 
+  const isFinished = game.status === 'finished'
+
   return (
     <div className="min-h-screen pb-24">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-4xl sm:text-5xl">{cfg.headerEmoji}</div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title">{game.title}</h1>
-          <p className="text-muted text-sm sm:text-base">{cfg.label}</p>
-        </div>
+        {/* On the results screen the share block carries its own header + actions, so the
+            page header and session controls would just duplicate it and crowd the page. */}
+        {!isFinished && (
+          <div className="text-center space-y-1">
+            <div className="text-4xl sm:text-5xl">{cfg.headerEmoji}</div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight gradient-title">{game.title}</h1>
+            <p className="text-muted text-sm sm:text-base">{cfg.label}</p>
+          </div>
+        )}
 
         {me && <EliminationBanner player={me} />}
         {isViewer && (
@@ -296,17 +302,19 @@ export function TriviaPlayerView({ gameCode }: { gameCode: string }) {
             onPromoted={load}
           />
         )}
-        <PlayerSessionControls
-          gameCode={gameCode}
-          playerId={myPlayerId}
-          currentName={myPlayerName}
-          onRenamed={(name) => {
-            setMyPlayerName(name)
-            setPlayerSession(gameCode, myPlayerId, name, 'both', myResumeToken)
-          }}
-          onLeft={handlePlayerLeft}
-          inLobby={game.status === 'waiting'}
-        />
+        {!isFinished && (
+          <PlayerSessionControls
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            currentName={myPlayerName}
+            onRenamed={(name) => {
+              setMyPlayerName(name)
+              setPlayerSession(gameCode, myPlayerId, name, 'both', myResumeToken)
+            }}
+            onLeft={handlePlayerLeft}
+            inLobby={game.status === 'waiting'}
+          />
+        )}
         {game.status === 'waiting' && (
           <>
             {me?.spectator === true && (
