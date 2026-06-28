@@ -46,9 +46,31 @@ export function PlayerResumeEntry({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`w-full text-sm text-muted hover:text-body transition-colors ${className}`}
+        aria-expanded={false}
+        className={`group flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-left transition-colors hover:border-[color-mix(in_srgb,var(--primary)_40%,var(--border))] hover:bg-[var(--surface-inset-bg)] ${className}`}
       >
-        Already joined? Continue with your player code
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span
+            aria-hidden
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--surface-inset-bg)] text-sm text-[var(--primary)]"
+          >
+            ↩
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block text-sm font-semibold text-body">Already joined?</span>
+            <span className="block text-xs text-faint">Continue with your player code</span>
+          </span>
+        </span>
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-4 w-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5"
+        >
+          <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
     )
   }

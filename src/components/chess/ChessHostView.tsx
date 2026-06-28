@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
-import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostManageSection } from '@/components/host/HostManageSection'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { ExitIcon } from '@/components/host/host-icons'
 import { currentTurnPlayerId, CHESS_MIN_PLAYERS, isChessResultsPhase } from '@/lib/chess'
 import { supabase } from '@/lib/supabase'
 import { GAME_SELECT, PLAYER_SELECT, CHESS_SESSION_SELECT } from '@/lib/supabase-selects'
@@ -17,7 +20,6 @@ import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
-import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { useChessClockExpiry } from '@/hooks/useChessClocks'
 import { ChessGamePanel } from '@/components/chess/ChessBoard'
 import { ChessFinalResultsShareBlock } from '@/components/chess/ChessFinalResultsShareBlock'
@@ -46,7 +48,6 @@ export function ChessHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const [session, setSession] = useState<ChessSession | null>(null)
   const [starting, setStarting] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
-  const [ending, setEnding] = useState(false)
   const [hostMode, setHostModeState] = useState<ChessHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostResumeToken, setHostResumeToken] = useState<string | null>(null)
@@ -93,15 +94,11 @@ export function ChessHostView({ gameCode, hostToken }: { gameCode: string; hostT
     }
   }, [gameCode, load])
 
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage at results.
   useEffect(() => {
     if (isChessResultsPhase(game?.status, session)) setTab('manage')
+    else if (game?.status === 'active') setTab('play')
   }, [game?.status, session])
-
-  useEffect(() => {
-    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
-      setTab('play')
-    }
-  }, [hostMode, hostPlayerId, game?.status])
 
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scheduleLoad = useCallback(() => {
@@ -248,25 +245,6 @@ export function ChessHostView({ gameCode, hostToken }: { gameCode: string; hostT
     }
   }
 
-  const endGame = async () => {
-    setEnding(true)
-    try {
-      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to end')
-      success('Game ended')
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to end')
-    } finally {
-      setEnding(false)
-    }
-  }
-
   const playAgain = async () => {
     setPlayingAgain(true)
     try {
@@ -293,7 +271,6 @@ export function ChessHostView({ gameCode, hostToken }: { gameCode: string; hostT
   const winner = players.find((p) => p.id === session?.winner_player_id)
   const hostPlays = hostMode === 'player' && !!hostPlayerId
   const gameFinished = isChessResultsPhase(game?.status, session)
-  const showPlayTab = hostPlays && game?.status !== 'waiting' && !gameFinished
   const isHostTurn = turnPlayerId === hostPlayerId
 
   useChessClockExpiry(gameCode, session, game?.status === 'active')
@@ -314,174 +291,120 @@ export function ChessHostView({ gameCode, hostToken }: { gameCode: string; hostT
     )
   }
 
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = !gameFinished
+  const gameStarted = game.status === 'active' && !gameFinished
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
+
+  const interactivePlay = session && hostPlayerId && (
+    <ChessGamePanel
+      session={session}
+      players={players}
+      myPlayerId={hostPlayerId}
+      isMyTurn={isHostTurn}
+      timeControlSeconds={game?.timer_seconds ?? 0}
+      appearanceDefaults={{ boardTheme: game?.chess_board_theme, pieceSet: game?.chess_piece_set }}
+      onMove={movePiece}
+      onResign={resign}
+      acting={hostActing}
+    />
+  )
+
+  const watchBoard = session ? (
+    <ChessGamePanel
+      session={session}
+      players={players}
+      myPlayerId={hostPlayerId}
+      isMyTurn={false}
+      timeControlSeconds={game?.timer_seconds ?? 0}
+      appearanceDefaults={{ boardTheme: game?.chess_board_theme, pieceSet: game?.chess_piece_set }}
+    />
+  ) : (
+    <p className="text-muted text-sm text-center">Waiting for the round to begin…</p>
+  )
+
+  const manage = (
+    <HostManageSection
+      game={game}
+      players={players}
+      highlightPlayerId={hostPlayerId}
+      removingPlayerId={removingPlayerId}
+      onRemovePlayer={removePlayer}
+      gameType="chess"
+      top={
+        game.status === 'waiting' ? (
+          <HostModeSelector
+            mode={hostMode}
+            onChange={changeHostMode}
+            joinedPlayerId={hostPlayerId}
+            joinedPlayerName={hostPlayerName}
+            joinName={hostJoinName}
+            onJoinNameChange={setHostJoinName}
+            onJoin={() => void hostJoinGame()}
+            joining={hostJoining}
+            spectatorHint="Spectate from the Watch tab"
+          />
+        ) : undefined
+      }
+      footer={
+        game.status === 'waiting' ? (
+          <HostLobbyWaitingFooter
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onStart={startGame}
+            onEnded={load}
+            canStart={canStart}
+            starting={starting}
+            startDisabledHint={
+              canStart
+                ? null
+                : readyPlayers.length < players.length
+                  ? `Waiting for players to tap ready (${readyPlayers.length}/${CHESS_MIN_PLAYERS})`
+                  : `Need exactly ${CHESS_MIN_PLAYERS} players to start (${players.length}/${CHESS_MIN_PLAYERS})`
+            }
+            className="space-y-3"
+          />
+        ) : game.status === 'active' && !gameFinished ? (
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={load}
+            label="End game early"
+            icon={<ExitIcon size={16} />}
+            confirmTitle="End this game early?"
+            confirmMessage="The current game will end and players will see the results screen."
+            className="btn-danger-soft"
+          />
+        ) : null
+      }
+    />
+  )
 
   return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      {!gameFinished && <HostGameHeader game={game} />}
-
-      {game.status === 'waiting' && (
-        <div className="glass-card-strong p-5 space-y-3">
-          <p className="label-caps">Host mode</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => changeHostMode('spectator')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'spectator'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host only</span>
-              <span className="text-faint text-xs">Spectate from Manage</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeHostMode('player')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'player'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host + play</span>
-              <span className="text-faint text-xs">Play tab + Manage tab</span>
-            </button>
-          </div>
-          {hostMode === 'player' && !hostPlayerId && (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={hostJoinName}
-                onChange={(e) => setHostJoinName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void hostJoinGame()}
-                placeholder="Your name"
-                className="input-field flex-1"
-                maxLength={40}
-              />
-              <button
-                type="button"
-                onClick={() => void hostJoinGame()}
-                disabled={!hostJoinName.trim() || hostJoining}
-                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-              >
-                {hostJoining ? 'Joining…' : 'Join'}
-              </button>
-            </div>
-          )}
-          {hostMode === 'player' && hostPlayerId && (
-            <p className="text-sm text-muted">
-              Playing as <span className="font-semibold text-[var(--foreground)]">{hostPlayerName}</span>
-            </p>
-          )}
-        </div>
-      )}
-
-      {showPlayTab && (
-        <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
-          <button
-            type="button"
-            onClick={() => setTab('play')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('manage')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Manage
-          </button>
-        </div>
-      )}
-
-      {tab === 'play' && session && hostPlayerId && game.status === 'active' && !gameFinished && (
-        <ChessGamePanel
-          session={session}
+    <HostGameLayout
+      gameCode={gameCode}
+      status={gameFinished ? 'finished' : game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={gameFinished ? undefined : <HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchBoard}
+      manage={manage}
+      finished={
+        <ChessFinalResultsShareBlock
+          game={game}
           players={players}
-          myPlayerId={hostPlayerId}
-          isMyTurn={isHostTurn}
-          timeControlSeconds={game?.timer_seconds ?? 0}
-          appearanceDefaults={{ boardTheme: game?.chess_board_theme, pieceSet: game?.chess_piece_set }}
-          onMove={movePiece}
-          onResign={resign}
-          acting={hostActing}
+          session={session}
+          winnerName={winner?.name}
+          highlightPlayerId={hostPlayerId}
+          playAgainButton={
+            <ChessPrimaryButton onClick={playAgain} loading={playingAgain}>
+              Play again
+            </ChessPrimaryButton>
+          }
         />
-      )}
-
-      {(tab === 'manage' || !showPlayTab) && (
-        <>
-          {!gameFinished && (
-            <p className="text-center">
-              <GameRulesLink gameType="chess" variant="subtle" />
-            </p>
-          )}
-
-          {gameFinished && (
-            <ChessFinalResultsShareBlock
-              game={game}
-              players={players}
-              session={session}
-              winnerName={winner?.name}
-              highlightPlayerId={hostPlayerId}
-              playAgainButton={
-                <ChessPrimaryButton onClick={playAgain} loading={playingAgain}>
-                  Play again
-                </ChessPrimaryButton>
-              }
-            />
-          )}
-
-          {session && game.status === 'active' && !gameFinished && (
-            <ChessGamePanel
-              session={session}
-              players={players}
-              myPlayerId={hostPlayerId}
-              isMyTurn={false}
-              timeControlSeconds={game?.timer_seconds ?? 0}
-              appearanceDefaults={{ boardTheme: game?.chess_board_theme, pieceSet: game?.chess_piece_set }}
-            />
-          )}
-
-          {(game.status === 'waiting' || (game.status === 'active' && !gameFinished)) && (
-            <HostLobbyPlayersSection
-              players={players}
-              removingPlayerId={removingPlayerId}
-              onRemovePlayer={removePlayer}
-              highlightPlayerId={hostPlayerId}
-            />
-          )}
-
-          {game.status === 'waiting' && (
-            <HostLobbyWaitingFooter
-              gameCode={gameCode}
-              hostToken={hostToken}
-              onStart={startGame}
-              onEnded={load}
-              canStart={canStart}
-              starting={starting}
-              startDisabledHint={
-                canStart
-                  ? null
-                  : readyPlayers.length < players.length
-                    ? `Waiting for players to tap ready (${readyPlayers.length}/${CHESS_MIN_PLAYERS})`
-                    : `Need exactly ${CHESS_MIN_PLAYERS} players to start (${players.length}/${CHESS_MIN_PLAYERS})`
-              }
-              className="space-y-3"
-            />
-          )}
-
-          {game.status === 'active' && !gameFinished && (
-            <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
-              {ending ? 'Ending…' : 'End game early'}
-            </button>
-          )}
-        </>
-      )}
-    </HostPageShell>
+      }
+    />
   )
 }

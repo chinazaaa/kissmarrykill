@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { AnonymousMessageFeed } from '@/components/anonymous-messages/AnonymousMessageFeed'
 import { AnonymousRoomSessionSummary } from '@/components/anonymous-messages/AnonymousRoomSessionSummary'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { ExitIcon } from '@/components/host/host-icons'
 import { HostLobbyStartButton } from '@/components/host-lobby/HostLobbyStartButton'
 import { ResultsPagination, usePagination } from '@/components/ui/ResultsPagination'
 import { useAnonymousMessageTrim } from '@/hooks/useAnonymousMessageTrim'
@@ -46,8 +47,9 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [mutingPlayerId, setMutingPlayerId] = useState<string | null>(null)
   const [muteMinutes, setMuteMinutes] = useState(ANONYMOUS_ROOM_DEFAULT_BAN_MINUTES)
+  const [tab, setTab] = useState<'play' | 'manage'>('manage')
 
-  useScrollHostViewToTop({ gameStatus: game?.status })
+  useScrollHostViewToTop({ gameStatus: game?.status, tab })
 
   const lobbyActionsEnabled = game?.status === 'waiting' || game?.status === 'active'
   const { bans, banForPlayer, reload: reloadBans } = useAnonymousRoomBans(gameCode, !!lobbyActionsEnabled)
@@ -80,6 +82,12 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   useEffect(() => {
     load()
   }, [load])
+
+  // Land on the primary (Watch) tab when the session starts, and on Manage when it ends.
+  useEffect(() => {
+    if (game?.status === 'active') setTab('play')
+    else if (game?.status === 'finished') setTab('manage')
+  }, [game?.status])
 
   const handlePlayerRemoved = useCallback((playerId: string) => {
     setPlayers((prev) => prev.filter((p) => p.id !== playerId))
@@ -226,8 +234,11 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
   const roomCapacity = anonymousRoomMaxPlayers(game)
   const presence = countAnonymousRoomPresence(players, game)
 
-  return (
-    <HostPageShell gameCode={gameCode}>
+  const gameStarted = game.status === 'active'
+  const showTabs = game.status !== 'finished'
+
+  const header = (
+    <>
       <HostGameHeader
         game={game}
         subtitle={
@@ -243,7 +254,27 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
         <p className="text-muted text-xs uppercase tracking-wider">Code</p>
         <p className="text-body font-mono font-black text-2xl tracking-[0.2em]">{gameCode}</p>
       </div>
+    </>
+  )
 
+  const watchFeed = (
+    <>
+      <AnonymousSessionTimerBar gameCode={gameCode} game={game} sticky />
+      <AnonymousMessageFeed
+        messages={messages}
+        title="Live anonymous messages"
+        canRemove
+        removingId={removingId}
+        onRemove={removeMessageByHost}
+        reactionsMap={reactionsMap}
+        myPlayerName=""
+        onReact={() => {}}
+      />
+    </>
+  )
+
+  const manage = (
+    <div className="space-y-4 sm:space-y-5 animate-stagger">
       <div className="glass-card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <p className="text-muted text-xs uppercase tracking-wider">
@@ -360,48 +391,53 @@ export function AnonymousMessagesHostView({ gameCode, hostToken }: { gameCode: s
           hostToken={hostToken}
           onEnded={load}
           label="End lobby"
+          icon={<ExitIcon size={16} />}
           confirmTitle="Close this lobby?"
           confirmMessage="Players will be disconnected. You can start a new session from Play again afterward."
-          className="btn-secondary w-full"
+          className="btn-danger-soft"
         />
       )}
 
       {game.status === 'active' && (
-        <>
-          <AnonymousSessionTimerBar gameCode={gameCode} game={game} sticky />
-          <AnonymousMessageFeed
-            messages={messages}
-            title="Live anonymous messages"
-            canRemove
-            removingId={removingId}
-            onRemove={removeMessageByHost}
-            reactionsMap={reactionsMap}
-            myPlayerName=""
-            onReact={() => {}}
-          />
-          <HostEndGameButton
-            gameCode={gameCode}
-            hostToken={hostToken}
-            onEnded={load}
-            label="End session"
-            confirmTitle="End this session?"
-            confirmMessage="Players will see the session summary. You can start a new session from the lobby afterward."
-            className="btn-secondary w-full"
-          />
-        </>
+        <HostEndGameButton
+          gameCode={gameCode}
+          hostToken={hostToken}
+          onEnded={load}
+          label="End session"
+          icon={<ExitIcon size={16} />}
+          confirmTitle="End this session?"
+          confirmMessage="Players will see the session summary. You can start a new session from the lobby afterward."
+          className="btn-danger-soft"
+        />
       )}
+    </div>
+  )
 
-      {game.status === 'finished' && (
-        <>
-          <AnonymousRoomSessionSummary game={game} playerCount={players.length} />
-          <div className="flex flex-col gap-2">
-            <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full">
-              {playingAgain ? 'Resetting…' : 'Play again'}
-            </button>
-            <CreateNewGameButton />
-          </div>
-        </>
-      )}
-    </HostPageShell>
+  const finished = (
+    <>
+      <AnonymousRoomSessionSummary game={game} playerCount={players.length} />
+      <div className="flex flex-col gap-2">
+        <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full">
+          {playingAgain ? 'Resetting…' : 'Play again'}
+        </button>
+        <CreateNewGameButton />
+      </div>
+    </>
+  )
+
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind="watch"
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={header}
+      primary={watchFeed}
+      manage={manage}
+      finished={finished}
+    />
   )
 }

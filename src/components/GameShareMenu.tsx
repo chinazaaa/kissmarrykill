@@ -88,7 +88,7 @@ export function GameShareMenu({ gameCode, hostToken, resumeToken, className = ''
         aria-label="Share game links"
       >
         <ShareIcon />
-        <span>Share</span>
+        <span className="hidden sm:inline">Share</span>
       </button>
 
       <Modal open={menuOpen} onClose={() => setMenuOpen(false)} title="Share game" subtitle={subtitle} size="md">

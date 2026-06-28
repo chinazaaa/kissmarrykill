@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostModePanel } from '@/components/host/HostModePanel'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
+import { HostRulesRow } from '@/components/host/HostRulesRow'
+import { ExitIcon } from '@/components/host/host-icons'
 import { HostWordHuntLobbyPanel } from '@/components/host-lobby/HostWordHuntLobbyPanel'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
@@ -12,7 +14,6 @@ import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { WordHuntBoard } from '@/components/word-hunt/WordHuntBoard'
 import { WordHuntPlayerView } from '@/components/word-hunt/WordHuntPlayerView'
 import { WordHuntFinalResultsShareBlock } from '@/components/word-hunt/WordHuntFinalResultsShareBlock'
-import { GameRulesLink } from '@/components/ui/GameRulesLink'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { parseWordHuntMetadata, tallyWordHuntScores, WORD_HUNT_MIN_PLAYERS } from '@/lib/word-hunt'
 import { validWordsSetFromMetadata } from '@/lib/word-hunt-client'
@@ -137,15 +138,11 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
     }
   }, [gameCode, load])
 
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage when it ends.
   useEffect(() => {
     if (game?.status === 'finished') setTab('manage')
+    else if (game?.status === 'active') setTab('play')
   }, [game?.status])
-
-  useEffect(() => {
-    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
-      setTab('play')
-    }
-  }, [hostMode, hostPlayerId, game?.status])
 
   useHostAutoReady(gameCode, game?.status, hostPlayerId, players, load)
 
@@ -313,7 +310,6 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
   const readyPlayers = players.filter((p) => p.spectator !== true)
   const canStart = readyPlayers.length >= WORD_HUNT_MIN_PLAYERS
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status === 'active'
   const totalWords = submissions.length
 
   if (!game) {
@@ -324,186 +320,163 @@ export function WordHuntHostView({ gameCode, hostToken }: { gameCode: string; ho
     )
   }
 
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = game.status !== 'finished'
+  const gameStarted = game.status === 'active'
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
 
-  return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      {game.status !== 'finished' && <HostGameHeader game={game} />}
+  // Primary tab: interactive play for a host-player.
+  const interactivePlay = <WordHuntPlayerView gameCode={gameCode} />
 
+  // Primary tab (host-only): read-only live board, progress, and leaderboard.
+  const watchRound = game.status === 'active' && (
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Words found</p>
+          <p className="text-2xl font-black">{totalWords}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Time left</p>
+          <p
+            className={`text-xl font-black tabular-nums ${timeUp ? 'text-[var(--kill)]' : secondsLeft <= 10 ? 'text-[var(--marry)]' : 'text-[var(--primary)]'}`}
+          >
+            {timeLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {grid && <WordHuntBoard grid={grid} selectedPath={[]} onPathChange={() => {}} disabled />}
+
+        <div className="space-y-3">
+          <p className="label-caps text-xs">Live scores</p>
+          {leaderboard.map((row, i) => (
+            <div key={row.player_id} className="glass-card px-3 py-2 flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {i + 1}. {row.name}
+              </span>
+              <span className="text-sm font-bold">
+                {row.points} pts · {row.word_count}w
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+
+  const manage = (
+    <div className="space-y-4 sm:space-y-5 animate-stagger">
       {game.status === 'waiting' && (
-        <HostModePanel
-          hostMode={hostMode}
-          onModeChange={changeHostMode}
-          joinBlock={
-            !hostPlayerId ? (
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field flex-1"
-                  maxLength={40}
-                />
-                <button
-                  type="button"
-                  onClick={() => void hostJoinGame()}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
-              </div>
-            ) : undefined
-          }
-          joinedHint={
-            hostPlayerId ? (
-              <p className="text-sm text-muted">
-                Playing as <span className="font-semibold text-[var(--foreground)]">{hostPlayerName}</span>
-              </p>
-            ) : undefined
+        <HostModeSelector
+          mode={hostMode}
+          onChange={changeHostMode}
+          joinedPlayerId={hostPlayerId}
+          joinedPlayerName={hostPlayerName}
+          joinName={hostJoinName}
+          onJoinNameChange={setHostJoinName}
+          onJoin={() => void hostJoinGame()}
+          joining={hostJoining}
+          spectatorHint="Watch the game from the Watch tab"
+          playingNote={
+            <p className="text-sm text-muted">
+              Playing as <strong className="text-body">{hostPlayerName}</strong> — play from the Play tab once you start.
+            </p>
           }
         />
       )}
+      {game.status !== 'finished' && <HostRulesRow gameType="word_hunt" />}
 
-      {showPlayTab && (
-        <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
-          <button
-            type="button"
-            onClick={() => setTab('play')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('manage')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Manage
-          </button>
-        </div>
+      {game.status === 'active' && (
+        <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
       )}
 
-      {tab === 'play' && showPlayTab && <WordHuntPlayerView gameCode={gameCode} />}
+      {(game.status === 'waiting' || game.status === 'active') && (
+        <HostLobbyPlayersSection
+          players={players}
+          removingPlayerId={removingPlayerId}
+          onRemovePlayer={removePlayer}
+          highlightPlayerId={hostPlayerId}
+        />
+      )}
 
-      {(tab === 'manage' || !showPlayTab) && (
+      {game.status === 'waiting' && (
         <>
-          <p className="text-center">
-            <GameRulesLink gameType="word_hunt" variant="subtle" />
-          </p>
-
-          {game.status === 'active' && (
-            <>
-              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Words found</p>
-                  <p className="text-2xl font-black">{totalWords}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Time left</p>
-                  <p
-                    className={`text-xl font-black tabular-nums ${timeUp ? 'text-[var(--kill)]' : secondsLeft <= 10 ? 'text-[var(--marry)]' : 'text-[var(--primary)]'}`}
-                  >
-                    {timeLabel}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {grid && <WordHuntBoard grid={grid} selectedPath={[]} onPathChange={() => {}} disabled />}
-
-                <div className="space-y-3">
-                  <p className="label-caps text-xs">Live scores</p>
-                  {leaderboard.map((row, i) => (
-                    <div key={row.player_id} className="glass-card px-3 py-2 flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        {i + 1}. {row.name}
-                      </span>
-                      <span className="text-sm font-bold">
-                        {row.points} pts · {row.word_count}w
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {game.status === 'finished' && (
-            <WordHuntFinalResultsShareBlock
-              game={game}
-              players={players}
-              leaderboard={leaderboard}
-              highlightPlayerId={hostPlayerId}
-              mySubmissions={hostMySubmissions}
-              allSubmissions={submissions}
-              validWords={validWords.length > 0 ? validWords : undefined}
-              playAgainButton={
-                <button
-                  type="button"
-                  onClick={() => void handlePlayAgain()}
-                  disabled={playingAgain}
-                  className="btn-primary w-full py-3 font-bold"
-                >
-                  {playingAgain ? 'Resetting…' : 'Play again'}
-                </button>
-              }
-            />
-          )}
-
-          {(game.status === 'waiting' || game.status === 'active') && (
-            <HostLobbyPlayersSection
-              players={players}
-              removingPlayerId={removingPlayerId}
-              onRemovePlayer={removePlayer}
-              highlightPlayerId={hostPlayerId}
-            />
-          )}
-
-          {game.status === 'waiting' && (
-            <>
-              <HostWordHuntLobbyPanel
-                gameCode={gameCode}
-                hostToken={hostToken}
-                game={game}
-                playerCount={players.length}
-                onGameUpdate={setGame}
-              />
-              <HostLobbyWaitingFooter
-                gameCode={gameCode}
-                hostToken={hostToken}
-                onStart={() => void startGame()}
-                onEnded={load}
-                canStart={canStart}
-                starting={starting}
-                startLabel="Start hunt"
-                startDisabledHint={
-                  canStart
-                    ? null
-                    : `Need at least ${WORD_HUNT_MIN_PLAYERS} players to start (${readyPlayers.length}/${WORD_HUNT_MIN_PLAYERS})`
-                }
-                className="space-y-3"
-              />
-            </>
-          )}
-
-          {game.status === 'active' && (
-            <HostEndGameButton
-              gameCode={gameCode}
-              hostToken={hostToken}
-              onEnded={load}
-              label="End game early"
-              confirmTitle="End this hunt early?"
-              confirmMessage="The round will end and players will see the final scores."
-              className="btn-secondary w-full py-3"
-            />
-          )}
+          <HostWordHuntLobbyPanel
+            gameCode={gameCode}
+            hostToken={hostToken}
+            game={game}
+            playerCount={players.length}
+            onGameUpdate={setGame}
+          />
+          <HostLobbyWaitingFooter
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onStart={() => void startGame()}
+            onEnded={load}
+            canStart={canStart}
+            starting={starting}
+            startLabel="Start hunt"
+            startDisabledHint={
+              canStart
+                ? null
+                : `Need at least ${WORD_HUNT_MIN_PLAYERS} players to start (${readyPlayers.length}/${WORD_HUNT_MIN_PLAYERS})`
+            }
+            className="space-y-3"
+          />
         </>
       )}
-    </HostPageShell>
+
+      {game.status === 'active' && (
+        <HostEndGameButton
+          gameCode={gameCode}
+          hostToken={hostToken}
+          onEnded={load}
+          label="End game"
+          icon={<ExitIcon size={16} />}
+          confirmTitle="End this hunt early?"
+          confirmMessage="The round will end and players will see the final scores."
+          className="btn-danger-soft"
+        />
+      )}
+    </div>
+  )
+
+  const finished = (
+    <WordHuntFinalResultsShareBlock
+      game={game}
+      players={players}
+      leaderboard={leaderboard}
+      highlightPlayerId={hostPlayerId}
+      mySubmissions={hostMySubmissions}
+      allSubmissions={submissions}
+      validWords={validWords.length > 0 ? validWords : undefined}
+      playAgainButton={
+        <button
+          type="button"
+          onClick={() => void handlePlayAgain()}
+          disabled={playingAgain}
+          className="btn-primary w-full py-3 font-bold"
+        >
+          {playingAgain ? 'Resetting…' : 'Play again'}
+        </button>
+      }
+    />
+  )
+
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={<HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchRound}
+      manage={manage}
+      finished={finished}
+    />
   )
 }

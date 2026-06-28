@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostManageSection } from '@/components/host/HostManageSection'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
 import { HostBoardGameLobbyPanel } from '@/components/host-lobby/HostBoardGameLobbyPanel'
-import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { gameTypeConfig } from '@/lib/game-types'
 import {
@@ -28,7 +29,7 @@ import { useApplyGameTheme } from '@/hooks/useApplyGameTheme'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
-import { GameRulesLink } from '@/components/ui/GameRulesLink'
+import { ExitIcon } from '@/components/host/host-icons'
 import { useLudoTurnTimer } from '@/hooks/useLudoTurnTimer'
 import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/hooks/useLudoNotifications'
 import { LudoGamePanel } from '@/components/ludo/LudoBoard'
@@ -47,7 +48,6 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const [states, setStates] = useState<LudoPlayerState[]>([])
   const [starting, setStarting] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
-  const [ending, setEnding] = useState(false)
   const [hostMode, setHostModeState] = useState<LudoHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
   const [hostResumeToken, setHostResumeToken] = useState<string | null>(null)
@@ -89,15 +89,11 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     }
   }, [gameCode, load])
 
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage when it ends.
   useEffect(() => {
-    if (game?.status === 'finished') setTab('manage')
+    if (game?.status === 'active') setTab('play')
+    else if (game?.status === 'finished') setTab('manage')
   }, [game?.status])
-
-  useEffect(() => {
-    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
-      setTab('play')
-    }
-  }, [hostMode, hostPlayerId, game?.status])
 
   // Coalesce the burst of postgres_changes events a single move produces into
   // one reload, avoiding refetch storms and flicker from partial snapshots.
@@ -232,25 +228,6 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     }
   }
 
-  const endGame = async () => {
-    setEnding(true)
-    try {
-      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to end')
-      success('Game ended')
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to end')
-    } finally {
-      setEnding(false)
-    }
-  }
-
   const playAgain = async () => {
     setPlayingAgain(true)
     try {
@@ -276,7 +253,6 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const turnPlayerId = session ? currentPlayerId(session) : null
   const winner = players.find((p) => p.id === session?.winner_player_id)
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status !== 'waiting' && game?.status !== 'finished'
   const isHostTurn = turnPlayerId === hostPlayerId
 
   const { secondsLeft, hasTimer, urgent } = useLudoTurnTimer(
@@ -303,189 +279,142 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     )
   }
 
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = game.status !== 'finished'
+  const gameStarted = game.status === 'active'
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
 
-  return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      <HostGameHeader game={game} />
+  // Primary tab: interactive board when the host is playing, read-only board otherwise.
+  const interactivePlay = session && hostPlayerId && (
+    <LudoGamePanel
+      session={session}
+      states={states}
+      players={players}
+      myPlayerId={hostPlayerId}
+      isMyTurn={isHostTurn}
+      secondsLeft={secondsLeft}
+      hasTimer={hasTimer}
+      urgent={urgent}
+      onRoll={() => void postHostAction('/api/ludo/roll')}
+      onMovePiece={(pieceId, diceIndex) => void postHostAction('/api/ludo/move', { pieceId, diceIndex })}
+      acting={hostActing}
+      rolling={rolling}
+      displayDice={displayDice}
+    />
+  )
 
-      {game.status === 'waiting' && (
-        <div className="glass-card-strong p-5 space-y-3">
-          <p className="label-caps">Host mode</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => changeHostMode('spectator')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'spectator'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host only</span>
-              <span className="text-faint text-xs">Spectate from Manage</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeHostMode('player')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'player'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host + play</span>
-              <span className="text-faint text-xs">Play tab + Manage tab</span>
-            </button>
-          </div>
-          {hostMode === 'player' && !hostPlayerId && (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={hostJoinName}
-                onChange={(e) => setHostJoinName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void hostJoinGame()}
-                placeholder="Your name"
-                className="input-field flex-1"
-                maxLength={40}
-              />
-              <button
-                type="button"
-                onClick={() => void hostJoinGame()}
-                disabled={!hostJoinName.trim() || hostJoining}
-                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-              >
-                {hostJoining ? 'Joining…' : 'Join'}
-              </button>
-            </div>
-          )}
-          {hostMode === 'player' && hostPlayerId && (
-            <p className="text-sm text-muted">
-              Playing as <span className="font-semibold text-[var(--foreground)]">{hostPlayerName}</span>
-            </p>
-          )}
-        </div>
-      )}
+  const watchBoard = session ? (
+    <LudoGamePanel
+      session={session}
+      states={states}
+      players={players}
+      myPlayerId={hostPlayerId}
+      isMyTurn={false}
+      secondsLeft={secondsLeft}
+      hasTimer={hasTimer}
+      urgent={urgent}
+    />
+  ) : (
+    <p className="text-muted text-sm text-center">Waiting for the round to begin…</p>
+  )
 
-      {showPlayTab && (
-        <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
-          <button
-            type="button"
-            onClick={() => setTab('play')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('manage')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-          >
-            Manage
-          </button>
-        </div>
-      )}
-
-      {tab === 'play' && session && hostPlayerId && (
-        <LudoGamePanel
-          session={session}
-          states={states}
-          players={players}
-          myPlayerId={hostPlayerId}
-          isMyTurn={isHostTurn}
-          secondsLeft={secondsLeft}
-          hasTimer={hasTimer}
-          urgent={urgent}
-          onRoll={() => void postHostAction('/api/ludo/roll')}
-          onMovePiece={(pieceId, diceIndex) => void postHostAction('/api/ludo/move', { pieceId, diceIndex })}
-          acting={hostActing}
-          rolling={rolling}
-          displayDice={displayDice}
-        />
-      )}
-
-      {(tab === 'manage' || !showPlayTab) && (
+  const manage = (
+    <HostManageSection
+      game={game}
+      players={players}
+      highlightPlayerId={hostPlayerId}
+      removingPlayerId={removingPlayerId}
+      onRemovePlayer={removePlayer}
+      gameType="ludo"
+      top={
+        game.status === 'waiting' ? (
+          <HostModeSelector
+            mode={hostMode}
+            onChange={changeHostMode}
+            joinedPlayerId={hostPlayerId}
+            joinedPlayerName={hostPlayerName}
+            joinName={hostJoinName}
+            onJoinNameChange={setHostJoinName}
+            onJoin={() => void hostJoinGame()}
+            joining={hostJoining}
+            spectatorHint="Spectate from the Watch tab"
+          />
+        ) : undefined
+      }
+      settings={
         <>
-          <p className="text-center">
-            <GameRulesLink gameType="ludo" variant="subtle" />
-          </p>
-
-          {game.status === 'finished' && (
-            <LudoFinalResultsShareBlock
-              game={game}
-              players={players}
-              states={states}
-              session={session}
-              winnerName={winner?.name}
-              playAgainButton={
-                <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
-                  Play again
-                </LudoPrimaryButton>
-              }
-            />
-          )}
-
-          {session && game.status !== 'finished' && (
-            <LudoGamePanel
-              session={session}
-              states={states}
-              players={players}
-              myPlayerId={hostPlayerId}
-              isMyTurn={false}
-              secondsLeft={secondsLeft}
-              hasTimer={hasTimer}
-              urgent={urgent}
-            />
-          )}
-
-          {(game.status === 'waiting' || game.status === 'active') && (
-            <HostLobbyPlayersSection
-              players={players}
-              removingPlayerId={removingPlayerId}
-              onRemovePlayer={removePlayer}
-              highlightPlayerId={hostPlayerId}
-            />
-          )}
-
           {game.status === 'waiting' && (
-            <>
-              <HostBoardGameLobbyPanel
-                gameCode={gameCode}
-                hostToken={hostToken}
-                game={game}
-                boardGameType="ludo"
-                playerCount={players.length}
-                onGameUpdate={setGame}
-              />
-              <HostLobbyWaitingFooter
-                gameCode={gameCode}
-                hostToken={hostToken}
-                onStart={startGame}
-                onEnded={load}
-                canStart={canStart}
-                starting={starting}
-                startDisabledHint={
-                  canStart
-                    ? null
-                    : `Need at least ${LUDO_MIN_PLAYERS} players to start (${players.length}/${LUDO_MIN_PLAYERS})`
-                }
-                className="space-y-3"
-              />
-            </>
+            <HostBoardGameLobbyPanel
+              gameCode={gameCode}
+              hostToken={hostToken}
+              game={game}
+              boardGameType="ludo"
+              playerCount={players.length}
+              onGameUpdate={setGame}
+            />
           )}
-
           {game.status === 'active' && (
-            <>
-              <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-              <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
-                {ending ? 'Ending…' : 'End game early'}
-              </button>
-            </>
+            <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
           )}
         </>
-      )}
-    </HostPageShell>
+      }
+      footer={
+        game.status === 'waiting' ? (
+          <HostLobbyWaitingFooter
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onStart={() => void startGame()}
+            onEnded={load}
+            canStart={canStart}
+            starting={starting}
+            startDisabledHint={
+              canStart
+                ? null
+                : `Need at least ${LUDO_MIN_PLAYERS} players to start (${players.length}/${LUDO_MIN_PLAYERS})`
+            }
+            className="space-y-3"
+          />
+        ) : game.status === 'active' ? (
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={load}
+            label="End game early"
+            icon={<ExitIcon size={16} />}
+            confirmTitle="End this game early?"
+            confirmMessage="The current game will end and players will see the results screen."
+            className="btn-danger-soft"
+          />
+        ) : null
+      }
+    />
+  )
+
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={<HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchBoard}
+      manage={manage}
+      finished={
+        <LudoFinalResultsShareBlock
+          game={game}
+          players={players}
+          states={states}
+          session={session}
+          winnerName={winner?.name}
+          playAgainButton={
+            <LudoPrimaryButton onClick={playAgain} loading={playingAgain}>
+              Play again
+            </LudoPrimaryButton>
+          }
+        />
+      }
+    />
   )
 }

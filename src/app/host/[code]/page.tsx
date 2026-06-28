@@ -3834,7 +3834,9 @@ export default function HostPage() {
         >
           <div className="text-center">
             <div className="text-4xl mb-2">🏆</div>
-            <h1 className="text-3xl font-black text-body">{game.title}</h1>
+            {/* When a leaderboard snapshot renders below, its capture header already shows the
+                title — avoid repeating it here. */}
+            {!hasFinalLeaderboardSnapshot && <h1 className="text-3xl font-black text-body">{game.title}</h1>}
             <p className="text-muted">
               {players.length} players · {allRounds.length} rounds
               {isMltImport

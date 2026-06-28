@@ -8,6 +8,7 @@ import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
+import { ExitIcon } from '@/components/host/host-icons'
 import {
   formatTriviaChoiceLabel,
   parseTriviaMetadata,
@@ -51,6 +52,8 @@ interface TriviaHostManagePanelProps {
   roundAnswers?: TriviaAnswer[]
   allAnswered?: boolean
   isLastRound?: boolean
+  /** Which slice to render: gameplay ('watch'), controls/settings ('manage'), results ('finished'). */
+  section?: 'watch' | 'manage' | 'finished' | 'all'
 }
 
 export function TriviaHostManagePanel({
@@ -79,6 +82,7 @@ export function TriviaHostManagePanel({
   roundAnswers: roundAnswersProp,
   allAnswered: allAnsweredProp,
   isLastRound: isLastRoundProp,
+  section = 'all',
 }: TriviaHostManagePanelProps) {
   const [revealCountdown, setRevealCountdown] = useState(TRIVIA_REVEAL_SECONDS)
 
@@ -129,13 +133,18 @@ export function TriviaHostManagePanel({
     />
   )
 
+  const showManage = section === 'manage' || section === 'all'
+  const showWatch = section === 'watch' || section === 'all'
+  const showFinished = section === 'finished' || section === 'all'
+
   return (
     <div className="space-y-5">
-      {game.status === 'active' && onGameUpdate && (
+      {/* ── Manage: settings, players, run controls ──────────────────────── */}
+      {showManage && (game.status === 'waiting' || game.status === 'active') && onGameUpdate && (
         <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={onGameUpdate} />
       )}
 
-      {canManagePlayers && (
+      {showManage && canManagePlayers && (
         <HostLobbyPlayersSection
           players={players}
           removingPlayerId={removingPlayerId}
@@ -144,7 +153,7 @@ export function TriviaHostManagePanel({
         />
       )}
 
-      {game.status === 'waiting' && (
+      {showManage && game.status === 'waiting' && (
         <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-6 sm:p-8 space-y-5">
           <div>
             <p className="label-caps">Game settings</p>
@@ -169,7 +178,32 @@ export function TriviaHostManagePanel({
         </div>
       )}
 
-      {activeRound && metadata && (
+      {showManage && game.status === 'active' && (
+        <div className="glass-card-strong p-5 sm:p-6 space-y-3">
+          <p className="label-caps">Game controls</p>
+          {activeRound && (
+            <button
+              type="button"
+              onClick={onEndRound}
+              disabled={advancing}
+              className="btn-secondary w-full py-3 text-base"
+            >
+              {advancing ? 'Ending…' : 'End round early'}
+            </button>
+          )}
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={onReload}
+            label="End game"
+            icon={<ExitIcon size={16} />}
+            className="btn-danger-soft"
+          />
+        </div>
+      )}
+
+      {/* ── Watch: live gameplay (no controls) ───────────────────────────── */}
+      {showWatch && activeRound && metadata && (
         <LiveLeaderboardLayout sidebar={liveLeaderboard}>
           <div className="glass-card-strong p-6 sm:p-8 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm sm:text-base text-muted">
@@ -193,25 +227,11 @@ export function TriviaHostManagePanel({
                 </div>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={onEndRound}
-              disabled={advancing}
-              className="btn-secondary w-full py-3.5 text-base"
-            >
-              {advancing ? 'Ending…' : 'End round early'}
-            </button>
-            <HostEndGameButton
-              gameCode={gameCode}
-              hostToken={hostToken}
-              onEnded={onReload}
-              className="btn-secondary w-full py-3 text-base"
-            />
           </div>
         </LiveLeaderboardLayout>
       )}
 
-      {betweenRounds && lastFinishedRound && (
+      {showWatch && betweenRounds && lastFinishedRound && (
         <LiveLeaderboardLayout sidebar={liveLeaderboard}>
           <div className="glass-card-strong p-6 sm:p-8 space-y-5">
             <p className="label-caps">Round {lastFinishedRound.round_number} results</p>
@@ -261,19 +281,14 @@ export function TriviaHostManagePanel({
                   ? `Showing final leaderboard — ending in ${revealCountdown}s…`
                   : `Next question in ${revealCountdown}s…`}
             </p>
-            <HostEndGameButton
-              gameCode={gameCode}
-              hostToken={hostToken}
-              onEnded={onReload}
-              className="btn-secondary w-full py-3 text-base"
-            />
           </div>
         </LiveLeaderboardLayout>
       )}
 
-      {game.status === 'active' && !activeRound && !betweenRounds && liveLeaderboard}
+      {showWatch && game.status === 'active' && !activeRound && !betweenRounds && liveLeaderboard}
 
-      {game.status === 'finished' && (
+      {/* ── Finished: results ────────────────────────────────────────────── */}
+      {showFinished && game.status === 'finished' && (
         <>
           <FinalResultsShareBlock
             game={game}

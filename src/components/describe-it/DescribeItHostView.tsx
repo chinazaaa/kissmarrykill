@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
+import { HostRulesRow } from '@/components/host/HostRulesRow'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { ExitIcon } from '@/components/host/host-icons'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { HostAllowViewersField } from '@/components/HostAllowViewersField'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
@@ -75,7 +79,6 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   const [starting, setStarting] = useState(false)
   const [balancing, setBalancing] = useState(false)
   const [advancing, setAdvancing] = useState(false)
-  const [ending, setEnding] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
@@ -332,24 +335,6 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
     }
   }
 
-  const endGame = async () => {
-    setEnding(true)
-    try {
-      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to end')
-      success('Game ended')
-      await load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to end')
-    } finally {
-      setEnding(false)
-    }
-  }
-
   const playAgain = async () => {
     setPlayingAgain(true)
     try {
@@ -379,6 +364,14 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
     myPlayerId: hostPlayerId,
     enabled: hostMode === 'player' && !!hostPlayerId && game?.status === 'active',
   })
+
+  const gameFinished = isDescribeItResultsPhase(game?.status, session)
+
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage when it ends.
+  useEffect(() => {
+    if (gameFinished) setTab('manage')
+    else if (game?.status === 'active') setTab('play')
+  }, [gameFinished, game?.status])
 
   if (loading) {
     return (
@@ -410,180 +403,109 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
   const readyPlayers = players.filter((p) => p.spectator !== true)
   const minPlayers = isIndividual ? DESCRIBE_IT_MIN_PLAYERS_INDIVIDUAL : DESCRIBE_IT_MIN_PLAYERS
   const canStart = readyPlayers.length >= minPlayers && (isIndividual || ready.ok)
-  const gameFinished = isDescribeItResultsPhase(game.status, session)
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game.status === 'active' && !gameFinished
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = !gameFinished
+  const gameStarted = game.status === 'active' && !gameFinished
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
 
-  return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      {!gameFinished && <HostGameHeader game={game} />}
+  // Primary tab (Play): interactive panel for a host-player.
+  const interactivePlay = session && (
+    <DescribeItPlayPanel
+      session={session}
+      players={players}
+      teamRows={teamPlain}
+      words={words}
+      guesses={guesses}
+      myPlayerId={hostPlayerId}
+      secondsLeft={secondsLeft}
+      breakLeft={breakLeft}
+      urgent={urgent}
+      onClue={(clue) => void sendAction('clue', { clue })}
+      onGuess={(text) => void sendAction('guess', { text })}
+      onSkip={() => void sendAction('skip', {})}
+      acting={acting}
+    />
+  )
 
-      {/* ---- Host mode picker (lobby) ---- */}
+  // Primary tab (Watch): read-only gameplay for a host-only host.
+  const watchRound = game.status === 'active' && !gameFinished && session && (
+    <DescribeItPlayPanel
+      session={session}
+      players={players}
+      teamRows={teamPlain}
+      words={words}
+      guesses={guesses}
+      myPlayerId={null}
+      secondsLeft={secondsLeft}
+      breakLeft={breakLeft}
+      urgent={urgent}
+    />
+  )
+
+  const manage = (
+    <div className="space-y-4 sm:space-y-5 animate-stagger">
       {game.status === 'waiting' && (
-        <div className="glass-card-strong p-5 space-y-3">
-          <p className="label-caps">Host mode</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => changeHostMode('spectator')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'spectator'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host only</span>
-              <span className="text-faint text-xs">Run the game &amp; watch</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeHostMode('player')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'player'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host + play</span>
-              <span className="text-faint text-xs">{isIndividual ? 'Join in and play' : 'Join a team and play'}</span>
-            </button>
-          </div>
-          {hostMode === 'player' && !hostPlayerId && (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={hostJoinName}
-                onChange={(e) => setHostJoinName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void hostJoinGame()}
-                placeholder="Your name"
-                className="input-field flex-1"
-                maxLength={40}
-              />
-              <button
-                type="button"
-                onClick={() => void hostJoinGame()}
-                disabled={!hostJoinName.trim() || hostJoining}
-                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-              >
-                {hostJoining ? 'Joining…' : 'Join'}
-              </button>
-            </div>
-          )}
-          {hostPlays && (
+        <HostModeSelector
+          mode={hostMode}
+          onChange={changeHostMode}
+          joinedPlayerId={hostPlayerId}
+          joinedPlayerName={hostPlayerName}
+          joinName={hostJoinName}
+          onJoinNameChange={setHostJoinName}
+          onJoin={() => void hostJoinGame()}
+          joining={hostJoining}
+          spectatorHint="Watch the game from the Watch tab"
+          playingNote={
             <p className="text-sm text-muted">
-              Playing as <span className="font-semibold text-[var(--foreground)]">{hostPlayerName}</span>
-              {isIndividual ? ' — you’re in the rotation.' : ' — pick your team below.'}
+              Playing as <strong className="text-body">{hostPlayerName}</strong> — play from the Play tab once you
+              start.
             </p>
-          )}
-        </div>
-      )}
-
-      {/* ---- Play / Manage tabs ---- */}
-      {showPlayTab && (
-        <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
-          {(['play', 'manage'] as HostTab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg capitalize ${tab === t ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* ---- Host plays: interactive panel ---- */}
-      {showPlayTab && tab === 'play' && session && (
-        <DescribeItPlayPanel
-          session={session}
-          players={players}
-          teamRows={teamPlain}
-          words={words}
-          guesses={guesses}
-          myPlayerId={hostPlayerId}
-          secondsLeft={secondsLeft}
-          breakLeft={breakLeft}
-          urgent={urgent}
-          onClue={(clue) => void sendAction('clue', { clue })}
-          onGuess={(text) => void sendAction('guess', { text })}
-          onSkip={() => void sendAction('skip', {})}
-          acting={acting}
+          }
         />
       )}
+      {!gameFinished && <HostRulesRow gameType="describe_it" />}
 
-      {/* ---- Manage / spectate ---- */}
-      {(tab === 'manage' || !showPlayTab) && (
+      {game.status === 'active' && !gameFinished && session && (
         <>
-          {gameFinished && (
-            <DescribeItFinalResultsShareBlock
-              game={game}
-              players={players}
-              words={words}
-              numTeams={numTeams}
-              mode={mode}
-              playerScores={playerScores}
-              playAgainButton={
-                <DescribeItPrimaryButton onClick={playAgain} loading={playingAgain}>
-                  Play again
-                </DescribeItPrimaryButton>
-              }
-            />
+          {/* Host-player gets the scoreboard here (Play tab has the full game). Spectator
+              hosts watch from the Watch tab — Manage only carries controls. */}
+          {hostPlays &&
+            (isIndividual ? (
+              <DescribeItPlayerScoreboard
+                leaderboard={describeItIndividualLeaderboard(teamPlain, players)}
+                describerId={session.describer_player_id}
+                myPlayerId={hostPlayerId}
+                round={session.current_round}
+                totalRounds={session.total_rounds}
+              />
+            ) : (
+              <DescribeItScoreboard
+                scores={computeDescribeItScores(words, numTeams)}
+                activeTeam={session.active_team}
+                myTeam={hostTeam}
+                round={session.current_round}
+                totalRounds={session.total_rounds}
+              />
+            ))}
+          {session.phase === 'break' && (
+            <button type="button" onClick={advanceTurn} disabled={advancing} className="btn-primary w-full py-2.5">
+              {advancing ? 'Starting…' : isIndividual ? 'Next describer now →' : 'Next team now →'}
+            </button>
           )}
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={load}
+            label="End game"
+            icon={<ExitIcon size={16} />}
+            className="btn-danger-soft"
+          />
+        </>
+      )}
 
-          {game.status === 'active' && !gameFinished && session && (
-            <>
-              {/* When the host is playing, Play shows the full game — Manage just needs
-                  the scoreboard + controls (no duplicate). Spectator hosts watch here. */}
-              {showPlayTab ? (
-                isIndividual ? (
-                  <DescribeItPlayerScoreboard
-                    leaderboard={describeItIndividualLeaderboard(teamPlain, players)}
-                    describerId={session.describer_player_id}
-                    myPlayerId={hostPlayerId}
-                    round={session.current_round}
-                    totalRounds={session.total_rounds}
-                  />
-                ) : (
-                  <DescribeItScoreboard
-                    scores={computeDescribeItScores(words, numTeams)}
-                    activeTeam={session.active_team}
-                    myTeam={hostTeam}
-                    round={session.current_round}
-                    totalRounds={session.total_rounds}
-                  />
-                )
-              ) : (
-                <DescribeItPlayPanel
-                  session={session}
-                  players={players}
-                  teamRows={teamPlain}
-                  words={words}
-                  guesses={guesses}
-                  myPlayerId={null}
-                  secondsLeft={secondsLeft}
-                  breakLeft={breakLeft}
-                  urgent={urgent}
-                />
-              )}
-              {session.phase === 'break' && (
-                <button type="button" onClick={advanceTurn} disabled={advancing} className="btn-primary w-full py-2.5">
-                  {advancing ? 'Starting…' : isIndividual ? 'Next describer now →' : 'Next team now →'}
-                </button>
-              )}
-              <button type="button" onClick={endGame} disabled={ending} className="btn-secondary w-full py-3">
-                {ending ? 'Ending…' : 'End game early'}
-              </button>
-            </>
-          )}
-
-          {game.status === 'waiting' && (
-            <>
-              <DescribeItCard className="p-4 space-y-3">
+      {game.status === 'waiting' && (
+        <>
+          <DescribeItCard className="p-4 space-y-3">
                 <p className="text-sm font-bold">Game settings</p>
                 <div className="space-y-1.5">
                   <p className="text-xs font-semibold text-faint">Mode</p>
@@ -833,8 +755,38 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
               />
             </>
           )}
-        </>
-      )}
-    </HostPageShell>
+    </div>
+  )
+
+  const finished = gameFinished && (
+    <DescribeItFinalResultsShareBlock
+      game={game}
+      players={players}
+      words={words}
+      numTeams={numTeams}
+      mode={mode}
+      playerScores={playerScores}
+      playAgainButton={
+        <DescribeItPrimaryButton onClick={playAgain} loading={playingAgain}>
+          Play again
+        </DescribeItPrimaryButton>
+      }
+    />
+  )
+
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={gameFinished ? 'finished' : game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={gameFinished ? undefined : <HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchRound}
+      manage={manage}
+      finished={finished}
+    />
   )
 }
