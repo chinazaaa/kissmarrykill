@@ -12,6 +12,7 @@ import {
   isMonopolyGame,
   isYahtzeeGame,
   isWhotGame,
+  isCrazyEightsGame,
   isLudoGame,
   isSnakeAndLadderGame,
   isTicTacToeGame,
@@ -28,6 +29,7 @@ import { clearCodewordsRoundData, CODEWORDS_MIN_CUSTOM_POOL } from '@/lib/codewo
 import { clearMonopolySessionData } from '@/lib/monopoly'
 import { clearYahtzeeSessionData } from '@/lib/yahtzee'
 import { clearWhotSessionData } from '@/lib/whot'
+import { clearCrazyEightsSessionData } from '@/lib/crazy-eights'
 import { clearLudoSessionData } from '@/lib/ludo'
 import { clearSnakeAndLadderSessionData } from '@/lib/snake-and-ladder'
 import { clearTicTacToeSessionData, canTicTacToePlayAgain } from '@/lib/tic-tac-toe'
@@ -285,6 +287,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (isWhotGame(gameType)) {
     const { error: clearError } = await clearWhotSessionData(getSupabaseAdmin(), gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isCrazyEightsGame(gameType)) {
+    const { error: clearError } = await clearCrazyEightsSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
