@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { FateRoundLogo } from '@/components/FateRoundLogo'
-import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
+import { GAME_TYPE_DISPLAY_ORDER, gameTypeConfig } from '@/lib/game-types'
 import { GAME_LANDING_CONTENT, gameLandingSlug } from '@/lib/game-landing'
 import { SITE_NAME, OG_IMAGE } from '@/lib/seo'
 import { GamesGrid } from '@/components/GamesGrid'
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 }
 
 export default function GamesIndexPage() {
-  const games = GAME_TYPE_OPTIONS.map((type) => ({
+  const games = GAME_TYPE_DISPLAY_ORDER.map((type) => ({
     type,
     slug: gameLandingSlug(type),
     content: GAME_LANDING_CONTENT[type],

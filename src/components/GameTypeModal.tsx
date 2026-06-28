@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import type { GameType } from '@/types'
-import { GAME_TYPE_OPTIONS, gameTypeConfig } from '@/lib/game-types'
+import { GAME_TYPE_DISPLAY_ORDER, gameTypeConfig } from '@/lib/game-types'
 import { Modal } from '@/components/ui/Modal'
 import { GameTypeCard } from '@/components/GameTypeCard'
 
@@ -29,8 +29,8 @@ export function GameTypeModal({ open, onClose, selected, onSelect }: GameTypeMod
 
   const filteredTypes = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return GAME_TYPE_OPTIONS
-    return GAME_TYPE_OPTIONS.filter((type) => matchesGameSearch(type, query))
+    if (!query) return GAME_TYPE_DISPLAY_ORDER
+    return GAME_TYPE_DISPLAY_ORDER.filter((type) => matchesGameSearch(type, query))
   }, [search])
 
   const handleSelect = (type: GameType) => {
