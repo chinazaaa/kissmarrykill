@@ -1,8 +1,9 @@
 'use client'
 
 import { useParams, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AudioChat } from '@/components/AudioChat'
+import { getPlayerSession } from '@/lib/utils'
 
 /** Stable per-tab identity so multiple host tabs in the same room don't
  * collide on the LiveKit identity (which must be unique per participant). */
@@ -22,17 +23,38 @@ function useHostIdentity(gameCode: string): string {
   return hostId
 }
 
+/** Show the host's chosen name in voice chat when they've joined as a player
+ * ("Host + play"); fall back to "Host" for host-only mode. Reacts to the
+ * `kmk-player-session` event (same tab) and `storage` (other tabs) so the name
+ * appears as soon as the host joins, without a refresh. */
+function useHostDisplayName(gameCode: string): string {
+  const [name, setName] = useState('Host')
+  useEffect(() => {
+    if (!gameCode) return
+    const sync = () => setName(getPlayerSession(gameCode)?.playerName?.trim() || 'Host')
+    sync()
+    window.addEventListener('kmk-player-session', sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener('kmk-player-session', sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [gameCode])
+  return name
+}
+
 export function HostAudioWrapper() {
   const { code } = useParams<{ code: string }>()
   const searchParams = useSearchParams()
   const gameCode = code ? (Array.isArray(code) ? code[0] : code).toUpperCase() : ''
   const hostIdentity = useHostIdentity(gameCode)
+  const hostName = useHostDisplayName(gameCode)
   const hostToken = searchParams.get('token') ?? ''
   if (!gameCode || !hostToken) return null
   return (
     <AudioChat
       roomCode={gameCode}
-      playerName="Host"
+      playerName={hostName}
       identity={hostIdentity}
       auth={{ kind: 'host', token: hostToken }}
     />
