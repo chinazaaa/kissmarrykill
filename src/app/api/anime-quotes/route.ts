@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchAnimeQuotes } from '@/lib/anime-quotes'
 import { fetchAnimeQuotesSchema } from '@/lib/validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
   const { count, gameId, hostToken } = parsed.data
   const gameCode = gameId.toUpperCase()
 
-  const { data: game } = await supabase
+  const { data: game } = await getSupabaseAdmin()
     .from('games')
     .select('host_token, status, game_type')
     .eq('id', gameCode)

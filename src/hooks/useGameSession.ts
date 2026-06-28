@@ -221,7 +221,7 @@ export function useGameSession(deps: GameSessionDeps) {
   useEffect(() => {
     async function load() {
       try {
-        const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+        const { data: gameData } = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
         if (!gameData) {
           setView('not_found')
           return
@@ -230,7 +230,7 @@ export function useGameSession(deps: GameSessionDeps) {
 
         const [{ data: parts }, { data: plrs }] = await Promise.all([
           supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
         ])
         setParticipants(parts || [])
         setPlayers(plrs || [])
@@ -243,7 +243,9 @@ export function useGameSession(deps: GameSessionDeps) {
           const voteGender = me ? playerVoteGenderForRound(me, parts || []) : session.playerGender
           setMyPlayerGender(voteGender)
           if (me && voteGender) {
-            setPlayerSession(gameCode, me.id, me.name, voteGender, session.resumeToken ?? me.resume_token)
+            // resume_token is no longer readable from the client (migration 0122); it lives
+            // only in the local session, which resolvePlayerSession already returns.
+            setPlayerSession(gameCode, me.id, me.name, voteGender, session.resumeToken)
           }
         }
 

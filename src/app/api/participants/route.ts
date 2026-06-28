@@ -4,6 +4,7 @@ import { createParticipantSchema, updateParticipantSchema, deleteParticipantSche
 import { normalizeGender, type ParticipantInput } from '@/lib/participants'
 import { isMostLikelyTo } from '@/lib/game-types'
 import { assertHostGame, deleteJoinerPair } from '@/lib/game-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const { gameCode, hostToken, name, gender, participants: rawList } = parsed.data
 
-  const auth = await assertHostGame(supabase, gameCode, hostToken)
+  const auth = await assertHostGame(getSupabaseAdmin(), gameCode, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   if ((auth.game!.participant_mode ?? 'import') !== 'import') {
@@ -101,7 +102,7 @@ export async function PATCH(req: NextRequest) {
     inMltPoll: rawInMltPoll,
   } = parsedPatch.data
 
-  const auth = await assertHostGame(supabase, gameCode, hostToken)
+  const auth = await assertHostGame(getSupabaseAdmin(), gameCode, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { data: participant } = await supabase
@@ -192,7 +193,7 @@ export async function DELETE(req: NextRequest) {
 
   const { gameCode, hostToken, participantId } = parsedDel.data
 
-  const auth = await assertHostGame(supabase, gameCode, hostToken)
+  const auth = await assertHostGame(getSupabaseAdmin(), gameCode, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { data: participant } = await supabase

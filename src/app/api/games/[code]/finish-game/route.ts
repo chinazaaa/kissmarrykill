@@ -15,6 +15,7 @@ import {
   isScrabbleGame,
 } from '@/lib/game-types'
 import { hostActionSchema } from '@/lib/validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { hostToken } = parsed.data
   const gameId = code.toUpperCase()
 
-  const { data: game } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', gameId).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'active' && game.status !== 'waiting') {
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   try {
-    await awardTournamentPlacements(supabase, gameId)
+    await awardTournamentPlacements(getSupabaseAdmin(), gameId)
   } catch {
     // Tournament scoring is best-effort — never block game finish
   }

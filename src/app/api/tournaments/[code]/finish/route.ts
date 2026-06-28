@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { tournamentHostActionSchema } from '@/lib/tournament-validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { hostToken } = parsed.data
 
-  const { data: tournament } = await supabase
+  const { data: tournament } = await getSupabaseAdmin()
     .from('tournaments')
     .select('host_token, status')
     .eq('id', tournamentId)

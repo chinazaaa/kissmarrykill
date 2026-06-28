@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { parseGameType, isWhoSaidThis } from '@/lib/game-types'
 import { assertHostGame } from '@/lib/game-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
 
   if (isHostRequest) {
-    const auth = await assertHostGame(supabase, gameIdUpper, hostToken.trim())
+    const auth = await assertHostGame(getSupabaseAdmin(), gameIdUpper, hostToken.trim())
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
     if (!isWhoSaidThis(parseGameType(auth.game!.game_type))) {
       return NextResponse.json({ error: 'This game type does not use quote pool' }, { status: 400 })
@@ -215,7 +216,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   if (isHostRequest) {
-    const auth = await assertHostGame(supabase, gameIdUpper, hostToken.trim())
+    const auth = await assertHostGame(getSupabaseAdmin(), gameIdUpper, hostToken.trim())
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
     const { data: existing } = await supabase

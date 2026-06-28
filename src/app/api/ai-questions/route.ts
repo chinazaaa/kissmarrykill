@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { generateAiQuestions } from '@/lib/ai-questions'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const requestSchema = z.object({
   gameId: z.string().min(1),
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const { gameId, hostToken, playerNames, gameType, count, theme, customPrompt, apiKey } = parsed.data
 
-  const { data: game } = await supabase
+  const { data: game } = await getSupabaseAdmin()
     .from('games')
     .select('id, host_token, status, game_type')
     .eq('id', gameId.toUpperCase())

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchSingleAnimeQuote } from '@/lib/anime-quotes'
 import { rerollAnimeQuoteSchema } from '@/lib/validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -15,7 +16,11 @@ export async function POST(req: NextRequest) {
   const { gameId, quoteId, hostToken } = parsed.data
   const gameCode = gameId.toUpperCase()
 
-  const { data: game } = await supabase.from('games').select('host_token, status').eq('id', gameCode).maybeSingle()
+  const { data: game } = await getSupabaseAdmin()
+    .from('games')
+    .select('host_token, status')
+    .eq('id', gameCode)
+    .maybeSingle()
 
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })

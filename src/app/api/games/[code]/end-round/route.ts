@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { hostActionSchema } from '@/lib/validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { hostToken } = parsed.data
   const gameId = code.toUpperCase()
 
-  const { data: game } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', gameId).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'active') return NextResponse.json({ error: 'Game not active' }, { status: 400 })

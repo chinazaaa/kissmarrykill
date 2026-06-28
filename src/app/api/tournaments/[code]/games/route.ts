@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import { addTournamentGameSchema, TOURNAMENT_ELIGIBLE_TYPES } from '@/lib/tournament-validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: `Game type "${gameType}" is not eligible for tournaments` }, { status: 400 })
   }
 
-  const { data: tournament } = await supabase.from('tournaments').select('*').eq('id', tournamentId).maybeSingle()
+  const { data: tournament } = await getSupabaseAdmin().from('tournaments').select('*').eq('id', tournamentId).maybeSingle()
 
   if (!tournament) {
     return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })

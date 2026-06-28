@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { normalizeResumeToken } from '@/lib/utils'
 import { playerIsViewer } from '@/lib/viewers'
 import type { Game } from '@/types'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       .select('id, status, session_started_at, game_type, allow_viewers, allow_late_players, codewords_late_join')
       .eq('id', gameId)
       .maybeSingle(),
-    supabase
+    getSupabaseAdmin()
       .from('players')
       .select('id, name, gender, identity_gender, resume_token, spectator, joined_at')
       .eq('game_id', gameId)

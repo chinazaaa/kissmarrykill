@@ -1,9 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { parsePlayerGenderFromDb } from '@/lib/participants'
-import { supabase } from '@/lib/supabase'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { getPlayerSession } from '@/lib/utils'
 
 const SESSION_EVENT = 'kmk-player-session'
 
@@ -26,29 +24,10 @@ export function useHostPlayerSession(gameCode: string | null) {
     }
 
     setPlayerName(session.playerName)
-
-    if (session.resumeToken) {
-      setResumeToken(session.resumeToken)
-      return
-    }
-
-    const { data: player } = await supabase
-      .from('players')
-      .select('resume_token, name, gender')
-      .eq('id', session.playerId)
-      .eq('game_id', gameCode.toUpperCase())
-      .maybeSingle()
-
-    if (player?.resume_token) {
-      const gender = parsePlayerGenderFromDb(player.gender)
-      if (gender) {
-        setPlayerSession(gameCode, session.playerId, player.name, gender, player.resume_token)
-        setResumeToken(player.resume_token)
-      }
-      return
-    }
-
-    setResumeToken(null)
+    // The resume_token is the player's secret credential and is no longer readable from
+    // the DB by the client (migration 0122). It's persisted in the local session at join;
+    // if it's absent (e.g. a legacy session), the player must rejoin to get a fresh one.
+    setResumeToken(session.resumeToken ?? null)
   }, [gameCode])
 
   useEffect(() => {

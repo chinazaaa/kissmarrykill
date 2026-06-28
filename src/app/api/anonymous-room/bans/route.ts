@@ -9,7 +9,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 
 async function assertHostAnonymousRoom(gameCode: string, hostToken: string) {
   const id = gameCode.toUpperCase()
-  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', id).maybeSingle()
   if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
   if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
   if (!isAnonymousMessagesGame(parseGameType(game.game_type))) {

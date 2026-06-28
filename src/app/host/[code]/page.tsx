@@ -10,7 +10,7 @@ import { useScrollHostViewToTop, scrollHostViewToTop } from '@/hooks/useScrollHo
 import { useHostAutoReady } from '@/hooks/useHostAutoReady'
 import {
   CONFESSION_SELECT,
-  GAME_SELECT,
+  HOST_GAME_SELECT,
   PARTICIPANT_SELECT,
   PLAYER_SELECT,
   ROUND_SELECT,
@@ -401,14 +401,21 @@ export default function HostPage() {
       try {
         await Promise.race([
           (async () => {
-            const gameRes = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
+            const gameRes = await supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle()
             if (!supabasePollOk(gameRes)) throw new Error('unavailable')
             const gameData = gameRes.data
             if (!gameData) {
               if (!cancelled) setAuthError(true)
               return
             }
-            if (gameData.host_token !== hostToken) {
+            // host_token is no longer client-readable (migration 0122) — verify via server.
+            const verifyRes = await fetch(`/api/games/${gameCode}/verify-host`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ hostToken }),
+            })
+            const verifyData = (await verifyRes.json().catch(() => ({ ok: false }))) as { ok?: boolean }
+            if (!verifyData.ok) {
               if (!cancelled) setAuthError(true)
               return
             }
@@ -567,7 +574,7 @@ export default function HostPage() {
 
   async function syncGameState(): Promise<boolean> {
     const [gameRes, activeRoundRes, finishedRoundRes] = await Promise.all([
-      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
       supabase
         .from('rounds')
@@ -855,7 +862,7 @@ export default function HostPage() {
       }
 
       const [{ data: gameData }, { data: roundData }] = await Promise.all([
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
+        supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle(),
         supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
       ])
       if (gameData) setGame(gameData)
@@ -1034,7 +1041,7 @@ export default function HostPage() {
 
   async function refreshLobbyLists() {
     const [{ data: plrs }, { data: parts }, { data: pool }] = await Promise.all([
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
       supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
       game && isWhoSaidThis(parseGameType(game.game_type))
         ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
@@ -1252,7 +1259,7 @@ export default function HostPage() {
         return
       }
       toast.success(`Generated ${data.questionCount} AI questions!`)
-      const { data: refreshed } = await supabase.from('games').select('*').eq('id', game.id).maybeSingle()
+      const { data: refreshed } = await supabase.from('games').select(HOST_GAME_SELECT).eq('id', game.id).maybeSingle()
       if (refreshed) setGame(refreshed)
     } catch {
       toast.error('Failed to generate AI questions')
