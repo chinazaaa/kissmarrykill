@@ -76,15 +76,15 @@ jobs:
             --filters "Name=tag:Stack,Values=$STACK" "Name=instance-state-name,Values=running" \
             --query 'Reservations[].Instances[].InstanceId' --output text)
           if [ -z "$IID" ]; then
-            echo "No running instance tagged Stack=$STACK; nothing to redeploy."
-            exit 0
+            echo "::error::No running instance tagged Stack=$STACK — redeploy target missing (stopped instance or broken Stack tag)."
+            exit 1
           fi
           echo "Redeploying on: $IID"
           CMD=$(aws ssm send-command --region "$AWS_REGION" \
             --document-name AWS-RunShellScript \
             --instance-ids $IID \
             --comment "CI redeploy ${GITHUB_SHA::7}" \
-            --parameters commands="/usr/local/bin/redeploy.sh" \
+            --parameters commands="/usr/local/bin/redeploy.sh ${GITHUB_SHA}" \
             --query 'Command.CommandId' --output text)
           echo "SSM command: $CMD"
           rc=0

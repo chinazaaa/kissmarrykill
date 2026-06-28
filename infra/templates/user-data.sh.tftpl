@@ -30,7 +30,9 @@ set -euo pipefail
 
 REGION="${aws_region}"
 REPO="${ecr_repo_url}"
-TAG="${image_tag}"
+# Optional first arg overrides the tag (CI passes the exact commit SHA); falls
+# back to the tag baked at provisioning time.
+TAG="$${1:-${image_tag}}"
 PREFIX="${name_prefix}"
 APP_PORT="${app_port}"
 
