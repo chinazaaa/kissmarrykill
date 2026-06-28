@@ -5,7 +5,9 @@ import { TriviaActiveRound } from '@/components/trivia/TriviaActiveRound'
 import { TriviaHostManagePanel } from '@/components/trivia/TriviaHostManagePanel'
 import { TriviaPlayAgainSetup, type TriviaSettingsPayload } from '@/components/trivia/TriviaPlayAgainSetup'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
+import { HostRulesRow } from '@/components/host/HostRulesRow'
 import { gameTypeConfig } from '@/lib/game-types'
 import { getTriviaHostMode, setTriviaHostMode, type TriviaHostMode } from '@/lib/trivia'
 import { useTriviaHostRoundAutomation } from '@/hooks/useTriviaHostRoundAutomation'
@@ -19,7 +21,6 @@ import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
-import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 
 type HostTab = 'play' | 'manage'
 
@@ -292,15 +293,12 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
   const cfg = gameTypeConfig('trivia')
   const playerLink = `${appOrigin()}/game/${gameCode}`
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status !== 'waiting'
 
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage when it ends.
   useEffect(() => {
     if (game?.status === 'finished') setTab('manage')
+    else if (game?.status === 'active') setTab('play')
   }, [game?.status])
-
-  useEffect(() => {
-    if (showPlayTab && game?.status === 'active') setTab('play')
-  }, [showPlayTab, game?.status])
 
   useHostAutoReady(gameCode, game?.status, hostPlayerId, players, load)
 
@@ -312,147 +310,96 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
     )
   }
 
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = game.status !== 'finished'
+  const gameStarted = game.status === 'active'
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
+
+  const panelProps = {
+    game,
+    gameCode,
+    hostToken,
+    playerLink,
+    players,
+    rounds,
+    answers,
+    starting,
+    advancing,
+    playingAgain,
+    onStartGame: startGame,
+    onEndRound: endRound,
+    onPlayAgain: () => setSettingsModal('play-again'),
+    onEditSettings: () => setSettingsModal('lobby'),
+    onReload: load,
+    onGameUpdate: setGame,
+    onRemovePlayer: removePlayer,
+    removingPlayerId,
+    highlightPlayerId: hostPlayerId,
+    activeRound: roundAutomation.activeRound,
+    betweenRounds: roundAutomation.betweenRounds,
+    lastFinishedRound: roundAutomation.lastFinishedRound,
+    roundAnswers: roundAutomation.roundAnswers,
+    allAnswered: roundAutomation.allAnswered,
+    isLastRound: roundAutomation.isLastRound,
+  }
+
+  // Primary tab: interactive round for a host-player, read-only gameplay for a host-only host.
+  const interactivePlay = hostPlayerId && (
+    <TriviaActiveRound
+      gameCode={gameCode}
+      game={game}
+      players={players}
+      rounds={rounds}
+      answers={answers}
+      myPlayerId={hostPlayerId}
+      myResumeToken={hostResumeToken}
+      playerName={hostPlayerName}
+      onReload={load}
+      skipGameSync
+    />
+  )
+  const watchRound = <TriviaHostManagePanel {...panelProps} section="watch" />
+
+  const manage = (
+    <div className="space-y-4 sm:space-y-5 animate-stagger">
+      {game.status === 'waiting' && (
+        <HostModeSelector
+          mode={hostMode}
+          onChange={changeHostMode}
+          joinedPlayerId={hostPlayerId}
+          joinedPlayerName={hostPlayerName}
+          joinName={hostJoinName}
+          onJoinNameChange={setHostJoinName}
+          onJoin={() => void hostJoinGame()}
+          joining={hostJoining}
+          spectatorHint="Watch the game from the Watch tab"
+          playingNote={
+            <p className="text-sm text-muted">
+              Playing as <strong className="text-body">{hostPlayerName}</strong> — answer from the Play tab once you
+              start.
+            </p>
+          }
+        />
+      )}
+      {game.status !== 'finished' && <HostRulesRow gameType="trivia" />}
+      <TriviaHostManagePanel {...panelProps} section="manage" />
+    </div>
+  )
 
   return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      <HostGameHeader game={game} />
-
-      {game.status === 'waiting' && (
-        <div className="glass-card-strong p-5 sm:p-6 space-y-3">
-          <p className="label-caps">Host mode</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => changeHostMode('spectator')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'spectator'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host only</span>
-              <span className="text-faint text-xs sm:text-sm">Run the game from Manage</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeHostMode('player')}
-              className={[
-                'rounded-2xl border-2 px-4 py-4 text-left',
-                hostMode === 'player'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block text-base">Host + play</span>
-              <span className="text-faint text-xs sm:text-sm">Play tab + Manage tab</span>
-            </button>
-          </div>
-          {hostMode === 'player' && !hostPlayerId && (
-            <div className="flex items-center gap-2 pt-1">
-              <div className="w-36 sm:w-44 shrink-0">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field w-full"
-                  maxLength={40}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={hostJoinGame}
-                disabled={!hostJoinName.trim() || hostJoining}
-                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-              >
-                {hostJoining ? 'Joining…' : 'Join'}
-              </button>
-            </div>
-          )}
-          {hostMode === 'player' && hostPlayerId && (
-            <p className="text-sm text-muted">
-              Playing as <strong className="text-body">{hostPlayerName}</strong> — switch to Play after you start.
-            </p>
-          )}
-        </div>
-      )}
-
-      {game.status === 'waiting' && (
-        <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
-      )}
-
-      {showPlayTab && (
-        <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
-          <button
-            type="button"
-            onClick={() => setTab('play')}
-            className={[
-              'flex-1 rounded-lg py-3 text-sm sm:text-base font-bold transition-colors',
-              tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-            ].join(' ')}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('manage')}
-            className={[
-              'flex-1 rounded-lg py-3 text-sm sm:text-base font-bold transition-colors',
-              tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-            ].join(' ')}
-          >
-            Manage
-          </button>
-        </div>
-      )}
-
-      {tab === 'play' && hostPlays && hostPlayerId && game.status !== 'waiting' && (
-        <TriviaActiveRound
-          gameCode={gameCode}
-          game={game}
-          players={players}
-          rounds={rounds}
-          answers={answers}
-          myPlayerId={hostPlayerId}
-          myResumeToken={hostResumeToken}
-          playerName={hostPlayerName}
-          onReload={load}
-          skipGameSync
-        />
-      )}
-
-      {(tab === 'manage' || !showPlayTab) && (
-        <TriviaHostManagePanel
-          game={game}
-          gameCode={gameCode}
-          hostToken={hostToken}
-          playerLink={playerLink}
-          players={players}
-          rounds={rounds}
-          answers={answers}
-          starting={starting}
-          advancing={advancing}
-          playingAgain={playingAgain}
-          onStartGame={startGame}
-          onEndRound={endRound}
-          onPlayAgain={() => setSettingsModal('play-again')}
-          onEditSettings={() => setSettingsModal('lobby')}
-          onReload={load}
-          onGameUpdate={setGame}
-          onRemovePlayer={removePlayer}
-          removingPlayerId={removingPlayerId}
-          highlightPlayerId={hostPlayerId}
-          activeRound={roundAutomation.activeRound}
-          betweenRounds={roundAutomation.betweenRounds}
-          lastFinishedRound={roundAutomation.lastFinishedRound}
-          roundAnswers={roundAutomation.roundAnswers}
-          allAnswered={roundAutomation.allAnswered}
-          isLastRound={roundAutomation.isLastRound}
-        />
-      )}
+    <>
+      <HostGameLayout
+        gameCode={gameCode}
+        status={game.status}
+        tab={tab}
+        onTabChange={setTab}
+        primaryKind={primaryKind}
+        showTabs={showTabs}
+        gameStarted={gameStarted}
+        header={<HostGameHeader game={game} />}
+        primary={hostPlays ? interactivePlay : watchRound}
+        manage={manage}
+        finished={<TriviaHostManagePanel {...panelProps} section="finished" />}
+      />
 
       <TriviaPlayAgainSetup
         open={settingsModal !== null}
@@ -462,6 +409,6 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
         loading={settingsModal === 'lobby' ? savingLobbySettings : playingAgain}
         onConfirm={settingsModal === 'lobby' ? saveLobbySettings : playAgain}
       />
-    </HostPageShell>
+    </>
   )
 }

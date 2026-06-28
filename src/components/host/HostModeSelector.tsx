@@ -22,6 +22,7 @@ export function HostModeSelector({
   playerLabel = 'Host + play',
   playerHint = 'Play tab + Manage tab',
   playingNote,
+  renderJoinForm,
   bare = false,
 }: {
   mode: 'spectator' | 'player'
@@ -39,6 +40,8 @@ export function HostModeSelector({
   playerHint?: string
   /** Replaces the default "Playing as …" note once the host has joined as a player. */
   playingNote?: React.ReactNode
+  /** Replaces the default name input with a game-specific join form (e.g. token picker). */
+  renderJoinForm?: React.ReactNode
   /** Render without the outer card + "Host mode" label — for embedding in a settings section. */
   bare?: boolean
 }) {
@@ -65,28 +68,30 @@ export function HostModeSelector({
         />
       </div>
 
-      {mode === 'player' && !joinedPlayerId && (
-        <div className="flex items-center gap-2 pt-1">
-          <input
-            type="text"
-            value={joinName}
-            onChange={(e) => onJoinNameChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onJoin()}
-            placeholder="Your name"
-            className="input-field flex-1"
-            maxLength={40}
-            disabled={disabled}
-          />
-          <button
-            type="button"
-            onClick={onJoin}
-            disabled={disabled || !joinName.trim() || joining}
-            className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-          >
-            {joining ? 'Joining…' : 'Join'}
-          </button>
-        </div>
-      )}
+      {mode === 'player' &&
+        !joinedPlayerId &&
+        (renderJoinForm ?? (
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              value={joinName}
+              onChange={(e) => onJoinNameChange(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && onJoin()}
+              placeholder="Your name"
+              className="input-field flex-1"
+              maxLength={40}
+              disabled={disabled}
+            />
+            <button
+              type="button"
+              onClick={onJoin}
+              disabled={disabled || !joinName.trim() || joining}
+              className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
+            >
+              {joining ? 'Joining…' : 'Join'}
+            </button>
+          </div>
+        ))}
 
       {mode === 'player' &&
         joinedPlayerId &&

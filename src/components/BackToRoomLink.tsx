@@ -21,7 +21,14 @@ export function BackToRoomLink({ gameCode, className = '', compact = false }: Pr
         className,
       ].join(' ')}
     >
-      ← Back to room
+      {compact ? (
+        <>
+          <span aria-hidden>←</span> <span className="sm:hidden">Room</span>
+          <span className="hidden sm:inline">Back to room</span>
+        </>
+      ) : (
+        '← Back to room'
+      )}
     </Link>
   )
 }

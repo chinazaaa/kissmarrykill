@@ -69,8 +69,10 @@ export function HostGameLayout({
 
   return (
     <HostPageShell gameCode={gameCode} {...layout}>
-      {header}
-      {aboveTabs}
+      {/* On the finished screen the results card carries its own header (the one baked into
+          the shared image), so the page header would just duplicate it. */}
+      {!isFinished && header}
+      {!isFinished && aboveTabs}
 
       {showTabs && !isFinished && (
         <div className="grid grid-cols-2 gap-1.5 p-1.5 rounded-2xl bg-[var(--surface-inset-bg)] border border-[var(--border)]">

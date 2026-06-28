@@ -181,8 +181,6 @@ import { getCodeDefaultLimits, playerCountOptions, type GamePlayerLimitsMap } fr
 import { TriviaTimerPicker } from '@/components/trivia/TriviaTimerPicker'
 import { TRIVIA_QUESTION_COUNT } from '@/lib/trivia-questions'
 import { CopyLinkButton } from '@/components/ui/CopyLinkButton'
-import { PlayerInviteCard } from '@/components/PlayerInviteCard'
-import { playerGameUrl, shareOrigin } from '@/lib/site'
 import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
 import { scrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useToast } from '@/components/ui/Toast'
@@ -3482,7 +3480,6 @@ function CreateGameInner() {
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const hostUrl = `${origin}/host/${result?.gameCode}?token=${result?.hostToken}`
-  const inviteUrl = result?.gameCode ? playerGameUrl(result.gameCode, shareOrigin()) : ''
 
   return (
     <GameJoinLobbyShell
@@ -3490,34 +3487,28 @@ function CreateGameInner() {
       header={
         <div className="text-center space-y-2">
           <div
-            className="inline-flex h-20 w-20 items-center justify-center rounded-3xl text-4xl mx-auto"
+            className="inline-flex h-16 w-16 items-center justify-center rounded-3xl text-3xl mx-auto"
             style={{ background: 'var(--chip-active-bg)' }}
           >
             🎉
           </div>
           <h1 className="text-3xl font-black tracking-tight gradient-title-subtle">You&apos;re live!</h1>
-          <p className="text-muted text-sm">Share the invite link or code — save your host link.</p>
+          <p className="text-muted text-sm">
+            Share the invite to get players in — then open your host panel to start.
+          </p>
         </div>
       }
     >
-      <div className="glass-card-strong p-6 text-center space-y-2">
-        <span className="label-caps">Game code</span>
-        <p className="font-mono text-5xl font-black tracking-[0.2em]">{result?.gameCode}</p>
-        <CopyLinkButton
-          value={result?.gameCode ?? ''}
-          label="Copy code"
-          copiedLabel="Copied ✓"
-          successMessage="Game code copied"
-        />
-      </div>
-
-      {inviteUrl && <PlayerInviteCard url={inviteUrl} title="Invite players" />}
-
-      <CopyCard label="Host link — save this" value={hostUrl} accent />
-
       <PrimaryBtn onClick={() => router.push(`/host/${result?.gameCode}?token=${result?.hostToken}`)}>
         Open Host Panel →
       </PrimaryBtn>
+
+      <CopyCard
+        label="Host link — save this"
+        value={hostUrl}
+        accent
+        hint="Keep this private. It won't be shown again once you leave."
+      />
 
       {searchParams.get('room') && (
         <button
@@ -3528,8 +3519,6 @@ function CreateGameInner() {
           ← Back to Room
         </button>
       )}
-
-      <p className="text-faint text-xs text-center">The host link won&apos;t be shown again</p>
     </GameJoinLobbyShell>
   )
 }
@@ -3566,12 +3555,23 @@ function Avatar({ name }: { name: string }) {
   return <div className="avatar w-7 h-7 text-xs shrink-0">{name.charAt(0).toUpperCase()}</div>
 }
 
-function CopyCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function CopyCard({
+  label,
+  value,
+  accent,
+  hint,
+}: {
+  label: string
+  value: string
+  accent?: boolean
+  hint?: string
+}) {
   return (
     <div className={`glass-card p-4 space-y-2 ${accent ? 'border-[var(--primary)]/35' : ''}`}>
       <p className={`label-caps ${accent ? 'text-[var(--primary)]' : ''}`}>{label}</p>
       <p className="font-mono text-xs break-all text-muted">{value}</p>
       <CopyLinkButton value={value} successMessage={accent ? 'Host link copied' : 'Player link copied'} />
+      {hint ? <p className="text-faint text-xs">{hint}</p> : null}
     </div>
   )
 }

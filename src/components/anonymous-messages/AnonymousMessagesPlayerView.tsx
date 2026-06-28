@@ -386,9 +386,10 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
   }
 
   if (screen === 'finished') {
+    // The summary card is self-contained (🎭 + status), so the page header would just
+    // stack a second centered header on top of it.
     return (
       <PageShell>
-        <Header game={game} />
         <AnonymousRoomSessionSummary game={game!} playerCount={players.length} />
         <CreateNewGameButton />
       </PageShell>

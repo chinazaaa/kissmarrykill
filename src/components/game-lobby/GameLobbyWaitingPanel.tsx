@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { GameLobbyPlayerList } from '@/components/ui/GameLobbyPlayerList'
-import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
+import { EditNameInline } from '@/components/ui/EditNameInline'
+import { LeaveGameButton, leaveButtonQuietClassName } from '@/components/ui/LeaveGameButton'
+import { PlayerResumeCard } from '@/components/PlayerResumeCard'
 import { WhatsAppChannelLink } from '@/components/WhatsAppChannelLink'
 import { gameTypeConfig, parseGameType } from '@/lib/game-types'
 import type { Player } from '@/types'
@@ -96,20 +98,37 @@ export function GameLobbyWaitingPanel({
 
       {activityFirst ? activity : null}
 
-      {myPlayerId ? (
-        <PlayerSessionControls
-          gameCode={gameCode}
-          playerId={myPlayerId}
-          currentName={myPlayerName}
-          onRenamed={onRenamed}
-          onLeft={onLeft}
-          inLobby
-        />
-      ) : null}
-
-      {rulesLink ? <div className="text-center">{rulesLink}</div> : null}
+      {/* Lobby leads right after the header — players see who's in immediately. */}
       <GameLobbyPlayerList players={players} myPlayerId={myPlayerId} label={playerListLabel} />
+
       {activityFirst ? null : activity}
+
+      {/* Compact footer: your identity, rules and the quieter continue / leave actions
+          live down here so they don't crowd the lobby. */}
+      {myPlayerId ? (
+        <div className="space-y-2.5 border-t border-[var(--border)] pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <EditNameInline
+              gameCode={gameCode}
+              playerId={myPlayerId}
+              currentName={myPlayerName}
+              onRenamed={onRenamed}
+            />
+            {rulesLink ? <div className="shrink-0">{rulesLink}</div> : null}
+          </div>
+          <PlayerResumeCard gameCode={gameCode} />
+          <LeaveGameButton
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            onLeft={onLeft}
+            confirmTitle="Leave this lobby?"
+            confirmMessage="You can rejoin with your player code if there is room."
+            className={leaveButtonQuietClassName}
+          />
+        </div>
+      ) : rulesLink ? (
+        <div className="text-center">{rulesLink}</div>
+      ) : null}
     </div>
   )
 }

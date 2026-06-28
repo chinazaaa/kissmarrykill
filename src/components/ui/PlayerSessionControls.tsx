@@ -1,7 +1,7 @@
 'use client'
 
 import { EditNameInline } from '@/components/ui/EditNameInline'
-import { LeaveGameButton, leaveButtonClassName } from '@/components/ui/LeaveGameButton'
+import { LeaveGameButton, leaveButtonQuietClassName } from '@/components/ui/LeaveGameButton'
 import { PlayerResumeCard } from '@/components/PlayerResumeCard'
 
 export function PlayerSessionControls({
@@ -51,7 +51,7 @@ export function PlayerSessionControls({
             ? 'You can rejoin with your player code if there is room.'
             : 'You can continue later with your player code if the host opens the lobby again.'
         }
-        className={leaveButtonClassName}
+        className={leaveButtonQuietClassName}
       />
       <PlayerResumeCard gameCode={gameCode} compact={!inLobby} />
     </div>

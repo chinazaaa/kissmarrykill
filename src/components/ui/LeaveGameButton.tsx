@@ -8,6 +8,10 @@ import { getPlayerSession } from '@/lib/utils'
 export const leaveButtonClassName =
   'w-full rounded-[0.875rem] border border-red-500/50 bg-red-500 py-3.5 text-[0.9375rem] font-bold text-white shadow-[0_4px_14px_rgba(239,68,68,0.35)] transition-[background-color,transform,box-shadow] duration-150 hover:bg-red-600 hover:shadow-[0_6px_22px_rgba(239,68,68,0.45)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99] disabled:opacity-35 disabled:cursor-not-allowed'
 
+/** Quieter, outlined variant — for in-game footers where Leave shouldn't dominate the screen. */
+export const leaveButtonQuietClassName =
+  'w-full rounded-xl border border-red-500/30 py-2 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50'
+
 export function LeaveGameButton({
   gameCode,
   playerId,
