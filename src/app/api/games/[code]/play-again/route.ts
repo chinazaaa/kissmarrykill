@@ -5,15 +5,9 @@ import {
   parseGameType,
   isAnonymousMessagesGame,
   isSecretMessageGame,
-  isBingoGame,
   isCodewordsGame,
   isTriviaGame,
   isTwoTruthsGame,
-  isMonopolyGame,
-  isYahtzeeGame,
-  isWhotGame,
-  isLudoGame,
-  isSnakeAndLadderGame,
   isTicTacToeGame,
   isChessGame,
   isDescribeItGame,
@@ -28,6 +22,7 @@ import { clearCodewordsRoundData, CODEWORDS_MIN_CUSTOM_POOL } from '@/lib/codewo
 import { clearMonopolySessionData } from '@/lib/monopoly'
 import { clearYahtzeeSessionData } from '@/lib/yahtzee'
 import { clearWhotSessionData } from '@/lib/whot'
+import { clearCrazyEightsSessionData } from '@/lib/crazy-eights'
 import { clearLudoSessionData } from '@/lib/ludo'
 import { clearSnakeAndLadderSessionData } from '@/lib/snake-and-ladder'
 import { clearTicTacToeSessionData, canTicTacToePlayAgain } from '@/lib/tic-tac-toe'
@@ -53,8 +48,66 @@ import { extractRoundUsage, extractCodewordsBoardUsage, mergePoolUsageState, par
 import { isGameGenderBased } from '@/lib/gender-based'
 import { resetSpectatorsForLobby } from '@/lib/viewers'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { GameType } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
+type SessionClearer = (
+  supabase: SupabaseClient,
+  gameId: string
+) => Promise<{ error?: string | null; poolUsage?: Record<string, unknown> }>
+
+/**
+ * Game types whose Play Again clears per-game session data via the registry below.
+ * Typing the registry as exhaustive over this subset (rather than a `Partial`
+ * record over all `GameType`s) makes an accidental omission a compile error.
+ */
+type ClearableSessionGameType = Extract<
+  GameType,
+  | 'bingo'
+  | 'codewords'
+  | 'two_truths'
+  | 'monopoly'
+  | 'yahtzee'
+  | 'whot'
+  | 'crazy_eights'
+  | 'ludo'
+  | 'snake_and_ladder'
+  | 'chess'
+  | 'describe_it'
+  | 'scrabble'
+  | 'tic_tac_toe'
+  | 'i_call_on'
+  | 'sudoku'
+  | 'word_hunt'
+>
+
+/**
+ * Per-game session-data clearers run on Play Again — only the entry matching the
+ * game's type runs (replaces a 15-branch if-chain; exactly one clearer per request).
+ * Games needing special handling are excluded and handled separately above:
+ * trivia (must run before the `rounds` delete), anonymous_messages (anon client),
+ * and secret_message (reopens its board and early-returns).
+ */
+const SESSION_CLEARERS: Record<ClearableSessionGameType, SessionClearer> = {
+  bingo: clearBingoSessionData,
+  codewords: clearCodewordsRoundData,
+  two_truths: clearTwoTruthsSessionData,
+  monopoly: clearMonopolySessionData,
+  yahtzee: clearYahtzeeSessionData,
+  whot: clearWhotSessionData,
+  crazy_eights: clearCrazyEightsSessionData,
+  ludo: clearLudoSessionData,
+  snake_and_ladder: clearSnakeAndLadderSessionData,
+  chess: clearChessSessionData,
+  describe_it: clearDescribeItSessionData,
+  scrabble: clearScrabbleSessionData,
+  tic_tac_toe: clearTicTacToeSessionData,
+  i_call_on: clearNpatSessionData,
+  sudoku: clearSudokuSessionData,
+  word_hunt: clearWordHuntSessionData,
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
@@ -258,82 +311,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ success: true, game: updatedSecret })
   }
 
-  if (isBingoGame(gameType)) {
-    const { error: clearError } = await clearBingoSessionData(getSupabaseAdmin(), gameId)
+  // Per-game session cleanup. Exactly one clearer matches the game type (or none for
+  // poll games); the special-cased games above (trivia / anonymous / secret) are not
+  // in the registry. Several of these tables are RLS-locked to anon writes — admin client.
+  const clearSession = (SESSION_CLEARERS as Partial<Record<GameType, SessionClearer>>)[gameType]
+  if (clearSession) {
+    const { error: clearError, poolUsage: clearedPoolUsage } = await clearSession(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+    // Some clearers (e.g. describe_it) carry forward usage state that must survive
+    // the final `games` update below — fold it in rather than letting it be clobbered.
+    if (clearedPoolUsage) {
+      gameUpdate.pool_usage = { ...(gameUpdate.pool_usage as Record<string, unknown>), ...clearedPoolUsage }
+    }
   }
 
-  if (isCodewordsGame(gameType)) {
-    const { error: clearError } = await clearCodewordsRoundData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isTwoTruthsGame(gameType)) {
-    const { error: clearError } = await clearTwoTruthsSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isMonopolyGame(gameType)) {
-    const { error: clearError } = await clearMonopolySessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isYahtzeeGame(gameType)) {
-    const { error: clearError } = await clearYahtzeeSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isWhotGame(gameType)) {
-    const { error: clearError } = await clearWhotSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isLudoGame(gameType)) {
-    const { error: clearError } = await clearLudoSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isSnakeAndLadderGame(gameType)) {
-    // Snake & Ladder tables are RLS-locked to anon writes — clear via service role.
-    const { error: clearError } = await clearSnakeAndLadderSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isChessGame(gameType)) {
-    const { error: clearError } = await clearChessSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-  if (isDescribeItGame(gameType)) {
-    const { error: clearError } = await clearDescribeItSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-  if (isScrabbleGame(gameType)) {
-    const { error: clearError } = await clearScrabbleSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-  if (isTicTacToeGame(gameType)) {
-    // Tic-Tac-Toe tables are RLS-locked to anon writes — clear via service role.
-    const { error: clearError } = await clearTicTacToeSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isICallOnGame(gameType)) {
-    const { error: clearError } = await clearNpatSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isSudokuGame(gameType)) {
-    const { error: clearError } = await clearSudokuSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
-  if (isWordHuntGame(gameType)) {
-    const { error: clearError } = await clearWordHuntSessionData(getSupabaseAdmin(), gameId)
-    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
-  }
-
+  // Service role: `players` is RLS read-only for anon (core-gameplay lockdown), so the
+  // anon client silently updates 0 rows here — leaving everyone auto-ready. Use admin.
   const { error: spectatorResetError } = await resetSpectatorsForLobby(
-    supabase,
+    getSupabaseAdmin(),
     gameId,
     hostPlayerId ? [hostPlayerId] : []
   )

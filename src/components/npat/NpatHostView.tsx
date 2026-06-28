@@ -5,10 +5,10 @@ import { NpatActiveRound } from '@/components/npat/NpatActiveRound'
 import { NpatFinalResultsShareBlock } from '@/components/npat/NpatFinalResultsShareBlock'
 import { NpatScoreboard } from '@/components/npat/NpatScoreboard'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
-import { HostModePanel } from '@/components/host/HostModePanel'
-import { HostPlayManageTabs } from '@/components/host/HostPlayManageTabs'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
+import { HostRulesRow } from '@/components/host/HostRulesRow'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { gameTypeConfig } from '@/lib/game-types'
@@ -39,6 +39,7 @@ import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { ExitIcon } from '@/components/host/host-icons'
 
 type HostTab = 'play' | 'manage'
 
@@ -162,15 +163,11 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
 
   const currentMetadata = currentRound ? parseNpatMetadata(currentRound.npat_metadata) : null
 
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage when it ends.
   useEffect(() => {
     if (game?.status === 'finished') setTab('manage')
+    else if (game?.status === 'active') setTab('play')
   }, [game?.status])
-
-  useEffect(() => {
-    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
-      setTab('play')
-    }
-  }, [hostMode, hostPlayerId, game?.status])
 
   const changeHostMode = (mode: NpatHostMode) => {
     if (game?.status !== 'waiting') return
@@ -288,7 +285,6 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   }
 
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status !== 'waiting' && game?.status !== 'finished'
   const canStart = players.length >= NPAT_MIN_PLAYERS
 
   const currentRoundAnswers = useMemo(
@@ -331,192 +327,197 @@ export function NpatHostView({ gameCode, hostToken }: { gameCode: string; hostTo
       />
     ) : null
 
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = game.status !== 'finished'
+  const gameStarted = game.status === 'active'
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
 
-  return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      <HostGameHeader game={game} />
+  // Primary tab: interactive round for a host-player, read-only gameplay for a host-only host.
+  const interactivePlay = hostPlays && hostPlayerId && game.status === 'active' && (
+    <NpatActiveRound
+      gameCode={gameCode}
+      game={game}
+      players={players}
+      rounds={rounds}
+      answers={answers}
+      marks={marks}
+      myPlayerId={hostPlayerId}
+      myResumeToken={hostResumeToken}
+      playerName={hostPlayerName}
+      onReload={load}
+      skipGameSync
+    />
+  )
+
+  const watchRound = game.status === 'active' && (
+    <div className="space-y-4">
+      <PaginatedLeaderboard
+        title="Leaderboard"
+        rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}
+        highlightId={hostPlayerId}
+        scoreLabel={(score) => `${score} pts`}
+      />
+      {showManageScoreboard && currentMetadata && (
+        <NpatScoreboard
+          letter={currentMetadata.letter}
+          players={players}
+          answers={currentRoundAnswers}
+          marks={currentRoundMarks}
+          metadata={currentMetadata}
+          showScores={currentMetadata.scores_computed || currentMetadata.phase === 'reveal'}
+          maskAnswers={currentMetadata.phase === 'writing'}
+        />
+      )}
+    </div>
+  )
+
+  const manage = (
+    <div className="space-y-4">
+      {game.status === 'waiting' && (
+        <HostModeSelector
+          mode={hostMode}
+          onChange={changeHostMode}
+          joinedPlayerId={hostPlayerId}
+          joinedPlayerName={hostPlayerName}
+          joinName={hostJoinName}
+          onJoinNameChange={setHostJoinName}
+          onJoin={() => void hostJoinGame()}
+          joining={hostJoining}
+          spectatorHint="Watch the game from the Watch tab"
+          playingNote={
+            <p className="text-sm text-muted">
+              Playing as <strong className="text-body">{hostPlayerName}</strong> — play from the Play tab once you
+              start.
+            </p>
+          }
+        />
+      )}
+      {game.status !== 'finished' && <HostRulesRow gameType="i_call_on" />}
 
       {game.status === 'waiting' && (
-        <HostModePanel
-          hostMode={hostMode}
-          onModeChange={changeHostMode}
-          joinBlock={
-            !hostPlayerId ? (
-              <div className="flex items-center gap-2 pt-1">
-                <div className="w-36 sm:w-44 shrink-0">
-                  <input
-                    type="text"
-                    value={hostJoinName}
-                    onChange={(e) => setHostJoinName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                    placeholder="Your name"
-                    className="input-field w-full"
-                    maxLength={40}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={hostJoinGame}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
-              </div>
-            ) : undefined
-          }
-          joinedHint={
-            hostPlayerId ? (
-              <p className="text-sm text-muted">
-                Playing as <strong className="text-body">{hostPlayerName}</strong> — switch to Play after you start.
-              </p>
-            ) : undefined
-          }
-        />
+        <>
+          {playerManageBlock}
+
+          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-5 space-y-3">
+            <p className="label-caps">Game settings</p>
+            <label className="block space-y-1">
+              <span className="text-sm font-semibold">Game length</span>
+              <select
+                value={gameDurationSeconds}
+                onChange={(e) => setGameDurationSeconds(Number(e.target.value))}
+                className="input-field w-full"
+              >
+                {NPAT_GAME_DURATION_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {formatNpatGameDuration(s)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-semibold">Writing time (per letter)</span>
+              <select
+                value={timerSeconds}
+                onChange={(e) => setTimerSeconds(Number(e.target.value))}
+                className="input-field w-full"
+              >
+                {NPAT_TIMER_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}s
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-semibold">Marking time (per letter)</span>
+              <select
+                value={markingTimerSeconds}
+                onChange={(e) => setMarkingTimerSeconds(Number(e.target.value))}
+                className="input-field w-full"
+              >
+                {NPAT_MARKING_TIMER_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}s
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={saveTimers} disabled={savingTimer} className="btn-secondary w-full">
+              {savingTimer ? 'Saving…' : 'Save timers'}
+            </button>
+          </div>
+
+          <HostLobbyWaitingFooter
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onStart={startGame}
+            onEnded={load}
+            canStart={canStart}
+            starting={starting}
+            startDisabledHint={
+              canStart
+                ? null
+                : `Need at least ${NPAT_MIN_PLAYERS} players to start (${players.length}/${NPAT_MIN_PLAYERS})`
+            }
+          />
+        </>
       )}
 
-      {showPlayTab && <HostPlayManageTabs tab={tab} onTabChange={setTab} />}
+      {game.status === 'active' && (
+        <>
+          {playerManageBlock}
+          {!hostPlayerId && (
+            <div className="glass-card p-6 text-center text-muted">
+              Game in progress — choose Host + play in Host mode and join as a player to call letters and submit
+              answers.
+            </div>
+          )}
+          {hostPlayerId && (
+            <div className="glass-card p-4 text-center text-sm text-muted">
+              You&apos;re playing as <strong className="text-body">{hostPlayerName}</strong> — switch to the Play tab to
+              pick letters and submit answers.
+            </div>
+          )}
+          <div className="glass-card-strong p-5 sm:p-6 space-y-3">
+            <p className="label-caps">Game controls</p>
+            <HostEndGameButton
+              gameCode={gameCode}
+              hostToken={hostToken}
+              onEnded={load}
+              label="End game"
+              icon={<ExitIcon size={16} />}
+              className="btn-danger-soft"
+            />
+          </div>
+        </>
+      )}
+    </div>
+  )
 
-      {tab === 'play' && hostPlays && hostPlayerId && game.status === 'active' && (
-        <NpatActiveRound
-          gameCode={gameCode}
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={<HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchRound}
+      manage={manage}
+      finished={
+        <NpatFinalResultsShareBlock
           game={game}
           players={players}
-          rounds={rounds}
-          answers={answers}
-          marks={marks}
-          myPlayerId={hostPlayerId}
-          myResumeToken={hostResumeToken}
-          playerName={hostPlayerName}
-          onReload={load}
-          skipGameSync
+          leaderboard={leaderboard}
+          highlightPlayerId={hostPlayerId}
+          playAgainButton={
+            <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full py-3">
+              {playingAgain ? 'Resetting…' : 'Play again'}
+            </button>
+          }
         />
-      )}
-
-      {(tab === 'manage' || !showPlayTab) && (
-        <div className="space-y-4">
-          {game.status === 'waiting' && (
-            <>
-              {playerManageBlock}
-
-              <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_14%,var(--border))] bg-[var(--card-strong)]/95 p-5 space-y-3">
-                <p className="label-caps">Game settings</p>
-                <label className="block space-y-1">
-                  <span className="text-sm font-semibold">Game length</span>
-                  <select
-                    value={gameDurationSeconds}
-                    onChange={(e) => setGameDurationSeconds(Number(e.target.value))}
-                    className="input-field w-full"
-                  >
-                    {NPAT_GAME_DURATION_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {formatNpatGameDuration(s)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block space-y-1">
-                  <span className="text-sm font-semibold">Writing time (per letter)</span>
-                  <select
-                    value={timerSeconds}
-                    onChange={(e) => setTimerSeconds(Number(e.target.value))}
-                    className="input-field w-full"
-                  >
-                    {NPAT_TIMER_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}s
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block space-y-1">
-                  <span className="text-sm font-semibold">Marking time (per letter)</span>
-                  <select
-                    value={markingTimerSeconds}
-                    onChange={(e) => setMarkingTimerSeconds(Number(e.target.value))}
-                    className="input-field w-full"
-                  >
-                    {NPAT_MARKING_TIMER_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}s
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="button" onClick={saveTimers} disabled={savingTimer} className="btn-secondary w-full">
-                  {savingTimer ? 'Saving…' : 'Save timers'}
-                </button>
-              </div>
-
-              <HostLobbyWaitingFooter
-                gameCode={gameCode}
-                hostToken={hostToken}
-                onStart={startGame}
-                onEnded={load}
-                canStart={canStart}
-                starting={starting}
-                startDisabledHint={
-                  canStart
-                    ? null
-                    : `Need at least ${NPAT_MIN_PLAYERS} players to start (${players.length}/${NPAT_MIN_PLAYERS})`
-                }
-              />
-            </>
-          )}
-
-          {game.status === 'active' && (
-            <>
-              {playerManageBlock}
-              {!hostPlayerId && (
-                <div className="glass-card p-6 text-center text-muted">
-                  Game in progress — choose Host + play in Host mode and join as a player to call letters and submit
-                  answers.
-                </div>
-              )}
-              {hostPlayerId && tab === 'manage' && (
-                <div className="glass-card p-4 text-center text-sm text-muted">
-                  You&apos;re playing as <strong className="text-body">{hostPlayerName}</strong> — switch to the Play
-                  tab to pick letters and submit answers.
-                </div>
-              )}
-              <PaginatedLeaderboard
-                title="Leaderboard"
-                rows={leaderboard.map((row, i) => ({ id: row.id, name: row.name, score: row.score, rank: i + 1 }))}
-                highlightId={hostPlayerId}
-                scoreLabel={(score) => `${score} pts`}
-              />
-              {showManageScoreboard && currentMetadata && (
-                <NpatScoreboard
-                  letter={currentMetadata.letter}
-                  players={players}
-                  answers={currentRoundAnswers}
-                  marks={currentRoundMarks}
-                  metadata={currentMetadata}
-                  showScores={currentMetadata.scores_computed || currentMetadata.phase === 'reveal'}
-                  maskAnswers={currentMetadata.phase === 'writing'}
-                />
-              )}
-            </>
-          )}
-
-          {game.status === 'finished' && (
-            <NpatFinalResultsShareBlock
-              game={game}
-              players={players}
-              leaderboard={leaderboard}
-              highlightPlayerId={hostPlayerId}
-              playAgainButton={
-                <button type="button" onClick={playAgain} disabled={playingAgain} className="btn-primary w-full py-3">
-                  {playingAgain ? 'Resetting…' : 'Play again'}
-                </button>
-              }
-            />
-          )}
-
-          {game.status === 'active' && <HostEndGameButton gameCode={gameCode} hostToken={hostToken} onEnded={load} />}
-        </div>
-      )}
-    </HostPageShell>
+      }
+    />
   )
 }

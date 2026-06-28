@@ -5,7 +5,9 @@ import { TwoTruthsActiveRound } from '@/components/two-truths/TwoTruthsActiveRou
 import { TwoTruthsHostManagePanel } from '@/components/two-truths/TwoTruthsHostManagePanel'
 import { TwoTruthsLobbySubmit } from '@/components/two-truths/TwoTruthsLobbySubmit'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
-import { HostPageShell, hostPlayLayoutFlags } from '@/components/host/HostPageShell'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
+import { HostRulesRow } from '@/components/host/HostRulesRow'
 import { EditNameInline } from '@/components/ui/EditNameInline'
 import { gameTypeConfig } from '@/lib/game-types'
 import { useTwoTruthsAdvance } from '@/hooks/useTwoTruthsAdvance'
@@ -145,8 +147,10 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
 
   const prevMyStatement = useRef<TtlStatement | null | undefined>(undefined)
 
+  // Land on the primary (Play/Watch) tab when the game starts, and on Manage when it ends.
   useEffect(() => {
     if (game?.status === 'finished') setTab('manage')
+    else if (game?.status === 'active') setTab('play')
   }, [game?.status])
 
   const changeHostMode = (mode: TtlHostMode) => {
@@ -258,7 +262,6 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   }, [myStatement])
 
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status !== 'finished'
 
   useHostAutoReady(gameCode, game?.status, hostPlayerId, players, load)
 
@@ -273,193 +276,147 @@ export function TwoTruthsHostView({ gameCode, hostToken }: { gameCode: string; h
   const cfg = gameTypeConfig('two_truths')
   const playerLink = `${appOrigin()}/game/${gameCode}`
 
-  const layout = hostPlayLayoutFlags(tab, showPlayTab, game.status)
+  const showTabs = game.status !== 'finished'
+  const gameStarted = game.status === 'active'
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
 
-  return (
-    <HostPageShell gameCode={gameCode} {...layout}>
-      <HostGameHeader game={game} />
+  const panelProps = {
+    game,
+    gameCode,
+    hostToken,
+    playerLink,
+    players,
+    statements,
+    rounds,
+    guesses,
+    starting,
+    playingAgain,
+    onStartGame: startGame,
+    onPlayAgain: playAgain,
+    onReload: load,
+    timerSeconds,
+    onTimerChange: setTimerSeconds,
+    savingTimer,
+    onSaveTimer: saveTimer,
+    onRemovePlayer: removePlayer,
+    removingPlayerId,
+    onGameUpdate: setGame,
+  }
 
-      {game.status === 'waiting' && (
-        <div className="glass-card p-4 space-y-3">
-          <p className="label-caps">Host mode</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => changeHostMode('spectator')}
-              className={[
-                'rounded-xl border-2 px-3 py-3 text-left text-sm',
-                hostMode === 'spectator'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block">Host only</span>
-              <span className="text-faint text-xs">Run the game from Manage tab</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeHostMode('player')}
-              className={[
-                'rounded-xl border-2 px-3 py-3 text-left text-sm',
-                hostMode === 'player'
-                  ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                  : 'border-[var(--border-strong)] text-muted',
-              ].join(' ')}
-            >
-              <span className="font-bold block">Host + play</span>
-              <span className="text-faint text-xs">Play tab + Manage tab</span>
-            </button>
-          </div>
-          {hostMode === 'player' && !hostPlayerId && (
-            <div className="flex items-center gap-2">
-              <div className="w-36 sm:w-44 shrink-0">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field w-full"
-                  maxLength={40}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={hostJoinGame}
-                disabled={!hostJoinName.trim() || hostJoining}
-                className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-              >
-                {hostJoining ? 'Joining…' : 'Join'}
-              </button>
-            </div>
-          )}
-          {hostMode === 'player' && hostPlayerId && (
-            <p className="text-xs text-muted">
-              Playing as <strong>{hostPlayerName}</strong> — submit your statements in the Play tab.
-            </p>
-          )}
-        </div>
-      )}
-
-      {showPlayTab && (
-        <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-inset-bg)] border border-[var(--border-strong)]">
-          <button
-            type="button"
-            onClick={() => setTab('play')}
-            className={[
-              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-              tab === 'play' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-            ].join(' ')}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('manage')}
-            className={[
-              'flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors',
-              tab === 'manage' ? 'bg-[var(--card-strong)] shadow-sm' : 'text-muted',
-            ].join(' ')}
-          >
-            Manage
-          </button>
-        </div>
-      )}
-
-      {tab === 'play' &&
-        showPlayTab &&
-        hostPlayerId &&
-        (game.status === 'active' ? (
-          <TwoTruthsActiveRound
-            gameCode={gameCode}
-            game={game}
-            players={players}
-            rounds={rounds}
-            guesses={guesses}
-            myPlayerId={hostPlayerId}
-            myResumeToken={hostResumeToken}
-            playerName={hostPlayerName}
-            onReload={load}
-            skipGameSync
-          />
-        ) : game.status === 'waiting' ? (
-          myStatement && !editingStatements ? (
-            <div className="glass-card p-5 space-y-4">
-              <EditNameInline
-                gameCode={gameCode}
-                playerId={hostPlayerId}
-                currentName={hostPlayerName}
-                onRenamed={(name) => {
-                  setHostPlayerName(name)
-                  void load()
-                }}
-              />
-              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-5 text-center space-y-1">
-                <p className="text-2xl">✓</p>
-                <p className="font-semibold text-emerald-800 dark:text-emerald-200">Statements submitted</p>
-                <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                  Waiting for you to start the game in Manage…
-                </p>
-              </div>
-              <button type="button" onClick={() => setEditingStatements(true)} className="btn-secondary w-full">
-                Edit my statements
-              </button>
-            </div>
-          ) : (
-            <div className="glass-card p-5 space-y-4">
-              <EditNameInline
-                gameCode={gameCode}
-                playerId={hostPlayerId}
-                currentName={hostPlayerName}
-                onRenamed={(name) => {
-                  setHostPlayerName(name)
-                  void load()
-                }}
-              />
-              <p className="label-caps">Your statements</p>
-              <TwoTruthsLobbySubmit
-                gameCode={gameCode}
-                resumeToken={hostResumeToken}
-                existingLieIndex={myStatement?.lie_index}
-                existingStatements={existingStatements}
-                onSaved={() => {
-                  setEditingStatements(false)
-                  void load()
-                }}
-              />
-              {myStatement && (
-                <button type="button" onClick={() => setEditingStatements(false)} className="btn-secondary w-full">
-                  Cancel
-                </button>
-              )}
-            </div>
-          )
-        ) : null)}
-
-      {(tab === 'manage' || !showPlayTab) && (
-        <TwoTruthsHostManagePanel
-          game={game}
+  // Host-player's own statement setup (lobby only) — their input, so it lives with Manage.
+  const hostStatementSetup =
+    hostPlays &&
+    hostPlayerId &&
+    game.status === 'waiting' &&
+    (myStatement && !editingStatements ? (
+      <div className="glass-card p-5 space-y-4">
+        <EditNameInline
           gameCode={gameCode}
-          hostToken={hostToken}
-          playerLink={playerLink}
-          players={players}
-          statements={statements}
-          rounds={rounds}
-          guesses={guesses}
-          starting={starting}
-          playingAgain={playingAgain}
-          onStartGame={startGame}
-          onPlayAgain={playAgain}
-          onReload={load}
-          timerSeconds={timerSeconds}
-          onTimerChange={setTimerSeconds}
-          savingTimer={savingTimer}
-          onSaveTimer={saveTimer}
-          onRemovePlayer={removePlayer}
-          removingPlayerId={removingPlayerId}
-          onGameUpdate={setGame}
+          playerId={hostPlayerId}
+          currentName={hostPlayerName}
+          onRenamed={(name) => {
+            setHostPlayerName(name)
+            void load()
+          }}
+        />
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-5 text-center space-y-1">
+          <p className="text-2xl">✓</p>
+          <p className="font-semibold text-emerald-800 dark:text-emerald-200">Statements submitted</p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-300">
+            Start the game below when everyone&apos;s ready.
+          </p>
+        </div>
+        <button type="button" onClick={() => setEditingStatements(true)} className="btn-secondary w-full">
+          Edit my statements
+        </button>
+      </div>
+    ) : (
+      <div className="glass-card p-5 space-y-4">
+        <EditNameInline
+          gameCode={gameCode}
+          playerId={hostPlayerId}
+          currentName={hostPlayerName}
+          onRenamed={(name) => {
+            setHostPlayerName(name)
+            void load()
+          }}
+        />
+        <p className="label-caps">Your statements</p>
+        <TwoTruthsLobbySubmit
+          gameCode={gameCode}
+          resumeToken={hostResumeToken}
+          existingLieIndex={myStatement?.lie_index}
+          existingStatements={existingStatements}
+          onSaved={() => {
+            setEditingStatements(false)
+            void load()
+          }}
+        />
+        {myStatement && (
+          <button type="button" onClick={() => setEditingStatements(false)} className="btn-secondary w-full">
+            Cancel
+          </button>
+        )}
+      </div>
+    ))
+
+  // Primary tab: interactive round for a host-player, read-only gameplay for a host-only host.
+  const interactivePlay = hostPlayerId && (
+    <TwoTruthsActiveRound
+      gameCode={gameCode}
+      game={game}
+      players={players}
+      rounds={rounds}
+      guesses={guesses}
+      myPlayerId={hostPlayerId}
+      myResumeToken={hostResumeToken}
+      playerName={hostPlayerName}
+      onReload={load}
+      skipGameSync
+    />
+  )
+  const watchRound = <TwoTruthsHostManagePanel {...panelProps} section="watch" />
+
+  const manage = (
+    <div className="space-y-4 sm:space-y-5 animate-stagger">
+      {game.status === 'waiting' && (
+        <HostModeSelector
+          mode={hostMode}
+          onChange={changeHostMode}
+          joinedPlayerId={hostPlayerId}
+          joinedPlayerName={hostPlayerName}
+          joinName={hostJoinName}
+          onJoinNameChange={setHostJoinName}
+          onJoin={() => void hostJoinGame()}
+          joining={hostJoining}
+          spectatorHint="Watch the game from the Watch tab"
+          playingNote={
+            <p className="text-sm text-muted">
+              Playing as <strong className="text-body">{hostPlayerName}</strong> — submit your statements below before
+              you start.
+            </p>
+          }
         />
       )}
-    </HostPageShell>
+      {hostStatementSetup}
+      {game.status !== 'finished' && <HostRulesRow gameType="two_truths" />}
+      <TwoTruthsHostManagePanel {...panelProps} section="manage" />
+    </div>
+  )
+
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={<HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchRound}
+      manage={manage}
+      finished={<TwoTruthsHostManagePanel {...panelProps} section="finished" />}
+    />
   )
 }

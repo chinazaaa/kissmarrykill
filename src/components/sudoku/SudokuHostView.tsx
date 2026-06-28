@@ -2,16 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { GameHostChrome } from '@/components/GameHostChrome'
 import { SudokuBoard } from '@/components/sudoku/SudokuBoard'
 import { SudokuPlayerView } from '@/components/sudoku/SudokuPlayerView'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
-import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
+import { HostGameHeader } from '@/components/host/HostGameHeader'
+import { HostGameLayout } from '@/components/host/HostGameLayout'
+import { HostManageSection } from '@/components/host/HostManageSection'
+import { HostModeSelector } from '@/components/host/HostModeSelector'
+import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
+import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
+import { ExitIcon } from '@/components/host/host-icons'
 import { parseSudokuMetadata, tallySudokuScores, SUDOKU_MIN_PLAYERS } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player } from '@/types'
 import { useHostAutoReady } from '@/hooks/useHostAutoReady'
+import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { useToast } from '@/components/ui/Toast'
 
 type SudokuHostMode = 'spectator' | 'player'
@@ -46,7 +52,6 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
   const [solution, setSolution] = useState<number[][] | null>(null)
   const [puzzle, setPuzzle] = useState<number[][] | null>(null)
   const [submissions, setSubmissions] = useState<SudokuSubmission[]>([])
-  const [ending, setEnding] = useState(false)
   const [playingAgain, setPlayingAgain] = useState(false)
   const [starting, setStarting] = useState(false)
 
@@ -114,14 +119,14 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
   }, [gameCode, load])
 
   useEffect(() => {
-    if (game?.status === 'finished') setTab('manage')
+    if (game?.status === 'active') setTab('play')
+    else if (game?.status === 'finished') setTab('manage')
   }, [game?.status])
 
-  useEffect(() => {
-    if (hostMode === 'player' && hostPlayerId && game?.status === 'active') {
-      setTab('play')
-    }
-  }, [hostMode, hostPlayerId, game?.status])
+  const handlePlayerRemoved = useCallback((playerId: string) => {
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+  }, [])
+  const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
 
   useHostAutoReady(gameCode, game?.status, hostPlayerId, players, load)
 
@@ -238,29 +243,6 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
     }
   }
 
-  async function handleEndGame() {
-    if (ending) return
-    setEnding(true)
-    try {
-      // End via the host-authorized server route (games is RLS-locked to anon writes).
-      const res = await fetch(`/api/games/${gameCode}/finish-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostToken }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        toastError(data.error || 'Failed to end the game')
-        return
-      }
-      await load()
-    } catch {
-      toastError('Network error — try again')
-    } finally {
-      setEnding(false)
-    }
-  }
-
   async function handlePlayAgain() {
     if (playingAgain) return
     setPlayingAgain(true)
@@ -288,206 +270,143 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
 
   const leaderboard = tallySudokuScores(submissions, players)
   const hostPlays = hostMode === 'player' && !!hostPlayerId
-  const showPlayTab = hostPlays && game?.status === 'active'
 
-  // ── Waiting ────────────────────────────────────────────────────────────────
-  if (!game || game.status === 'waiting') {
-    const readyCount = players.filter((p) => p.spectator !== true).length
-    const showReady = players.some((p) => p.spectator === true)
-
+  if (!game) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <GameHostChrome />
-        <main className="pt-16 flex-1 px-4 py-8 max-w-xl mx-auto w-full space-y-6">
-          <div className="text-center space-y-1">
-            <p className="text-4xl">🔢</p>
-            <h1 className="text-2xl font-black">{game?.title ?? 'Sudoku'}</h1>
-            <p className="text-muted text-sm">
-              Join at{' '}
-              <span className="font-mono font-bold text-[var(--foreground)]">fateround.com/game/{gameCode}</span>
-            </p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
 
-          {/* Host mode selector */}
-          <div className="glass-card-strong p-5 space-y-3">
-            <p className="label-caps">Host mode</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => changeHostMode('spectator')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'spectator'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
-              >
-                <span className="font-bold block text-base">Host only</span>
-                <span className="text-faint text-xs">Watch from Manage</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => changeHostMode('player')}
-                className={[
-                  'rounded-2xl border-2 px-4 py-4 text-left',
-                  hostMode === 'player'
-                    ? 'border-[var(--foreground)]/30 bg-[var(--surface-inset-bg)]'
-                    : 'border-[var(--border-strong)] text-muted',
-                ].join(' ')}
-              >
-                <span className="font-bold block text-base">Host + play</span>
-                <span className="text-faint text-xs">Play tab + Manage tab</span>
-              </button>
+  const showTabs = game.status !== 'finished'
+  const gameStarted = game.status === 'active'
+  const primaryKind: 'play' | 'watch' = hostPlays ? 'play' : 'watch'
+
+  const correctBlocks = Array.from({ length: 9 }, (_, i) =>
+    submissions.some((s) => s.block_index === i && s.is_correct)
+  )
+  const totalSolved = correctBlocks.filter(Boolean).length
+
+  const interactivePlay = <SudokuPlayerView gameCode={gameCode} />
+
+  const watchBoard = (
+    <div className="space-y-6">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Blocks solved</p>
+        <p className="text-2xl font-black">{totalSolved}/9</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {puzzle && (
+          <SudokuBoard puzzle={puzzle} solution={solution ?? undefined} blockScorers={blockScorers} readOnly />
+        )}
+
+        <div className="space-y-3">
+          <p className="label-caps text-xs">Live scores</p>
+          {leaderboard.map((row, i) => (
+            <div key={row.player_id} className="glass-card px-3 py-2 flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {i + 1}. {row.name}
+              </span>
+              <span className="text-sm font-bold">{row.points} pts</span>
             </div>
-            {hostMode === 'player' && !hostPlayerId && (
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={hostJoinName}
-                  onChange={(e) => setHostJoinName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void hostJoinGame()}
-                  placeholder="Your name"
-                  className="input-field flex-1"
-                  maxLength={40}
-                />
-                <button
-                  type="button"
-                  onClick={() => void hostJoinGame()}
-                  disabled={!hostJoinName.trim() || hostJoining}
-                  className="btn-primary btn-fit shrink-0 px-4 py-2.5 text-sm whitespace-nowrap"
-                >
-                  {hostJoining ? 'Joining…' : 'Join'}
-                </button>
-              </div>
-            )}
-            {hostMode === 'player' && hostPlayerId && (
-              <p className="text-sm text-muted">
-                Playing as <span className="font-semibold text-[var(--foreground)]">{hostPlayerName}</span>
-              </p>
-            )}
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+
+  const manage = (
+    <HostManageSection
+      game={game}
+      players={players}
+      highlightPlayerId={hostPlayerId}
+      removingPlayerId={removingPlayerId}
+      onRemovePlayer={removePlayer}
+      gameType="sudoku"
+      top={
+        game.status === 'waiting' ? (
+          <HostModeSelector
+            mode={hostMode}
+            onChange={changeHostMode}
+            joinedPlayerId={hostPlayerId}
+            joinedPlayerName={hostPlayerName}
+            joinName={hostJoinName}
+            onJoinNameChange={setHostJoinName}
+            onJoin={() => void hostJoinGame()}
+            joining={hostJoining}
+            spectatorHint="Watch the puzzle from the Watch tab"
+          />
+        ) : undefined
+      }
+      footer={
+        game.status === 'waiting' ? (
+          <HostLobbyWaitingFooter
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onStart={() => void handleStart()}
+            onEnded={load}
+            canStart={players.filter((p) => p.spectator !== true).length >= SUDOKU_MIN_PLAYERS}
+            starting={starting}
+            startLabel="Start puzzle"
+            startDisabledHint={
+              players.filter((p) => p.spectator !== true).length >= SUDOKU_MIN_PLAYERS
+                ? null
+                : `Need at least ${SUDOKU_MIN_PLAYERS} players to start`
+            }
+            className="space-y-3"
+          />
+        ) : game.status === 'active' ? (
+          <HostEndGameButton
+            gameCode={gameCode}
+            hostToken={hostToken}
+            onEnded={load}
+            label="End game"
+            icon={<ExitIcon size={16} />}
+            confirmTitle="End this game?"
+            confirmMessage="Players will see the final results."
+            className="btn-danger-soft"
+          />
+        ) : null
+      }
+    />
+  )
+
+  return (
+    <HostGameLayout
+      gameCode={gameCode}
+      status={game.status}
+      tab={tab}
+      onTabChange={setTab}
+      primaryKind={primaryKind}
+      showTabs={showTabs}
+      gameStarted={gameStarted}
+      header={<HostGameHeader game={game} />}
+      primary={hostPlays ? interactivePlay : watchBoard}
+      manage={manage}
+      finished={
+        <>
+          <div className="glass-card-strong p-8 text-center space-y-2">
+            <p className="text-4xl">🏆</p>
+            <p className="text-2xl font-black">{leaderboard[0]?.name ?? 'Someone'} wins!</p>
+            <p className="text-muted text-base">{leaderboard[0]?.points ?? 0} points total</p>
           </div>
-
-          <HostLobbyPlayersSection players={players} label={showReady ? `Players — ${readyCount} ready` : 'Players'} />
-
+          <PaginatedLeaderboard
+            title="Final leaderboard"
+            rows={leaderboard.map((row, i) => ({ id: row.player_id, name: row.name, score: row.points, rank: i + 1 }))}
+            scoreLabel={(n) => `${n} pts`}
+          />
           <button
             type="button"
-            disabled={players.filter((p) => p.spectator !== true).length < SUDOKU_MIN_PLAYERS || starting}
-            onClick={handleStart}
-            className="btn-primary w-full py-4 text-lg font-bold disabled:opacity-50"
+            onClick={handlePlayAgain}
+            disabled={playingAgain}
+            className="btn-primary w-full py-3 font-bold"
           >
-            {starting ? 'Starting…' : 'Start puzzle'}
+            {playingAgain ? 'Resetting…' : 'Play again'}
           </button>
-        </main>
-      </div>
-    )
-  }
-
-  // ── Active ─────────────────────────────────────────────────────────────────
-  if (game.status === 'active') {
-    const correctBlocks = Array.from({ length: 9 }, (_, i) =>
-      submissions.some((s) => s.block_index === i && s.is_correct)
-    )
-    const totalSolved = correctBlocks.filter(Boolean).length
-
-    return (
-      <div className="min-h-screen flex flex-col">
-        <GameHostChrome />
-        <main className="pt-16 flex-1 px-4 py-6 max-w-2xl mx-auto w-full space-y-6">
-          {showPlayTab && (
-            <div className="flex rounded-xl border border-[var(--border-strong)] p-1 bg-[var(--surface-inset-bg)]">
-              <button
-                type="button"
-                onClick={() => setTab('play')}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'play' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-              >
-                Play
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('manage')}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg ${tab === 'manage' ? 'bg-[var(--background)] shadow' : 'text-muted'}`}
-              >
-                Manage
-              </button>
-            </div>
-          )}
-
-          {tab === 'play' && showPlayTab ? (
-            <SudokuPlayerView gameCode={gameCode} />
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Blocks solved</p>
-                  <p className="text-2xl font-black">{totalSolved}/9</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleEndGame}
-                  disabled={ending}
-                  className="btn-secondary text-sm px-4 py-2 text-red-500 border-red-400"
-                >
-                  {ending ? 'Ending…' : 'End game'}
-                </button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {puzzle && (
-                  // Hide the solution while the host is also competing — they'd be able to
-                  // copy answers from Manage into the Play tab. Spectator hosts still see it.
-                  <SudokuBoard
-                    puzzle={puzzle}
-                    solution={hostPlays ? undefined : (solution ?? undefined)}
-                    blockScorers={blockScorers}
-                    readOnly
-                  />
-                )}
-
-                <div className="space-y-3">
-                  <p className="label-caps text-xs">Live scores</p>
-                  {leaderboard.map((row, i) => (
-                    <div key={row.player_id} className="glass-card px-3 py-2 flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        {i + 1}. {row.name}
-                      </span>
-                      <span className="text-sm font-bold">{row.points} pts</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </main>
-      </div>
-    )
-  }
-
-  // ── Finished ───────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen flex flex-col">
-      <GameHostChrome />
-      <main className="pt-16 flex-1 px-4 py-8 max-w-lg mx-auto w-full space-y-6">
-        <div className="glass-card-strong p-8 text-center space-y-2">
-          <p className="text-4xl">🏆</p>
-          <p className="text-2xl font-black">{leaderboard[0]?.name ?? 'Someone'} wins!</p>
-          <p className="text-muted text-base">{leaderboard[0]?.points ?? 0} points total</p>
-        </div>
-
-        <PaginatedLeaderboard
-          title="Final leaderboard"
-          rows={leaderboard.map((row, i) => ({ id: row.player_id, name: row.name, score: row.points, rank: i + 1 }))}
-          scoreLabel={(n) => `${n} pts`}
-        />
-
-        <button
-          type="button"
-          onClick={handlePlayAgain}
-          disabled={playingAgain}
-          className="btn-primary w-full py-3 font-bold"
-        >
-          {playingAgain ? 'Resetting…' : 'Play again'}
-        </button>
-      </main>
-    </div>
+        </>
+      }
+    />
   )
 }

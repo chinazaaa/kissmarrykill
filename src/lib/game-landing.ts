@@ -48,6 +48,7 @@ export const GAME_TYPE_TO_SLUG: Record<GameType, string> = {
   monopoly: 'monopoly',
   yahtzee: 'yahtzee',
   whot: 'whot',
+  crazy_eights: 'crazy-eights',
   ludo: 'ludo',
   i_call_on: 'i-call-on',
   sudoku: 'sudoku',
@@ -1046,6 +1047,66 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       },
     ],
   }),
+  crazy_eights: landing('crazy_eights', {
+    seoTitle: 'Play Crazy Eights Online Free with Friends — No Sign-Up',
+    seoDescription:
+      'Play Crazy Eights online free with friends — no sign-up, no download. Match by rank or suit, play 8s as wild and name the suit, stack Pick Two, skip and reverse. 2–6 players.',
+    keywords: [
+      'crazy eights online',
+      'crazy eights rules',
+      'how to play crazy eights',
+      'crazy eights card game',
+      'play crazy eights friends',
+      'crazy eights multiplayer',
+      'crazy 8s online',
+    ],
+    heroSubtitle: 'The worldwide card classic — match, go wild on 8s, and empty your hand first.',
+    bodyParagraph:
+      'Crazy Eights on Fate Round plays by the popular action-card rules: match the top of the discard by rank or suit, play an 8 anytime to name the next suit, and use 2 (Pick Two), Jack and Ace (Skip), and Queen (Reverse) to control the table. Add Jokers for extra wildcards that make the next player draw five. First to get rid of all their cards wins.',
+    highlights: ['Standard 52-card deck', '2–6 players', '8s are wild'],
+    features: [
+      {
+        title: 'Match or go wild',
+        description: 'Play a card matching rank or suit — or drop an 8 and name the suit that comes next.',
+        emoji: '🎴',
+      },
+      {
+        title: 'Action cards',
+        description: '2 makes the next player draw two, Jack and Ace skip, Queen reverses the direction of play.',
+        emoji: '8️⃣',
+      },
+      SHARED_FEATURES.mobile,
+      SHARED_FEATURES.noSignup,
+    ],
+    steps: [
+      { title: 'Join a room', description: 'Enter your name and wait for the host to deal.' },
+      { title: 'Play your turn', description: 'Match by rank or suit, play an 8 to choose the suit, or draw.' },
+      { title: 'Empty your hand', description: 'First player out of cards wins the game.' },
+    ],
+    perfectFor: ['Game nights', 'Family card games', 'Quick card breaks'],
+    extraFaqs: [
+      {
+        question: 'How do you win at Crazy Eights?',
+        answer:
+          'Be the first to play all the cards in your hand. If a game clock is running and time runs out, the player with the lowest total in hand wins instead — each 8 and Joker counts as 50 points, face cards 10, aces 1.',
+      },
+      {
+        question: 'How many cards do you start with in Crazy Eights?',
+        answer:
+          'Each player is dealt 5 cards (7 in a 2-player game), with one card turned face-up to start the discard pile. The host deals when everyone is ready.',
+      },
+      {
+        question: 'Why are 8s wild?',
+        answer:
+          'You can play an 8 on any card, and when you do you name the suit the next player must follow — hearts, spades, clubs, or diamonds. That is the heart of the game, and why it is called "Crazy" Eights.',
+      },
+      {
+        question: 'What are the special cards in Crazy Eights?',
+        answer:
+          '8 = Wild (name the suit), 2 = Pick Two (next player draws two or stacks their own 2), Jack = Skip, Queen = Reverse, Ace = Skip. With Jokers enabled, a Joker is wild and makes the next player draw five. Action cards are an optional host setting.',
+      },
+    ],
+  }),
   ludo: landing('ludo', {
     seoTitle: 'Ludo Online — Play Classic Board Game with Friends',
     seoDescription:
@@ -1117,10 +1178,10 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
   sudoku: landing('sudoku', {
     seoTitle: 'Sudoku — Multiplayer Puzzle Race Online',
     seoDescription:
-      'Play multiplayer Sudoku online. Race your friends to claim 3×3 blocks — first to solve a block scores 10 pts, wrong answers cost you points and lock you out.',
+      'Play multiplayer Sudoku online. Race your friends to claim 3×3 blocks — first to solve a block scores 10 pts, wrong answers cost you points but you can try again.',
     keywords: ['multiplayer sudoku', 'sudoku online', 'puzzle race game', 'party game sudoku'],
     heroSubtitle:
-      'Everyone solves the same 9×9 puzzle. Claim 3×3 blocks before your friends — first correct gets 10 pts, wrong answers lock you out.',
+      'Everyone solves the same 9×9 puzzle. Claim 3×3 blocks before your friends — first correct gets 10 pts, wrong answers cost points.',
     highlights: ['Race to claim blocks', 'Risk/reward scoring', 'Live real-time puzzle'],
     features: [
       {
@@ -1130,7 +1191,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       },
       {
         title: 'Risk vs reward',
-        description: 'A wrong answer costs 3 points and permanently locks you out of that block.',
+        description: 'A wrong answer costs 3 points — but you can keep trying that block until you get it.',
         emoji: '⚠️',
       },
       {
@@ -1152,7 +1213,8 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       },
       {
         title: 'Race to the top',
-        description: '1st correct on a block = 10 pts, 2nd = 6, 3rd = 3, rest = 1. Wrong answer = −3 pts, locked out.',
+        description:
+          '1st correct on a block = 10 pts, 2nd = 6, 3rd = 3, rest = 1. Wrong answer = −3 pts, but you can retry.',
       },
     ],
     perfectFor: ['Puzzle fans', 'Game nights', 'Brain teasers', 'Classrooms'],
@@ -1160,7 +1222,7 @@ export const GAME_LANDING_CONTENT: Record<GameType, GameLandingContent> = {
       {
         question: 'What happens if I submit a wrong answer?',
         answer:
-          'You lose 3 points and are permanently locked out of that block for the rest of the game. You can still attempt all other blocks.',
+          'You lose 3 points, but you can try that block again — and you can keep attempting every other block too.',
       },
       {
         question: 'Can multiple players solve the same block?',
