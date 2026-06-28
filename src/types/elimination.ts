@@ -16,4 +16,4 @@ export interface EliminationEvent {
   eliminated_at: string
 }
 
-export const ELIMINATION_COMPATIBLE_TYPES = ['trivia', 'npat', 'two-truths'] as const
+export const ELIMINATION_COMPATIBLE_TYPES = ['trivia', 'i_call_on', 'two_truths'] as const
