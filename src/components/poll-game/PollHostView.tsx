@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { filterParticipantsInRounds } from '@/lib/utils'
 import { hexToRgba } from '@/lib/color'
-import { useGameRealtime } from '@/hooks/useGameRealtime'
 import { LOAD_TIMEOUT_MS, POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
 import { useScrollHostViewToTop, scrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useHostAutoReady } from '@/hooks/useHostAutoReady'
@@ -190,9 +189,6 @@ export function PollHostView({ gameCode, hostToken }: { gameCode: string; hostTo
   const router = useRouter()
   const toast = useToast()
   const { confirm } = useConfirm()
-
-  // Realtime → React Query cache bridge
-  useGameRealtime(gameCode)
 
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
