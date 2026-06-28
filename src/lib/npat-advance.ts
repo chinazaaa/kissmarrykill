@@ -44,7 +44,12 @@ export type NpatAdvanceResult = {
 }
 
 async function countActivePlayers(supabase: SupabaseClient, gameId: string): Promise<string[]> {
-  const { data } = await supabase.from('players').select('id').eq('game_id', gameId).eq('spectator', false)
+  const { data } = await supabase
+    .from('players')
+    .select('id')
+    .eq('game_id', gameId)
+    .eq('spectator', false)
+    .eq('is_eliminated', false)
   return (data ?? []).map((p) => p.id)
 }
 
