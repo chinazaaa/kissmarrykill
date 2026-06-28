@@ -127,10 +127,11 @@ function CenterTriangles() {
       style={{ left: `${left}%`, top: `${top}%`, width: `${size}%`, height: `${size}%` }}
     >
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden>
-        <polygon points="50,50 0,0 100,0" fill={COLOR_VIVID.green} stroke="#1e293b" strokeWidth="0.5" />
-        <polygon points="50,50 100,0 100,100" fill={COLOR_VIVID.yellow} stroke="#1e293b" strokeWidth="0.5" />
-        <polygon points="50,50 0,100 100,100" fill={COLOR_VIVID.red} stroke="#1e293b" strokeWidth="0.5" />
-        <polygon points="50,50 0,0 0,100" fill={COLOR_VIVID.blue} stroke="#1e293b" strokeWidth="0.5" />
+        {/* Each triangle is the colour whose home lane enters from that edge */}
+        <polygon points="50,50 0,0 100,0" fill={COLOR_VIVID.red} stroke="#1e293b" strokeWidth="0.5" />
+        <polygon points="50,50 100,0 100,100" fill={COLOR_VIVID.blue} stroke="#1e293b" strokeWidth="0.5" />
+        <polygon points="50,50 0,100 100,100" fill={COLOR_VIVID.yellow} stroke="#1e293b" strokeWidth="0.5" />
+        <polygon points="50,50 0,0 0,100" fill={COLOR_VIVID.green} stroke="#1e293b" strokeWidth="0.5" />
       </svg>
     </div>
   )
