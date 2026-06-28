@@ -22,9 +22,9 @@ const SIZE_PX = { sm: 16, md: 20, lg: 24 } as const
 const FONT_SIZE = { sm: 'text-[10px]', md: 'text-xs', lg: 'text-sm' } as const
 
 /**
- * Renders a card's suit symbol plus its rank label. Mirrors WhotShapeIcon: drive
- * everything off the card. On a dark card face (`variant="on-card"`) the glyphs go
- * white; otherwise hearts/diamonds are red and spades/clubs near-black.
+ * Renders a card's suit symbol plus its rank label. Drive everything off the card.
+ * Pips use real suit colors (hearts/diamonds red, spades/clubs near-black) on the light
+ * card faces; only the violet wild faces — the 8 and Jokers — get white pips for contrast.
  */
 export function CrazyEightsSuitIcon({
   card,
@@ -38,7 +38,8 @@ export function CrazyEightsSuitIcon({
   className?: string
 }) {
   const px = SIZE_PX[size]
-  const color = variant === 'on-card' ? '#ffffff' : CRAZY8_SUIT_COLORS[card.suit]
+  const onVioletFace = card.suit === 'joker' || card.rank === 8
+  const color = variant === 'on-card' && onVioletFace ? '#ffffff' : CRAZY8_SUIT_COLORS[card.suit]
 
   return (
     <span
