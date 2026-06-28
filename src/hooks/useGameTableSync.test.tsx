@@ -61,13 +61,13 @@ describe('useGameTableSync', () => {
     expect(cap.ons.every((o) => o.event === 'postgres_changes' && o.config.event === '*')).toBe(true)
   })
 
-  it('reloads once (debounced) when a burst of changes fires', () => {
+  it('reloads once (debounced) when a burst of changes fires', async () => {
     const reload = vi.fn()
     renderHook(() => useGameTableSync('ABCD', ['scrabble_sessions'], reload))
     cap.ons[0].cb()
     cap.ons[0].cb()
     expect(reload).not.toHaveBeenCalled() // debounced
-    vi.advanceTimersByTime(150)
+    await vi.advanceTimersByTimeAsync(150) // fire timer + flush the reload microtask
     expect(reload).toHaveBeenCalledTimes(1) // coalesced
   })
 

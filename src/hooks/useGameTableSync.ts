@@ -25,7 +25,7 @@ export type WatchedTable = string | { table: string; column?: string }
 export function useGameTableSync(
   gameCode: string,
   tables: readonly WatchedTable[],
-  reload: () => void,
+  reload: () => void | Promise<unknown>,
   opts?: { enabled?: boolean }
 ) {
   const reloadRef = useRef(reload)
@@ -44,7 +44,14 @@ export function useGameTableSync(
     const schedule = () => {
       if (debounce) clearTimeout(debounce)
       // Coalesce bursts (a single turn often writes several rows) into one reload.
-      debounce = setTimeout(() => reloadRef.current(), 90)
+      // Wrap in a promise so a sync throw or rejected async reload can't become an
+      // unhandled rejection — a failed background refresh is non-fatal (the safety-net
+      // poll retries).
+      debounce = setTimeout(() => {
+        void Promise.resolve()
+          .then(() => reloadRef.current())
+          .catch(() => {})
+      }, 90)
     }
 
     let channel = supabase.channel(`sync-${gameCode}`)
