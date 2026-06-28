@@ -129,7 +129,7 @@ export async function applyEliminationRule(
   const activeIds = new Set((activePlayers ?? []).map((p) => p.id))
   const activeScores = scores.filter((s) => activeIds.has(s.playerId))
 
-  if (activeScores.length <= 1) return { eliminated: [], gameFinished: false }
+  if (activeScores.length === 0) return { eliminated: [], gameFinished: false }
 
   let toEliminate: string[] = []
 
