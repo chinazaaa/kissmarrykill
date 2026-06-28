@@ -48,8 +48,23 @@ pnpm dev
 
 ## Database Setup
 
-- Run the SQL in `supabase/schema.sql` in your Supabase SQL editor
-- Create a storage bucket named "avatars" with public access (for player photos)
+The schema is defined entirely by the migrations in `supabase/migrations/`
+(`0001_base_schema.sql` plus everything after it). Apply them to a fresh Supabase
+project with the Supabase CLI:
+
+```bash
+supabase link --project-ref <your-project-ref>
+supabase db push   # applies every migration in supabase/migrations/ in order
+```
+
+That also creates the `avatars` storage bucket and its policies (the base
+migration handles it), so there's no manual bucket step.
+
+Once Supabase is connected to GitHub, new migrations apply automatically — on the
+preview branch when a PR opens, and on prod when you merge. **Make every schema
+change as a new timestamped migration file; never edit the schema in the SQL
+Editor** (manual edits aren't tracked and drift the database out of sync). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full migration conventions.
 
 ## Scripts
 
