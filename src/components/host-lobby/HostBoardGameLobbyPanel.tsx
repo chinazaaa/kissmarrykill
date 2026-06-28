@@ -221,92 +221,94 @@ export function HostBoardGameLobbyPanel({
 
   return (
     <HostLobbySettingsSection status={statusLabel} summary={summary}>
-      <HostLobbySettingBlock title={`Max players · ${playerCount} joined`}>
-        <HostLobbyOptionChips value={maxPlayers} options={maxPlayerOptions} onChange={onMaxPlayersChange} />
-      </HostLobbySettingBlock>
-
-      <HostLobbySettingBlock title="Turn timer">
-        <HostLobbyOptionChips value={turnTimer} options={turnTimerOptions} onChange={onTurnTimerChange} />
-      </HostLobbySettingBlock>
-
-      {(boardGameType === 'monopoly' || boardGameType === 'whot' || boardGameType === 'crazy_eights') && (
-        <HostLobbySettingBlock title="Game length">
-          <HostLobbyOptionChips value={gameDuration} options={durationOptions} onChange={onGameDurationChange} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+        <HostLobbySettingBlock title={`Max players · ${playerCount} joined`}>
+          <HostLobbyOptionChips value={maxPlayers} options={maxPlayerOptions} onChange={onMaxPlayersChange} />
         </HostLobbySettingBlock>
-      )}
 
-      {boardGameType === 'whot' && (
-        <HostLobbySettingBlock title="House rules">
-          <div className="space-y-1.5">
-            <Toggle
-              label="Pick 3"
-              description="Include 5 cards and the Pick 3 draw penalty"
-              value={whotPick3Enabled}
-              onChange={(v) => onWhotRuleChange({ whot_pick3_enabled: v })}
-            />
-            <Toggle
-              label="Stack Pick 2"
-              description="On: defend a Pick 2 with your own 2. Off: you must draw it."
-              value={whotPick2Stacking}
-              onChange={(v) => onWhotRuleChange({ whot_pick2_stacking: v })}
-            />
-            <Toggle
-              label="WHOT cards"
-              description="Include WHOT wild cards in the deck"
-              value={whotCardsEnabled}
-              onChange={(v) => onWhotRuleChange({ whot_cards_enabled: v })}
-            />
-            <div className={whotCardsEnabled ? undefined : 'opacity-50 pointer-events-none'}>
+        <HostLobbySettingBlock title="Turn timer">
+          <HostLobbyOptionChips value={turnTimer} options={turnTimerOptions} onChange={onTurnTimerChange} />
+        </HostLobbySettingBlock>
+
+        {(boardGameType === 'monopoly' || boardGameType === 'whot' || boardGameType === 'crazy_eights') && (
+          <HostLobbySettingBlock title="Game length" className="sm:col-span-2">
+            <HostLobbyOptionChips value={gameDuration} options={durationOptions} onChange={onGameDurationChange} />
+          </HostLobbySettingBlock>
+        )}
+
+        {boardGameType === 'whot' && (
+          <HostLobbySettingBlock title="House rules" className="sm:col-span-2">
+            <div className="space-y-1.5">
               <Toggle
-                label="Numbers on WHOT"
-                description="Call a number when playing WHOT"
-                value={whotNumberCallsEnabled}
-                onChange={(v) => onWhotRuleChange({ whot_number_calls_enabled: v })}
+                label="Pick 3"
+                description="Include 5 cards and the Pick 3 draw penalty"
+                value={whotPick3Enabled}
+                onChange={(v) => onWhotRuleChange({ whot_pick3_enabled: v })}
               />
-            </div>
-          </div>
-        </HostLobbySettingBlock>
-      )}
-
-      {boardGameType === 'crazy_eights' && (
-        <HostLobbySettingBlock title="House rules">
-          <div className="space-y-1.5">
-            <Toggle
-              label="Action cards"
-              description="Enable 2 (Pick Two), J & A (Skip), Q (Reverse). Off: only the 8 is wild."
-              value={crazy8ActionCards}
-              onChange={(v) => onCrazy8RuleChange({ crazy8_action_cards: v })}
-            />
-            <Toggle
-              label="Jokers"
-              description="Add 2 Jokers — wild cards that make the next player draw 5"
-              value={crazy8Jokers}
-              onChange={(v) => onCrazy8RuleChange({ crazy8_jokers: v })}
-            />
-            <div className={crazy8ActionCards ? undefined : 'opacity-50 pointer-events-none'}>
               <Toggle
                 label="Stack Pick 2"
-                description="On: defend a 2 with your own 2. Off: you must draw it."
-                value={crazy8Pick2Stacking}
-                onChange={(v) => onCrazy8RuleChange({ crazy8_pick2_stacking: v })}
+                description="On: defend a Pick 2 with your own 2. Off: you must draw it."
+                value={whotPick2Stacking}
+                onChange={(v) => onWhotRuleChange({ whot_pick2_stacking: v })}
               />
+              <Toggle
+                label="WHOT cards"
+                description="Include WHOT wild cards in the deck"
+                value={whotCardsEnabled}
+                onChange={(v) => onWhotRuleChange({ whot_cards_enabled: v })}
+              />
+              <div className={whotCardsEnabled ? undefined : 'opacity-50 pointer-events-none'}>
+                <Toggle
+                  label="Numbers on WHOT"
+                  description="Call a number when playing WHOT"
+                  value={whotNumberCallsEnabled}
+                  onChange={(v) => onWhotRuleChange({ whot_number_calls_enabled: v })}
+                />
+              </div>
             </div>
-          </div>
-        </HostLobbySettingBlock>
-      )}
+          </HostLobbySettingBlock>
+        )}
 
-      {gameSupportsViewerSetting(game.game_type) && game.status === 'waiting' && (
-        <HostLobbySettingBlock title="Late joiners">
-          <HostAllowViewersField
-            embedded
-            hideHeader
-            gameCode={gameCode}
-            hostToken={hostToken}
-            game={game}
-            onGameUpdate={onGameUpdate}
-          />
-        </HostLobbySettingBlock>
-      )}
+        {boardGameType === 'crazy_eights' && (
+          <HostLobbySettingBlock title="House rules" className="sm:col-span-2">
+            <div className="space-y-1.5">
+              <Toggle
+                label="Action cards"
+                description="Enable 2 (Pick Two), J & A (Skip), Q (Reverse). Off: only the 8 is wild."
+                value={crazy8ActionCards}
+                onChange={(v) => onCrazy8RuleChange({ crazy8_action_cards: v })}
+              />
+              <Toggle
+                label="Jokers"
+                description="Add 2 Jokers — wild cards that make the next player draw 5"
+                value={crazy8Jokers}
+                onChange={(v) => onCrazy8RuleChange({ crazy8_jokers: v })}
+              />
+              <div className={crazy8ActionCards ? undefined : 'opacity-50 pointer-events-none'}>
+                <Toggle
+                  label="Stack Pick 2"
+                  description="On: defend a 2 with your own 2. Off: you must draw it."
+                  value={crazy8Pick2Stacking}
+                  onChange={(v) => onCrazy8RuleChange({ crazy8_pick2_stacking: v })}
+                />
+              </div>
+            </div>
+          </HostLobbySettingBlock>
+        )}
+
+        {gameSupportsViewerSetting(game.game_type) && game.status === 'waiting' && (
+          <HostLobbySettingBlock title="Late joiners" className="sm:col-span-2">
+            <HostAllowViewersField
+              embedded
+              hideHeader
+              gameCode={gameCode}
+              hostToken={hostToken}
+              game={game}
+              onGameUpdate={onGameUpdate}
+            />
+          </HostLobbySettingBlock>
+        )}
+      </div>
     </HostLobbySettingsSection>
   )
 }

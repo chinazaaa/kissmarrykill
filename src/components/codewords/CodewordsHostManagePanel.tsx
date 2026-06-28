@@ -66,7 +66,6 @@ export function CodewordsHostManagePanel({
   customWordCount = 0,
   onEditWordPool,
   savingWordPool = false,
-  settingsTop,
   settingsBottom,
 }: {
   game: Game
@@ -105,8 +104,6 @@ export function CodewordsHostManagePanel({
   customWordCount?: number
   onEditWordPool?: () => void
   savingWordPool?: boolean
-  /** Rendered first inside the "Before you start" section (e.g. host-mode selector). */
-  settingsTop?: React.ReactNode
   /** Rendered last inside the "Before you start" section (e.g. late-joiners). */
   settingsBottom?: React.ReactNode
 }) {
@@ -336,105 +333,103 @@ export function CodewordsHostManagePanel({
         </div>
       )}
 
-      {/* Before you start — every other setup option lives here */}
+      {/* Before you start — every other setup option lives here, collapsed by default */}
       {inLobby && (
         <HostLobbySettingsSection
           title="Before you start"
-          defaultOpen
           summary={settingsSummary}
           status={savingMaxPlayers || savingTimers ? 'Saving…' : null}
         >
-          {settingsTop}
-
-          <HostLobbySettingBlock title={`Max players · ${players.length} joined`}>
-            <HostLobbyOptionChips
-              value={lobbyMaxPlayers}
-              options={maxPlayerOptions}
-              onChange={onMaxPlayersChange}
-              disabled={savingMaxPlayers}
-            />
-          </HostLobbySettingBlock>
-
-          {onEditWordPool && (
-            <HostLobbySettingBlock title="Word list">
-              <p className="text-body text-sm">
-                {customWordCount} word{customWordCount === 1 ? '' : 's'} in your library
-              </p>
-              <p className="text-faint text-xs leading-relaxed">
-                Upload a new CSV to replace the list. After saving, the next board uses your updated words.
-              </p>
-              <button
-                type="button"
-                onClick={onEditWordPool}
-                disabled={savingWordPool}
-                className="btn-secondary w-full py-3"
-              >
-                {savingWordPool ? 'Saving…' : 'Change words or upload CSV'}
-              </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+            <HostLobbySettingBlock title={`Max players · ${players.length} joined`}>
+              <HostLobbyOptionChips
+                value={lobbyMaxPlayers}
+                options={maxPlayerOptions}
+                onChange={onMaxPlayersChange}
+                disabled={savingMaxPlayers}
+              />
             </HostLobbySettingBlock>
-          )}
 
-          <HostLobbySettingBlock title="Timers">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="space-y-1">
-                <span className="text-faint text-xs">Spymaster timer</span>
-                <select
-                  value={spymasterTimer}
-                  onChange={(e) => onSpymasterTimerChange(Number(e.target.value))}
-                  className="input-field w-full"
-                >
-                  {CODEWORDS_TIMER_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s} seconds
-                    </option>
+            {onFirstTeamChange && (
+              <HostLobbySettingBlock title="Goes first">
+                <div className="flex rounded-xl border border-[var(--border)] overflow-hidden text-sm">
+                  {(['random', 'red', 'blue'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => onFirstTeamChange(opt)}
+                      className={`flex-1 py-1.5 font-semibold capitalize transition-colors ${
+                        firstTeam === opt ? 'bg-[var(--primary)] text-white' : 'text-muted hover:text-body'
+                      }`}
+                    >
+                      {opt === 'random' ? '🎲 Random' : opt === 'red' ? '🔴 Red' : '🔵 Blue'}
+                    </button>
                   ))}
-                </select>
-              </label>
-              <label className="space-y-1">
-                <span className="text-faint text-xs">Operative timer</span>
-                <select
-                  value={operativeTimer}
-                  onChange={(e) => onOperativeTimerChange(Number(e.target.value))}
-                  className="input-field w-full"
-                >
-                  {CODEWORDS_TIMER_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s} seconds
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <button
-              type="button"
-              onClick={onSaveTimers}
-              disabled={savingTimers}
-              className="btn-secondary w-full sm:w-auto"
-            >
-              {savingTimers ? 'Saving…' : 'Save timers'}
-            </button>
-          </HostLobbySettingBlock>
+                </div>
+              </HostLobbySettingBlock>
+            )}
 
-          {onFirstTeamChange && (
-            <HostLobbySettingBlock title="Goes first">
-              <div className="flex rounded-xl border border-[var(--border)] overflow-hidden text-sm">
-                {(['random', 'red', 'blue'] as const).map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => onFirstTeamChange(opt)}
-                    className={`flex-1 py-1.5 font-semibold capitalize transition-colors ${
-                      firstTeam === opt ? 'bg-[var(--primary)] text-white' : 'text-muted hover:text-body'
-                    }`}
+            <HostLobbySettingBlock title="Timers" className="sm:col-span-2">
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="space-y-1 flex-1 min-w-[8rem]">
+                  <span className="text-faint text-xs">Spymaster</span>
+                  <select
+                    value={spymasterTimer}
+                    onChange={(e) => onSpymasterTimerChange(Number(e.target.value))}
+                    className="input-field w-full"
                   >
-                    {opt === 'random' ? '🎲 Random' : opt === 'red' ? '🔴 Red' : '🔵 Blue'}
-                  </button>
-                ))}
+                    {CODEWORDS_TIMER_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}s
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 flex-1 min-w-[8rem]">
+                  <span className="text-faint text-xs">Operative</span>
+                  <select
+                    value={operativeTimer}
+                    onChange={(e) => onOperativeTimerChange(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {CODEWORDS_TIMER_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}s
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={onSaveTimers}
+                  disabled={savingTimers}
+                  className="btn-secondary btn-fit shrink-0"
+                >
+                  {savingTimers ? 'Saving…' : 'Save'}
+                </button>
               </div>
             </HostLobbySettingBlock>
-          )}
 
-          {settingsBottom}
+            {onEditWordPool && (
+              <HostLobbySettingBlock title="Word list" className="sm:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-faint text-xs">
+                    {customWordCount} word{customWordCount === 1 ? '' : 's'} in your library
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onEditWordPool}
+                    disabled={savingWordPool}
+                    className="btn-secondary btn-fit shrink-0 text-sm"
+                  >
+                    {savingWordPool ? 'Saving…' : 'Change or upload CSV'}
+                  </button>
+                </div>
+              </HostLobbySettingBlock>
+            )}
+
+            {settingsBottom && <div className="sm:col-span-2">{settingsBottom}</div>}
+          </div>
         </HostLobbySettingsSection>
       )}
 
