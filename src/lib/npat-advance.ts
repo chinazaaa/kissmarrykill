@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
 import { isICallOnGame, parseGameType } from '@/lib/game-types'
+import { applyEliminationRule } from './elimination'
+import type { EliminationConfig } from '@/types/elimination'
 import {
   buildNpatNextRound,
   clampNpatMarkingTimer,
@@ -358,6 +360,24 @@ async function startNextLetterCycle(
   if (await shouldFinishNpatSession(supabase, liveGame)) {
     await markGameFinished(supabase, code)
     return { ok: true, code: 'advanced_finish' }
+  }
+
+  // Elimination hook
+  const { data: gameForElim } = await supabase.from('games').select('elimination_config').eq('id', code).maybeSingle()
+
+  if (gameForElim?.elimination_config) {
+    const elimConfig = gameForElim.elimination_config as EliminationConfig
+    const result = await applyEliminationRule(supabase, code, 'npat', finishedRound.round_number, elimConfig)
+    if (result.gameFinished) {
+      await markGameFinished(supabase, code)
+      return { ok: true, code: 'advanced_finish' }
+    }
+
+    // Strip eliminated players from caller_order
+    const eliminatedSet = new Set(result.eliminated)
+    const filteredPlayerIds = playerIds.filter((id) => !eliminatedSet.has(id))
+    // Re-assign playerIds for the rest of this function
+    playerIds = filteredPlayerIds
   }
 
   const nextRoundNumber = finishedRound.round_number + 1

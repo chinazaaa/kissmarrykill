@@ -3,6 +3,8 @@ import { markGameFinished } from '@/lib/game-finish'
 import { isTriviaGame, parseGameType } from '@/lib/game-types'
 import { TRIVIA_DEFAULT_TIMER, TRIVIA_REVEAL_SECONDS } from '@/lib/trivia'
 import type { Game, Round } from '@/types'
+import { applyEliminationRule } from './elimination'
+import type { EliminationConfig } from '@/types/elimination'
 
 export type TriviaAdvanceCode =
   | 'round_active'
@@ -90,6 +92,28 @@ async function advanceAfterReveal(supabase: SupabaseClient, game: Game, force: b
     const revealDeadline = new Date(currentRound.ended_at).getTime() + TRIVIA_REVEAL_SECONDS * 1000
     if (Date.now() < revealDeadline) {
       return { ok: false, code: 'reveal_pending' }
+    }
+  }
+
+  // Elimination hook: apply elimination rule after reveal
+  const { data: gameForElim } = await supabase
+    .from('games')
+    .select('elimination_config, game_type')
+    .eq('id', code)
+    .maybeSingle()
+
+  if (gameForElim?.elimination_config) {
+    const elimConfig = gameForElim.elimination_config as EliminationConfig
+    const result = await applyEliminationRule(
+      supabase,
+      code,
+      gameForElim.game_type ?? 'trivia',
+      game.current_round_number,
+      elimConfig
+    )
+    if (result.gameFinished) {
+      await markGameFinished(supabase, code)
+      return { ok: true, code: 'advanced_finish' }
     }
   }
 
