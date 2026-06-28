@@ -94,21 +94,13 @@ export async function resolvePlayerSession(
     return null
   }
 
-  const resumeToken =
-    session.resumeToken ??
-    (players?.find((p) => p.id === session.playerId)?.resume_token
-      ? normalizeResumeToken(players.find((p) => p.id === session.playerId)!.resume_token!)
-      : null)
-
-  if (resumeToken && resumeToken !== session.resumeToken) {
-    setPlayerSession(gameCode, session.playerId, session.playerName, session.playerGender, resumeToken)
-  }
-
+  // resume_token is the player's secret credential and is no longer readable from the DB
+  // by the client (migration 0122) — it lives only in the local session (set at join).
   return {
     playerId: session.playerId,
     playerName: session.playerName,
     playerGender: session.playerGender,
-    resumeToken,
+    resumeToken: session.resumeToken ?? null,
   }
 }
 

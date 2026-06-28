@@ -203,7 +203,9 @@ export type AiGeneratedQuestions =
 export interface Game {
   id: string
   title: string
-  host_token: string
+  /** Secret host credential. Only present on server-side (service-role) reads; never
+   *  exposed to clients (migration 0122), so optional on this shared type. */
+  host_token?: string
   rounds_count: number
   timer_seconds: number
   /** Scrabble — which word list to validate plays against (default 'enable'). */

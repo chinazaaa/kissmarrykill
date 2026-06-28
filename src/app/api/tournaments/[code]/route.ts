@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { updateTournamentSchema } from '@/lib/tournament-validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -49,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
 
   const { hostToken, title, placementPoints, targetGameCount } = parsed.data
 
-  const { data: tournament } = await supabase
+  const { data: tournament } = await getSupabaseAdmin()
     .from('tournaments')
     .select('host_token')
     .eq('id', tournamentId)

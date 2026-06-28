@@ -35,6 +35,7 @@ import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { allowLateJoin, allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { markPlayerReady } from '@/lib/player-ready'
 import { resolvePlayerSession } from '@/lib/player-resume'
@@ -180,7 +181,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   const loadScoreboard = useCallback(async () => {
     const [{ data: plrs }, { data: roleRows }] = await Promise.all([
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
       supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
     ])
     setAllPlayers(plrs ?? [])
@@ -189,8 +190,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
     ])
 
     if (!gameData) {

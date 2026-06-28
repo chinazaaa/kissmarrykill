@@ -65,13 +65,19 @@ expands to privacy (which would be the point to consider anonymous Supabase auth
   tables); shared writers in start/play-again/players/promote switched to the service role.
 - [x] **Phase 4 — RLS lockdown** for all 16 game-state table groups (migrations 0106–0121):
   `FOR ALL USING(true)` replaced with SELECT-only `_read` policies; rollbacks drafted in-file.
-- [ ] **Phase 3 — Hide tokens from reads** ⚠️ **NOT DONE — critical gap.** `host_token` is still
-  in `GAME_SELECT` and `resume_token` in `PLAYER_SELECT` (`src/lib/supabase-selects.ts`), and
-  the `players`/`games` tables are still readable, so anon can `select resume_token from
-  players` and **impersonate** a player through the (now token-gated) APIs. Until this is done,
-  the lockdown blocks direct table tampering but NOT impersonation-via-read-token. Must: drop
-  those columns from client SELECTs, refactor the few client reads, and
-  `REVOKE SELECT (host_token) ON games / (resume_token) ON players FROM anon`.
+- [x] **Phase 3 — Hide tokens from reads** (migration 0122, approach A = column-level grants):
+  `REVOKE SELECT` on `games.host_token` / `players.resume_token` from anon+authenticated, re-grant
+  every other column (built dynamically from `information_schema`). The service role bypasses the
+  grant, so server auth reads keep working. Tokens removed from `GAME_SELECT`/`PLAYER_SELECT`
+  (+ new `HOST_GAME_SELECT` for the host page); ~25 client `select('*')` on games/players rewritten
+  to curated lists (Postgres rejects `*` on an ungranted column); ~20 server token-read routes and
+  all anon `insert/update().select()` that returned a token switched to the service role; client
+  token-readers (`useHostPlayerSession`, `player-resume`) now rely on the local session; host page
+  gates via a new `/api/games/[code]/verify-host` endpoint instead of reading `host_token`.
+  `Game.host_token` made optional on the shared type.
+  ⚠️ **Realtime must be verified on the live DB** — approach A relies on Supabase realtime
+  excluding ungranted columns from anon `postgres_changes` payloads. If a test shows the tokens
+  still arrive over realtime, escalate those two columns to separate secret tables.
 - [ ] **Core tables** still permissive: `games`, `players`, `participants`, `rounds`, `votes`,
   `confessions`, `player_questions`, `wst_quote_pool`, `anime_quote_pool`,
   `hot_seat_submissions`, `game_snapshots`, and `rooms`/`room_*`. These back the original

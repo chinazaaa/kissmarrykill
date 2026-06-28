@@ -208,7 +208,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { hostToken } = parsed.data
 
-  const { data: game } = await supabase.from('games').select('*').eq('id', code.toUpperCase()).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', code.toUpperCase()).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'waiting') return NextResponse.json({ error: 'Game already started' }, { status: 400 })
@@ -345,7 +345,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeMonopolyGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id),
       (game.timer_seconds ?? 0) as number
@@ -566,7 +566,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeScrabbleGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )

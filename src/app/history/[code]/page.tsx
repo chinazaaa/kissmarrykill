@@ -39,6 +39,8 @@ import {
 import {
   BINGO_CALLED_NUMBER_SELECT,
   BINGO_CLAIM_SELECT,
+  GAME_SELECT,
+  PLAYER_SELECT,
   LUDO_PLAYER_STATE_SELECT,
   LUDO_SESSION_SELECT,
   SNAKE_LADDER_PLAYER_STATE_SELECT,
@@ -212,7 +214,7 @@ export default function GameHistoryPage() {
 
     async function load() {
       setLoadState('loading')
-      const { data: gameData } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+      const { data: gameData } = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
 
       if (!gameData) {
         setLoadState('not_found')
@@ -256,7 +258,11 @@ export default function GameHistoryPage() {
       }
 
       if (isAnonymousMessagesGame(gameType)) {
-        const { data: plrs } = await supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at')
+        const { data: plrs } = await supabase
+          .from('players')
+          .select(PLAYER_SELECT)
+          .eq('game_id', gameCode)
+          .order('joined_at')
         setGame(gameData)
         setPlayers(plrs ?? [])
         setParticipants([])
@@ -271,7 +277,7 @@ export default function GameHistoryPage() {
 
       if (isTriviaGame(gameType)) {
         const [{ data: plrs }, { data: rds }, { data: ans }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
           supabase.from('trivia_answers').select('*').eq('game_id', gameCode),
         ])
@@ -290,7 +296,7 @@ export default function GameHistoryPage() {
 
       if (isCodewordsGame(gameType)) {
         const [{ data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
           supabase.from('codewords_boards').select('*').eq('game_id', gameCode).maybeSingle(),
           supabase
@@ -316,7 +322,7 @@ export default function GameHistoryPage() {
 
       if (isMonopolyGame(gameType)) {
         const [{ data: plrs }, { data: boardData }, { data: stateRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('monopoly_boards').select(MONOPOLY_BOARD_SELECT).eq('game_id', gameCode).maybeSingle(),
           supabase
             .from('monopoly_player_state')
@@ -340,7 +346,7 @@ export default function GameHistoryPage() {
 
       if (isYahtzeeGame(gameType)) {
         const [{ data: plrs }, { data: sessionData }, { data: scoreRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('yahtzee_sessions').select(YAHTZEE_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
           supabase
             .from('yahtzee_player_scores')
@@ -364,7 +370,7 @@ export default function GameHistoryPage() {
 
       if (isWhotGame(gameType)) {
         const [{ data: plrs }, { data: sessionData }, { data: handRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('whot_sessions').select(WHOT_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
           supabase
             .from('whot_player_hands')
@@ -388,7 +394,7 @@ export default function GameHistoryPage() {
 
       if (isLudoGame(gameType)) {
         const [{ data: plrs }, { data: sessionData }, { data: stateRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('ludo_sessions').select(LUDO_SESSION_SELECT).eq('game_id', gameCode).maybeSingle(),
           supabase
             .from('ludo_player_state')
@@ -412,7 +418,7 @@ export default function GameHistoryPage() {
 
       if (isSnakeAndLadderGame(gameType)) {
         const [{ data: plrs }, { data: sessionData }, { data: stateRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase
             .from('snake_ladder_sessions')
             .select(SNAKE_LADDER_SESSION_SELECT)
@@ -440,7 +446,7 @@ export default function GameHistoryPage() {
 
       if (isBingoGame(gameType)) {
         const [{ data: plrs }, { data: claimRows }, { data: calledRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase
             .from('bingo_claims')
             .select(BINGO_CLAIM_SELECT)
@@ -466,7 +472,7 @@ export default function GameHistoryPage() {
 
       if (isTwoTruthsGame(gameType)) {
         const [{ data: plrs }, { data: rds }, { data: guessRows }, { data: statementRows }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
           supabase.from('ttl_guesses').select(TTL_GUESS_SELECT).eq('game_id', gameCode),
           supabase.from('ttl_statements').select(TTL_STATEMENT_SELECT).eq('game_id', gameCode),
@@ -488,7 +494,7 @@ export default function GameHistoryPage() {
       const [{ data: parts }, { data: plrs }, { data: rds }, { data: vts }, { data: confs }, { data: subs }] =
         await Promise.all([
           supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('rounds').select('*').eq('game_id', gameCode).order('round_number'),
           supabase.from('votes').select('*').eq('game_id', gameCode),
           supabase.from('confessions').select('*').eq('game_id', gameCode).order('created_at'),

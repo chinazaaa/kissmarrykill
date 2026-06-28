@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { parseGameType, isWhoSaidThis, isTriviaGame } from '@/lib/game-types'
 import { hostActionSchema } from '@/lib/validation'
 import { syncTriviaGameState } from '@/lib/trivia-advance'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { hostToken } = parsed.data
 
-  const { data: game } = await supabase.from('games').select('*').eq('id', code.toUpperCase()).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', code.toUpperCase()).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'active') return NextResponse.json({ error: 'Game not active' }, { status: 400 })
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const gameType = parseGameType(game.game_type)
 
   if (isTriviaGame(gameType)) {
-    const result = await syncTriviaGameState(supabase, gameId, { force: true })
+    const result = await syncTriviaGameState(getSupabaseAdmin(), gameId, { force: true })
     if (result.code === 'game_not_found') {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 })
     }

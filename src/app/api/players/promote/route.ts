@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const { gameCode, playerId } = parsed.data
   const gameId = gameCode.toUpperCase()
 
-  const { data: gameRow } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
+  const { data: gameRow } = await getSupabaseAdmin().from('games').select('*').eq('id', gameId).maybeSingle()
   if (!gameRow) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
   const game = gameRow as Game
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This game only allows late joiners to watch' }, { status: 400 })
   }
 
-  const { data: player } = await supabase
+  const { data: player } = await getSupabaseAdmin()
     .from('players')
     .select('*')
     .eq('id', playerId)
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You are already playing' }, { status: 400 })
   }
 
-  const { data: updated, error: updateError } = await supabase
+  const { data: updated, error: updateError } = await getSupabaseAdmin()
     .from('players')
     .update({ spectator: false })
     .eq('id', playerId)

@@ -7,7 +7,7 @@ import { gameTypeConfig } from '@/lib/game-types'
 import { supabase } from '@/lib/supabase'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { resolvePlayerSession } from '@/lib/player-resume'
-import { PLAYER_SELECT } from '@/lib/supabase-selects'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import type { Game } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 
@@ -50,7 +50,7 @@ export function SecretMessageSenderView({ gameCode }: { gameCode: string }) {
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode),
     ])
     if (!gameData) {

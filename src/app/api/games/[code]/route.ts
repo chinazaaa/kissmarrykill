@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { assertHostGameSettings, assertHostLateJoinSettings } from '@/lib/game-admin'
 import { questionPoolCap } from '@/lib/custom-questions'
 import { parseTimerSeconds, updateGameSchema } from '@/lib/validation'
+import { HOST_GAME_SELECT } from '@/lib/supabase-selects'
 import {
   parseGameType,
   isHotSeat,
@@ -26,6 +27,7 @@ import { parsePlayerQuestionsEnabled, parsePlayerQuestionsOrder } from '@/lib/pl
 import { supportsPlayerNameSubmissions } from '@/lib/player-participant-pool'
 import { gameSupportsViewerSetting, lateJoinPolicyToFields, gameAllowsLatePlayerJoin } from '@/lib/viewers'
 import { clampPanRounds } from '@/lib/pick-a-number'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -62,8 +64,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     parsed.data.gender_based === undefined
 
   const auth = lateJoinOnly
-    ? await assertHostLateJoinSettings(supabase, code, hostToken)
-    : await assertHostGameSettings(supabase, code, hostToken)
+    ? await assertHostLateJoinSettings(getSupabaseAdmin(), code, hostToken)
+    : await assertHostGameSettings(getSupabaseAdmin(), code, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const updatePayload: Record<string, unknown> = {}
@@ -245,7 +247,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
-  const { data: game, error } = await supabase.from('games').update(updatePayload).eq('id', auth.id).select().single()
+  const { data: game, error } = await getSupabaseAdmin()
+    .from('games')
+    .update(updatePayload)
+    .eq('id', auth.id)
+    // Return the host-safe column set — never echo host_token back to the client.
+    .select(HOST_GAME_SELECT)
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

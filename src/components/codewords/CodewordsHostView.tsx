@@ -22,6 +22,7 @@ import {
 import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
 import { useCodewordsNotifications } from '@/hooks/useCodewordsNotifications'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -93,8 +94,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] =
       await Promise.all([
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+        supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
         supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
         supabase.from('codewords_boards').select('*').eq('game_id', gameCode).maybeSingle(),
         supabase.from('codewords_guesses').select('*').eq('game_id', gameCode).order('created_at', { ascending: true }),

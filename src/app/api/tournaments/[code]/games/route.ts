@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import { addTournamentGameSchema, TOURNAMENT_ELIGIBLE_TYPES } from '@/lib/tournament-validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -21,7 +22,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: `Game type "${gameType}" is not eligible for tournaments` }, { status: 400 })
   }
 
-  const { data: tournament } = await supabase.from('tournaments').select('*').eq('id', tournamentId).maybeSingle()
+  const admin = getSupabaseAdmin()
+
+  const { data: tournament } = await admin.from('tournaments').select('*').eq('id', tournamentId).maybeSingle()
 
   if (!tournament) {
     return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Tournament has ended' }, { status: 400 })
   }
 
-  const { data: activeGame } = await supabase
+  const { data: activeGame } = await admin
     .from('tournament_games')
     .select('id')
     .eq('tournament_id', tournamentId)
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   let gameCode = ''
   for (let attempt = 0; attempt < 10; attempt++) {
     const candidate = generateGameCode()
-    const { data: existing } = await supabase.from('games').select('id').eq('id', candidate).maybeSingle()
+    const { data: existing } = await admin.from('games').select('id').eq('id', candidate).maybeSingle()
     if (!existing) {
       gameCode = candidate
       break
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const gameHostToken = generateToken()
 
-  const { error: gameError } = await supabase.from('games').insert({
+  const { error: gameError } = await admin.from('games').insert({
     id: gameCode,
     host_token: gameHostToken,
     title: `${tournament.title} - Game`,
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: gameError.message }, { status: 500 })
   }
 
-  const { data: lastGame } = await supabase
+  const { data: lastGame } = await admin
     .from('tournament_games')
     .select('game_order')
     .eq('tournament_id', tournamentId)
@@ -84,7 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const nextOrder = (lastGame?.game_order ?? 0) + 1
 
-  const { error: tgError } = await supabase.from('tournament_games').insert({
+  const { error: tgError } = await admin.from('tournament_games').insert({
     tournament_id: tournamentId,
     game_id: gameCode,
     game_order: nextOrder,
@@ -96,7 +99,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (tournament.status === 'waiting') {
-    await supabase.from('tournaments').update({ status: 'active' }).eq('id', tournamentId)
+    await admin.from('tournaments').update({ status: 'active' }).eq('id', tournamentId)
   }
 
   return NextResponse.json({ gameCode, gameHostToken })

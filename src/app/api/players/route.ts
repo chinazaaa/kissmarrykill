@@ -41,6 +41,7 @@ import { isImportClaimMode, isJoinersPollMode, isVoterOnlyMode } from '@/lib/par
 import {
   assertHostGame,
   assertHostPlayerRemove,
+  assertPlayer,
   deleteJoinerPair,
   findJoinerParticipant,
   pollGenderForPlayer,
@@ -195,7 +196,7 @@ export async function POST(req: NextRequest) {
 
   let name = playerName?.trim() ?? ''
   const gameId = gameCode.toUpperCase()
-  const { data: gameRow } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
+  const { data: gameRow } = await getSupabaseAdmin().from('games').select('*').eq('id', gameId).maybeSingle()
   if (!gameRow) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
   const roomMember = await resolveRoomMemberForGame(supabase, gameId, roomMemberCode)
@@ -234,7 +235,7 @@ export async function POST(req: NextRequest) {
     const { data: existingPlayers } = await supabase.from('players').select('name').eq('game_id', gameId)
     const generatedName = generateAnonymousDisplayName((existingPlayers ?? []).map((p) => p.name))
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -271,7 +272,7 @@ export async function POST(req: NextRequest) {
     const { data: existingPlayers } = await supabase.from('players').select('name').eq('game_id', gameId)
     const generatedName = generateAnonymousDisplayName((existingPlayers ?? []).map((p) => p.name))
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -326,7 +327,7 @@ export async function POST(req: NextRequest) {
 
     const isSpectator = spectatorOnJoin(gameRow as Game, rawJoinAsViewer)
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -390,7 +391,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -440,7 +441,7 @@ export async function POST(req: NextRequest) {
 
     const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -484,7 +485,7 @@ export async function POST(req: NextRequest) {
 
     const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -529,7 +530,7 @@ export async function POST(req: NextRequest) {
 
     const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -574,7 +575,7 @@ export async function POST(req: NextRequest) {
 
     const isSpectator = gameRow.status === 'active' ? spectatorForActiveJoin(gameRow as Game, true) : false
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -624,7 +625,7 @@ export async function POST(req: NextRequest) {
 
     const isSpectator = spectatorOnJoin(gameRow as Game, rawJoinAsViewer)
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -677,7 +678,7 @@ export async function POST(req: NextRequest) {
     }
 
     const isSpectator = spectatorOnJoin(gameRow as Game, rawJoinAsViewer)
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: gameId,
@@ -735,7 +736,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: id,
@@ -777,7 +778,7 @@ export async function POST(req: NextRequest) {
 
     if (partError) return NextResponse.json({ error: partError.message }, { status: 500 })
 
-    const { data: player, error: playerError } = await supabase
+    const { data: player, error: playerError } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: id,
@@ -806,7 +807,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: id,
@@ -852,7 +853,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: id,
@@ -912,7 +913,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
     }
 
-    const { data: player, error } = await supabase
+    const { data: player, error } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: id,
@@ -948,7 +949,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
     }
 
-    const { data: player, error: playerError } = await supabase
+    const { data: player, error: playerError } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: id,
@@ -990,7 +991,7 @@ export async function POST(req: NextRequest) {
 
     if (partError) return NextResponse.json({ error: partError.message }, { status: 500 })
 
-    const { data: player, error: playerError } = await supabase
+    const { data: player, error: playerError } = await getSupabaseAdmin()
       .from('players')
       .insert({
         game_id: id,
@@ -1030,24 +1031,34 @@ export async function PATCH(req: NextRequest) {
     identityGender: rawIdentityGender,
     participantId: rawParticipantId,
     hostToken,
+    resumeToken,
   } = parsedPatch.data
 
   let game: { participant_mode: string } | null
   let id: string
 
   if (hostToken) {
-    const auth = await assertHostGame(supabase, gameCode, hostToken)
+    const auth = await assertHostGame(getSupabaseAdmin(), gameCode, hostToken)
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
     game = auth.game
     id = auth.id
   } else {
     const session = await assertPlayerSessionGame(gameCode)
     if (session.error) return NextResponse.json({ error: session.error }, { status: session.status })
+    // Non-host callers may only edit their OWN player — prove ownership via resume_token.
+    const owner = await assertPlayer(getSupabaseAdmin(), gameCode, resumeToken)
+    if (owner.error) return NextResponse.json({ error: owner.error }, { status: owner.status })
+    if (owner.player.id !== playerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     game = session.game
     id = session.id
   }
 
-  const { data: player } = await supabase.from('players').select('*').eq('id', playerId).eq('game_id', id).maybeSingle()
+  const { data: player } = await getSupabaseAdmin()
+    .from('players')
+    .select('*')
+    .eq('id', playerId)
+    .eq('game_id', id)
+    .maybeSingle()
 
   if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
@@ -1063,7 +1074,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const { data: updatedPlayer, error } = await supabase
+    const { data: updatedPlayer, error } = await getSupabaseAdmin()
       .from('players')
       .update({ name })
       .eq('id', playerId)
@@ -1089,7 +1100,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const { data: updatedPlayer, error } = await supabase
+    const { data: updatedPlayer, error } = await getSupabaseAdmin()
       .from('players')
       .update({ name })
       .eq('id', playerId)
@@ -1120,7 +1131,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const { data: updatedPlayer, error } = await supabase
+    const { data: updatedPlayer, error } = await getSupabaseAdmin()
       .from('players')
       .update({ name })
       .eq('id', playerId)
@@ -1166,7 +1177,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'That name is already taken in this game' }, { status: 400 })
     }
 
-    const { data: updatedPlayer, error } = await supabase
+    const { data: updatedPlayer, error } = await getSupabaseAdmin()
       .from('players')
       .update({
         name: participant.name,
@@ -1294,7 +1305,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Please select male or female' }, { status: 400 })
   }
 
-  const { data: updatedPlayer, error } = await supabase
+  const { data: updatedPlayer, error } = await getSupabaseAdmin()
     .from('players')
     .update(updates)
     .eq('id', playerId)
@@ -1343,14 +1354,14 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: parsedDel.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { gameCode, playerId, hostToken } = parsedDel.data
+  const { gameCode, playerId, hostToken, resumeToken } = parsedDel.data
 
   let game: { participant_mode: string } | null
   let id: string
 
   if (hostToken) {
     const code = gameCode.toUpperCase()
-    const { data: hostGame } = await supabase.from('games').select('*').eq('id', code).maybeSingle()
+    const { data: hostGame } = await getSupabaseAdmin().from('games').select('*').eq('id', code).maybeSingle()
     if (!hostGame) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
     if (hostGame.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
@@ -1379,7 +1390,7 @@ export async function DELETE(req: NextRequest) {
       game = hostGame
       id = code
     } else {
-      const auth = await assertHostPlayerRemove(supabase, gameCode, hostToken)
+      const auth = await assertHostPlayerRemove(getSupabaseAdmin(), gameCode, hostToken)
       if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
       game = auth.game
       id = auth.id
@@ -1387,6 +1398,10 @@ export async function DELETE(req: NextRequest) {
   } else {
     const session = await assertPlayerSessionGame(gameCode)
     if (session.error) return NextResponse.json({ error: session.error }, { status: session.status })
+    // Non-host callers may only remove themselves — prove ownership via resume_token.
+    const owner = await assertPlayer(getSupabaseAdmin(), gameCode, resumeToken)
+    if (owner.error) return NextResponse.json({ error: owner.error }, { status: owner.status })
+    if (owner.player.id !== playerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     game = session.game
     id = session.id
   }
@@ -1409,13 +1424,13 @@ export async function DELETE(req: NextRequest) {
   }
 
   if (isMonopolyGame(gameType)) {
-    const { error } = await removeMonopolyPlayer(supabase, id, playerId, player.name)
+    const { error } = await removeMonopolyPlayer(getSupabaseAdmin(), id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (isScrabbleGame(gameType)) {
-    const { error } = await removeScrabblePlayer(supabase, id, playerId, player.name)
+    const { error } = await removeScrabblePlayer(getSupabaseAdmin(), id, playerId, player.name)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ success: true })
   }
