@@ -1,10 +1,22 @@
 /** Slim column lists for hot-path Supabase queries (avoids select('*') egress). */
 
+// NOTE: host_token / resume_token are deliberately excluded — they are secret auth
+// credentials anon must never read (migration 0122 revokes them at the DB). They are
+// vended only by server endpoints (create-game, join, /api/players/resume) and read
+// server-side via the service role. Anon `select('*')` on games/players now ERRORS, so
+// client reads must use these curated lists.
 export const GAME_SELECT =
-  'id,title,host_token,rounds_count,timer_seconds,operative_timer_seconds,anonymous,auto_reveal,auto_submit_behavior,participant_mode,participant_filter,pair_vote_mode,question_source,custom_questions,player_questions_enabled,player_questions_order,game_type,theme,status,current_round_number,created_at,session_started_at,allow_viewers,allow_late_players,max_players,anonymous_messages_trimmed_at,wst_quote_source,custom_slots,gender_based,codewords_player_picks,codewords_late_join,codewords_randomize_teams,describe_it_num_teams,describe_it_mode,pool_usage,trivia_category,bingo_call_mode,bingo_call_interval_seconds,game_duration_seconds,whot_pick3_enabled,whot_cards_enabled,whot_number_calls_enabled,whot_pick2_stacking,scrabble_dictionary_id'
+  'id,title,rounds_count,timer_seconds,operative_timer_seconds,anonymous,auto_reveal,auto_submit_behavior,participant_mode,participant_filter,pair_vote_mode,question_source,custom_questions,player_questions_enabled,player_questions_order,game_type,theme,status,current_round_number,created_at,session_started_at,allow_viewers,allow_late_players,max_players,anonymous_messages_trimmed_at,wst_quote_source,custom_slots,gender_based,codewords_player_picks,codewords_late_join,codewords_randomize_teams,describe_it_num_teams,describe_it_mode,pool_usage,trivia_category,bingo_call_mode,bingo_call_interval_seconds,game_duration_seconds,whot_pick3_enabled,whot_cards_enabled,whot_number_calls_enabled,whot_pick2_stacking,scrabble_dictionary_id,chess_board_theme,chess_piece_set'
 
-export const PLAYER_SELECT =
-  'id,game_id,name,gender,identity_gender,participant_id,joined_at,spectator,monopoly_token,resume_token'
+export const PLAYER_SELECT = 'id,game_id,name,gender,identity_gender,participant_id,joined_at,spectator,monopoly_token'
+
+/** Host-side game read: GAME_SELECT plus the host-only AI-questions fields (the host
+ *  settings panel reads them). Still excludes host_token — the host page validates its
+ *  token via /api/games/[code]/verify-host instead of reading it.
+ *  The ai_questions_* columns are guaranteed to exist + be anon-readable by migration 0123,
+ *  which MUST be applied with this code (an explicit select on a missing/ungranted column
+ *  errors). */
+export const HOST_GAME_SELECT = `${GAME_SELECT},ai_questions_enabled,ai_questions_config,ai_generated_questions`
 
 export const PARTICIPANT_SELECT =
   'id,game_id,name,gender,photo_url,description,display_order,in_mlt_poll,submitted_by_player_id'
@@ -51,6 +63,11 @@ export const LUDO_SESSION_SELECT =
   'id,game_id,turn_order,current_turn_index,phase,last_dice,remaining_dice,consecutive_sixes,extra_turn,status_message,winner_player_id,turn_deadline_at,created_at,updated_at'
 
 export const LUDO_PLAYER_STATE_SELECT = 'id,game_id,player_id,color,pieces,player_order,created_at'
+
+export const SNAKE_LADDER_SESSION_SELECT =
+  'id,game_id,turn_order,current_turn_index,phase,last_roll,last_from,last_to,last_event,last_player_id,consecutive_sixes,status_message,winner_player_id,turn_deadline_at,created_at,updated_at'
+
+export const SNAKE_LADDER_PLAYER_STATE_SELECT = 'id,game_id,player_id,color,position,player_order,created_at'
 
 export const TIC_TAC_TOE_SESSION_SELECT =
   'id,game_id,player_x_id,player_o_id,board,board_winners,active_board,current_turn_mark,status,winner_player_id,is_draw,status_message,turn_deadline_at,created_at,updated_at'

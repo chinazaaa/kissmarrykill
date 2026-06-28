@@ -2,13 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Player, ScrabbleSession, ScrabblePlayerState, ScrabblePlacedTile } from '@/types'
-import {
-  SCRABBLE_BOARD_SIZE,
-  SCRABBLE_CENTER,
-  SCRABBLE_TILE_VALUES,
-  scrabblePremiumAt,
-  type ScrabblePremium,
-} from '@/lib/scrabble-constants'
+import { SCRABBLE_BOARD_SIZE, SCRABBLE_CENTER, scrabblePremiumAt, type ScrabblePremium } from '@/lib/scrabble-constants'
 import { currentTurnPlayerId, scorePlacement } from '@/lib/scrabble-board'
 import { ScrabbleCard, ScrabbleTurnBar } from '@/components/scrabble/ScrabbleChrome'
 import { useScrabbleTurnTimer } from '@/hooks/useScrabbleTurnTimer'
@@ -38,8 +32,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
-
 // Drag id namespaces — kept distinct so a single onDragEnd can discriminate intent.
 const TILE_PREFIX = 'tile-' // a rack tile (by its TRUE rack index)
 const CELL_PREFIX = 'cell-' // an empty board square
@@ -68,15 +60,17 @@ function premiumStyle(prem: ScrabblePremium): { bg: string; label: string } {
 function LetterTile({
   letter,
   isBlank,
+  tileValues,
   pending,
   size = 'board',
 }: {
   letter: string
   isBlank: boolean
+  tileValues: Record<string, number>
   pending?: boolean
   size?: 'board' | 'rack'
 }) {
-  const value = isBlank ? 0 : (SCRABBLE_TILE_VALUES[letter.toUpperCase()] ?? 0)
+  const value = isBlank ? 0 : (tileValues[letter.toUpperCase()] ?? 0)
   return (
     <span
       className={[
@@ -115,6 +109,7 @@ function BoardCell({
   isLastMoveCell,
   interactive,
   exchangeMode,
+  tileValues,
   onTap,
 }: {
   row: number
@@ -124,6 +119,7 @@ function BoardCell({
   isLastMoveCell: boolean
   interactive: boolean
   exchangeMode: boolean
+  tileValues: Record<string, number>
   onTap: (row: number, col: number) => void
 }) {
   const isCenter = row === SCRABBLE_CENTER.row && col === SCRABBLE_CENTER.col
@@ -170,7 +166,13 @@ function BoardCell({
       ].join(' ')}
     >
       {tile ? (
-        <LetterTile letter={tile.letter} isBlank={tile.isBlank} pending={!!pendingTile} size="board" />
+        <LetterTile
+          letter={tile.letter}
+          isBlank={tile.isBlank}
+          tileValues={tileValues}
+          pending={!!pendingTile}
+          size="board"
+        />
       ) : isCenter ? (
         <span className="text-[2.4vw] sm:text-sm leading-none text-amber-50/90">★</span>
       ) : label ? (
@@ -194,7 +196,8 @@ function RackTile({
   selected,
   exchangeSelected,
   interactive,
-  disabled,
+  canArrange,
+  tileValues,
   onClick,
 }: {
   id: string
@@ -203,10 +206,17 @@ function RackTile({
   selected: boolean
   exchangeSelected: boolean
   interactive: boolean
-  disabled: boolean
+  canArrange: boolean
+  tileValues: Record<string, number>
   onClick: () => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled })
+  // Reordering within the rack is cosmetic, so it's allowed whenever you hold the
+  // tile — even when it isn't your turn. Placing a tile on the board still requires
+  // an interactive (your-turn) tap or drag.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: !canArrange || used,
+  })
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -218,21 +228,26 @@ function RackTile({
       ref={setNodeRef}
       style={style}
       type="button"
-      onClick={onClick}
-      disabled={!interactive || used}
+      onClick={interactive && !used ? onClick : undefined}
+      disabled={used}
       {...attributes}
       {...listeners}
       className={[
         'aspect-square w-9 sm:w-11 rounded-md transition-all touch-none',
         selected ? '-translate-y-1.5 ring-2 ring-emerald-500' : '',
         exchangeSelected ? '-translate-y-1.5 ring-2 ring-rose-500' : '',
-        interactive && !used ? 'cursor-pointer' : 'cursor-default',
+        (interactive || canArrange) && !used ? 'cursor-pointer' : 'cursor-default',
       ].join(' ')}
     >
       {used ? (
         <span className="block w-full h-full rounded-md border-2 border-dashed border-[var(--border)]" />
       ) : (
-        <LetterTile letter={letter === '?' ? ' ' : letter} isBlank={letter === '?'} size="rack" />
+        <LetterTile
+          letter={letter === '?' ? ' ' : letter}
+          isBlank={letter === '?'}
+          tileValues={tileValues}
+          size="rack"
+        />
       )}
     </button>
   )
@@ -332,6 +347,8 @@ export function ScrabbleGamePanel({
   playerStates,
   myPlayerId,
   isMyTurn,
+  tileValues,
+  alphabet,
   onPlay,
   onExchange,
   onPass,
@@ -342,6 +359,8 @@ export function ScrabbleGamePanel({
   playerStates: ScrabblePlayerState[]
   myPlayerId: string | null
   isMyTurn: boolean
+  tileValues: Record<string, number>
+  alphabet: string[]
   onPlay?: (tiles: ScrabblePlacedTile[]) => Promise<void>
   onExchange?: (indices: number[]) => Promise<void>
   onPass?: () => Promise<void>
@@ -399,7 +418,7 @@ export function ScrabbleGamePanel({
     () => pending.map(({ row, col, letter, isBlank }) => ({ row, col, letter, isBlank })),
     [pending]
   )
-  const preview = useMemo(() => scorePlacement(session.board, placed), [session.board, placed])
+  const preview = useMemo(() => scorePlacement(session.board, placed, tileValues), [session.board, placed, tileValues])
 
   const stateByPlayer = useMemo(() => {
     const m = new Map<string, ScrabblePlayerState>()
@@ -431,6 +450,7 @@ export function ScrabbleGamePanel({
 
   /** Place a rack tile onto an empty board cell (pending). Blanks open the letter picker first. */
   const placeTile = (rackIndex: number, row: number, col: number) => {
+    if (!interactive) return // placing on the board requires your turn (reordering does not)
     if (usedRackIndices.has(rackIndex)) return
     const rackLetter = rack[rackIndex]
     if (rackLetter == null) return
@@ -492,15 +512,23 @@ export function ScrabbleGamePanel({
   }
 
   // ── Drag & drop ─────────────────────────────────────────────────────────────
-  // When dragging a rack tile, prefer a rack tile sitting directly under the pointer so
-  // it reorders within the rack. Without this, closestCenter measures against the board's
-  // 225 cells — one of which is almost always nearer than the neighbouring tile — so a
-  // rack-reorder drag gets mis-read as a board placement and the tiles never move.
+  // When dragging a rack tile, decide reorder-vs-place by the POINTER, not by closestCenter.
+  // closestCenter measures the dragged tile's rect (which is large and hangs toward the rack)
+  // against every droppable, so a genuine board drop near the top edge can land closer to a
+  // rack tile and get mis-read as a reorder. Resolving by pointerWithin keeps both reliable:
+  // pointer over a board cell → place there; pointer over another rack tile → reorder.
   const collisionDetection = useCallback<CollisionDetection>((args) => {
     if (String(args.active.id).startsWith(TILE_PREFIX)) {
-      const overTiles = pointerWithin(args).filter((c) => String(c.id).startsWith(TILE_PREFIX))
+      const within = pointerWithin(args)
+      const overCells = within.filter((c) => String(c.id).startsWith(CELL_PREFIX))
+      if (overCells.length > 0) return overCells
+      const overTiles = within.filter((c) => String(c.id).startsWith(TILE_PREFIX))
       if (overTiles.length > 0) return overTiles
+      // Pointer/touch drag that's over nothing (a gap or border) → no target. Don't fall through
+      // to closestCenter, which would resolve by the dragged tile's rect and snap to a far cell/tile.
+      if (args.pointerCoordinates) return []
     }
+    // Keyboard / non-pointer drags have no pointer coordinates, so resolve them by rect proximity.
     return closestCenter(args)
   }, [])
 
@@ -548,16 +576,23 @@ export function ScrabbleGamePanel({
     if (activeDragId.startsWith(TILE_PREFIX)) {
       const letter = rack[Number(activeDragId.slice(TILE_PREFIX.length))]
       if (letter == null) return null
-      return <LetterTile letter={letter === '?' ? ' ' : letter} isBlank={letter === '?'} size="rack" />
+      return (
+        <LetterTile
+          letter={letter === '?' ? ' ' : letter}
+          isBlank={letter === '?'}
+          tileValues={tileValues}
+          size="rack"
+        />
+      )
     }
     if (activeDragId.startsWith(PENDING_PREFIX)) {
       const [r, c] = activeDragId.slice(PENDING_PREFIX.length).split('-').map(Number)
       const t = pending.find((p) => p.row === r && p.col === c)
       if (!t) return null
-      return <LetterTile letter={t.letter} isBlank={t.isBlank} size="rack" />
+      return <LetterTile letter={t.letter} isBlank={t.isBlank} tileValues={tileValues} size="rack" />
     }
     return null
-  }, [activeDragId, rack, pending])
+  }, [activeDragId, rack, pending, tileValues])
 
   const chooseBlankLetter = (letter: string) => {
     if (!blankTarget) return
@@ -600,7 +635,8 @@ export function ScrabbleGamePanel({
   const lastMovePlayer = lastMove ? players.find((p) => p.id === lastMove.player_id) : null
   // Shuffling/arranging is purely cosmetic, so allow it whenever you hold tiles —
   // even when it isn't your turn.
-  const showShuffle = !!myState && !finished && !exchangeMode && rack.length > 1
+  const canArrange = !!myState && !finished && !exchangeMode
+  const showShuffle = canArrange && rack.length > 1
 
   return (
     <div>
@@ -668,6 +704,7 @@ export function ScrabbleGamePanel({
                         isLastMoveCell={isLastMoveCell}
                         interactive={interactive}
                         exchangeMode={exchangeMode}
+                        tileValues={tileValues}
                         onTap={handleSquareTap}
                       />
                     )
@@ -690,7 +727,7 @@ export function ScrabbleGamePanel({
                   </button>
                 </div>
                 <div className="grid grid-cols-7 gap-1.5">
-                  {ALPHABET.map((letter) => (
+                  {alphabet.map((letter) => (
                     <button
                       key={letter}
                       type="button"
@@ -759,7 +796,8 @@ export function ScrabbleGamePanel({
                           selected={selected}
                           exchangeSelected={exchangeSelected}
                           interactive={interactive}
-                          disabled={!interactive || used || exchangeMode}
+                          canArrange={canArrange}
+                          tileValues={tileValues}
                           onClick={() => handleRackTap(index)}
                         />
                       )
@@ -861,7 +899,12 @@ export function ScrabbleGamePanel({
           </div>
         </div>
 
-        <DragOverlay>{dragOverlay && <div className="w-9 sm:w-11 aspect-square">{dragOverlay}</div>}</DragOverlay>
+        {/* No drop animation: the default flies the overlay back to the rack slot, which on a
+            board drop looks like the tile is snapping back / rearranging. The placed tile already
+            shows on the cell (and reorders apply instantly), so the overlay should just vanish. */}
+        <DragOverlay dropAnimation={null}>
+          {dragOverlay && <div className="w-9 sm:w-11 aspect-square">{dragOverlay}</div>}
+        </DragOverlay>
       </DndContext>
     </div>
   )

@@ -13,6 +13,7 @@ import { ScrabbleGamePanel } from '@/components/scrabble/ScrabbleBoard'
 import { ScrabbleGameTimerBar } from '@/components/scrabble/ScrabbleGameTimerBar'
 import { gameTypeConfig } from '@/lib/game-types'
 import { currentTurnPlayerId, isScrabbleResultsPhase } from '@/lib/scrabble-board'
+import { tileSetForDictionary } from '@/lib/scrabble-rulesets'
 import { supabase } from '@/lib/supabase'
 import {
   GAME_SELECT,
@@ -58,6 +59,7 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
   const [session, setSession] = useState<ScrabbleSession | null>(null)
   const [playerStates, setPlayerStates] = useState<ScrabblePlayerState[]>([])
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
+  const [myResumeToken, setMyResumeToken] = useState<string | null>(null)
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
   const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
@@ -128,6 +130,7 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
     const playerSession = await resolvePlayerSession(gameCode, plrs)
     const playerId = playerSession?.playerId ?? null
     setMyPlayerId(playerId)
+    setMyResumeToken(playerSession?.resumeToken ?? null)
 
     syncScreen(gameData, playerId, sessionData)
     return supabasePollOk(sessionRes, statesRes)
@@ -197,6 +200,7 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
         }
         setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
         setMyPlayerId(data.playerId)
+        setMyResumeToken(data.resumeToken ?? null)
         await load()
       } finally {
         setJoining(false)
@@ -218,17 +222,22 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
   const handlePlayerLeft = () => {
     clearPlayerSession(gameCode)
     setMyPlayerId(null)
+    setMyResumeToken(null)
     void load()
   }
 
   const playWord = async (tiles: ScrabblePlacedTile[]) => {
     if (!myPlayerId) return
+    if (!myResumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setActing(true)
     try {
       const res = await fetch('/api/scrabble/play', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, tiles }),
+        body: JSON.stringify({ gameId: gameCode, resumeToken: myResumeToken, tiles }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -243,12 +252,16 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
 
   const exchangeTiles = async (tileIndices: number[]) => {
     if (!myPlayerId) return
+    if (!myResumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setActing(true)
     try {
       const res = await fetch('/api/scrabble/exchange', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, tileIndices }),
+        body: JSON.stringify({ gameId: gameCode, resumeToken: myResumeToken, tileIndices }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -263,12 +276,16 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
 
   const passTurn = async () => {
     if (!myPlayerId) return
+    if (!myResumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setActing(true)
     try {
       const res = await fetch('/api/scrabble/pass', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId }),
+        body: JSON.stringify({ gameId: gameCode, resumeToken: myResumeToken }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -288,6 +305,7 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
   const activePlayer = myPlayerId ? players.find((p) => p.id === myPlayerId) : undefined
   const isViewer = !!(game && activePlayer && playerIsViewer(activePlayer, game))
   const myName = activePlayer?.name ?? ''
+  const tileSet = tileSetForDictionary(game?.scrabble_dictionary_id)
 
   if (screen === 'loading') return <ScrabbleLoadingScreen />
 
@@ -430,6 +448,8 @@ export function ScrabblePlayerView({ gameCode }: { gameCode: string }) {
           playerStates={playerStates}
           myPlayerId={myPlayerId}
           isMyTurn={isMyTurn && !isViewer}
+          tileValues={tileSet.values}
+          alphabet={tileSet.alphabet}
           onPlay={isMyTurn && !isViewer ? playWord : undefined}
           onExchange={isMyTurn && !isViewer ? exchangeTiles : undefined}
           onPass={isMyTurn && !isViewer ? passTurn : undefined}

@@ -18,7 +18,7 @@ export function stripBidiControls(s: string): string {
 }
 
 /** Zod transform: trim + strip HTML. */
-const sanitizedString = (min: number, max: number) =>
+export const sanitizedString = (min: number, max: number) =>
   z
     .string()
     .transform((s) => stripHtml(s.trim()))
@@ -37,7 +37,7 @@ const gameCodeString = () =>
         .regex(/^[A-Z0-9]+$/, 'Game code must be alphanumeric')
     )
 
-const hostTokenString = () => z.string().min(1, 'hostToken is required')
+export const hostTokenString = () => z.string().min(1, 'hostToken is required')
 
 const uuidString = (label: string = 'ID') => z.string().uuid(`${label} must be a valid UUID`)
 
@@ -75,6 +75,7 @@ const gameTypeEnum = z.enum([
   'chess',
   'describe_it',
   'scrabble',
+  'snake_and_ladder',
 ])
 
 const participantModeEnum = z.enum(['import', 'joiners', 'voters'])
@@ -139,8 +140,19 @@ export const createGameSchema = z.object({
   whot_pick3_enabled: z.boolean().optional(),
   whot_cards_enabled: z.boolean().optional(),
   whot_number_calls_enabled: z.boolean().optional(),
+  ai_questions_enabled: z.boolean().optional(),
+  ai_questions_config: z
+    .object({
+      ratio: z.enum(['all_ai', 'mostly_ai', 'half', 'mostly_platform']),
+      theme: z.string().max(100).optional(),
+      customPrompt: z.string().max(500).optional(),
+    })
+    .optional()
+    .nullable(),
   whot_pick2_stacking: z.boolean().optional(),
   scrabble_dictionary_id: z.enum(SCRABBLE_DICTIONARY_OPTIONS).optional(),
+  chess_board_theme: z.string().optional(),
+  chess_piece_set: z.string().optional(),
   custom_slots: z
     .object({
       slots: z
@@ -188,6 +200,15 @@ export const updateGameSchema = z.object({
   pair_vote_mode: pairVoteModeEnum.optional(),
   player_questions_enabled: z.boolean().optional(),
   player_questions_order: playerQuestionsOrderEnum.optional(),
+  ai_questions_enabled: z.boolean().optional(),
+  ai_questions_config: z
+    .object({
+      ratio: z.enum(['all_ai', 'mostly_ai', 'half', 'mostly_platform']),
+      theme: z.string().max(100).optional(),
+      customPrompt: z.string().max(500).optional(),
+    })
+    .optional()
+    .nullable(),
   allow_viewers: z.boolean().optional(),
   allow_late_players: z.boolean().optional(),
   late_join_policy: z.enum(['lobby_only', 'viewers_only', 'viewers_and_players']).optional(),
@@ -306,6 +327,9 @@ export const updatePlayerSchema = z.object({
   identityGender: z.string().optional(),
   participantId: z.string().optional(),
   hostToken: z.string().optional(),
+  // Non-host callers must prove ownership of the target player with their resume_token
+  // (a player may only edit themselves). Host callers use hostToken instead.
+  resumeToken: z.string().optional(),
 })
 
 export type UpdatePlayerInput = z.infer<typeof updatePlayerSchema>
@@ -318,6 +342,8 @@ export const deletePlayerSchema = z.object({
   gameCode: gameCodeString(),
   playerId: uuidString('playerId'),
   hostToken: z.string().optional(),
+  // Non-host callers (a player removing themselves) must prove ownership with resume_token.
+  resumeToken: z.string().optional(),
 })
 
 export type DeletePlayerInput = z.infer<typeof deletePlayerSchema>
@@ -424,13 +450,15 @@ export const bingoCallSchema = z.object({
 
 export const bingoMarkSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   cellIndex: z.coerce.number().int().min(0).max(24),
 })
 
 export const bingoClaimSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export type BingoCallInput = z.infer<typeof bingoCallSchema>
@@ -488,7 +516,8 @@ export type PatchGamePlayerLimitsInput = z.infer<typeof patchGamePlayerLimitsSch
 
 export const triviaAnswerSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   choiceIndex: z.coerce.number().int().min(0).max(3),
 })
@@ -507,7 +536,8 @@ const ttlStatementText = sanitizedString(1, 200)
 
 export const ttlStatementSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   statementA: ttlStatementText,
   statementB: ttlStatementText,
   statementC: ttlStatementText,
@@ -518,7 +548,8 @@ export type TtlStatementInput = z.infer<typeof ttlStatementSchema>
 
 export const ttlGuessSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   guessedIndex: z.coerce.number().int().min(0).max(2),
 })
@@ -535,7 +566,8 @@ export type TtlAdvanceInput = z.infer<typeof ttlAdvanceSchema>
 
 export const npatSubmitSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   name: z.string().max(80),
   animal: z.string().max(80),
@@ -552,7 +584,8 @@ export type NpatDraftInput = z.infer<typeof npatDraftSchema>
 
 export const npatMarkSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   validName: z.boolean(),
   validAnimal: z.boolean(),
@@ -574,7 +607,9 @@ const npatHostOverrideEntrySchema = z.object({
 
 export const npatCallerApproveSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Caller (a player) authorized by the secret resume_token; nested overrides[].playerId
+  // below are review TARGETS, not the actor, so they stay as ids.
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   overrides: z.array(npatHostOverrideEntrySchema),
 })
@@ -590,7 +625,9 @@ export type NpatAdvanceInput = z.infer<typeof npatAdvanceSchema>
 
 export const npatDisputeSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Disputing player authorized by the secret resume_token; targetPlayerId is the
+  // disputed answer's owner (a TARGET), so it stays an id.
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   targetPlayerId: uuidString('targetPlayerId'),
   category: z.enum(['name', 'animal', 'place', 'thing', 'food']),
@@ -600,7 +637,8 @@ export type NpatDisputeInput = z.infer<typeof npatDisputeSchema>
 
 export const monopolyActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const monopolyBuySchema = monopolyActionSchema.extend({
@@ -663,7 +701,8 @@ export type MonopolyJailInput = z.infer<typeof monopolyJailSchema>
 
 export const yahtzeeRollSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const yahtzeeHoldSchema = yahtzeeRollSchema.extend({
@@ -700,7 +739,8 @@ const whotShapeEnum = z.enum(['circle', 'cross', 'triangle', 'square', 'star', '
 
 export const whotActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const whotPlaySchema = whotActionSchema.extend({
@@ -722,7 +762,8 @@ export type WhotChooseInput = z.infer<typeof whotChooseSchema>
 
 export const ludoActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const ludoMoveSchema = ludoActionSchema.extend({
@@ -736,11 +777,28 @@ export const ludoExpireSchema = z.object({
 
 export type LudoMoveInput = z.infer<typeof ludoMoveSchema>
 
+// Snake & Ladder (POST /api/snake-and-ladder/*)
+
+export const snakeLadderActionSchema = z.object({
+  gameId: gameCodeString(),
+  // Authorization is by the secret resume_token (resolved to a player server-side),
+  // not a client-supplied playerId. The token travels with the player across devices,
+  // so cross-device resume keeps working.
+  resumeToken: z.string().min(4),
+})
+
+export const snakeLadderExpireSchema = z.object({
+  gameId: gameCodeString(),
+})
+
 // Tic-Tac-Toe (POST /api/tic-tac-toe/*)
 
 export const ticTacToeMoveSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Authorization is by the secret resume_token (resolved to a player server-side),
+  // not a client-supplied playerId. The token travels with the player across devices,
+  // so cross-device resume keeps working.
+  resumeToken: z.string().min(4),
   // 0-80: sub-board = floor(cellIndex/9), cell within board = cellIndex % 9.
   cellIndex: z.coerce.number().int().min(0).max(80),
 })
@@ -755,7 +813,8 @@ const chessSquare = z.string().regex(/^[a-h][1-8]$/, 'Invalid square')
 
 export const chessMoveSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   from: chessSquare,
   to: chessSquare,
   promotion: z.enum(['q', 'r', 'b', 'n']).optional(),
@@ -767,32 +826,41 @@ export const chessExpireSchema = z.object({
 
 export const chessResignSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export type ChessMoveInput = z.infer<typeof chessMoveSchema>
 
 export const describeItTeamSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
   team: z.coerce.number().int().min(1).max(4),
+  // Two auth paths (route enforces exactly one):
+  //  - self-pick: player authorized by their resume_token
+  //  - host reassign of another player: hostToken + target playerId
+  resumeToken: z.string().min(4).optional(),
+  hostToken: z.string().min(1).optional(),
+  playerId: uuidString('playerId').optional(),
 })
 
 export const describeItClueSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   clue: z.string().trim().min(1).max(100),
 })
 
 export const describeItGuessSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   text: z.string().trim().min(1).max(80),
 })
 
 export const describeItPlayerActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const describeItGameSchema = z.object({
@@ -813,7 +881,8 @@ export const describeItSettingsSchema = z.object({
 
 export const scrabbleActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const scrabblePlaySchema = scrabbleActionSchema.extend({
@@ -822,7 +891,7 @@ export const scrabblePlaySchema = scrabbleActionSchema.extend({
       z.object({
         row: z.coerce.number().int().min(0).max(14),
         col: z.coerce.number().int().min(0).max(14),
-        letter: z.string().regex(/^[A-Za-z]$/),
+        letter: z.string().regex(/^[A-Za-zÄÖÜÑäöüñ]$/),
         isBlank: z.boolean(),
       })
     )
@@ -862,32 +931,37 @@ const codewordsRoleEnum = z.enum(['spymaster', 'operative'])
 
 export const codewordsRoleSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   team: codewordsTeamEnum,
   role: codewordsRoleEnum,
 })
 
 export const codewordsClueSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   clueWord: sanitizedString(1, 40).refine((s) => !/\s/.test(s), 'Clue must be one word (no spaces)'),
   clueNumber: z.coerce.number().int().min(0).max(9),
 })
 
 export const codewordsGuessSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   cellIndex: z.coerce.number().int().min(0).max(24),
 })
 
 export const codewordsEndTurnSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const codewordsChatSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   text: z
     .string()
     .transform((s) => stripBidiControls(stripHtml(s.trim())))

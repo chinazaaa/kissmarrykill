@@ -29,6 +29,7 @@ import {
   isICallOnGame,
   isSudokuGame,
   isWordHuntGame,
+  isSnakeAndLadderGame,
 } from '@/lib/game-types'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { getCustomSlotCount } from '@/lib/custom-game'
@@ -93,6 +94,7 @@ import { initializeMonopolyGame, MONOPOLY_MIN_PLAYERS } from '@/lib/monopoly'
 import { initializeYahtzeeGame, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
 import { initializeWhotGame, WHOT_MIN_PLAYERS } from '@/lib/whot'
 import { initializeLudoGame, LUDO_MIN_PLAYERS } from '@/lib/ludo'
+import { initializeSnakeAndLadderGame, SNAKE_LADDER_MIN_PLAYERS } from '@/lib/snake-and-ladder'
 import { initializeTicTacToeGame, TIC_TAC_TOE_MIN_PLAYERS } from '@/lib/tic-tac-toe'
 import { initializeChessGame, CHESS_MIN_PLAYERS } from '@/lib/chess'
 import {
@@ -106,10 +108,12 @@ import { buildSudokuRoundRow, SUDOKU_MIN_PLAYERS } from '@/lib/sudoku'
 import { buildWordHuntRoundRow, WORD_HUNT_MIN_PLAYERS } from '@/lib/word-hunt'
 import { buildWordHuntMetadata } from '@/lib/word-hunt-dictionary'
 import { appearanceCountsForParticipants, mergeUsageMaps, parsePoolUsage, poolUsageToMap } from '@/lib/pool-usage'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 import type { ParticipantForRounds } from '@/lib/utils'
+import type { AiGeneratedQuestions, AiQuestionsConfig } from '@/types'
 
 /** Same-gender round groups for custom games with 4–5 slots. */
 function generateGenderBasedNRounds(
@@ -156,6 +160,44 @@ function generateGenderBasedNRounds(
   return result
 }
 
+function mergeAiIntoPlatformPool<T>(
+  aiItems: T[],
+  platformItems: T[],
+  totalNeeded: number,
+  ratio: AiQuestionsConfig['ratio']
+): T[] {
+  if (aiItems.length === 0) return platformItems.slice(0, totalNeeded)
+
+  let aiCount: number
+  switch (ratio) {
+    case 'all_ai':
+      aiCount = totalNeeded
+      break
+    case 'mostly_ai':
+      aiCount = Math.ceil(totalNeeded * 0.75)
+      break
+    case 'half':
+      aiCount = Math.ceil(totalNeeded * 0.5)
+      break
+    case 'mostly_platform':
+      aiCount = Math.ceil(totalNeeded * 0.25)
+      break
+    default:
+      aiCount = Math.ceil(totalNeeded * 0.5)
+  }
+
+  const actualAi = aiItems.slice(0, aiCount)
+  const platformNeeded = totalNeeded - actualAi.length
+  const actualPlatform = platformItems.slice(0, platformNeeded)
+
+  const merged = [...actualAi, ...actualPlatform]
+  for (let i = merged.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[merged[i], merged[j]] = [merged[j], merged[i]]
+  }
+  return merged
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const raw = await req.json()
@@ -166,7 +208,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { hostToken } = parsed.data
 
-  const { data: game } = await supabase.from('games').select('*').eq('id', code.toUpperCase()).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', code.toUpperCase()).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'waiting') return NextResponse.json({ error: 'Game already started' }, { status: 400 })
@@ -276,7 +318,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: cardsError } = await createBingoCardsForPlayers(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playersData.map((p) => p.id)
     )
@@ -303,7 +345,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeMonopolyGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id),
       (game.timer_seconds ?? 0) as number
@@ -331,7 +373,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeYahtzeeGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
@@ -358,7 +400,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeWhotGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
@@ -385,7 +427,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeLudoGame(
-      supabase,
+      getSupabaseAdmin(),
+      code.toUpperCase(),
+      playingPlayers.map((p) => p.id)
+    )
+    if (initError) return NextResponse.json({ error: initError }, { status: 500 })
+
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({
+        status: 'active',
+        session_started_at: sessionStartedAt,
+        current_round_number: 1,
+        rounds_count: 1,
+      })
+      .eq('id', code.toUpperCase())
+
+    if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (isSnakeAndLadderGame(gameType)) {
+    const playingPlayers = playersData.filter((p) => p.spectator !== true)
+    if (playingPlayers.length < SNAKE_LADDER_MIN_PLAYERS) {
+      return NextResponse.json({ error: `Need at least ${SNAKE_LADDER_MIN_PLAYERS} players to start` }, { status: 400 })
+    }
+
+    // Snake & Ladder tables are RLS-locked to anon writes — initialize via the
+    // service role. (Host authority is already enforced above for this route.)
+    const { error: initError } = await initializeSnakeAndLadderGame(
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
@@ -411,8 +482,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       return NextResponse.json({ error: `Need exactly ${TIC_TAC_TOE_MIN_PLAYERS} players to start` }, { status: 400 })
     }
 
+    // Tic-Tac-Toe tables are RLS-locked to anon writes — initialize via the
+    // service role. (Host authority is already enforced above for this route.)
     const { error: initError } = await initializeTicTacToeGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
@@ -439,7 +512,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeChessGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
@@ -468,7 +541,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeDescribeItGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
@@ -493,7 +566,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: initError } = await initializeScrabbleGame(
-      supabase,
+      getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
@@ -529,7 +602,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     if (randomizeTeams && teamsNeedRandomization(playerIds, roles)) {
       const { roles: shuffled, error: shuffleError } = await persistRandomizedRoles(
-        supabase,
+        getSupabaseAdmin(),
         code.toUpperCase(),
         playerIds,
         roles
@@ -566,17 +639,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const spymasterTimer = clampCodewordsTimer(game.timer_seconds ?? CODEWORDS_DEFAULT_SPYMASTER_TIMER)
     const operativeTimer = clampCodewordsTimer(game.operative_timer_seconds ?? CODEWORDS_DEFAULT_OPERATIVE_TIMER)
 
-    const { error: boardError } = await supabase.from('codewords_boards').insert({
-      game_id: code.toUpperCase(),
-      words,
-      key,
-      starting_team: startingTeam,
-      current_turn: startingTeam,
-      spymaster_timer_seconds: spymasterTimer,
-      operative_timer_seconds: operativeTimer,
-      turn_phase: 'clue',
-      turn_deadline_at: turnDeadline(spymasterTimer),
-    })
+    const { error: boardError } = await getSupabaseAdmin()
+      .from('codewords_boards')
+      .insert({
+        game_id: code.toUpperCase(),
+        words,
+        key,
+        starting_team: startingTeam,
+        current_turn: startingTeam,
+        spymaster_timer_seconds: spymasterTimer,
+        operative_timer_seconds: operativeTimer,
+        turn_phase: 'clue',
+        turn_deadline_at: turnDeadline(spymasterTimer),
+      })
 
     if (boardError) return NextResponse.json({ error: boardError.message }, { status: 500 })
 
@@ -679,10 +754,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const seed = Date.now() ^ Math.floor(Math.random() * 0xffffffff)
-    const roundRow = buildSudokuRoundRow(code.toUpperCase(), seed)
+    const { roundRow, solution } = buildSudokuRoundRow(code.toUpperCase(), seed)
 
-    const { error: roundError } = await supabase.from('rounds').insert(roundRow)
-    if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+    const { data: insertedRound, error: roundError } = await supabase
+      .from('rounds')
+      .insert(roundRow)
+      .select('id')
+      .single()
+    if (roundError || !insertedRound) {
+      return NextResponse.json({ error: roundError?.message ?? 'Failed to create round' }, { status: 500 })
+    }
+
+    // Solution is stored separately (RLS hides it from players); never in the round metadata.
+    const { error: solutionError } = await supabase
+      .from('sudoku_solutions')
+      .insert({ round_id: insertedRound.id, solution })
+    if (solutionError) return NextResponse.json({ error: solutionError.message }, { status: 500 })
 
     const { error: gameError } = await supabase
       .from('games')
@@ -944,9 +1031,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const platformQuestions = useCustom
       ? pickCustomMltQuestions(customPool, poolNeeded, customMltUsage)
       : pickMltQuestions(poolNeeded, mergeUsageMaps(await fetchMltQuestionUsage(supabase), customMltUsage))
+
+    const aiMltQuestions: string[] =
+      game.ai_questions_enabled &&
+      game.ai_generated_questions &&
+      typeof game.ai_generated_questions === 'object' &&
+      (game.ai_generated_questions as AiGeneratedQuestions).type === 'mlt'
+        ? ((game.ai_generated_questions as Extract<AiGeneratedQuestions, { type: 'mlt' }>).questions ?? [])
+        : []
+
+    const mergedPlatformMlt =
+      aiMltQuestions.length > 0
+        ? mergeAiIntoPlatformPool(
+            aiMltQuestions,
+            platformQuestions,
+            poolNeeded,
+            (game.ai_questions_config as AiQuestionsConfig | null)?.ratio ?? 'half'
+          )
+        : platformQuestions
+
     const questions = combineLobbyQuestions(
       playerQuestionsEnabled ? playerMltQuestions : [],
-      platformQuestions,
+      mergedPlatformMlt,
       game.rounds_count,
       playerQuestionsEnabled ? questionOrder : 'uploaded_first'
     )
@@ -1018,9 +1124,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const platformQuestions = useCustom
       ? pickCustomMltQuestions(customPool, poolNeeded, customMltUsage)
       : pickNhieQuestions(poolNeeded, mergeUsageMaps(await fetchNhieQuestionUsage(supabase), customMltUsage))
+
+    const aiNhieQuestions: string[] =
+      game.ai_questions_enabled &&
+      game.ai_generated_questions &&
+      typeof game.ai_generated_questions === 'object' &&
+      (game.ai_generated_questions as AiGeneratedQuestions).type === 'nhie'
+        ? ((game.ai_generated_questions as Extract<AiGeneratedQuestions, { type: 'nhie' }>).questions ?? [])
+        : []
+
+    const mergedPlatformNhie =
+      aiNhieQuestions.length > 0
+        ? mergeAiIntoPlatformPool(
+            aiNhieQuestions,
+            platformQuestions,
+            poolNeeded,
+            (game.ai_questions_config as AiQuestionsConfig | null)?.ratio ?? 'half'
+          )
+        : platformQuestions
+
     const questions = combineLobbyQuestions(
       playerQuestionsEnabled ? playerNhieQuestions : [],
-      platformQuestions,
+      mergedPlatformNhie,
       game.rounds_count,
       playerQuestionsEnabled ? questionOrder : 'uploaded_first'
     )
@@ -1242,9 +1367,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const platformQuestions = useCustom
       ? pickCustomWyrQuestions(customPool, poolNeeded, customWyrUsage)
       : pickWyrQuestions(poolNeeded, mergeUsageMaps(await fetchWyrQuestionUsage(supabase), customWyrUsage))
+
+    const aiWyrQuestions: { optionA: string; optionB: string }[] =
+      game.ai_questions_enabled &&
+      game.ai_generated_questions &&
+      typeof game.ai_generated_questions === 'object' &&
+      (game.ai_generated_questions as AiGeneratedQuestions).type === 'wyr'
+        ? ((game.ai_generated_questions as Extract<AiGeneratedQuestions, { type: 'wyr' }>).questions ?? [])
+        : []
+
+    const mergedPlatformWyr =
+      aiWyrQuestions.length > 0
+        ? mergeAiIntoPlatformPool(
+            aiWyrQuestions,
+            platformQuestions,
+            poolNeeded,
+            (game.ai_questions_config as AiQuestionsConfig | null)?.ratio ?? 'half'
+          )
+        : platformQuestions
+
     const questions = combineLobbyQuestions(
       playerQuestionsEnabled ? playerWyrQuestions : [],
-      platformQuestions,
+      mergedPlatformWyr,
       game.rounds_count,
       playerQuestionsEnabled ? questionOrder : 'uploaded_first'
     )

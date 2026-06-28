@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
-import { SCRABBLE_RACK_SIZE, SCRABBLE_TILE_DISTRIBUTION } from '@/lib/scrabble-constants'
+import { SCRABBLE_RACK_SIZE } from '@/lib/scrabble-constants'
 import {
   currentTurnPlayerId,
   emptyScrabbleBoard,
@@ -11,6 +11,7 @@ import {
 } from '@/lib/scrabble-board'
 import { isValidScrabbleWord } from '@/lib/scrabble-dictionaries'
 import { SCRABBLE_DEFAULT_DICTIONARY } from '@/lib/scrabble-dictionary-meta'
+import { tileSetForDictionary } from '@/lib/scrabble-rulesets'
 import type { Game, ScrabblePlacedTile, ScrabblePlayerState, ScrabbleSession } from '@/types'
 
 export const SCRABBLE_MIN_PLAYERS = 2
@@ -59,9 +60,15 @@ export function scrabbleGameSessionExpired(
   return elapsed >= durationSeconds
 }
 
-/** End the game now because the session clock ran out: tally final scores (rack
- *  penalties applied, as at a normal game end) and pick the winner by score. */
-async function finishScrabbleByTimeLimit(supabase: SupabaseClient, gameId: string): Promise<{ error: string | null }> {
+/** Finalize a scrabble game now: tally final scores (rack penalties applied, as at
+ *  a normal game end), pick the winner by score, and flip the session + game to
+ *  finished. Shared by the time-limit auto-end and the host's early-end so both
+ *  produce a proper winner and final scores. `reason` prefixes the status message. */
+async function finalizeScrabbleSession(
+  supabase: SupabaseClient,
+  gameId: string,
+  reason: string
+): Promise<{ error: string | null }> {
   const { data: sessionRaw } = await supabase.from('scrabble_sessions').select('*').eq('game_id', gameId).maybeSingle()
   if (!sessionRaw) return { error: 'Session not found' }
   const session = sessionRaw as ScrabbleSession
@@ -72,10 +79,11 @@ async function finishScrabbleByTimeLimit(supabase: SupabaseClient, gameId: strin
   const { data: playersRaw } = await supabase.from('players').select('id,name').eq('game_id', gameId)
   const names = new Map((playersRaw ?? []).map((p) => [p.id as string, p.name as string]))
 
-  const result = finalizeScores(states, names, null)
+  const tileSet = tileSetForDictionary(await loadDictionaryId(supabase, gameId))
+  const result = finalizeScores(states, names, null, tileSet.values)
 
   // Claim the session FIRST so finalize runs exactly once: if a play/pass finish (or
-  // another time-limit call) already moved the row from this exact state we lose the
+  // another finalize call) already moved the row from this exact state we lose the
   // CAS and bail before applying rack penalties — no double-penalizing.
   const won = await persistSession(
     supabase,
@@ -84,7 +92,7 @@ async function finishScrabbleByTimeLimit(supabase: SupabaseClient, gameId: strin
       phase: 'finished',
       winner_player_id: result.winnerPlayerId,
       is_tie: result.isTie,
-      status_message: `Time's up! ${result.statusMessage}`,
+      status_message: `${reason} ${result.statusMessage}`,
       turn_deadline_at: null,
     },
     session.updated_at
@@ -94,6 +102,20 @@ async function finishScrabbleByTimeLimit(supabase: SupabaseClient, gameId: strin
   await persistFinalScores(supabase, states, result.finalScores)
   await markGameFinished(supabase, gameId)
   return { error: null }
+}
+
+/** End the game now because the session clock ran out. */
+async function finishScrabbleByTimeLimit(supabase: SupabaseClient, gameId: string): Promise<{ error: string | null }> {
+  return finalizeScrabbleSession(supabase, gameId, "Time's up!")
+}
+
+/** End the game now because the host chose to end it early. Tallies final scores
+ *  and picks a winner, same as a natural game end. */
+export async function finishScrabbleGameEarly(
+  supabase: SupabaseClient,
+  gameId: string
+): Promise<{ error: string | null }> {
+  return finalizeScrabbleSession(supabase, gameId, 'Host ended the game.')
 }
 
 export async function finishExpiredScrabbleGame(
@@ -172,18 +194,18 @@ function shuffle<T>(items: T[]): T[] {
   return next
 }
 
-/** A fresh, shuffled 100-tile bag. '?' represents a blank tile. */
-function freshBag(): string[] {
+/** A fresh, shuffled tile bag for the given edition's distribution. '?' is a blank. */
+function freshBag(distribution: Record<string, number>): string[] {
   const bag: string[] = []
-  for (const [letter, count] of Object.entries(SCRABBLE_TILE_DISTRIBUTION)) {
+  for (const [letter, count] of Object.entries(distribution)) {
     for (let i = 0; i < count; i += 1) bag.push(letter)
   }
   return shuffle(bag)
 }
 
 /** Total point value of the tiles left on a rack ('?' blanks score 0). */
-function rackValue(rack: string[]): number {
-  return rack.reduce((sum, t) => sum + tileScore(t, t === '?'), 0)
+function rackValue(rack: string[], values: Record<string, number>): number {
+  return rack.reduce((sum, t) => sum + tileScore(t, t === '?', values), 0)
 }
 
 function computeDeadline(timerSeconds: number, now: number): string | null {
@@ -270,19 +292,20 @@ interface EndgameResult {
 function finalizeScores(
   states: ScrabblePlayerState[],
   names: Map<string, string>,
-  wentOutPlayerId: string | null
+  wentOutPlayerId: string | null,
+  values: Record<string, number>
 ): EndgameResult {
   const finalScores = new Map<string, number>()
   let totalRacks = 0
   for (const s of states) {
-    const value = rackValue(s.rack)
+    const value = rackValue(s.rack, values)
     totalRacks += value
     finalScores.set(s.player_id, s.score - value)
   }
 
   if (wentOutPlayerId) {
     const outState = states.find((s) => s.player_id === wentOutPlayerId)
-    const bonus = totalRacks - (outState ? rackValue(outState.rack) : 0)
+    const bonus = totalRacks - (outState ? rackValue(outState.rack, values) : 0)
     finalScores.set(wentOutPlayerId, (finalScores.get(wentOutPlayerId) ?? 0) + bonus)
   }
 
@@ -329,10 +352,11 @@ export async function initializeScrabbleGame(
   const { data: existing } = await supabase.from('scrabble_sessions').select('id').eq('game_id', gameId).maybeSingle()
 
   const timerSeconds = await loadTimerSeconds(supabase, gameId)
+  const tileSet = tileSetForDictionary(await loadDictionaryId(supabase, gameId))
   const names = await loadPlayerNames(supabase, gameId)
 
   const turnOrder = shuffle(playerIds)
-  const bag = freshBag()
+  const bag = freshBag(tileSet.distribution)
 
   // Deal 7 tiles to each player up front, shrinking the bag as we go.
   const racks = new Map<string, string[]>()
@@ -404,10 +428,24 @@ export async function processScrabblePlay(
     remaining.splice(idx, 1)
   }
 
-  const placement = scorePlacement(session.board, tiles)
+  const dictId = await loadDictionaryId(supabase, gameId)
+  const tileSet = tileSetForDictionary(dictId)
+
+  // Every placed letter — including the letter chosen for a blank — must belong to
+  // the selected edition's alphabet. The rack check above only consumes '?' for a
+  // blank, so without this a direct API call could place a letter from outside this
+  // edition (e.g. Ñ in an English game).
+  const allowedLetters = new Set(tileSet.alphabet)
+  for (const t of tiles) {
+    const letter = t.letter.toUpperCase()
+    if (!allowedLetters.has(letter)) {
+      return { error: `"${letter}" is not available in this Scrabble edition` }
+    }
+  }
+
+  const placement = scorePlacement(session.board, tiles, tileSet.values)
   if (!placement.valid) return { error: placement.error ?? 'Invalid placement' }
 
-  const dictId = await loadDictionaryId(supabase, gameId)
   for (const word of placement.words) {
     if (!isValidScrabbleWord(word, dictId)) return { error: `"${word.toUpperCase()}" is not a valid word` }
   }
@@ -443,7 +481,7 @@ export async function processScrabblePlay(
   state.score = newScore
 
   if (wentOut) {
-    const result = finalizeScores(states, names, playerId)
+    const result = finalizeScores(states, names, playerId, tileSet.values)
 
     // Claim the session FIRST so the endgame adjustment runs exactly once.
     const won = await persistSession(
@@ -531,7 +569,8 @@ async function advanceScorelessTurn(
   const endGame = consecutivePasses >= session.turn_order.length * 2
 
   if (endGame) {
-    const result = finalizeScores(states, names, null)
+    const tileSet = tileSetForDictionary(await loadDictionaryId(supabase, gameId))
+    const result = finalizeScores(states, names, null, tileSet.values)
 
     // Claim the session FIRST so the endgame adjustment runs exactly once.
     const won = await persistSession(

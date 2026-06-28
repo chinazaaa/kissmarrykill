@@ -10,6 +10,7 @@ import {
   trimAnonymousMessagesIfDue,
   truncateReplyPreview,
 } from '@/lib/anonymous-messages'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -135,7 +136,7 @@ export async function DELETE(req: NextRequest) {
   const { gameId, messageId, hostToken } = parsed.data
   const gameCode = gameId.toUpperCase()
 
-  const { data: game } = await supabase
+  const { data: game } = await getSupabaseAdmin()
     .from('games')
     .select('host_token, status, game_type')
     .eq('id', gameCode)

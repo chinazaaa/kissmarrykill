@@ -6,11 +6,10 @@ import { isPlayerBanned } from '@/lib/anonymous-messages'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-const supabaseAdmin = getSupabaseAdmin()
 
 async function assertHostAnonymousRoom(gameCode: string, hostToken: string) {
   const id = gameCode.toUpperCase()
-  const { data: game } = await supabase.from('games').select('*').eq('id', id).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', id).maybeSingle()
   if (!game) return { error: 'Game not found', status: 404 as const, game: null, id }
   if (game.host_token !== hostToken) return { error: 'Unauthorized', status: 403 as const, game: null, id }
   if (!isAnonymousMessagesGame(parseGameType(game.game_type))) {
@@ -49,6 +48,7 @@ export async function POST(req: NextRequest) {
 
   const bannedUntil = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString()
 
+  const supabaseAdmin = getSupabaseAdmin()
   const { data: ban, error } = await supabaseAdmin
     .from('anonymous_room_bans')
     .upsert(
@@ -79,6 +79,7 @@ export async function DELETE(req: NextRequest) {
   const auth = await assertHostAnonymousRoom(gameId, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
+  const supabaseAdmin = getSupabaseAdmin()
   const { error } = await supabaseAdmin
     .from('anonymous_room_bans')
     .delete()

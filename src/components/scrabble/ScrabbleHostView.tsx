@@ -33,6 +33,7 @@ import {
   SCRABBLE_DICTIONARY_LABELS,
   parseScrabbleDictionaryId,
 } from '@/lib/scrabble-dictionary-meta'
+import { tileSetForDictionary } from '@/lib/scrabble-rulesets'
 
 type HostTab = 'play' | 'manage'
 type ScrabbleHostMode = 'spectator' | 'player'
@@ -63,6 +64,7 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
   const [ending, setEnding] = useState(false)
   const [hostMode, setHostModeState] = useState<ScrabbleHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
+  const [hostResumeToken, setHostResumeToken] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
@@ -103,6 +105,7 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
     const stored = getPlayerSession(gameCode)
     if (stored) {
       setHostPlayerId(stored.playerId)
+      setHostResumeToken(stored.resumeToken ?? null)
       setHostPlayerName(stored.playerName)
     }
   }, [gameCode, load])
@@ -154,6 +157,7 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
     (playerId: string) => {
       if (playerId === hostPlayerId) {
         setHostPlayerId(null)
+        setHostResumeToken(null)
         setHostPlayerName('')
         clearPlayerSession(gameCode)
       }
@@ -184,6 +188,7 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
       setPlayerSession(gameCode, data.playerId, data.playerName, 'both', data.resumeToken)
       setHostPlayerId(data.playerId)
+      setHostResumeToken(data.resumeToken ?? null)
       setHostPlayerName(data.playerName)
       await load()
     } catch (err) {
@@ -195,12 +200,16 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
 
   const playWord = async (tiles: ScrabblePlacedTile[]) => {
     if (!hostPlayerId) return
+    if (!hostResumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setHostActing(true)
     try {
       const res = await fetch('/api/scrabble/play', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: hostPlayerId, tiles }),
+        body: JSON.stringify({ gameId: gameCode, resumeToken: hostResumeToken, tiles }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Invalid play')
@@ -214,12 +223,16 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
 
   const exchangeTiles = async (tileIndices: number[]) => {
     if (!hostPlayerId) return
+    if (!hostResumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setHostActing(true)
     try {
       const res = await fetch('/api/scrabble/exchange', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: hostPlayerId, tileIndices }),
+        body: JSON.stringify({ gameId: gameCode, resumeToken: hostResumeToken, tileIndices }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Exchange failed')
@@ -233,12 +246,16 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
 
   const passTurn = async () => {
     if (!hostPlayerId) return
+    if (!hostResumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setHostActing(true)
     try {
       const res = await fetch('/api/scrabble/pass', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: hostPlayerId }),
+        body: JSON.stringify({ gameId: gameCode, resumeToken: hostResumeToken }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to pass')
@@ -332,6 +349,7 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
   const gameFinished = isScrabbleResultsPhase(game?.status, session)
   const showPlayTab = hostPlays && game?.status !== 'waiting' && !gameFinished
   const isHostTurn = turnPlayerId === hostPlayerId
+  const tileSet = tileSetForDictionary(game?.scrabble_dictionary_id)
 
   if (loading) {
     return (
@@ -504,6 +522,8 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
             playerStates={playerStates}
             myPlayerId={hostPlayerId}
             isMyTurn={isHostTurn}
+            tileValues={tileSet.values}
+            alphabet={tileSet.alphabet}
             onPlay={playWord}
             onExchange={exchangeTiles}
             onPass={passTurn}
@@ -553,6 +573,8 @@ export function ScrabbleHostView({ gameCode, hostToken }: { gameCode: string; ho
               playerStates={playerStates}
               myPlayerId={hostPlayerId}
               isMyTurn={false}
+              tileValues={tileSet.values}
+              alphabet={tileSet.alphabet}
             />
           )}
 

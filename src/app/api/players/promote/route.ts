@@ -5,6 +5,7 @@ import { parseGameType, isBingoGame, isCodewordsGame } from '@/lib/game-types'
 import { createBingoCardForPlayer } from '@/lib/bingo'
 import { assignCodewordsLateJoinOperative } from '@/lib/codewords'
 import { allowLatePlayers, playerIsViewer } from '@/lib/viewers'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import type { Game } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   const { gameCode, playerId } = parsed.data
   const gameId = gameCode.toUpperCase()
 
-  const { data: gameRow } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
+  const { data: gameRow } = await getSupabaseAdmin().from('games').select('*').eq('id', gameId).maybeSingle()
   if (!gameRow) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
   const game = gameRow as Game
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This game only allows late joiners to watch' }, { status: 400 })
   }
 
-  const { data: player } = await supabase
+  const { data: player } = await getSupabaseAdmin()
     .from('players')
     .select('*')
     .eq('id', playerId)
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You are already playing' }, { status: 400 })
   }
 
-  const { data: updated, error: updateError } = await supabase
+  const { data: updated, error: updateError } = await getSupabaseAdmin()
     .from('players')
     .update({ spectator: false })
     .eq('id', playerId)
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (!existingCard) {
-      const { error: cardError } = await createBingoCardForPlayer(supabase, gameId, playerId)
+      const { error: cardError } = await createBingoCardForPlayer(getSupabaseAdmin(), gameId, playerId)
       if (cardError) {
         await supabase.from('players').update({ spectator: true }).eq('id', playerId)
         return NextResponse.json({ error: cardError }, { status: 500 })
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (isCodewordsGame(gameType)) {
-    const { role, error: assignError } = await assignCodewordsLateJoinOperative(supabase, gameId, playerId)
+    const { role, error: assignError } = await assignCodewordsLateJoinOperative(getSupabaseAdmin(), gameId, playerId)
     if (assignError) {
       await supabase.from('players').update({ spectator: true }).eq('id', playerId)
       return NextResponse.json({ error: assignError }, { status: 500 })

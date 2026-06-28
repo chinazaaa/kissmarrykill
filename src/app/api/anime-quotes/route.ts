@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchAnimeQuotes } from '@/lib/anime-quotes'
 import { fetchAnimeQuotesSchema } from '@/lib/validation'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -15,7 +16,9 @@ export async function POST(req: NextRequest) {
   const { count, gameId, hostToken } = parsed.data
   const gameCode = gameId.toUpperCase()
 
-  const { data: game } = await supabase
+  const admin = getSupabaseAdmin()
+
+  const { data: game } = await admin
     .from('games')
     .select('host_token, status, game_type')
     .eq('id', gameCode)
@@ -39,11 +42,11 @@ export async function POST(req: NextRequest) {
         choices: q.choices,
       }))
 
-      const { error } = await supabase.from('anime_quote_pool').insert(rows)
+      const { error } = await admin.from('anime_quote_pool').insert(rows)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const { data: pool } = await supabase
+    const { data: pool } = await admin
       .from('anime_quote_pool')
       .select('*')
       .eq('game_id', gameCode)

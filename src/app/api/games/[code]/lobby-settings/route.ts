@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { boardGameLobbySettingsSchema } from '@/lib/validation'
-import { isLudoGame, isMonopolyGame, isWhotGame, isYahtzeeGame, isWordHuntGame, parseGameType } from '@/lib/game-types'
+import {
+  isLudoGame,
+  isMonopolyGame,
+  isSnakeAndLadderGame,
+  isWhotGame,
+  isYahtzeeGame,
+  isWordHuntGame,
+  parseGameType,
+} from '@/lib/game-types'
 import { clampBoardGameTurnTimer, type BoardGameLobbyType } from '@/lib/board-game-lobby-settings'
 import { clampMonopolyGameDuration } from '@/lib/monopoly'
 import { clampWhotGameDuration } from '@/lib/whot'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
 import { clampLobbyMaxPlayers, fetchGamePlayerLimits, type LobbyLimitGameType } from '@/lib/game-limits'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -16,6 +25,7 @@ function boardGameLobbyType(gameType: string): BoardGameLobbyType | null {
   if (isYahtzeeGame(parsed)) return 'yahtzee'
   if (isWhotGame(parsed)) return 'whot'
   if (isLudoGame(parsed)) return 'ludo'
+  if (isSnakeAndLadderGame(parsed)) return 'snake_and_ladder'
   return null
 }
 
@@ -57,7 +67,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
-  const { data: game } = await supabase.from('games').select('*').eq('id', gameCode).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', gameCode).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (game.status !== 'waiting') {
@@ -129,7 +139,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'House rules only apply to Whot games' }, { status: 400 })
   }
 
-  const { data: updated, error } = await supabase.from('games').update(gameUpdate).eq('id', gameCode).select().single()
+  const { data: updated, error } = await getSupabaseAdmin()
+    .from('games')
+    .update(gameUpdate)
+    .eq('id', gameCode)
+    .select()
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, game: updated })

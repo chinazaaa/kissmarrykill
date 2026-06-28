@@ -15,6 +15,7 @@ import { isImportClaimMode, isVoterOnlyMode } from '@/lib/participant-mode'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { gameOffersLateJoinChoice, allowLatePlayers } from '@/lib/viewers'
 import { unlockAudio } from '@/lib/sounds'
+import { PLAYER_SELECT } from '@/lib/supabase-selects'
 import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { useToast } from '@/components/ui/Toast'
 import type { Game, Participant, Player, Round, ParticipantGender, PlayerGender } from '@/types'
@@ -36,6 +37,7 @@ export interface JoinFlowDeps {
   setPlayers: React.Dispatch<React.SetStateAction<Player[]>>
   setParticipants: React.Dispatch<React.SetStateAction<Participant[]>>
   applyActiveRound: (round: Round) => void
+  initialName?: string
 }
 
 export function useJoinFlow(deps: JoinFlowDeps) {
@@ -54,11 +56,12 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     setPlayers,
     setParticipants,
     applyActiveRound,
+    initialName,
   } = deps
   const toast = useToast()
   const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
 
-  const [nameInput, setNameInput] = useState('')
+  const [nameInput, setNameInput] = useState(initialName ?? '')
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
   const [joinIdentityGender, setJoinIdentityGender] = useState<ParticipantGender>('female')
   const [voteBothGenders, setVoteBothGenders] = useState(false)
@@ -166,19 +169,29 @@ export function useJoinFlow(deps: JoinFlowDeps) {
               : { joinAsViewer: true }
           : {}
 
+      const isSelfEdit = Boolean(editingJoin && myPlayerId)
+      let editResumeToken: string | null = null
+      if (isSelfEdit) {
+        editResumeToken = getPlayerSession(gameCode)?.resumeToken ?? null
+        if (!editResumeToken) {
+          toast.error('Your player session expired — rejoin to continue')
+          return
+        }
+      }
+
       const res = await fetch('/api/players', {
-        method: editingJoin && myPlayerId ? 'PATCH' : 'POST',
+        method: isSelfEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          editingJoin && myPlayerId
-            ? { ...body, playerId: myPlayerId }
+          isSelfEdit
+            ? { ...body, playerId: myPlayerId, resumeToken: editResumeToken }
             : { ...body, ...activeJoinExtras, ...joinExtras }
         ),
       })
       const data = await res.json()
       if (data.playerId) {
         const [{ data: plrs }, { data: parts }] = await Promise.all([
-          supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+          supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
           supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
         ])
         setPlayers(plrs || [])

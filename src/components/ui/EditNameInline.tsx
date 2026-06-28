@@ -26,16 +26,21 @@ export function EditNameInline({
       setEditing(false)
       return
     }
+    const existing = getPlayerSession(gameCode)
+    const resumeToken = existing?.resumeToken
+    if (!resumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch('/api/players', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameCode, playerId, playerName: trimmed }),
+        body: JSON.stringify({ gameCode, playerId, playerName: trimmed, resumeToken }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to update name')
-      const existing = getPlayerSession(gameCode)
       setPlayerSession(gameCode, playerId, data.playerName, existing?.playerGender ?? 'both', existing?.resumeToken)
       onRenamed(data.playerName)
       setName(data.playerName)

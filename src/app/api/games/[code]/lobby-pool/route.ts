@@ -24,6 +24,7 @@ import {
 import { isGameGenderBased } from '@/lib/gender-based'
 import { parsePoolUsage } from '@/lib/pool-usage'
 import { CODEWORDS_MIN_CUSTOM_POOL } from '@/lib/codewords'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -56,7 +57,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
-  const auth = await assertHostGameSettings(supabase, code, hostToken)
+  const admin = getSupabaseAdmin()
+
+  const auth = await assertHostGameSettings(admin, code, hostToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const game = auth.game!
@@ -128,7 +131,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       return NextResponse.json({ error: 'Add at least one valid name' }, { status: 400 })
     }
 
-    const { error: replaceError } = await replaceHostParticipantList(supabase, auth.id, nextParticipants)
+    const { error: replaceError } = await replaceHostParticipantList(admin, auth.id, nextParticipants)
     if (replaceError) return NextResponse.json({ error: replaceError }, { status: 500 })
 
     poolUsage = applyParticipantListUpdate(game, nextParticipants, poolUsage).poolUsage
@@ -154,7 +157,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ success: true, game })
   }
 
-  const { data: updated, error: gameError } = await supabase
+  const { data: updated, error: gameError } = await admin
     .from('games')
     .update(gameUpdate)
     .eq('id', auth.id)

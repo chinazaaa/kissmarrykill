@@ -38,6 +38,7 @@ export type GameType =
   | 'chess'
   | 'describe_it'
   | 'scrabble'
+  | 'snake_and_ladder'
 
 export type NpatPhase = 'letter_pick' | 'writing' | 'marking' | 'host_review' | 'reveal'
 export type NpatCategory = 'name' | 'animal' | 'place' | 'thing' | 'food'
@@ -188,14 +189,30 @@ export interface CustomSlotsConfig {
   gender_based?: boolean
 }
 
+export interface AiQuestionsConfig {
+  ratio: 'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform'
+  theme?: string
+  customPrompt?: string
+}
+
+export type AiGeneratedQuestions =
+  | { type: 'wyr'; questions: { optionA: string; optionB: string }[] }
+  | { type: 'mlt'; questions: string[] }
+  | { type: 'nhie'; questions: string[] }
+
 export interface Game {
   id: string
   title: string
-  host_token: string
+  /** Secret host credential. Only present on server-side (service-role) reads; never
+   *  exposed to clients (migration 0122), so optional on this shared type. */
+  host_token?: string
   rounds_count: number
   timer_seconds: number
   /** Scrabble — which word list to validate plays against (default 'enable'). */
   scrabble_dictionary_id?: string | null
+  /** Chess — host's default board theme / piece set (players may override locally). */
+  chess_board_theme?: string | null
+  chess_piece_set?: string | null
   /** Codewords — operative guess phase timer. */
   operative_timer_seconds?: number | null
   anonymous: boolean
@@ -257,6 +274,9 @@ export interface Game {
   whot_cards_enabled?: boolean
   /** Whot — allow calling a number when playing WHOT. */
   whot_number_calls_enabled?: boolean
+  ai_questions_enabled?: boolean
+  ai_questions_config?: AiQuestionsConfig | null
+  ai_generated_questions?: AiGeneratedQuestions | null
   /** Whot — whether a Pick 2 can be stacked/defended (true) or must be drawn (false). */
   whot_pick2_stacking?: boolean
 }
@@ -487,6 +507,46 @@ export interface LudoPlayerState {
   player_id: string
   color: LudoColor
   pieces: LudoPiece[]
+  player_order: number
+  created_at: string
+}
+
+export type SnakeLadderColor = 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange'
+export type SnakeLadderPhase = 'roll' | 'finished'
+/** Outcome of the most recent roll, for board highlighting and the activity feed. */
+export type SnakeLadderEvent = 'start' | 'move' | 'ladder' | 'snake' | 'overshoot' | 'bust' | 'win'
+
+export interface SnakeLadderSession {
+  id: string
+  game_id: string
+  turn_order: string[]
+  current_turn_index: number
+  phase: SnakeLadderPhase
+  /** Pips of the most recent die roll (1–6), or null before the first roll. */
+  last_roll: number | null
+  /** Square the mover started from this roll. */
+  last_from: number | null
+  /** Square the mover ended on after any snake/ladder jump. */
+  last_to: number | null
+  last_event: SnakeLadderEvent | null
+  /** Who the last roll belonged to — used to animate the right token. */
+  last_player_id: string | null
+  /** Consecutive sixes by the current roller; a third six busts the turn. */
+  consecutive_sixes: number
+  status_message: string | null
+  winner_player_id: string | null
+  turn_deadline_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SnakeLadderPlayerState {
+  id: string
+  game_id: string
+  player_id: string
+  color: SnakeLadderColor
+  /** 0 = off the board (not yet started); 1–100 on the board; 100 = home. */
+  position: number
   player_order: number
   created_at: string
 }

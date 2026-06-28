@@ -40,6 +40,7 @@ import {
   isICallOnGame,
   isSudokuGame,
   isWordHuntGame,
+  isSnakeAndLadderGame,
 } from '@/lib/game-types'
 import { wstAutoRoundCount } from '@/lib/who-said-this'
 import {
@@ -96,7 +97,7 @@ import { clampMonopolyGameDuration, clampMonopolyTurnTimer } from '@/lib/monopol
 import { clampWhotGameDuration } from '@/lib/whot'
 import { clampBoardGameTurnTimer } from '@/lib/board-game-lobby-settings'
 import { clampWordHuntTimer } from '@/lib/word-hunt'
-import { clampChessTimer } from '@/lib/chess'
+import { clampChessTimer, clampChessBoardTheme, clampChessPieceSet } from '@/lib/chess'
 import { clampScrabbleTimer, clampScrabbleGameDuration } from '@/lib/scrabble'
 import { parseScrabbleDictionaryId } from '@/lib/scrabble-dictionary-meta'
 import {
@@ -233,6 +234,8 @@ export async function POST(req: NextRequest) {
     whot_number_calls_enabled: rawWhotNumberCallsEnabled,
     whot_pick2_stacking: rawWhotPick2Stacking,
     scrabble_dictionary_id: rawScrabbleDictionaryId,
+    chess_board_theme: rawChessBoardTheme,
+    chess_piece_set: rawChessPieceSet,
   } = parsed.data
 
   const game_type = parseGameType(rawGameType)
@@ -270,6 +273,7 @@ export async function POST(req: NextRequest) {
     isYahtzeeGame(game_type) ||
     isWhotGame(game_type) ||
     isLudoGame(game_type) ||
+    isSnakeAndLadderGame(game_type) ||
     isSudokuGame(game_type) ||
     isWordHuntGame(game_type) ||
     isTicTacToeGame(game_type) ||
@@ -326,6 +330,7 @@ export async function POST(req: NextRequest) {
     isYahtzeeGame(game_type) ||
     isWhotGame(game_type) ||
     isLudoGame(game_type) ||
+    isSnakeAndLadderGame(game_type) ||
     isSudokuGame(game_type) ||
     isWordHuntGame(game_type) ||
     isTicTacToeGame(game_type) ||
@@ -416,37 +421,51 @@ export async function POST(req: NextRequest) {
                   ? resolveMaxPlayers('whot', rawMaxPlayers, lobbyDefaultMaxPlayers('whot', lobbyLimits))
                   : isLudoGame(game_type)
                     ? resolveMaxPlayers('ludo', rawMaxPlayers, lobbyDefaultMaxPlayers('ludo', lobbyLimits))
-                    : isICallOnGame(game_type)
-                      ? resolveMaxPlayers('i_call_on', rawMaxPlayers, lobbyDefaultMaxPlayers('i_call_on', lobbyLimits))
-                      : isSudokuGame(game_type)
-                        ? resolveMaxPlayers('sudoku', rawMaxPlayers, lobbyDefaultMaxPlayers('sudoku', lobbyLimits))
-                        : isWordHuntGame(game_type)
-                          ? resolveMaxPlayers(
-                              'word_hunt',
-                              rawMaxPlayers,
-                              lobbyDefaultMaxPlayers('word_hunt', lobbyLimits)
-                            )
-                          : isTicTacToeGame(game_type)
+                    : isSnakeAndLadderGame(game_type)
+                      ? resolveMaxPlayers(
+                          'snake_and_ladder',
+                          rawMaxPlayers,
+                          lobbyDefaultMaxPlayers('snake_and_ladder', lobbyLimits)
+                        )
+                      : isICallOnGame(game_type)
+                        ? resolveMaxPlayers(
+                            'i_call_on',
+                            rawMaxPlayers,
+                            lobbyDefaultMaxPlayers('i_call_on', lobbyLimits)
+                          )
+                        : isSudokuGame(game_type)
+                          ? resolveMaxPlayers('sudoku', rawMaxPlayers, lobbyDefaultMaxPlayers('sudoku', lobbyLimits))
+                          : isWordHuntGame(game_type)
                             ? resolveMaxPlayers(
-                                'tic_tac_toe',
+                                'word_hunt',
                                 rawMaxPlayers,
-                                lobbyDefaultMaxPlayers('tic_tac_toe', lobbyLimits)
+                                lobbyDefaultMaxPlayers('word_hunt', lobbyLimits)
                               )
-                            : isChessGame(game_type)
-                              ? resolveMaxPlayers('chess', rawMaxPlayers, lobbyDefaultMaxPlayers('chess', lobbyLimits))
-                              : isScrabbleGame(game_type)
+                            : isTicTacToeGame(game_type)
+                              ? resolveMaxPlayers(
+                                  'tic_tac_toe',
+                                  rawMaxPlayers,
+                                  lobbyDefaultMaxPlayers('tic_tac_toe', lobbyLimits)
+                                )
+                              : isChessGame(game_type)
                                 ? resolveMaxPlayers(
-                                    'scrabble',
+                                    'chess',
                                     rawMaxPlayers,
-                                    lobbyDefaultMaxPlayers('scrabble', lobbyLimits)
+                                    lobbyDefaultMaxPlayers('chess', lobbyLimits)
                                   )
-                                : isDescribeItGame(game_type)
+                                : isScrabbleGame(game_type)
                                   ? resolveMaxPlayers(
-                                      'describe_it',
+                                      'scrabble',
                                       rawMaxPlayers,
-                                      lobbyDefaultMaxPlayers('describe_it', lobbyLimits)
+                                      lobbyDefaultMaxPlayers('scrabble', lobbyLimits)
                                     )
-                                  : null
+                                  : isDescribeItGame(game_type)
+                                    ? resolveMaxPlayers(
+                                        'describe_it',
+                                        rawMaxPlayers,
+                                        lobbyDefaultMaxPlayers('describe_it', lobbyLimits)
+                                      )
+                                    : null
   const isSecret = isSecretMessageGame(game_type)
   const lateJoinFields = gameSupportsViewerSetting(game_type)
     ? rawLateJoinPolicy
@@ -581,6 +600,12 @@ export async function POST(req: NextRequest) {
       ? {
           game_duration_seconds: clampScrabbleGameDuration(rawGameDurationSeconds),
           scrabble_dictionary_id: parseScrabbleDictionaryId(rawScrabbleDictionaryId),
+        }
+      : {}),
+    ...(isChessGame(game_type)
+      ? {
+          chess_board_theme: clampChessBoardTheme(rawChessBoardTheme),
+          chess_piece_set: clampChessPieceSet(rawChessPieceSet),
         }
       : {}),
     ...(isMonopolyGame(game_type)

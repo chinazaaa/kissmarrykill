@@ -77,6 +77,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isSnakeAndLadderGame,
   isTicTacToeGame,
   isChessGame,
   isScrabbleGame,
@@ -96,6 +97,7 @@ import { MonopolyPlayerView } from '@/components/monopoly/MonopolyPlayerView'
 import { YahtzeePlayerView } from '@/components/yahtzee/YahtzeePlayerView'
 import { WhotPlayerView } from '@/components/whot/WhotPlayerView'
 import { LudoPlayerView } from '@/components/ludo/LudoPlayerView'
+import { SnakeLadderPlayerView } from '@/components/snake-and-ladder/SnakeLadderPlayerView'
 import { TicTacToePlayerView } from '@/components/tic-tac-toe/TicTacToePlayerView'
 import { ChessPlayerView } from '@/components/chess/ChessPlayerView'
 import { ScrabblePlayerView } from '@/components/scrabble/ScrabblePlayerView'
@@ -210,9 +212,11 @@ import type { View } from '@/hooks/useGameSession'
 export function PollGamePlayerExperience({
   gameCode: gameCodeProp,
   embedded: _embedded = false,
+  initialName,
 }: {
   gameCode: string
   embedded?: boolean
+  initialName?: string
 }) {
   const params = useParams<{ code: string }>()
   const router = useRouter()
@@ -453,6 +457,7 @@ export function PollGamePlayerExperience({
     setPlayers: session.setPlayers,
     setParticipants,
     applyActiveRound,
+    initialName,
   })
 
   // ── Sync refs after hooks are called ────────────────────────────────────
@@ -579,6 +584,9 @@ export function PollGamePlayerExperience({
   }
   if (game && isLudoGame(game.game_type)) {
     return <LudoPlayerView gameCode={gameCode} />
+  }
+  if (game && isSnakeAndLadderGame(game.game_type)) {
+    return <SnakeLadderPlayerView gameCode={gameCode} />
   }
   if (game && isTicTacToeGame(game.game_type)) {
     return <TicTacToePlayerView gameCode={gameCode} />

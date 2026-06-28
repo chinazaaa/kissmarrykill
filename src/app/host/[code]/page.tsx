@@ -10,7 +10,7 @@ import { useScrollHostViewToTop, scrollHostViewToTop } from '@/hooks/useScrollHo
 import { useHostAutoReady } from '@/hooks/useHostAutoReady'
 import {
   CONFESSION_SELECT,
-  GAME_SELECT,
+  HOST_GAME_SELECT,
   PARTICIPANT_SELECT,
   PLAYER_SELECT,
   ROUND_SELECT,
@@ -35,7 +35,7 @@ import {
   minPoolForGame,
   parseParticipantGenderFromDb,
 } from '@/lib/participants'
-import type { ParticipantGender, PairVoteMode, PlayerQuestionsOrder } from '@/types'
+import type { ParticipantGender, PairVoteMode, PlayerQuestionsOrder, AiQuestionsConfig } from '@/types'
 import { tallyRoundVotes, getCategoryMeta, getVoteCategories, tallyWyrVotes, tallyMltVotes } from '@/lib/vote-stats'
 import {
   parseGameType,
@@ -64,6 +64,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isSnakeAndLadderGame,
   isTicTacToeGame,
   isChessGame,
   isScrabbleGame,
@@ -84,6 +85,7 @@ import { MonopolyHostView } from '@/components/monopoly/MonopolyHostView'
 import { YahtzeeHostView } from '@/components/yahtzee/YahtzeeHostView'
 import { WhotHostView } from '@/components/whot/WhotHostView'
 import { LudoHostView } from '@/components/ludo/LudoHostView'
+import { SnakeLadderHostView } from '@/components/snake-and-ladder/SnakeLadderHostView'
 import { TicTacToeHostView } from '@/components/tic-tac-toe/TicTacToeHostView'
 import { ChessHostView } from '@/components/chess/ChessHostView'
 import { ScrabbleHostView } from '@/components/scrabble/ScrabbleHostView'
@@ -255,6 +257,8 @@ export default function HostPage() {
   const [starting, setStarting] = useState(false)
   const [savingPairVoteMode, setSavingPairVoteMode] = useState(false)
   const [savingPlayerQuestions, setSavingPlayerQuestions] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiApiKey, setAiApiKey] = useState('')
   const [savingParticipantFilter, setSavingParticipantFilter] = useState(false)
   const [advancing, setAdvancing] = useState(false)
   const [ending, setEnding] = useState(false)
@@ -397,14 +401,27 @@ export default function HostPage() {
       try {
         await Promise.race([
           (async () => {
-            const gameRes = await supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle()
-            if (!supabasePollOk(gameRes)) throw new Error('unavailable')
-            const gameData = gameRes.data
-            if (!gameData) {
+            // Verify the host token FIRST (host_token is no longer client-readable, migration
+            // 0122) so an invalid-token visitor never receives host-only game fields.
+            const verifyRes = await fetch(`/api/games/${gameCode}/verify-host`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ hostToken }),
+            })
+            if (!verifyRes.ok) throw new Error('unavailable')
+            const verifyData = (await verifyRes.json().catch(() => ({ ok: false }))) as {
+              ok?: boolean
+              notFound?: boolean
+            }
+            if (!verifyData.ok) {
               if (!cancelled) setAuthError(true)
               return
             }
-            if (gameData.host_token !== hostToken) {
+
+            const gameRes = await supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle()
+            if (!supabasePollOk(gameRes)) throw new Error('unavailable')
+            const gameData = gameRes.data
+            if (!gameData) {
               if (!cancelled) setAuthError(true)
               return
             }
@@ -563,7 +580,7 @@ export default function HostPage() {
 
   async function syncGameState(): Promise<boolean> {
     const [gameRes, activeRoundRes, finishedRoundRes] = await Promise.all([
-      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle(),
       supabase.from('rounds').select(ROUND_SELECT).eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
       supabase
         .from('rounds')
@@ -851,7 +868,7 @@ export default function HostPage() {
       }
 
       const [{ data: gameData }, { data: roundData }] = await Promise.all([
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
+        supabase.from('games').select(HOST_GAME_SELECT).eq('id', gameCode).maybeSingle(),
         supabase.from('rounds').select('*').eq('game_id', gameCode).eq('status', 'active').maybeSingle(),
       ])
       if (gameData) setGame(gameData)
@@ -1030,7 +1047,7 @@ export default function HostPage() {
 
   async function refreshLobbyLists() {
     const [{ data: plrs }, { data: parts }, { data: pool }] = await Promise.all([
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
       supabase.from('participants').select('*').eq('game_id', gameCode).order('display_order'),
       game && isWhoSaidThis(parseGameType(game.game_type))
         ? supabase.from('wst_quote_pool').select('*').eq('game_id', gameCode).order('created_at')
@@ -1179,6 +1196,81 @@ export default function HostPage() {
       if (data.game) setGame(data.game)
     } finally {
       setSavingPlayerQuestions(false)
+    }
+  }
+
+  async function hostUpdateAiQuestions(patch: {
+    ai_questions_enabled?: boolean
+    ai_questions_config?: AiQuestionsConfig | null
+  }) {
+    if (!game) return
+    const previous = {
+      ai_questions_enabled: game.ai_questions_enabled,
+      ai_questions_config: game.ai_questions_config,
+    }
+    setGame((g) => (g ? { ...g, ...patch } : g))
+    try {
+      const res = await fetch(`/api/games/${gameCode}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostToken, ...patch }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGame((g) => (g ? { ...g, ...previous } : g))
+        toast.error(data.error || 'Failed to save AI question settings')
+        return
+      }
+      if (data.game) setGame(data.game)
+    } catch {
+      setGame((g) => (g ? { ...g, ...previous } : g))
+      toast.error('Failed to save AI question settings')
+    }
+  }
+
+  async function handleGenerateAiQuestions() {
+    if (!game || aiGenerating) return
+    const gameType = parseGameType(game.game_type)
+    const aiGameType = isMostLikelyTo(gameType)
+      ? 'most_likely_to'
+      : isNeverHaveIEver(gameType)
+        ? 'never_have_i_ever'
+        : 'would_you_rather'
+
+    const names = (players ?? []).map((p) => p.name).filter(Boolean)
+    if (names.length < 2) {
+      toast.error('Need at least 2 players to generate AI questions')
+      return
+    }
+
+    setAiGenerating(true)
+    try {
+      const res = await fetch('/api/ai-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId: game.id,
+          hostToken,
+          playerNames: names,
+          gameType: aiGameType,
+          count: game.rounds_count,
+          theme: game.ai_questions_config?.theme,
+          customPrompt: game.ai_questions_config?.customPrompt,
+          ...(aiApiKey ? { apiKey: aiApiKey } : {}),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to generate AI questions')
+        return
+      }
+      toast.success(`Generated ${data.questionCount} AI questions!`)
+      const { data: refreshed } = await supabase.from('games').select(HOST_GAME_SELECT).eq('id', game.id).maybeSingle()
+      if (refreshed) setGame(refreshed)
+    } catch {
+      toast.error('Failed to generate AI questions')
+    } finally {
+      setAiGenerating(false)
     }
   }
 
@@ -1509,6 +1601,10 @@ export default function HostPage() {
 
   if (game && isLudoGame(game.game_type)) {
     return <LudoHostView gameCode={gameCode} hostToken={hostToken} />
+  }
+
+  if (game && isSnakeAndLadderGame(game.game_type)) {
+    return <SnakeLadderHostView gameCode={gameCode} hostToken={hostToken} />
   }
 
   if (game && isSudokuGame(game.game_type)) {
@@ -2450,6 +2546,141 @@ export default function HostPage() {
                   </div>
                 )}
                 {savingPlayerQuestions && <p className="text-faint text-xs px-0.5">Saving…</p>}
+              </div>
+            )}
+            {(isMlt || isNhie || isWyr) && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-muted text-xs uppercase tracking-wider">AI-Generated Questions</p>
+                  <SegmentedControl
+                    value={game.ai_questions_enabled ? 'on' : 'off'}
+                    onChange={(v) => hostUpdateAiQuestions({ ai_questions_enabled: v === 'on' })}
+                    options={[
+                      { value: 'off', label: 'Off' },
+                      { value: 'on', label: 'Enabled' },
+                    ]}
+                  />
+                  <p className="text-faint text-xs">
+                    {game.ai_questions_enabled
+                      ? 'AI will generate personalized questions using player names.'
+                      : 'Only platform and player-submitted questions will be used.'}
+                  </p>
+                </div>
+
+                {game.ai_questions_enabled && (
+                  <>
+                    <div className="space-y-1">
+                      <p className="text-muted text-xs uppercase tracking-wider">AI question ratio</p>
+                      <SegmentedControl
+                        value={game.ai_questions_config?.ratio ?? 'half'}
+                        onChange={(v) =>
+                          hostUpdateAiQuestions({
+                            ai_questions_config: {
+                              ...game.ai_questions_config,
+                              ratio: v as AiQuestionsConfig['ratio'],
+                            },
+                          })
+                        }
+                        options={[
+                          { value: 'all_ai', label: 'All AI' },
+                          { value: 'mostly_ai', label: 'Mostly AI' },
+                          { value: 'half', label: 'Half & Half' },
+                          { value: 'mostly_platform', label: 'Mostly Platform' },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-muted text-xs uppercase tracking-wider">Theme (optional)</p>
+                      <select
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body"
+                        value={game.ai_questions_config?.theme ?? ''}
+                        onChange={(e) =>
+                          hostUpdateAiQuestions({
+                            ai_questions_config: {
+                              ...game.ai_questions_config,
+                              ratio: game.ai_questions_config?.ratio ?? 'half',
+                              theme: e.target.value || undefined,
+                            },
+                          })
+                        }
+                      >
+                        <option value="">General / Fun</option>
+                        <option value="Work party">Work party</option>
+                        <option value="College friends">College friends</option>
+                        <option value="Family reunion">Family reunion</option>
+                        <option value="Birthday party">Birthday party</option>
+                        <option value="Date night">Date night</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-muted text-xs uppercase tracking-wider">Custom prompt (optional)</p>
+                      <textarea
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body resize-none"
+                        rows={2}
+                        maxLength={500}
+                        placeholder="e.g. We're all coworkers at a tech company who love hiking"
+                        value={game.ai_questions_config?.customPrompt ?? ''}
+                        onBlur={(e) =>
+                          hostUpdateAiQuestions({
+                            ai_questions_config: {
+                              ...game.ai_questions_config,
+                              ratio: game.ai_questions_config?.ratio ?? 'half',
+                              customPrompt: e.target.value || undefined,
+                            },
+                          })
+                        }
+                        onChange={(e) =>
+                          setGame((g) =>
+                            g
+                              ? {
+                                  ...g,
+                                  ai_questions_config: {
+                                    ...g.ai_questions_config,
+                                    ratio: g.ai_questions_config?.ratio ?? 'half',
+                                    customPrompt: e.target.value || undefined,
+                                  },
+                                }
+                              : g
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-muted text-xs uppercase tracking-wider">Claude API key (optional)</p>
+                      <input
+                        type="password"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body"
+                        placeholder="sk-ant-..."
+                        value={aiApiKey}
+                        onChange={(e) => setAiApiKey(e.target.value)}
+                      />
+                      <p className="text-faint text-xs">
+                        Leave blank to use the server&apos;s key. Your key is never stored.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGenerateAiQuestions}
+                      disabled={aiGenerating || (players ?? []).length < 2}
+                      className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-40"
+                    >
+                      {aiGenerating
+                        ? 'Generating...'
+                        : game.ai_generated_questions &&
+                            typeof game.ai_generated_questions === 'object' &&
+                            'questions' in (game.ai_generated_questions as Record<string, unknown>) &&
+                            Array.isArray((game.ai_generated_questions as Record<string, unknown>).questions)
+                          ? `Re-generate (${
+                              ((game.ai_generated_questions as Record<string, unknown>).questions as unknown[]).length
+                            } ready)`
+                          : 'Generate AI Questions'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
             {!isJoinersMode && !hotSeatLobby && isVoterOnly && (

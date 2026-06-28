@@ -35,6 +35,7 @@ import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { allowLateJoin, allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
 import { markPlayerReady } from '@/lib/player-ready'
 import { resolvePlayerSession } from '@/lib/player-resume'
@@ -66,6 +67,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const [screen, setScreen] = useState<Screen>('loading')
   const [game, setGame] = useState<Game | null>(null)
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null)
+  const [myResumeToken, setMyResumeToken] = useState<string | null>(null)
   const [myPlayerName, setMyPlayerName] = useState('')
   const [joinName, setJoinName] = useState('')
   const [joining, setJoining] = useState(false)
@@ -88,6 +90,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   const handlePlayerRemoved = useCallback(() => {
     clearPlayerSession(gameCode)
     setMyPlayerId(null)
+    setMyResumeToken(null)
     setMyPlayerName('')
     setMyRole(null)
     setJoinName('')
@@ -99,6 +102,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     myPlayerIdRef.current = null
     clearPlayerSession(gameCode)
     setMyPlayerId(null)
+    setMyResumeToken(null)
     setMyPlayerName('')
     setMyRole(null)
     setJoinName('')
@@ -177,7 +181,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   const loadScoreboard = useCallback(async () => {
     const [{ data: plrs }, { data: roleRows }] = await Promise.all([
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
       supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
     ])
     setAllPlayers(plrs ?? [])
@@ -186,8 +190,8 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }] = await Promise.all([
-      supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-      supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+      supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+      supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
     ])
 
     if (!gameData) {
@@ -201,10 +205,12 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
     const playerId = session?.playerId ?? null
     if (session) {
       setMyPlayerId(session.playerId)
+      setMyResumeToken(session.resumeToken ?? null)
       setMyPlayerName(session.playerName)
       await refreshMyRole(session.playerId)
     } else {
       setMyPlayerId(null)
+      setMyResumeToken(null)
       setMyPlayerName('')
       setMyRole(null)
     }
@@ -287,6 +293,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
         if (!res.ok) throw new Error(data.error ?? 'Failed to join')
         setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender, data.resumeToken)
         setMyPlayerId(data.playerId)
+        setMyResumeToken(data.resumeToken ?? null)
         setMyPlayerName(data.playerName)
         if (data.codewordsRole) setMyRole(data.codewordsRole)
         await load()
@@ -316,12 +323,16 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
 
   const saveRole = async () => {
     if (!myPlayerId || !pickingTeam || !pickingRole) return
+    if (!myResumeToken) {
+      toastError('Your player session expired — rejoin to continue')
+      return
+    }
     setSavingRole(true)
     try {
       const res = await fetch('/api/codewords/role', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: gameCode, playerId: myPlayerId, team: pickingTeam, role: pickingRole }),
+        body: JSON.stringify({ gameId: gameCode, resumeToken: myResumeToken, team: pickingTeam, role: pickingRole }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to save role')
@@ -736,6 +747,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
           game={game}
           board={board}
           myPlayerId={myPlayerId}
+          myResumeToken={myResumeToken}
           myPlayerName={myPlayerName}
           myRole={myRole}
           players={allPlayers}

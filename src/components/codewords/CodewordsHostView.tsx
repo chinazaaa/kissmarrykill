@@ -22,6 +22,7 @@ import {
 import { useCodewordsRealtime } from '@/hooks/useCodewordsRealtime'
 import { useCodewordsNotifications } from '@/hooks/useCodewordsNotifications'
 import { supabase } from '@/lib/supabase'
+import { GAME_SELECT, PLAYER_SELECT } from '@/lib/supabase-selects'
 import { appOrigin } from '@/lib/site'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
 import { getPlayerSession, setPlayerSession, clearPlayerSession } from '@/lib/utils'
@@ -63,6 +64,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const [benchingPlayerId, setBenchingPlayerId] = useState<string | null>(null)
   const [hostMode, setHostMode] = useState<CodewordsHostMode>('spectator')
   const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
+  const [hostResumeToken, setHostResumeToken] = useState<string | null>(null)
   const [hostPlayerName, setHostPlayerName] = useState('')
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
@@ -92,8 +94,8 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: plrs }, { data: roleRows }, { data: boardData }, { data: guessRows }] =
       await Promise.all([
-        supabase.from('games').select('*').eq('id', gameCode).maybeSingle(),
-        supabase.from('players').select('*').eq('game_id', gameCode).order('joined_at'),
+        supabase.from('games').select(GAME_SELECT).eq('id', gameCode).maybeSingle(),
+        supabase.from('players').select(PLAYER_SELECT).eq('game_id', gameCode).order('joined_at'),
         supabase.from('codewords_player_roles').select('*').eq('game_id', gameCode),
         supabase.from('codewords_boards').select('*').eq('game_id', gameCode).maybeSingle(),
         supabase.from('codewords_guesses').select('*').eq('game_id', gameCode).order('created_at', { ascending: true }),
@@ -127,6 +129,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
     const session = getPlayerSession(gameCode)
     if (session) {
       setHostPlayerId(session.playerId)
+      setHostResumeToken(session.resumeToken ?? null)
       setHostPlayerName(session.playerName)
     }
   }, [gameCode, load])
@@ -159,6 +162,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
     (playerId: string) => {
       if (playerId === hostPlayerId) {
         setHostPlayerId(null)
+        setHostResumeToken(null)
         setHostPlayerName('')
         clearPlayerSession(gameCode)
         setHostMode('spectator')
@@ -257,6 +261,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       if (!res.ok) throw new Error(data.error ?? 'Failed to join')
       setPlayerSession(gameCode, data.playerId, data.playerName, data.playerGender, data.resumeToken)
       setHostPlayerId(data.playerId)
+      setHostResumeToken(data.resumeToken ?? null)
       setHostPlayerName(data.playerName)
       setHostMode('player')
       setCodewordsHostMode(gameCode, 'player')
@@ -320,6 +325,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
       if (!res.ok) throw new Error(data.error ?? 'Failed to move player to waiting room')
       if (playerId === hostPlayerId) {
         setHostPlayerId(null)
+        setHostResumeToken(null)
         setHostPlayerName('')
         clearPlayerSession(gameCode)
       }
@@ -611,6 +617,7 @@ export function CodewordsHostView({ gameCode, hostToken }: { gameCode: string; h
             game={game}
             board={board}
             myPlayerId={hostPlayerId!}
+            myResumeToken={hostResumeToken}
             myPlayerName={hostPlayerName}
             myRole={hostMyRole}
             players={players}

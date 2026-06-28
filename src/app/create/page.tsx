@@ -57,6 +57,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isSnakeAndLadderGame,
   isTicTacToeGame,
   isChessGame,
   isScrabbleGame,
@@ -65,6 +66,7 @@ import {
   isSudokuGame,
   isWordHuntGame,
 } from '@/lib/game-types'
+import { BOARD_THEMES, PIECE_SETS, pieceGlyph } from '@/lib/chess-appearance'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
 import { MLT_QUESTION_COUNT } from '@/lib/most-likely-to-questions'
@@ -147,6 +149,7 @@ import { YAHTZEE_DEFAULT_MAX_PLAYERS } from '@/lib/yahtzee'
 import { WHOT_DEFAULT_MAX_PLAYERS, WHOT_GAME_DURATION_OPTIONS, formatWhotGameDuration } from '@/lib/whot'
 import { turnTimerOptionsFor, formatBoardGameTurnTimer } from '@/lib/board-game-lobby-settings'
 import { LUDO_DEFAULT_MAX_PLAYERS } from '@/lib/ludo'
+import { SNAKE_LADDER_DEFAULT_MAX_PLAYERS } from '@/lib/snake-and-ladder'
 import {
   formatNpatGameDuration,
   NPAT_DEFAULT_GAME_DURATION,
@@ -216,7 +219,7 @@ function CreateGameInner() {
     auto_submit_behavior: 'no_answer',
     participant_mode: 'import',
     pair_vote_mode: 'one_each',
-    game_type: 'smash_marry_kill',
+    game_type: 'monopoly',
     theme: 'default',
     participant_filter: 'all' as 'all' | 'joined',
     gender_based: true,
@@ -239,6 +242,11 @@ function CreateGameInner() {
   const [questionSource, setQuestionSource] = useState<QuestionSource>('platform')
   const [playerQuestionsEnabled, setPlayerQuestionsEnabled] = useState(true)
   const [playerQuestionsOrder, setPlayerQuestionsOrder] = useState<PlayerQuestionsOrder>('players_first')
+  const [aiQuestionsEnabled, setAiQuestionsEnabled] = useState(false)
+  const [aiQuestionsRatio, setAiQuestionsRatio] = useState<'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform'>('half')
+  const [aiQuestionsTheme, setAiQuestionsTheme] = useState('')
+  const [aiQuestionsCustomPrompt, setAiQuestionsCustomPrompt] = useState('')
+  const [aiQuestionsApiKey, setAiQuestionsApiKey] = useState('')
   const [questionTab, setQuestionTab] = useState<QuestionTab>('upload')
   const [customWyrQuestions, setCustomWyrQuestions] = useState<WyrQuestion[]>([])
   const [customMltQuestions, setCustomMltQuestions] = useState<string[]>([])
@@ -270,6 +278,8 @@ function CreateGameInner() {
   const [monopolyGameDuration, setMonopolyGameDuration] = useState(0)
   const [scrabbleGameDuration, setScrabbleGameDuration] = useState(0)
   const [scrabbleDictionary, setScrabbleDictionary] = useState<ScrabbleDictionaryId>(SCRABBLE_DEFAULT_DICTIONARY)
+  const [chessBoardTheme, setChessBoardTheme] = useState('classic')
+  const [chessPieceSet, setChessPieceSet] = useState('classic')
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
   const [whotGameDuration, setWhotGameDuration] = useState(0)
@@ -278,6 +288,7 @@ function CreateGameInner() {
   const [whotCardsEnabled, setWhotCardsEnabled] = useState(true)
   const [whotNumberCallsEnabled, setWhotNumberCallsEnabled] = useState(true)
   const [ludoMaxPlayers, setLudoMaxPlayers] = useState(LUDO_DEFAULT_MAX_PLAYERS)
+  const [snakeLadderMaxPlayers, setSnakeLadderMaxPlayers] = useState(SNAKE_LADDER_DEFAULT_MAX_PLAYERS)
   const [npatMaxPlayers, setNpatMaxPlayers] = useState(NPAT_DEFAULT_MAX_PLAYERS)
   const [sudokuMaxPlayers, setSudokuMaxPlayers] = useState(20)
   const [wordHuntMaxPlayers, setWordHuntMaxPlayers] = useState(WORD_HUNT_DEFAULT_MAX_PLAYERS)
@@ -349,6 +360,7 @@ function CreateGameInner() {
     setYahtzeeMaxPlayers((v) => clamp('yahtzee', v))
     setWhotMaxPlayers((v) => clamp('whot', v))
     setLudoMaxPlayers((v) => clamp('ludo', v))
+    setSnakeLadderMaxPlayers((v) => clamp('snake_and_ladder', v))
     setNpatMaxPlayers((v) => clamp('i_call_on', v))
   }, [lobbyLimits])
 
@@ -422,6 +434,14 @@ function CreateGameInner() {
               participant_mode: 'joiners' as const,
               anonymous: true,
               rounds_count: 1,
+            }
+          : {}),
+        ...(isSnakeAndLadderGame(type)
+          ? {
+              participant_mode: 'joiners' as const,
+              anonymous: true,
+              rounds_count: 1,
+              timer_seconds: 30,
             }
           : {}),
         ...(isTicTacToeGame(type)
@@ -516,6 +536,7 @@ function CreateGameInner() {
     if (!whotCardsEnabled) setWhotNumberCallsEnabled(false)
   }, [whotCardsEnabled])
   const isLudo = isLudoGame(settings.game_type)
+  const isSnakeLadder = isSnakeAndLadderGame(settings.game_type)
   const isTicTacToe = isTicTacToeGame(settings.game_type)
   const isChess = isChessGame(settings.game_type)
   const isScrabble = isScrabbleGame(settings.game_type)
@@ -613,6 +634,7 @@ function CreateGameInner() {
     isYahtzee ||
     isWhot ||
     isLudo ||
+    isSnakeLadder ||
     isTicTacToe ||
     isChess ||
     isScrabble ||
@@ -721,6 +743,23 @@ function CreateGameInner() {
             anonymous: true,
             rounds_count: 1,
             timer_seconds: 60,
+          }
+        : {}),
+      ...(isSnakeAndLadderGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            timer_seconds: 30,
+          }
+        : {}),
+      ...(isChessGame(type)
+        ? {
+            participant_mode: 'joiners' as const,
+            anonymous: true,
+            rounds_count: 1,
+            // Cumulative per-player clock (chess.com style). Default 10 minutes each.
+            timer_seconds: 600,
           }
         : {}),
       ...(isICallOnGame(type)
@@ -1101,6 +1140,15 @@ function CreateGameInner() {
           gender_based: supportsGender ? settings.gender_based : undefined,
           player_questions_enabled: isPlayerSubmissions ? playerQuestionsEnabled : undefined,
           player_questions_order: isPlayerSubmissions ? playerQuestionsOrder : undefined,
+          ai_questions_enabled: isLobbyQuestions && !isTrivia ? aiQuestionsEnabled : undefined,
+          ai_questions_config:
+            isLobbyQuestions && !isTrivia && aiQuestionsEnabled
+              ? {
+                  ratio: aiQuestionsRatio,
+                  ...(aiQuestionsTheme ? { theme: aiQuestionsTheme } : {}),
+                  ...(aiQuestionsCustomPrompt ? { customPrompt: aiQuestionsCustomPrompt } : {}),
+                }
+              : undefined,
           max_players: isAnonymousRoom
             ? anonymousMaxPlayers
             : isBingo
@@ -1119,13 +1167,15 @@ function CreateGameInner() {
                           ? whotMaxPlayers
                           : isLudo
                             ? ludoMaxPlayers
-                            : isNpat
-                              ? npatMaxPlayers
-                              : isSudoku
-                                ? sudokuMaxPlayers
-                                : isWordHunt
-                                  ? wordHuntMaxPlayers
-                                  : undefined,
+                            : isSnakeLadder
+                              ? snakeLadderMaxPlayers
+                              : isNpat
+                                ? npatMaxPlayers
+                                : isSudoku
+                                  ? sudokuMaxPlayers
+                                  : isWordHunt
+                                    ? wordHuntMaxPlayers
+                                    : undefined,
           operative_timer_seconds: isCodewords ? codewordsOperativeTimer : isNpat ? npatMarkingTimer : undefined,
           codewords_player_picks: isCodewords ? codewordsPlayerPicks : undefined,
           codewords_late_join: isCodewords ? lateJoinPolicy === 'viewers_and_players' : undefined,
@@ -1151,6 +1201,8 @@ function CreateGameInner() {
           whot_cards_enabled: isWhot ? whotCardsEnabled : undefined,
           whot_number_calls_enabled: isWhot ? whotNumberCallsEnabled : undefined,
           scrabble_dictionary_id: isScrabble ? scrabbleDictionary : undefined,
+          chess_board_theme: isChess ? chessBoardTheme : undefined,
+          chess_piece_set: isChess ? chessPieceSet : undefined,
         }),
       })
       const data = await res.json()
@@ -1575,6 +1627,50 @@ function CreateGameInner() {
                   Exact rolls needed to finish. First to get all four pieces home wins!
                 </p>
               </SettingsGroup>
+            ) : isSnakeLadder ? (
+              <SettingsGroup title="Snake & Ladder room">
+                <Field
+                  label={`Max players (${effectiveLimits.snake_and_ladder.min}–${effectiveLimits.snake_and_ladder.max})`}
+                >
+                  <select
+                    value={snakeLadderMaxPlayers}
+                    onChange={(e) => setSnakeLadderMaxPlayers(Number(e.target.value))}
+                    className="input-field w-full"
+                  >
+                    {playerCountOptions(effectiveLimits.snake_and_ladder.min, effectiveLimits.snake_and_ladder.max).map(
+                      (n) => (
+                        <option key={n} value={n}>
+                          {n} players
+                        </option>
+                      )
+                    )}
+                  </select>
+                </Field>
+                <Field label="Turn timer">
+                  <select
+                    value={settings.timer_seconds}
+                    onChange={(e) => setSettings({ ...settings, timer_seconds: Number(e.target.value) })}
+                    className="input-field w-full"
+                  >
+                    <option value={0}>No timer</option>
+                    <option value={15}>15 seconds</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>60 seconds</option>
+                    <option value={90}>90 seconds</option>
+                  </select>
+                </Field>
+                <Field label="Late joiners">
+                  <LateJoinPolicyToggle
+                    value={lateJoinPolicy}
+                    onChange={setLateJoinPolicy}
+                    gameType="snake_and_ladder"
+                  />
+                </Field>
+                <p className="text-faint text-sm leading-relaxed">
+                  Classic Snakes &amp; Ladders — roll one die, climb the ladders, dodge the snakes. Roll a 6 to go
+                  again. First to land on 100 exactly wins!
+                </p>
+              </SettingsGroup>
             ) : isTicTacToe ? (
               <SettingsGroup title="Tic-Tac-Toe room">
                 <p className="text-faint text-sm">Exactly 2 players — the host can join as one of them.</p>
@@ -1615,6 +1711,71 @@ function CreateGameInner() {
                 </Field>
                 <Field label="Late joiners">
                   <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="chess" />
+                </Field>
+                <Field label="Board">
+                  <div className="flex flex-wrap gap-2">
+                    {BOARD_THEMES.map((theme) => {
+                      const active = theme.id === chessBoardTheme
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setChessBoardTheme(theme.id)}
+                          title={theme.name}
+                          aria-label={`${theme.name} board`}
+                          aria-pressed={active}
+                          className={[
+                            'h-9 w-9 rounded-md overflow-hidden grid grid-cols-2 grid-rows-2 transition-transform',
+                            active
+                              ? 'ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--card)] scale-105'
+                              : 'ring-1 ring-[var(--border)] hover:scale-105',
+                          ].join(' ')}
+                        >
+                          <span style={{ backgroundColor: theme.light }} />
+                          <span style={{ backgroundColor: theme.dark }} />
+                          <span style={{ backgroundColor: theme.dark }} />
+                          <span style={{ backgroundColor: theme.light }} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Field>
+                <Field label="Pieces">
+                  <div className="flex flex-wrap gap-2">
+                    {PIECE_SETS.map((set) => {
+                      const active = set.id === chessPieceSet
+                      return (
+                        <button
+                          key={set.id}
+                          type="button"
+                          onClick={() => setChessPieceSet(set.id)}
+                          title={set.name}
+                          aria-label={`${set.name} pieces`}
+                          aria-pressed={active}
+                          className={[
+                            'flex flex-col items-center gap-0.5 rounded-md px-2 py-1.5 transition-transform',
+                            active
+                              ? 'ring-2 ring-[var(--primary)] scale-105'
+                              : 'ring-1 ring-[var(--border)] hover:scale-105',
+                          ].join(' ')}
+                          style={{ backgroundColor: '#b58863' }}
+                        >
+                          <span className="leading-none text-xl flex gap-0.5">
+                            <span style={{ color: set.white.color, textShadow: set.white.shadow }}>
+                              {pieceGlyph(set, 'w', 'n')}
+                            </span>
+                            <span style={{ color: set.black.color, textShadow: set.black.shadow }}>
+                              {pieceGlyph(set, 'b', 'n')}
+                            </span>
+                          </span>
+                          <span className="text-[10px] font-semibold text-white/90 leading-none">{set.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-faint mt-1 text-xs">
+                    Your default look — players can switch their own board in-game.
+                  </p>
                 </Field>
                 <p className="text-faint text-sm leading-relaxed">
                   Classic chess — White moves first, standard rules, checkmate to win. Each player gets their own clock
@@ -2488,6 +2649,83 @@ function CreateGameInner() {
                               }
                             </p>
                           </Field>
+                        )}
+
+                        {(isWyr || isMlt || isNhie) && (
+                          <Field label="AI-generated questions">
+                            <SegmentedControl
+                              value={aiQuestionsEnabled ? 'on' : 'off'}
+                              onChange={(v) => setAiQuestionsEnabled(v === 'on')}
+                              options={[
+                                { value: 'off', label: 'Off' },
+                                { value: 'on', label: 'Enabled' },
+                              ]}
+                            />
+                            <p className="text-faint text-xs mt-2">
+                              {aiQuestionsEnabled
+                                ? 'AI will generate personalized questions using player names in the lobby.'
+                                : 'Only platform and player-submitted questions will be used.'}
+                            </p>
+                          </Field>
+                        )}
+
+                        {(isWyr || isMlt || isNhie) && aiQuestionsEnabled && (
+                          <>
+                            <Field label="AI question ratio">
+                              <SegmentedControl
+                                value={aiQuestionsRatio}
+                                onChange={(v) =>
+                                  setAiQuestionsRatio(v as 'all_ai' | 'mostly_ai' | 'half' | 'mostly_platform')
+                                }
+                                options={[
+                                  { value: 'all_ai', label: 'All AI' },
+                                  { value: 'mostly_ai', label: 'Mostly AI' },
+                                  { value: 'half', label: 'Half & Half' },
+                                  { value: 'mostly_platform', label: 'Mostly Platform' },
+                                ]}
+                              />
+                            </Field>
+
+                            <Field label="Theme (optional)">
+                              <select
+                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body"
+                                value={aiQuestionsTheme}
+                                onChange={(e) => setAiQuestionsTheme(e.target.value)}
+                              >
+                                <option value="">General / Fun</option>
+                                <option value="Work party">Work party</option>
+                                <option value="College friends">College friends</option>
+                                <option value="Family reunion">Family reunion</option>
+                                <option value="Birthday party">Birthday party</option>
+                                <option value="Date night">Date night</option>
+                              </select>
+                            </Field>
+
+                            <Field label="Custom prompt (optional)">
+                              <textarea
+                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body resize-none"
+                                rows={2}
+                                maxLength={500}
+                                placeholder="e.g. We're all coworkers at a tech company who love hiking"
+                                value={aiQuestionsCustomPrompt}
+                                onChange={(e) => setAiQuestionsCustomPrompt(e.target.value)}
+                              />
+                              <p className="text-faint text-xs mt-1">{aiQuestionsCustomPrompt.length}/500</p>
+                            </Field>
+
+                            <Field label="Your Claude API key (optional)">
+                              <input
+                                type="password"
+                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-body"
+                                placeholder="sk-ant-..."
+                                value={aiQuestionsApiKey}
+                                onChange={(e) => setAiQuestionsApiKey(e.target.value)}
+                              />
+                              <p className="text-faint text-xs mt-1">
+                                Leave blank to use the server&apos;s key. Your key is never stored.
+                              </p>
+                            </Field>
+                          </>
                         )}
                       </>
                     )}

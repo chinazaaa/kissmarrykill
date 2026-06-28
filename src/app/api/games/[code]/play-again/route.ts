@@ -13,6 +13,7 @@ import {
   isYahtzeeGame,
   isWhotGame,
   isLudoGame,
+  isSnakeAndLadderGame,
   isTicTacToeGame,
   isChessGame,
   isDescribeItGame,
@@ -28,6 +29,7 @@ import { clearMonopolySessionData } from '@/lib/monopoly'
 import { clearYahtzeeSessionData } from '@/lib/yahtzee'
 import { clearWhotSessionData } from '@/lib/whot'
 import { clearLudoSessionData } from '@/lib/ludo'
+import { clearSnakeAndLadderSessionData } from '@/lib/snake-and-ladder'
 import { clearTicTacToeSessionData, canTicTacToePlayAgain } from '@/lib/tic-tac-toe'
 import { clearChessSessionData, canChessPlayAgain } from '@/lib/chess'
 import { clearDescribeItSessionData, canDescribeItPlayAgain } from '@/lib/describe-it'
@@ -50,6 +52,7 @@ import {
 import { extractRoundUsage, extractCodewordsBoardUsage, mergePoolUsageState, parsePoolUsage } from '@/lib/pool-usage'
 import { isGameGenderBased } from '@/lib/gender-based'
 import { resetSpectatorsForLobby } from '@/lib/viewers'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -73,7 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   } = parsed.data
   const gameId = code.toUpperCase()
 
-  const { data: game } = await supabase.from('games').select('*').eq('id', gameId).maybeSingle()
+  const { data: game } = await getSupabaseAdmin().from('games').select('*').eq('id', gameId).maybeSingle()
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
   if (game.host_token !== hostToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
@@ -213,7 +216,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (confessionsError) return NextResponse.json({ error: confessionsError.message }, { status: 500 })
 
   if (isTriviaGame(gameType)) {
-    const { error: clearError } = await clearTriviaSessionData(supabase, gameId)
+    const { error: clearError } = await clearTriviaSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
@@ -254,69 +257,76 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   if (isBingoGame(gameType)) {
-    const { error: clearError } = await clearBingoSessionData(supabase, gameId)
+    const { error: clearError } = await clearBingoSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isCodewordsGame(gameType)) {
-    const { error: clearError } = await clearCodewordsRoundData(supabase, gameId)
+    const { error: clearError } = await clearCodewordsRoundData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isTwoTruthsGame(gameType)) {
-    const { error: clearError } = await clearTwoTruthsSessionData(supabase, gameId)
+    const { error: clearError } = await clearTwoTruthsSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isMonopolyGame(gameType)) {
-    const { error: clearError } = await clearMonopolySessionData(supabase, gameId)
+    const { error: clearError } = await clearMonopolySessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isYahtzeeGame(gameType)) {
-    const { error: clearError } = await clearYahtzeeSessionData(supabase, gameId)
+    const { error: clearError } = await clearYahtzeeSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isWhotGame(gameType)) {
-    const { error: clearError } = await clearWhotSessionData(supabase, gameId)
+    const { error: clearError } = await clearWhotSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isLudoGame(gameType)) {
-    const { error: clearError } = await clearLudoSessionData(supabase, gameId)
+    const { error: clearError } = await clearLudoSessionData(getSupabaseAdmin(), gameId)
+    if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+  }
+
+  if (isSnakeAndLadderGame(gameType)) {
+    // Snake & Ladder tables are RLS-locked to anon writes — clear via service role.
+    const { error: clearError } = await clearSnakeAndLadderSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isChessGame(gameType)) {
-    const { error: clearError } = await clearChessSessionData(supabase, gameId)
+    const { error: clearError } = await clearChessSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
   if (isDescribeItGame(gameType)) {
-    const { error: clearError } = await clearDescribeItSessionData(supabase, gameId)
+    const { error: clearError } = await clearDescribeItSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
   if (isScrabbleGame(gameType)) {
-    const { error: clearError } = await clearScrabbleSessionData(supabase, gameId)
+    const { error: clearError } = await clearScrabbleSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
   if (isTicTacToeGame(gameType)) {
-    const { error: clearError } = await clearTicTacToeSessionData(supabase, gameId)
+    // Tic-Tac-Toe tables are RLS-locked to anon writes — clear via service role.
+    const { error: clearError } = await clearTicTacToeSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isICallOnGame(gameType)) {
-    const { error: clearError } = await clearNpatSessionData(supabase, gameId)
+    const { error: clearError } = await clearNpatSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isSudokuGame(gameType)) {
-    const { error: clearError } = await clearSudokuSessionData(supabase, gameId)
+    const { error: clearError } = await clearSudokuSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
   if (isWordHuntGame(gameType)) {
-    const { error: clearError } = await clearWordHuntSessionData(supabase, gameId)
+    const { error: clearError } = await clearWordHuntSessionData(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
   }
 
@@ -327,7 +337,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   )
   if (spectatorResetError) return NextResponse.json({ error: spectatorResetError }, { status: 500 })
 
-  const { data: updated, error: gameError } = await supabase
+  const { data: updated, error: gameError } = await getSupabaseAdmin()
     .from('games')
     .update(gameUpdate)
     .eq('id', gameId)
