@@ -639,17 +639,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const spymasterTimer = clampCodewordsTimer(game.timer_seconds ?? CODEWORDS_DEFAULT_SPYMASTER_TIMER)
     const operativeTimer = clampCodewordsTimer(game.operative_timer_seconds ?? CODEWORDS_DEFAULT_OPERATIVE_TIMER)
 
-    const { error: boardError } = await getSupabaseAdmin().from('codewords_boards').insert({
-      game_id: code.toUpperCase(),
-      words,
-      key,
-      starting_team: startingTeam,
-      current_turn: startingTeam,
-      spymaster_timer_seconds: spymasterTimer,
-      operative_timer_seconds: operativeTimer,
-      turn_phase: 'clue',
-      turn_deadline_at: turnDeadline(spymasterTimer),
-    })
+    const { error: boardError } = await getSupabaseAdmin()
+      .from('codewords_boards')
+      .insert({
+        game_id: code.toUpperCase(),
+        words,
+        key,
+        starting_team: startingTeam,
+        current_turn: startingTeam,
+        spymaster_timer_seconds: spymasterTimer,
+        operative_timer_seconds: operativeTimer,
+        turn_phase: 'clue',
+        turn_deadline_at: turnDeadline(spymasterTimer),
+      })
 
     if (boardError) return NextResponse.json({ error: boardError.message }, { status: 500 })
 
