@@ -9,7 +9,6 @@ import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { HostLobbyPlayersSection } from '@/components/host-lobby/HostLobbyPlayersSection'
 import { parseSudokuMetadata, tallySudokuScores } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
-import { markGameFinished } from '@/lib/game-finish'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import type { Game, Player } from '@/types'
 import { useHostAutoReady } from '@/hooks/useHostAutoReady'
@@ -242,7 +241,12 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
   async function handleEndGame() {
     if (ending) return
     setEnding(true)
-    await markGameFinished(supabase, gameCode)
+    // End via the host-authorized server route (games is RLS-locked to anon writes).
+    await fetch(`/api/games/${gameCode}/finish-game`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hostToken }),
+    })
     setEnding(false)
   }
 
