@@ -375,13 +375,15 @@ export function parseQuestionSource(raw: unknown, gameType?: GameType | string):
     isWouldYouRather(gameType) ||
     isMostLikelyTo(gameType) ||
     isNeverHaveIEver(gameType) ||
-    isPickANumber(gameType) ||
-    isDescribeItGame(gameType)
+    isPickANumber(gameType)
   ) {
     if (raw === 'custom') return 'custom'
     if (raw === 'library') return 'library'
     return 'platform'
   }
+  // Describe It supports uploaded ('custom') words only — it has no library tier,
+  // so never persist 'library' (gameplay would silently fall back to the platform pool).
+  if (isDescribeItGame(gameType)) return raw === 'custom' ? 'custom' : 'platform'
   return 'platform'
 }
 

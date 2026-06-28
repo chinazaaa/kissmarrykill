@@ -478,29 +478,48 @@ export async function processDescribeItClue(
   if (session.current_word && clueContainsWord(trimmed, session.current_word)) {
     return { error: "Your clue can't contain the word" }
   }
-  // Avoid logging the exact same clue twice in a row.
-  const history = session.current_clues ?? []
-  const nextClues = history.some((c) => normalizeGuess(c) === normalizeGuess(trimmed)) ? history : [...history, trimmed]
+  // Individual mode: the very first clue opens the guessing window, so it must
+  // restart the clock at the guesser half — exactly once. Claim it with a
+  // `current_clue IS NULL` compare-and-set so a double-submit can't reset the
+  // timer twice (or clobber the list); the loser falls through to a plain append.
+  let working = session
+  if (working.mode === 'individual' && (working.current_clues?.length ?? 0) === 0) {
+    const { data: claimed } = await supabase
+      .from('describe_it_sessions')
+      .update({
+        current_clue: trimmed,
+        current_clues: [trimmed],
+        turn_deadline_at: deadline(describeItHalfSeconds(working.turn_seconds)),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('game_id', gameId)
+      .eq('phase', 'turn')
+      .eq('turn_index', working.turn_index)
+      .is('current_clue', null)
+      .select('id')
+    if (claimed && claimed.length > 0) return {}
+    // Lost the claim (a clue already landed, or the turn ended). Re-read so we
+    // append to the winner's clue instead of overwriting it from a stale snapshot.
+    const reload = await loadSession(supabase, gameId)
+    if (!reload.session || reload.session.phase !== 'turn' || reload.session.turn_index !== working.turn_index) {
+      return {}
+    }
+    working = reload.session
+  }
 
-  // Individual mode: the very first clue opens the guessing window, so restart
-  // the clock at the guesser half. Later clues leave that window running.
-  const update: Partial<DescribeItSession> = {
-    current_clue: trimmed,
-    current_clues: nextClues,
-    updated_at: new Date().toISOString(),
-  }
-  if (session.mode === 'individual' && history.length === 0) {
-    update.turn_deadline_at = deadline(describeItHalfSeconds(session.turn_seconds))
-  }
+  // Append (later clues, team mode, or a lost first-clue claim). No deadline reset.
+  // Avoid logging the exact same clue twice in a row.
+  const history = working.current_clues ?? []
+  const nextClues = history.some((c) => normalizeGuess(c) === normalizeGuess(trimmed)) ? history : [...history, trimmed]
 
   // Scope the write to the turn we loaded; if the turn already ended, drop the
   // stale clue rather than stamping it onto the next turn.
   const { error: updateError } = await supabase
     .from('describe_it_sessions')
-    .update(update)
+    .update({ current_clue: trimmed, current_clues: nextClues, updated_at: new Date().toISOString() })
     .eq('game_id', gameId)
     .eq('phase', 'turn')
-    .eq('turn_index', session.turn_index)
+    .eq('turn_index', working.turn_index)
   if (updateError) return { error: updateError.message }
   return {}
 }
@@ -661,12 +680,16 @@ async function endIndividualTurn(
 ): Promise<void> {
   // Pull each correct guess's points so the describer can be paid the mirror of
   // what they generated (see the payout below), and to count how many got it.
-  const { data: correctGuesses } = await supabase
+  // Bail on a read error *before* claiming the turn end, so a transient failure
+  // leaves the turn open for the timer/cron to retry rather than closing it with
+  // the describer underpaid to zero.
+  const { data: correctGuesses, error: guessesError } = await supabase
     .from('describe_it_guesses')
     .select('points')
     .eq('game_id', gameId)
     .eq('turn_index', session.turn_index)
     .eq('correct', true)
+  if (guessesError) return
   const guessedCount = correctGuesses?.length ?? 0
   const describerPoints = (correctGuesses ?? []).reduce((sum, g) => sum + (g.points ?? 0), 0)
 
