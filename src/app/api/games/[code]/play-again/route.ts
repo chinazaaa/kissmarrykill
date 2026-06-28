@@ -52,7 +52,34 @@ import type { GameType } from '@/types'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-type SessionClearer = (supabase: SupabaseClient, gameId: string) => Promise<{ error?: string | null }>
+type SessionClearer = (
+  supabase: SupabaseClient,
+  gameId: string
+) => Promise<{ error?: string | null; poolUsage?: Record<string, unknown> }>
+
+/**
+ * Game types whose Play Again clears per-game session data via the registry below.
+ * Typing the registry as exhaustive over this subset (rather than a `Partial`
+ * record over all `GameType`s) makes an accidental omission a compile error.
+ */
+type ClearableSessionGameType = Extract<
+  GameType,
+  | 'bingo'
+  | 'codewords'
+  | 'two_truths'
+  | 'monopoly'
+  | 'yahtzee'
+  | 'whot'
+  | 'ludo'
+  | 'snake_and_ladder'
+  | 'chess'
+  | 'describe_it'
+  | 'scrabble'
+  | 'tic_tac_toe'
+  | 'i_call_on'
+  | 'sudoku'
+  | 'word_hunt'
+>
 
 /**
  * Per-game session-data clearers run on Play Again — only the entry matching the
@@ -61,7 +88,7 @@ type SessionClearer = (supabase: SupabaseClient, gameId: string) => Promise<{ er
  * trivia (must run before the `rounds` delete), anonymous_messages (anon client),
  * and secret_message (reopens its board and early-returns).
  */
-const SESSION_CLEARERS: Partial<Record<GameType, SessionClearer>> = {
+const SESSION_CLEARERS: Record<ClearableSessionGameType, SessionClearer> = {
   bingo: clearBingoSessionData,
   codewords: clearCodewordsRoundData,
   two_truths: clearTwoTruthsSessionData,
@@ -284,10 +311,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   // Per-game session cleanup. Exactly one clearer matches the game type (or none for
   // poll games); the special-cased games above (trivia / anonymous / secret) are not
   // in the registry. Several of these tables are RLS-locked to anon writes — admin client.
-  const clearSession = SESSION_CLEARERS[gameType]
+  const clearSession = (SESSION_CLEARERS as Partial<Record<GameType, SessionClearer>>)[gameType]
   if (clearSession) {
-    const { error: clearError } = await clearSession(getSupabaseAdmin(), gameId)
+    const { error: clearError, poolUsage: clearedPoolUsage } = await clearSession(getSupabaseAdmin(), gameId)
     if (clearError) return NextResponse.json({ error: clearError }, { status: 500 })
+    // Some clearers (e.g. describe_it) carry forward usage state that must survive
+    // the final `games` update below — fold it in rather than letting it be clobbered.
+    if (clearedPoolUsage) {
+      gameUpdate.pool_usage = { ...(gameUpdate.pool_usage as Record<string, unknown>), ...clearedPoolUsage }
+    }
   }
 
   const { error: spectatorResetError } = await resetSpectatorsForLobby(
