@@ -509,7 +509,8 @@ export type PatchGamePlayerLimitsInput = z.infer<typeof patchGamePlayerLimitsSch
 
 export const triviaAnswerSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   choiceIndex: z.coerce.number().int().min(0).max(3),
 })
@@ -528,7 +529,8 @@ const ttlStatementText = sanitizedString(1, 200)
 
 export const ttlStatementSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   statementA: ttlStatementText,
   statementB: ttlStatementText,
   statementC: ttlStatementText,
@@ -539,7 +541,8 @@ export type TtlStatementInput = z.infer<typeof ttlStatementSchema>
 
 export const ttlGuessSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
   roundId: uuidString('roundId'),
   guessedIndex: z.coerce.number().int().min(0).max(2),
 })
@@ -621,7 +624,8 @@ export type NpatDisputeInput = z.infer<typeof npatDisputeSchema>
 
 export const monopolyActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const monopolyBuySchema = monopolyActionSchema.extend({
@@ -856,7 +860,8 @@ export const describeItSettingsSchema = z.object({
 
 export const scrabbleActionSchema = z.object({
   gameId: gameCodeString(),
-  playerId: uuidString('playerId'),
+  // Player action authorized by the secret resume_token (see snakeLadderActionSchema).
+  resumeToken: z.string().min(4),
 })
 
 export const scrabblePlaySchema = scrabbleActionSchema.extend({
