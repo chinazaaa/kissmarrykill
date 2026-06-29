@@ -181,12 +181,14 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
     setWordsDraft(parseStoredDescribeItWords(game.custom_questions).join('\n'))
   }, [game])
 
-  const saveSettings = async (partial: Record<string, unknown>) => {
+  const saveSettings = async (partial: Record<string, unknown>): Promise<boolean> => {
     try {
       await post('settings', { hostToken, ...partial })
       await load()
+      return true
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to update settings')
+      return false
     }
   }
 
@@ -696,8 +698,11 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
                     }
                     const next =
                       wordsMode === 'replace' ? rows : parseDescribeItWords(`${wordsDraft}\n${rows.join('\n')}`)
-                    setWordsDraft(next.join('\n'))
-                    await saveSettings({ words: next.join('\n') })
+                    // Only commit the preview once the words actually persist, so the
+                    // loaded list never implies a pool the backend didn't save.
+                    const saved = await saveSettings({ words: next.join('\n') })
+                    if (saved) setWordsDraft(next.join('\n'))
+                    else setWordsUploadError('Could not save the imported words. Please try again.')
                   } catch {
                     setWordsUploadError('Could not read that file. Try a .csv or .xlsx.')
                   }
