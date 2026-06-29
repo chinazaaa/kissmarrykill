@@ -744,9 +744,10 @@ export default function TournamentLobbyPage() {
           {isParticipant && !iAmEliminated && (
             <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>
           )}
-          {/* Eliminated players watch instead of playing (non-joined spectators get a
-              Watch button in the started/full card above). */}
-          {iAmEliminated && (
+          {/* Eliminated players and opted-in spectators watch instead of playing.
+              This is also the re-entry path if a watcher navigated back to the
+              lobby mid-game (the one-shot auto-forward won't fire again). */}
+          {(iAmEliminated || (spectating && !joined && !isHost)) && (
             <button onClick={() => handleWatchGame(activeGame.game_id)} className="btn-secondary w-full">
               👁 Watch live
             </button>
