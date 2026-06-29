@@ -505,9 +505,14 @@ export default function TournamentLobbyPage() {
                       className="input-field w-20 text-center"
                     />
                   </div>
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <label className="text-muted text-sm" htmlFor="edit-eliminate">
-                      Lives lost per game (bottom N)
+                      Players who lose a life each game
+                      <span className="block text-faint text-xs mt-0.5">
+                        {editEliminate === 1
+                          ? 'The bottom finisher loses 1 life'
+                          : `The bottom ${editEliminate} finishers each lose 1 life`}
+                      </span>
                     </label>
                     <input
                       id="edit-eliminate"
