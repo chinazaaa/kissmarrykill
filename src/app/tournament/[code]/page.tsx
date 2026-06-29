@@ -402,9 +402,12 @@ export default function TournamentLobbyPage() {
   const isParticipant = joined && !isHost
   const isFull = tournament.max_players != null && players.length >= tournament.max_players
   const myName = typeof window !== 'undefined' ? localStorage.getItem(`tournament_player_${tournamentId}`) : null
-  const iAmEliminated = Boolean(
-    isParticipant && myName && players.find((p) => p.player_name.toLowerCase() === myName.toLowerCase())?.is_eliminated
-  )
+  const me =
+    isParticipant && myName ? (players.find((p) => p.player_name.toLowerCase() === myName.toLowerCase()) ?? null) : null
+  const iAmEliminated = Boolean(me?.is_eliminated)
+  // Show a personal lives readout whenever the tournament runs in lives mode and the
+  // player still has a tracked life count (null means lives mode is off for them).
+  const myLives = lives && me?.lives_remaining != null ? me.lives_remaining : null
 
   // Host-control derived state
   const rounds = parseInt(roundsCount, 10) || 10
@@ -675,6 +678,16 @@ export default function TournamentLobbyPage() {
           <p className="text-muted text-sm">
             Waiting for the host to start the next game. Hang tight — it&apos;ll appear here.
           </p>
+          {myLives != null && (
+            <div className="surface-inset px-4 py-2.5 inline-flex items-center justify-center gap-2 mx-auto">
+              <span aria-hidden="true" className="text-base">
+                {myLives > 0 ? '❤️'.repeat(myLives) : '💔'}
+              </span>
+              <span className="text-sm font-semibold text-body">
+                You have {myLives} {myLives === 1 ? 'life' : 'lives'} left
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -788,7 +801,17 @@ export default function TournamentLobbyPage() {
             <span className="text-xs text-faint">Game {activeGame.game_order}</span>
           </div>
           {isParticipant && !iAmEliminated && (
-            <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>
+            <>
+              {myLives != null && (
+                <p className="text-center text-sm text-body">
+                  <span aria-hidden="true">{myLives > 0 ? '❤️'.repeat(myLives) : '💔'}</span>{' '}
+                  <span className="font-semibold">
+                    {myLives} {myLives === 1 ? 'life' : 'lives'} left
+                  </span>
+                </p>
+              )}
+              <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>
+            </>
           )}
           {/* Eliminated players and opted-in spectators watch instead of playing.
               This is also the re-entry path if a watcher navigated back to the
