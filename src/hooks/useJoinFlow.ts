@@ -38,6 +38,9 @@ export interface JoinFlowDeps {
   setParticipants: React.Dispatch<React.SetStateAction<Participant[]>>
   applyActiveRound: (round: Round) => void
   initialName?: string
+  /** When true, the initialName auto-join joins as a viewer (spectator) — used by
+   *  tournament "Watch live" links so people can follow a game without playing. */
+  autoJoinAsViewer?: boolean
 }
 
 export function useJoinFlow(deps: JoinFlowDeps) {
@@ -57,6 +60,7 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     setParticipants,
     applyActiveRound,
     initialName,
+    autoJoinAsViewer,
   } = deps
   const toast = useToast()
   const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
@@ -161,13 +165,17 @@ export function useJoinFlow(deps: JoinFlowDeps) {
 
       const gameType = parseGameType(game?.game_type)
       const activeJoinExtras =
-        game?.status === 'active'
-          ? gameOffersLateJoinChoice(gameType)
-            ? { joinAsViewer }
-            : allowLatePlayers(game!)
-              ? {}
-              : { joinAsViewer: true }
-          : {}
+        // An explicit viewer join must mark spectator even before the game is active
+        // (tournament watchers arrive while the game is still in the lobby).
+        joinAsViewer === true
+          ? { joinAsViewer: true }
+          : game?.status === 'active'
+            ? gameOffersLateJoinChoice(gameType)
+              ? { joinAsViewer }
+              : allowLatePlayers(game!)
+                ? {}
+                : { joinAsViewer: true }
+            : {}
 
       const isSelfEdit = Boolean(editingJoin && myPlayerId)
       let editResumeToken: string | null = null
@@ -357,8 +365,19 @@ export function useJoinFlow(deps: JoinFlowDeps) {
       return
     }
     nameAutoJoinRef.current = true
-    void joinGame(false)
-  }, [initialName, useFreeNameJoin, joinNeedsGender, view, game, myPlayerId, joining, editingJoin, nameInput])
+    void joinGame(autoJoinAsViewer === true)
+  }, [
+    initialName,
+    autoJoinAsViewer,
+    useFreeNameJoin,
+    joinNeedsGender,
+    view,
+    game,
+    myPlayerId,
+    joining,
+    editingJoin,
+    nameInput,
+  ])
 
   return {
     nameInput,

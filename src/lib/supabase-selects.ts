@@ -16,7 +16,7 @@ export const PLAYER_SELECT = 'id,game_id,name,gender,identity_gender,participant
  *  The ai_questions_* columns are guaranteed to exist + be anon-readable by migration 0123,
  *  which MUST be applied with this code (an explicit select on a missing/ungranted column
  *  errors). */
-export const HOST_GAME_SELECT = `${GAME_SELECT},ai_questions_enabled,ai_questions_config,ai_generated_questions`
+export const HOST_GAME_SELECT = `${GAME_SELECT},ai_questions_enabled,ai_questions_config,ai_generated_questions,tournament_id`
 
 export const PARTICIPANT_SELECT =
   'id,game_id,name,gender,photo_url,description,display_order,in_mlt_poll,submitted_by_player_id'

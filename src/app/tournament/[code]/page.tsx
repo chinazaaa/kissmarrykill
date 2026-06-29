@@ -48,6 +48,10 @@ export default function TournamentLobbyPage() {
   const [playerName, setPlayerName] = useState('')
   const [joined, setJoined] = useState(false)
   const [joinError, setJoinError] = useState('')
+  // Visitor chose "just watching" — opts out of playing (no roster slot) and gets
+  // auto-forwarded into each game as a viewer.
+  const [spectating, setSpectating] = useState(false)
+  const watchedGameRef = useRef<string | null>(null)
 
   const [selectedGameType, setSelectedGameType] = useState('trivia')
   const [roundsCount, setRoundsCount] = useState('10')
@@ -105,7 +109,19 @@ export default function TournamentLobbyPage() {
       setPlayerName(savedName)
       setJoined(true)
     }
+    if (localStorage.getItem(`tournament_spectator_${tournamentId}`) === '1') {
+      setSpectating(true)
+    }
   }, [tournamentId])
+
+  // Auto-forward opted-in spectators into each game as a viewer when it starts.
+  useEffect(() => {
+    if (joined || isHost || !spectating || tournament?.status === 'finished') return
+    const active = games.find((g) => g.status === 'active')
+    if (!active || watchedGameRef.current === active.game_id) return
+    watchedGameRef.current = active.game_id
+    router.push(`/game/${active.game_id}?tournament=${tournamentId}&watch=1`)
+  }, [joined, isHost, spectating, tournament?.status, games, tournamentId, router])
 
   // Auto-forward joined players into a game as soon as the host starts it, so
   // they don't have to find it themselves. The host stays on the lobby to manage.
@@ -337,6 +353,21 @@ export default function TournamentLobbyPage() {
     }
   }
 
+  function handleWatchGame(gameCode: string) {
+    // Spectator entry — auto-joins as a viewer (watch-only) on the game page.
+    router.push(`/game/${gameCode}?tournament=${tournamentId}&watch=1`)
+  }
+
+  function startSpectating() {
+    localStorage.setItem(`tournament_spectator_${tournamentId}`, '1')
+    setSpectating(true)
+  }
+
+  function stopSpectating() {
+    localStorage.removeItem(`tournament_spectator_${tournamentId}`)
+    setSpectating(false)
+  }
+
   function openHostDashboard(gameCode: string) {
     const token = localStorage.getItem(`host_token_${gameCode}`) ?? ''
     // Pass the tournament so the host's game-over screen can offer "Back to Tournament".
@@ -370,6 +401,10 @@ export default function TournamentLobbyPage() {
   const lives = tournament.elimination_config
   const isParticipant = joined && !isHost
   const isFull = tournament.max_players != null && players.length >= tournament.max_players
+  const myName = typeof window !== 'undefined' ? localStorage.getItem(`tournament_player_${tournamentId}`) : null
+  const iAmEliminated = Boolean(
+    isParticipant && myName && players.find((p) => p.player_name.toLowerCase() === myName.toLowerCase())?.is_eliminated
+  )
 
   // Host-control derived state
   const rounds = parseInt(roundsCount, 10) || 10
@@ -544,21 +579,43 @@ export default function TournamentLobbyPage() {
       {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
       {/* Join Form */}
-      {!joined && !isHost && !isFinished && hasStarted && (
-        <div className="glass-card-strong p-5 text-center space-y-1">
+      {!joined && !isHost && !isFinished && hasStarted && !spectating && (
+        <div className="glass-card-strong p-5 text-center space-y-2">
           <p className="font-bold text-body">Tournament already started</p>
-          <p className="text-muted text-sm">Joining is closed once the first game begins.</p>
+          <p className="text-muted text-sm">
+            Joining is closed once the first game begins.
+            {activeGame ? ' You can watch the live game below.' : ' Check back when the next game starts.'}
+          </p>
+          {activeGame && (
+            <button
+              onClick={() => handleWatchGame(activeGame.game_id)}
+              className="btn-secondary btn-fit mx-auto text-sm"
+            >
+              👁 Watch live
+            </button>
+          )}
         </div>
       )}
 
-      {!joined && !isHost && !isFinished && !hasStarted && isFull && (
-        <div className="glass-card-strong p-5 text-center space-y-1">
+      {!joined && !isHost && !isFinished && !hasStarted && isFull && !spectating && (
+        <div className="glass-card-strong p-5 text-center space-y-2">
           <p className="font-bold text-body">Tournament full</p>
-          <p className="text-muted text-sm">This tournament has reached its {tournament.max_players}-player limit.</p>
+          <p className="text-muted text-sm">
+            This tournament has reached its {tournament.max_players}-player limit.
+            {activeGame ? ' You can still watch.' : ''}
+          </p>
+          {activeGame && (
+            <button
+              onClick={() => handleWatchGame(activeGame.game_id)}
+              className="btn-secondary btn-fit mx-auto text-sm"
+            >
+              👁 Watch live
+            </button>
+          )}
         </div>
       )}
 
-      {!joined && !isHost && !isFinished && !hasStarted && !isFull && (
+      {!joined && !isHost && !isFinished && !hasStarted && !isFull && !spectating && (
         <div className="glass-card-strong p-5 space-y-3">
           <p className="label-caps">Join Tournament</p>
           <div className="flex gap-2">
@@ -577,6 +634,23 @@ export default function TournamentLobbyPage() {
             </PrimaryBtn>
           </div>
           {joinError && <p className="text-red-400 text-xs">{joinError}</p>}
+          <button onClick={startSpectating} className="btn-ghost text-xs mx-auto block">
+            👁 Just here to watch — don&apos;t add me as a player
+          </button>
+        </div>
+      )}
+
+      {/* Spectator waiting room — opted out of playing, will watch each game */}
+      {spectating && !joined && !isHost && !isFinished && !activeGame && (
+        <div className="glass-card-strong p-5 text-center space-y-2">
+          <p className="font-bold text-body">👁 You&apos;re watching</p>
+          <p className="text-muted text-sm">
+            You won&apos;t play — stay on this page and the game will open here for you to watch once the host starts
+            it.
+          </p>
+          <button onClick={stopSpectating} className="btn-ghost text-xs">
+            Actually, let me play
+          </button>
         </div>
       )}
 
@@ -602,8 +676,51 @@ export default function TournamentLobbyPage() {
         </div>
       )}
 
+      {/* Host how-to */}
+      {isHost && !isFinished && (
+        <div className="glass-card p-5 space-y-2.5">
+          <p className="label-caps">How to run this tournament</p>
+          <ul className="space-y-2 text-sm text-muted">
+            <li className="flex gap-2.5">
+              <span aria-hidden>📣</span>
+              <span>
+                Share the invite link so players join. The roster <span className="text-body font-semibold">locks</span>{' '}
+                when you start the first game, so wait until everyone&apos;s in.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>▶️</span>
+              <span>
+                Tap <span className="text-body font-semibold">Start Tournament</span> to create a game, then open the
+                host dashboard (new tab) and start it there.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>🎮</span>
+              <span>
+                Players are pulled into each game automatically. You host from the dashboard — you don&apos;t play.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>🔁</span>
+              <span>
+                When a game ends, return to this tab — <span className="text-body font-semibold">Start Next Game</span>{' '}
+                appears here. Repeat until you&apos;re done.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>🏁</span>
+              <span>
+                It ends after your target games{lives ? ', or when one player is left in lives mode' : ''} — or tap End
+                Tournament anytime.
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
+
       {/* How it works */}
-      {!isFinished && (
+      {!isFinished && !isHost && (
         <div className="glass-card p-5 space-y-2.5">
           <p className="label-caps">How this tournament works</p>
           <ul className="space-y-2 text-sm text-muted">
@@ -668,7 +785,17 @@ export default function TournamentLobbyPage() {
             </p>
             <span className="text-xs text-faint">Game {activeGame.game_order}</span>
           </div>
-          {joined && <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>}
+          {isParticipant && !iAmEliminated && (
+            <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>
+          )}
+          {/* Eliminated players and opted-in spectators watch instead of playing.
+              This is also the re-entry path if a watcher navigated back to the
+              lobby mid-game (the one-shot auto-forward won't fire again). */}
+          {(iAmEliminated || (spectating && !joined && !isHost)) && (
+            <button onClick={() => handleWatchGame(activeGame.game_id)} className="btn-secondary w-full">
+              👁 Watch live
+            </button>
+          )}
           {isHost && (
             <button onClick={() => openHostDashboard(activeGame.game_id)} className="btn-secondary w-full">
               Open Host Dashboard
