@@ -1159,7 +1159,6 @@ export function PollHostView({ gameCode, hostToken }: { gameCode: string; hostTo
     }
   }
 
-
   async function hostUpdateRounds(roundsCount: number) {
     if (updatingRounds || game?.rounds_count === roundsCount) return
     const previousCount = game!.rounds_count

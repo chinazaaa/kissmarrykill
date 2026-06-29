@@ -26,7 +26,7 @@ export function AiQuestionsGenerator({
   onGenerated,
   accent,
 }: Props) {
-  const [count, setCount] = useState(defaultCount)
+  const [count, setCount] = useState(Math.max(1, Math.min(maxCount, defaultCount)))
   const [theme, setTheme] = useState('')
   const [customPrompt, setCustomPrompt] = useState('')
   const [apiKey, setApiKey] = useState('')
@@ -74,8 +74,8 @@ export function AiQuestionsGenerator({
       className="rounded-xl border border-theme p-4 space-y-3"
       style={accent ? { borderLeftWidth: 3, borderLeftColor: accent } : undefined}
     >
-      <div className="space-y-1">
-        <p className="text-muted text-xs uppercase tracking-wider">How many {noun}?</p>
+      <label className="block space-y-1">
+        <span className="text-muted text-xs uppercase tracking-wider">How many {noun}?</span>
         <input
           type="number"
           min={1}
@@ -88,10 +88,10 @@ export function AiQuestionsGenerator({
             setCount(Math.max(1, Math.min(maxCount, n)))
           }}
         />
-      </div>
+      </label>
 
-      <div className="space-y-1">
-        <p className="text-muted text-xs uppercase tracking-wider">Theme (optional)</p>
+      <label className="block space-y-1">
+        <span className="text-muted text-xs uppercase tracking-wider">Theme (optional)</span>
         <input
           type="text"
           className={inputClass}
@@ -100,10 +100,10 @@ export function AiQuestionsGenerator({
           value={theme}
           onChange={(e) => setTheme(e.target.value)}
         />
-      </div>
+      </label>
 
-      <div className="space-y-1">
-        <p className="text-muted text-xs uppercase tracking-wider">Extra instructions (optional)</p>
+      <label className="block space-y-1">
+        <span className="text-muted text-xs uppercase tracking-wider">Extra instructions (optional)</span>
         <textarea
           className={`${inputClass} resize-none`}
           rows={2}
@@ -112,10 +112,10 @@ export function AiQuestionsGenerator({
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
         />
-      </div>
+      </label>
 
-      <div className="space-y-1">
-        <p className="text-muted text-xs uppercase tracking-wider">Your Claude API key (required)</p>
+      <label className="block space-y-1">
+        <span className="text-muted text-xs uppercase tracking-wider">Your Claude API key (required)</span>
         <input
           type="password"
           className={inputClass}
@@ -123,14 +123,16 @@ export function AiQuestionsGenerator({
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
         />
-        <p className="text-faint text-xs">
+        <span className="block text-faint text-xs">
           Generation runs on your own Claude API key, so you only pay for what you use. Your key is never stored.
-        </p>
-      </div>
+        </span>
+      </label>
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
       {lastCount !== null && !error && (
-        <p className="text-emerald-400 text-sm">Generated {lastCount} {noun}. Generate again to replace them.</p>
+        <p className="text-emerald-400 text-sm">
+          Generated {lastCount} {noun}. Generate again to replace them.
+        </p>
       )}
 
       <button

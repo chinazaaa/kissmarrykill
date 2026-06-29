@@ -2060,7 +2060,11 @@ function CreateGameInner() {
                       options={[
                         { value: 'upload', label: 'Upload file', hint: questionUploadHint('describe_it') },
                         { value: 'manual', label: 'Add manually', hint: 'Type or paste one word per line.' },
-                        { value: 'ai', label: 'Generate with AI', hint: 'Generate words with your own Claude API key.' },
+                        {
+                          value: 'ai',
+                          label: 'Generate with AI',
+                          hint: 'Generate words with your own Claude API key.',
+                        },
                       ]}
                     />
 
@@ -2071,9 +2075,7 @@ function CreateGameInner() {
                         defaultCount={30}
                         onGenerated={(questions) => {
                           setDescribeItUploadError(null)
-                          setDescribeItWords((prev) =>
-                            parseDescribeItWords(`${prev}\n${(questions as string[]).join('\n')}`).join('\n')
-                          )
+                          setDescribeItWords(parseDescribeItWords((questions as string[]).join('\n')).join('\n'))
                         }}
                       />
                     ) : questionTab === 'upload' ? (
@@ -2420,7 +2422,7 @@ function CreateGameInner() {
                       defaultCount={Math.max(CODEWORDS_MIN_CUSTOM_POOL, 25)}
                       onGenerated={(questions) => {
                         setQuestionsUploadError(null)
-                        setCustomCodewordsWords((prev) => mergeCodewordsWords(prev, questions as string[]))
+                        setCustomCodewordsWords(mergeCodewordsWords([], questions as string[]))
                       }}
                     />
                     {questionsUploadError && <p className="text-red-400 text-sm">{questionsUploadError}</p>}
@@ -2788,7 +2790,6 @@ function CreateGameInner() {
                             </p>
                           </Field>
                         )}
-
                       </>
                     )}
 
@@ -2959,7 +2960,7 @@ function CreateGameInner() {
                             gameType={settings.game_type as AiQuestionGameType}
                             triviaCategory={isTrivia ? triviaCategory : undefined}
                             noun={isTrivia ? 'questions' : 'prompts'}
-                            defaultCount={Math.max(settings.rounds_count ?? 10, 10)}
+                            defaultCount={Math.min(50, Math.max(settings.rounds_count ?? 10, 10))}
                             onGenerated={(questions) => {
                               setQuestionsUploadError(null)
                               if (isWyr || isTot) setCustomWyrQuestions(questions as WyrQuestion[])

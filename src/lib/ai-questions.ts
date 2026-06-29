@@ -225,7 +225,12 @@ function parsePairResponse(raw: string): PairQuestion[] {
   if (!Array.isArray(parsed)) throw new Error('Expected JSON array')
   return parsed.map((item: unknown, i: number) => {
     const obj = item as Record<string, unknown>
-    if (typeof item !== 'object' || item === null || typeof obj.optionA !== 'string' || typeof obj.optionB !== 'string') {
+    if (
+      typeof item !== 'object' ||
+      item === null ||
+      typeof obj.optionA !== 'string' ||
+      typeof obj.optionB !== 'string'
+    ) {
       throw new Error(`Invalid pair question at index ${i}`)
     }
     const optionA = obj.optionA.trim()
@@ -247,8 +252,12 @@ function parseStringArrayResponse(raw: string): string[] {
 }
 
 function parseWordArrayResponse(raw: string): string[] {
-  // Codewords entries must be single words — keep the first token of each.
-  return parseStringArrayResponse(raw).map((w) => w.split(/\s+/)[0])
+  // Codewords entries must be single words — reject anything with whitespace rather than
+  // silently truncating it to the first token.
+  return parseStringArrayResponse(raw).map((w, i) => {
+    if (/\s/.test(w)) throw new Error(`Codeword at index ${i} must be a single word`)
+    return w
+  })
 }
 
 function parseTriviaResponse(raw: string, category: TriviaCategory): TriviaQuestion[] {
@@ -259,13 +268,21 @@ function parseTriviaResponse(raw: string, category: TriviaCategory): TriviaQuest
     if (typeof item !== 'object' || item === null || typeof obj.question !== 'string' || !Array.isArray(obj.choices)) {
       throw new Error(`Invalid trivia question at index ${i}`)
     }
-    const choices = obj.choices.map((c) => String(c).trim()).filter(Boolean)
-    if (choices.length < 2) throw new Error(`Trivia question at index ${i} needs at least 2 choices`)
+    const question = obj.question.trim()
+    if (!question) throw new Error(`Empty trivia question at index ${i}`)
+
+    const rawChoices = obj.choices
+    if (rawChoices.length !== 4 || !rawChoices.every((c): c is string => typeof c === 'string')) {
+      throw new Error(`Trivia question at index ${i} needs exactly 4 string choices`)
+    }
+    const choices = rawChoices.map((c) => c.trim())
+    if (choices.some((c) => !c)) throw new Error(`Empty trivia choice at index ${i}`)
+
     const correctIndex = Number(obj.correctIndex)
     if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= choices.length) {
       throw new Error(`Invalid correctIndex at index ${i}`)
     }
-    return { question: obj.question.trim(), choices, correctIndex, category }
+    return { question, choices, correctIndex, category }
   })
 }
 
