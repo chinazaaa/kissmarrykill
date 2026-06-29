@@ -47,19 +47,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     participant_filter,
   } = body
 
+  // Fail-closed: treat this PATCH as "late-join settings only" iff every provided setting
+  // is a late-join key. Deriving lateJoinOnly from the provided keys (rather than
+  // denylisting every other field) means any newly-added setting defaults to the stricter
+  // assertHostGameSettings path instead of silently widening the weaker late-join auth.
+  const LATE_JOIN_SETTING_KEYS = new Set(['late_join_policy', 'allow_viewers', 'allow_late_players'])
+  const providedSettingKeys = Object.entries(body)
+    .filter(([key, value]) => key !== 'hostToken' && value !== undefined)
+    .map(([key]) => key)
   const lateJoinOnly =
-    (body.late_join_policy !== undefined ||
-      body.allow_viewers !== undefined ||
-      body.allow_late_players !== undefined) &&
-    rawRoundsCount === undefined &&
-    rawTimerSeconds === undefined &&
-    rawOperativeTimerSeconds === undefined &&
-    rawGameDurationSeconds === undefined &&
-    participant_filter === undefined &&
-    body.pair_vote_mode === undefined &&
-    body.player_questions_enabled === undefined &&
-    body.player_questions_order === undefined &&
-    body.gender_based === undefined
+    providedSettingKeys.length > 0 && providedSettingKeys.every((key) => LATE_JOIN_SETTING_KEYS.has(key))
 
   const auth = lateJoinOnly
     ? await assertHostLateJoinSettings(getSupabaseAdmin(), code, hostToken)
