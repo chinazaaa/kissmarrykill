@@ -20,6 +20,7 @@ import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/ut
 import type { Game, Player, Round, TriviaAnswer } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { POLL_INTERVALS, supabasePollOk, usePolling } from '@/hooks/usePolling'
+import { useGameTableSync } from '@/hooks/useGameTableSync'
 import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 
 type HostTab = 'play' | 'manage'
@@ -88,55 +89,8 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
 
   const { removePlayer, removingPlayerId } = useHostRemovePlayer(gameCode, hostToken, handlePlayerRemoved)
 
-  useEffect(() => {
-    const channel = supabase
-      .channel(`trivia-host-${gameCode}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameCode}` },
-        (p) => {
-          setGame(p.new as Game)
-          void load()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
-        (p) => {
-          const player = p.new as Player
-          setPlayers((prev) => (prev.some((x) => x.id === player.id) ? prev : [...prev, player]))
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'players', filter: `game_id=eq.${gameCode}` },
-        (p) => {
-          const player = p.old as Player
-          setPlayers((prev) => prev.filter((x) => x.id !== player.id))
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameCode}` },
-        () => {
-          load()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'trivia_answers', filter: `game_id=eq.${gameCode}` },
-        (p) => {
-          const row = p.new as TriviaAnswer
-          setAnswers((prev) => (prev.some((a) => a.id === row.id) ? prev : [...prev, row]))
-          load()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [gameCode, load])
+  // Realtime push: reload on any change to this game's row + its tables.
+  useGameTableSync(gameCode, [{ table: 'games', column: 'id' }, 'players', 'rounds', 'trivia_answers'], load)
 
   usePolling(
     async () => {
@@ -361,25 +315,32 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
 
   const manage = (
     <div className="space-y-4 sm:space-y-5 animate-stagger">
-      {game.status === 'waiting' && (
-        <HostModeSelector
-          mode={hostMode}
-          onChange={changeHostMode}
-          joinedPlayerId={hostPlayerId}
-          joinedPlayerName={hostPlayerName}
-          joinName={hostJoinName}
-          onJoinNameChange={setHostJoinName}
-          onJoin={() => void hostJoinGame()}
-          joining={hostJoining}
-          spectatorHint="Watch the game from the Watch tab"
-          playingNote={
-            <p className="text-sm text-muted">
-              Playing as <strong className="text-body">{hostPlayerName}</strong> — answer from the Play tab once you
-              start.
-            </p>
-          }
-        />
-      )}
+      {game.status === 'waiting' &&
+        (game.tournament_id ? (
+          // Tournament games: the host runs the game and doesn't compete.
+          <p className="surface-inset rounded-xl px-4 py-3 text-sm text-muted">
+            You&apos;re hosting this tournament game — start it below once players have joined. (The host doesn&apos;t
+            play in tournament games.)
+          </p>
+        ) : (
+          <HostModeSelector
+            mode={hostMode}
+            onChange={changeHostMode}
+            joinedPlayerId={hostPlayerId}
+            joinedPlayerName={hostPlayerName}
+            joinName={hostJoinName}
+            onJoinNameChange={setHostJoinName}
+            onJoin={() => void hostJoinGame()}
+            joining={hostJoining}
+            spectatorHint="Watch the game from the Watch tab"
+            playingNote={
+              <p className="text-sm text-muted">
+                Playing as <strong className="text-body">{hostPlayerName}</strong> — answer from the Play tab once you
+                start.
+              </p>
+            }
+          />
+        ))}
       {game.status !== 'finished' && <HostRulesRow gameType="trivia" />}
       <TriviaHostManagePanel {...panelProps} section="manage" />
     </div>
@@ -398,7 +359,24 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
         header={<HostGameHeader game={game} />}
         primary={hostPlays ? interactivePlay : watchRound}
         manage={manage}
-        finished={<TriviaHostManagePanel {...panelProps} section="finished" />}
+        finished={
+          game.tournament_id ? (
+            <div className="space-y-4">
+              <div className="glass-card-strong p-5 text-center space-y-2">
+                <p className="font-bold text-body">🏆 Game over</p>
+                <p className="text-muted text-sm">
+                  Head back to your tournament tab to start the next game — you can close this one.
+                </p>
+                <a href={`/tournament/${game.tournament_id}`} className="btn-secondary btn-fit mx-auto text-sm">
+                  ← Back to Tournament
+                </a>
+              </div>
+              <TriviaHostManagePanel {...panelProps} section="finished" />
+            </div>
+          ) : (
+            <TriviaHostManagePanel {...panelProps} section="finished" />
+          )
+        }
       />
 
       <TriviaPlayAgainSetup

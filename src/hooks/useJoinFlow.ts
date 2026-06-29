@@ -38,6 +38,9 @@ export interface JoinFlowDeps {
   setParticipants: React.Dispatch<React.SetStateAction<Participant[]>>
   applyActiveRound: (round: Round) => void
   initialName?: string
+  /** When true, the initialName auto-join joins as a viewer (spectator) — used by
+   *  tournament "Watch live" links so people can follow a game without playing. */
+  autoJoinAsViewer?: boolean
 }
 
 export function useJoinFlow(deps: JoinFlowDeps) {
@@ -57,6 +60,7 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     setParticipants,
     applyActiveRound,
     initialName,
+    autoJoinAsViewer,
   } = deps
   const toast = useToast()
   const { displayName: roomDisplayName, joinExtras, resolving: resolvingRoomMember } = useRoomMemberJoin(gameCode)
@@ -161,13 +165,17 @@ export function useJoinFlow(deps: JoinFlowDeps) {
 
       const gameType = parseGameType(game?.game_type)
       const activeJoinExtras =
-        game?.status === 'active'
-          ? gameOffersLateJoinChoice(gameType)
-            ? { joinAsViewer }
-            : allowLatePlayers(game!)
-              ? {}
-              : { joinAsViewer: true }
-          : {}
+        // An explicit viewer join must mark spectator even before the game is active
+        // (tournament watchers arrive while the game is still in the lobby).
+        joinAsViewer === true
+          ? { joinAsViewer: true }
+          : game?.status === 'active'
+            ? gameOffersLateJoinChoice(gameType)
+              ? { joinAsViewer }
+              : allowLatePlayers(game!)
+                ? {}
+                : { joinAsViewer: true }
+            : {}
 
       const isSelfEdit = Boolean(editingJoin && myPlayerId)
       let editResumeToken: string | null = null
@@ -333,6 +341,43 @@ export function useJoinFlow(deps: JoinFlowDeps) {
   useEffect(() => {
     if (view !== 'join') participantAutoJoinRef.current = false
   }, [view])
+
+  // Auto-join when arriving with a name already chosen (e.g. from a tournament
+  // lobby's "Join Game" link) so the player isn't asked to re-enter it — including
+  // when they arrive after the host already started the game. joinGame() still
+  // honors the late-join policy (it joins as a viewer when late play isn't allowed),
+  // so this doesn't force player-join where it shouldn't. The ?name= param is only
+  // produced by the tournament flow, so this never affects ordinary share links.
+  const nameAutoJoinRef = useRef(false)
+  useEffect(() => {
+    if (
+      nameAutoJoinRef.current ||
+      !initialName?.trim() ||
+      !useFreeNameJoin ||
+      joinNeedsGender ||
+      view !== 'join' ||
+      !game ||
+      myPlayerId ||
+      joining ||
+      editingJoin ||
+      !nameInput.trim()
+    ) {
+      return
+    }
+    nameAutoJoinRef.current = true
+    void joinGame(autoJoinAsViewer === true)
+  }, [
+    initialName,
+    autoJoinAsViewer,
+    useFreeNameJoin,
+    joinNeedsGender,
+    view,
+    game,
+    myPlayerId,
+    joining,
+    editingJoin,
+    nameInput,
+  ])
 
   return {
     nameInput,
