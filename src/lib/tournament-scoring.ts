@@ -15,6 +15,28 @@ export function computePlacementPoints(
   return result
 }
 
+/**
+ * Decide which players lose a life this game in lives elimination. `placements`
+ * maps tournamentPlayerId → rank (1 = best, higher = worse). Returns the ids of
+ * the bottom `eliminateCount` finishers. If the cut would land on a tie (so the
+ * bottom group is ambiguous), nobody loses a life — a tie shouldn't unfairly
+ * knock someone out. Pure so it can be tested in isolation.
+ */
+export function selectBottomNForLifeLoss(placements: Record<string, number>, eliminateCount: number): string[] {
+  const n = Math.max(1, eliminateCount)
+  const sortedByPlacement = Object.entries(placements).sort((a, b) => b[1] - a[1])
+  const cutoffPlacement = sortedByPlacement[Math.min(n, sortedByPlacement.length) - 1]?.[1]
+  const belowCutoff = sortedByPlacement.filter(([, p]) => p > cutoffPlacement)
+  const atCutoff = sortedByPlacement.filter(([, p]) => p === cutoffPlacement)
+  const bottomN =
+    belowCutoff.length >= n
+      ? belowCutoff.slice(0, n)
+      : atCutoff.length > 1
+        ? belowCutoff
+        : sortedByPlacement.slice(0, n)
+  return bottomN.map(([id]) => id)
+}
+
 async function computeTriviaPlacements(
   supabase: SupabaseClient,
   gameId: string,
@@ -183,19 +205,9 @@ export async function awardTournamentPlacements(supabase: SupabaseClient, gameId
   if (tournament.elimination_config) {
     const elimConfig = tournament.elimination_config as EliminationConfig
     if (elimConfig.mode === 'lives') {
-      const sortedByPlacement = Object.entries(placements).sort((a, b) => b[1] - a[1])
-      const eliminateCount = elimConfig.eliminateCount ?? 1
-      const cutoffPlacement = sortedByPlacement[Math.min(eliminateCount, sortedByPlacement.length) - 1]?.[1]
-      const belowCutoff = sortedByPlacement.filter(([, p]) => p > cutoffPlacement)
-      const atCutoff = sortedByPlacement.filter(([, p]) => p === cutoffPlacement)
-      const bottomN =
-        belowCutoff.length >= eliminateCount
-          ? belowCutoff.slice(0, eliminateCount)
-          : atCutoff.length > 1
-            ? belowCutoff
-            : sortedByPlacement.slice(0, eliminateCount)
+      const bottomN = selectBottomNForLifeLoss(placements, elimConfig.eliminateCount ?? 1)
 
-      for (const [tpId] of bottomN) {
+      for (const tpId of bottomN) {
         const { data: tp } = await supabase
           .from('tournament_players')
           .select('lives_remaining')
