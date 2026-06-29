@@ -178,10 +178,12 @@ export function PollGamePlayerExperience({
   gameCode: gameCodeProp,
   embedded: _embedded = false,
   initialName,
+  autoJoinAsViewer,
 }: {
   gameCode: string
   embedded?: boolean
   initialName?: string
+  autoJoinAsViewer?: boolean
 }) {
   const params = useParams<{ code: string }>()
   const router = useRouter()
@@ -423,6 +425,7 @@ export function PollGamePlayerExperience({
     setParticipants,
     applyActiveRound,
     initialName,
+    autoJoinAsViewer,
   })
 
   // ── Sync refs after hooks are called ────────────────────────────────────

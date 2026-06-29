@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PollGamePlayerExperience } from '@/components/poll-game/PollGamePlayerExperience'
 import { AudioChat } from '@/components/AudioChat'
@@ -76,8 +76,26 @@ export default function GamePage() {
   const { code } = useParams<{ code: string }>()
   const searchParams = useSearchParams()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
-  const initialName = searchParams.get('name') ?? undefined
   const tournamentId = searchParams.get('tournament')
+  // Spectator "Watch live" links carry ?watch=1 — auto-join as a viewer under a
+  // stable generated name so people can follow the game without playing.
+  const watch = searchParams.get('watch') === '1'
+  const initialName = useMemo(() => {
+    if (!watch) return searchParams.get('name') ?? undefined
+    if (typeof window === 'undefined') return undefined
+    const key = `watcher_name_${gameCode}`
+    let w = window.localStorage.getItem(key)
+    if (!w) {
+      // Use a high-entropy suffix so concurrent watchers don't collide on the name.
+      const rand =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID().slice(0, 8)
+          : `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 6)}`
+      w = `Watcher-${rand}`
+      window.localStorage.setItem(key, w)
+    }
+    return w
+  }, [watch, searchParams, gameCode])
   const [playerName, setPlayerName] = useState<string | null>(null)
   const [playerId, setPlayerId] = useState<string | null>(null)
 
@@ -99,7 +117,7 @@ export default function GamePage() {
 
   return (
     <>
-      <PollGamePlayerExperience gameCode={gameCode} initialName={initialName} />
+      <PollGamePlayerExperience gameCode={gameCode} initialName={initialName} autoJoinAsViewer={watch} />
       {playerName && playerId && (
         <AudioChat roomCode={gameCode} playerName={playerName} identity={playerId} auth={{ kind: 'player' }} />
       )}
