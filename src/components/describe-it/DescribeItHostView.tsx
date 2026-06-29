@@ -672,7 +672,9 @@ export function DescribeItHostView({ gameCode, hostToken }: { gameCode: string; 
               </div>
               <p className="text-faint text-[11px]">
                 {questionUploadHint('describe_it')}{' '}
-                {wordsMode === 'replace' ? 'Uploading replaces the current list.' : 'Uploading adds to the current list.'}
+                {wordsMode === 'replace'
+                  ? 'Uploading replaces the current list.'
+                  : 'Uploading adds to the current list.'}
               </p>
               <input
                 ref={wordsFileRef}
