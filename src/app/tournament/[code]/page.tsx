@@ -339,8 +339,9 @@ export default function TournamentLobbyPage() {
 
   function openHostDashboard(gameCode: string) {
     const token = localStorage.getItem(`host_token_${gameCode}`) ?? ''
+    // Pass the tournament so the host's game-over screen can offer "Back to Tournament".
     // Open in a new tab so the host keeps this lobby tab open across games.
-    window.open(`/host/${gameCode}?token=${token}`, '_blank', 'noopener,noreferrer')
+    window.open(`/host/${gameCode}?token=${token}&tournament=${tournamentId}`, '_blank', 'noopener,noreferrer')
   }
 
   if (loading) {
