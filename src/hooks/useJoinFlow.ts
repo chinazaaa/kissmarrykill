@@ -334,6 +334,28 @@ export function useJoinFlow(deps: JoinFlowDeps) {
     if (view !== 'join') participantAutoJoinRef.current = false
   }, [view])
 
+  // Auto-join when arriving with a name already chosen (e.g. from a tournament
+  // lobby's "Join Game" link) so free-name players aren't asked to re-enter it.
+  const nameAutoJoinRef = useRef(false)
+  useEffect(() => {
+    if (
+      nameAutoJoinRef.current ||
+      !initialName?.trim() ||
+      !useFreeNameJoin ||
+      joinNeedsGender ||
+      view !== 'join' ||
+      !game ||
+      myPlayerId ||
+      joining ||
+      editingJoin ||
+      !nameInput.trim()
+    ) {
+      return
+    }
+    nameAutoJoinRef.current = true
+    void joinGame(false)
+  }, [initialName, useFreeNameJoin, joinNeedsGender, view, game, myPlayerId, joining, editingJoin, nameInput])
+
   return {
     nameInput,
     selectedParticipantId,

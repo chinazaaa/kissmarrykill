@@ -121,16 +121,12 @@ export default function TournamentLobbyPage() {
   async function handleShare() {
     const url = typeof window !== 'undefined' ? `${window.location.origin}/tournament/${tournamentId}` : ''
     try {
-      if (navigator.share) {
-        await navigator.share({ title: tournament?.title ?? 'Tournament', url })
-        return
-      }
       await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     } catch {
-      // user dismissed the share sheet or clipboard was blocked — no-op
+      // clipboard blocked — fall through and still show the confirmation
     }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   async function handleFile(file: File) {
@@ -197,7 +193,8 @@ export default function TournamentLobbyPage() {
         return
       }
       localStorage.setItem(`host_token_${data.gameCode}`, data.gameHostToken)
-      fetchState()
+      // Take the host straight to the dashboard, where they actually start the game.
+      router.push(`/host/${data.gameCode}?token=${data.gameHostToken}`)
     } catch {
       setError('Something went wrong')
     } finally {
@@ -236,6 +233,11 @@ export default function TournamentLobbyPage() {
     }
   }
 
+  function openHostDashboard(gameCode: string) {
+    const token = localStorage.getItem(`host_token_${gameCode}`) ?? ''
+    router.push(`/host/${gameCode}?token=${token}`)
+  }
+
   if (loading) {
     return (
       <main className="page-wrap min-h-dvh flex items-center justify-center">
@@ -261,6 +263,14 @@ export default function TournamentLobbyPage() {
   const lives = tournament.elimination_config
   const isParticipant = joined && !isHost
 
+  // Host-control derived state
+  const rounds = parseInt(roundsCount, 10) || 10
+  const isFirstGame = games.length === 0
+  const hasPriorGames = games.length > 0
+  const isCustom = selectedGameType === 'trivia' && questionSource === 'custom'
+  // Custom is startable when enough were uploaded, or a previous game's set can be reused.
+  const canStartCustom = !isCustom || customTrivia.length >= rounds || hasPriorGames
+
   return (
     <PageShell>
       {/* Header */}
@@ -278,13 +288,24 @@ export default function TournamentLobbyPage() {
             </span>
           )}
         </p>
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <span className="chip text-xs">🎮 Trivia</span>
+          <span className="chip text-xs">
+            {tournament.target_game_count ? `Best of ${tournament.target_game_count}` : 'Unlimited games'}
+          </span>
+          {lives && (
+            <span className="chip text-xs">
+              ❤️ {lives.startingLives} {lives.startingLives === 1 ? 'life' : 'lives'}
+            </span>
+          )}
+        </div>
         {isFinished ? (
           <span className="premium-badge" style={{ marginTop: '0.25rem' }}>
             🏆 Tournament Complete
           </span>
         ) : (
           <button onClick={handleShare} className="btn-secondary btn-fit mx-auto text-sm">
-            {copied ? '✓ Link copied' : '🔗 Share invite link'}
+            {copied ? '✓ Link copied' : '🔗 Copy invite link'}
           </button>
         )}
       </div>
@@ -404,8 +425,8 @@ export default function TournamentLobbyPage() {
           </div>
           {joined && <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>}
           {isHost && (
-            <button onClick={() => router.push(`/host/${activeGame.game_id}`)} className="btn-secondary w-full">
-              Host Dashboard
+            <button onClick={() => openHostDashboard(activeGame.game_id)} className="btn-secondary w-full">
+              Open Host Dashboard
             </button>
           )}
         </div>
@@ -549,8 +570,14 @@ export default function TournamentLobbyPage() {
                   />
                   {customTrivia.length === 0 ? (
                     <div className="space-y-2">
+                      {hasPriorGames && (
+                        <p className="text-body text-xs">
+                          ♻️ Reusing your previous questions — ones already seen are skipped. Upload a file to replace
+                          them.
+                        </p>
+                      )}
                       <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary w-full">
-                        Choose CSV or Excel file
+                        {hasPriorGames ? 'Upload a different file' : 'Choose CSV or Excel file'}
                       </button>
                       <p className="text-faint text-xs">
                         Columns: question, option_a–option_d, correct (A–D).{' '}
@@ -580,27 +607,20 @@ export default function TournamentLobbyPage() {
             </Field>
           )}
 
-          <PrimaryBtn
-            onClick={handleStartGame}
-            disabled={
-              actionLoading ||
-              (selectedGameType === 'trivia' &&
-                questionSource === 'custom' &&
-                customTrivia.length < (parseInt(roundsCount, 10) || 10))
-            }
-          >
-            {actionLoading ? 'Starting…' : 'Start Game'}
-          </PrimaryBtn>
+          <div className="space-y-1.5">
+            <PrimaryBtn onClick={handleStartGame} disabled={actionLoading || !canStartCustom}>
+              {actionLoading ? 'Starting…' : isFirstGame ? 'Start Tournament' : 'Start Next Game'}
+            </PrimaryBtn>
+            <p className="text-faint text-xs text-center">
+              Opens the host dashboard, where you start the game once players have joined.
+            </p>
+          </div>
 
-          {selectedGameType === 'trivia' &&
-            questionSource === 'custom' &&
-            customTrivia.length > 0 &&
-            customTrivia.length < (parseInt(roundsCount, 10) || 10) && (
-              <p className="text-faint text-xs text-center -mt-2">
-                Need {parseInt(roundsCount, 10) || 10} questions for {parseInt(roundsCount, 10) || 10} rounds — upload
-                more or lower the round count.
-              </p>
-            )}
+          {isCustom && customTrivia.length > 0 && customTrivia.length < rounds && (
+            <p className="text-faint text-xs text-center -mt-2">
+              Need {rounds} questions for {rounds} rounds — upload more or lower the round count.
+            </p>
+          )}
 
           <button onClick={handleEndTournament} disabled={actionLoading} className="btn-danger-soft">
             End Tournament
