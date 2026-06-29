@@ -3061,7 +3061,9 @@ function CreateGameInner() {
                                     ? 'Paste questions:\nCoffee or Tea?\nBeach vacation or Mountain getaway?'
                                     : isNhie
                                       ? 'Paste prompts:\nbeen skydiving\nkissed a stranger\nsung karaoke sober'
-                                      : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
+                                      : isTrivia
+                                        ? 'Paste questions (question, option A, B, C, D, correct):\nWhat is the capital of France?, London, Paris, Rome, Berlin, Paris'
+                                        : 'Paste questions:\nWho is most likely to become famous?\nWho is most likely to win a dance-off?'
                               }
                               rows={4}
                               className="input-field resize-none font-medium text-sm"
