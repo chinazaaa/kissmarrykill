@@ -301,6 +301,7 @@ export default function TournamentLobbyPage() {
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="Your name"
+              aria-label="Your name"
               maxLength={50}
               className="input-field flex-1"
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
@@ -472,8 +473,9 @@ export default function TournamentLobbyPage() {
         <div className="glass-card-strong p-5 space-y-4">
           <p className="label-caps">Start Next Game</p>
 
-          <Field label="Game Type">
+          <Field label="Game Type" htmlFor="tg-game-type">
             <select
+              id="tg-game-type"
               value={selectedGameType}
               onChange={(e) => setSelectedGameType(e.target.value)}
               className="input-field"
@@ -487,8 +489,9 @@ export default function TournamentLobbyPage() {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Rounds">
+            <Field label="Rounds" htmlFor="tg-rounds">
               <input
+                id="tg-rounds"
                 type="number"
                 value={roundsCount}
                 onChange={(e) => setRoundsCount(e.target.value)}
@@ -497,8 +500,9 @@ export default function TournamentLobbyPage() {
                 className="input-field"
               />
             </Field>
-            <Field label="Timer (s)">
+            <Field label="Timer (s)" htmlFor="tg-timer">
               <input
+                id="tg-timer"
                 type="number"
                 value={timerSeconds}
                 onChange={(e) => setTimerSeconds(e.target.value)}

@@ -119,8 +119,9 @@ export default function TournamentCreatePage() {
       </div>
 
       <div className="glass-card-strong p-5 sm:p-6 space-y-5">
-        <Field label="Tournament Title">
+        <Field label="Tournament Title" htmlFor="tournament-title">
           <input
+            id="tournament-title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -130,8 +131,9 @@ export default function TournamentCreatePage() {
           />
         </Field>
 
-        <Field label="Target Games (optional)">
+        <Field label="Target Games (optional)" htmlFor="tournament-target-games">
           <input
+            id="tournament-target-games"
             type="number"
             value={targetGameCount}
             onChange={(e) => setTargetGameCount(e.target.value)}
@@ -140,9 +142,7 @@ export default function TournamentCreatePage() {
             max={100}
             className="input-field"
           />
-          <p className="text-faint text-xs mt-1.5">
-            Tournament ends after this many games, or you can end it manually
-          </p>
+          <p className="text-faint text-xs mt-1.5">Tournament ends after this many games, or you can end it manually</p>
         </Field>
 
         <div className="space-y-3">
@@ -189,10 +189,7 @@ export default function TournamentCreatePage() {
                       : { background: 'var(--surface-inset-bg)' }
                   }
                 >
-                  <p
-                    className="text-[0.6875rem] font-semibold"
-                    style={{ color: medal ? medal.text : 'var(--muted)' }}
-                  >
+                  <p className="text-[0.6875rem] font-semibold" style={{ color: medal ? medal.text : 'var(--muted)' }}>
                     {medal ? `${medal.medal} ` : ''}
                     {ordinal(i + 1)}
                   </p>
