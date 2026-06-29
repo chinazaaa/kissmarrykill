@@ -72,6 +72,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     )
   }
 
+  // Don't let the cap drop below the players already in the tournament.
+  if (maxPlayers != null) {
+    const { count } = await admin
+      .from('tournament_players')
+      .select('id', { count: 'exact', head: true })
+      .eq('tournament_id', tournamentId)
+    if (count != null && maxPlayers < count) {
+      return NextResponse.json(
+        { error: `Max players can't be below the ${count} player${count === 1 ? '' : 's'} already joined` },
+        { status: 400 }
+      )
+    }
+  }
+
   const updates: Record<string, unknown> = {}
   if (title !== undefined) updates.title = title
   if (placementPoints !== undefined) updates.placement_points = placementPoints
