@@ -192,7 +192,6 @@ export default function TournamentCreatePage() {
                       ? 'The bottom finisher loses 1 life'
                       : `The bottom ${eliminateCount} finishers each lose 1 life`}
                   </p>
-                  </p>
                 </div>
                 <Stepper value={eliminateCount} min={1} max={10} onChange={setEliminateCount} />
               </div>

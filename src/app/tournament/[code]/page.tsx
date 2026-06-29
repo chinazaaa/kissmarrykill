@@ -509,7 +509,9 @@ export default function TournamentLobbyPage() {
                     <label className="text-muted text-sm" htmlFor="edit-eliminate">
                       Players who lose a life each game
                       <span className="block text-faint text-xs mt-0.5">
-                        The bottom {editEliminate} finisher{editEliminate === 1 ? '' : 's'} each lose 1 life
+                        {editEliminate === 1
+                          ? 'The bottom finisher loses 1 life'
+                          : `The bottom ${editEliminate} finishers each lose 1 life`}
                       </span>
                     </label>
                     <input
