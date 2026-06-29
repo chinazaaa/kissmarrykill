@@ -368,7 +368,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
 
   const leaderboard = tallySudokuScores(submissions, players)
   const me = players.find((p) => p.id === myPlayerId)
-  const isSpectator = me?.spectator === true && !game?.tournament_id
+  const isSpectator = me?.spectator === true
 
   if (view === 'loading') {
     return (

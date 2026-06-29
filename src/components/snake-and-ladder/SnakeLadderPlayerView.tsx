@@ -362,7 +362,7 @@ export function SnakeLadderPlayerView({ gameCode }: { gameCode: string }) {
           onLeft={handlePlayerLeft}
           title="Waiting for host to start"
           rulesLink={<GameRulesLink gameType="snake_and_ladder" variant="subtle" />}
-          isSpectator={me?.spectator === true && !game?.tournament_id}
+          isSpectator={me?.spectator === true}
           onReady={async () => {
             if (!myResumeToken) return
             try {

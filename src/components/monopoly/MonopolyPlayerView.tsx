@@ -316,7 +316,7 @@ export function MonopolyPlayerView({ gameCode }: { gameCode: string }) {
 
   if (screen === 'waiting') {
     const displayName = myPlayerName ?? players.find((p) => p.id === myPlayerId)?.name ?? 'Player'
-    const isSpectator = me?.spectator === true && !game?.tournament_id
+    const isSpectator = me?.spectator === true
     return (
       <GameJoinLobbyShell gameCode={gameCode}>
         <div className="space-y-4">

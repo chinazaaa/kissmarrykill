@@ -689,9 +689,7 @@ export function PollGamePlayerExperience({
     const isWst = isWhoSaidThis(game?.game_type)
     const wstTargets = isWst ? wstVoteTargets(participants) : []
     const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
-    // Tournament watchers/eliminated players follow as spectators and can't self-promote
-    // into the locked roster, so don't offer them the "ready to play" opt-in.
-    const isSpectatorInLobby = me?.spectator === true && !game?.tournament_id
+    const isSpectatorInLobby = me?.spectator === true
     const myQuotes =
       isWst && myPlayerId
         ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at))

@@ -544,7 +544,7 @@ export function WordHuntPlayerView({ gameCode }: { gameCode: string }) {
           title="Waiting for host to start"
           description="Find words on the letter grid before time runs out."
           rulesLink={<GameRulesLink gameType="word_hunt" variant="subtle" />}
-          isSpectator={isViewer && !game?.tournament_id}
+          isSpectator={isViewer}
           onReady={async () => {
             if (!myResumeToken) return
             await fetch('/api/players/ready', {
