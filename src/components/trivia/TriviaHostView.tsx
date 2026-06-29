@@ -309,6 +309,7 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
       playerName={hostPlayerName}
       onReload={load}
       skipGameSync
+      isHostView
     />
   )
   const watchRound = <TriviaHostManagePanel {...panelProps} section="watch" />
