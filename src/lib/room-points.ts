@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildLudoStandings } from '@/lib/ludo'
+import { whotPlacementOrder } from '@/lib/whot'
 import { crazyEightsHandSum } from '@/lib/crazy-eights'
 import { buildSnakeLadderStandings } from '@/lib/snake-and-ladder'
 import { totalScore } from '@/lib/yahtzee'
@@ -27,6 +28,7 @@ import type {
   Player,
   SnakeLadderPlayerState,
   TriviaAnswer,
+  WhotCard,
   YahtzeeCategoryPoints,
 } from '@/types'
 
@@ -166,22 +168,17 @@ async function getCompetitiveStandings(
 
   if (isWhotGame(gameType)) {
     const [{ data: session }, { data: hands }] = await Promise.all([
-      supabase.from('whot_sessions').select('winner_player_id').eq('game_id', gameId).maybeSingle(),
+      supabase.from('whot_sessions').select('winner_player_id, turn_order, finish_order').eq('game_id', gameId).maybeSingle(),
       supabase.from('whot_player_hands').select('player_id, cards').eq('game_id', gameId),
     ])
     if (!hands?.length) return session?.winner_player_id ? [session.winner_player_id] : []
-    const winnerId = session?.winner_player_id ?? null
-    return [...hands]
-      .sort((a, b) => {
-        if (winnerId) {
-          if (a.player_id === winnerId) return -1
-          if (b.player_id === winnerId) return 1
-        }
-        const aCount = Array.isArray(a.cards) ? a.cards.length : 0
-        const bCount = Array.isArray(b.cards) ? b.cards.length : 0
-        return aCount - bCount
-      })
-      .map((h) => h.player_id as string)
+    // Same placement rule as the in-game results: first-to-empty (finish_order) ranks
+    // ahead of everyone, then lowest hand total — never card count alone.
+    return whotPlacementOrder(
+      hands as { player_id: string; cards: WhotCard[] }[],
+      session?.turn_order ?? [],
+      session?.finish_order ?? []
+    )
   }
 
   if (isCrazyEightsGame(gameType)) {
