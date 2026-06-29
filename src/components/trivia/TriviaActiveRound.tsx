@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { PaginatedLeaderboard } from '@/components/PaginatedLeaderboard'
 import { LiveLeaderboardLayout } from '@/components/LiveLeaderboardLayout'
 import { FinalResultsShareBlock } from '@/components/FinalResultsShareBlock'
@@ -55,6 +56,9 @@ export function TriviaActiveRound({
   readOnly = false,
 }: TriviaActiveRoundProps) {
   const { error: toastError } = useToast()
+  // The tournament id rides in the URL (?tournament=) when a player came from a
+  // tournament lobby — used to offer a clear way back after the game ends.
+  const tournamentId = useSearchParams().get('tournament')
   const [submitting, setSubmitting] = useState(false)
   const [submittingChoice, setSubmittingChoice] = useState<number | null>(null)
   const [lastResult, setLastResult] = useState<{ isCorrect: boolean; points: number } | null>(null)
@@ -212,8 +216,8 @@ export function TriviaActiveRound({
   if (screen === 'finished') {
     return (
       <div className="space-y-5">
-        {game.tournament_id && (
-          <a href={`/tournament/${game.tournament_id}`} className="btn-primary block text-center">
+        {tournamentId && (
+          <a href={`/tournament/${tournamentId}`} className="btn-primary block text-center">
             ← Back to Tournament
           </a>
         )}

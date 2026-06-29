@@ -9,24 +9,23 @@ import { getPlayerSession } from '@/lib/utils'
 
 const TOURNAMENT_RETURN_SECONDS = 8
 
-function TournamentBanner({ gameCode }: { gameCode: string }) {
-  const [tournamentId, setTournamentId] = useState<string | null>(null)
+function TournamentBanner({ gameCode, tournamentId }: { gameCode: string; tournamentId: string | null }) {
   const [finished, setFinished] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(TOURNAMENT_RETURN_SECONDS)
 
-  // Poll the game's tournament link + status so we can route players back to the
-  // tournament hub when the game ends (otherwise they get stranded on results).
+  // The tournament id comes from the URL (?tournament=). We only poll the game's
+  // status here so we can route players back to the hub once the game ends.
   useEffect(() => {
+    if (!tournamentId) return
     let cancelled = false
     const check = () => {
       supabase
         .from('games')
-        .select('tournament_id, status')
+        .select('status')
         .eq('id', gameCode)
         .maybeSingle()
         .then(({ data }) => {
-          if (cancelled || !data?.tournament_id) return
-          setTournamentId(data.tournament_id)
+          if (cancelled || !data) return
           setFinished(data.status === 'finished')
         })
     }
@@ -36,7 +35,7 @@ function TournamentBanner({ gameCode }: { gameCode: string }) {
       cancelled = true
       clearInterval(timer)
     }
-  }, [gameCode])
+  }, [gameCode, tournamentId])
 
   // Count down and return to the tournament once the game is over.
   useEffect(() => {
@@ -78,6 +77,7 @@ export default function GamePage() {
   const searchParams = useSearchParams()
   const gameCode = (Array.isArray(code) ? code[0] : code).toUpperCase()
   const initialName = searchParams.get('name') ?? undefined
+  const tournamentId = searchParams.get('tournament')
   const [playerName, setPlayerName] = useState<string | null>(null)
   const [playerId, setPlayerId] = useState<string | null>(null)
 
@@ -103,7 +103,7 @@ export default function GamePage() {
       {playerName && playerId && (
         <AudioChat roomCode={gameCode} playerName={playerName} identity={playerId} auth={{ kind: 'player' }} />
       )}
-      <TournamentBanner gameCode={gameCode} />
+      <TournamentBanner gameCode={gameCode} tournamentId={tournamentId} />
     </>
   )
 }
