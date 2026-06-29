@@ -315,25 +315,32 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
 
   const manage = (
     <div className="space-y-4 sm:space-y-5 animate-stagger">
-      {game.status === 'waiting' && (
-        <HostModeSelector
-          mode={hostMode}
-          onChange={changeHostMode}
-          joinedPlayerId={hostPlayerId}
-          joinedPlayerName={hostPlayerName}
-          joinName={hostJoinName}
-          onJoinNameChange={setHostJoinName}
-          onJoin={() => void hostJoinGame()}
-          joining={hostJoining}
-          spectatorHint="Watch the game from the Watch tab"
-          playingNote={
-            <p className="text-sm text-muted">
-              Playing as <strong className="text-body">{hostPlayerName}</strong> — answer from the Play tab once you
-              start.
-            </p>
-          }
-        />
-      )}
+      {game.status === 'waiting' &&
+        (game.tournament_id ? (
+          // Tournament games: the host runs the game and doesn't compete.
+          <p className="surface-inset rounded-xl px-4 py-3 text-sm text-muted">
+            You&apos;re hosting this tournament game — start it below once players have joined. (The host doesn&apos;t
+            play in tournament games.)
+          </p>
+        ) : (
+          <HostModeSelector
+            mode={hostMode}
+            onChange={changeHostMode}
+            joinedPlayerId={hostPlayerId}
+            joinedPlayerName={hostPlayerName}
+            joinName={hostJoinName}
+            onJoinNameChange={setHostJoinName}
+            onJoin={() => void hostJoinGame()}
+            joining={hostJoining}
+            spectatorHint="Watch the game from the Watch tab"
+            playingNote={
+              <p className="text-sm text-muted">
+                Playing as <strong className="text-body">{hostPlayerName}</strong> — answer from the Play tab once you
+                start.
+              </p>
+            }
+          />
+        ))}
       {game.status !== 'finished' && <HostRulesRow gameType="trivia" />}
       <TriviaHostManagePanel {...panelProps} section="manage" />
     </div>
@@ -352,7 +359,24 @@ export function TriviaHostView({ gameCode, hostToken }: { gameCode: string; host
         header={<HostGameHeader game={game} />}
         primary={hostPlays ? interactivePlay : watchRound}
         manage={manage}
-        finished={<TriviaHostManagePanel {...panelProps} section="finished" />}
+        finished={
+          game.tournament_id ? (
+            <div className="space-y-4">
+              <div className="glass-card-strong p-5 text-center space-y-2">
+                <p className="font-bold text-body">🏆 Game over</p>
+                <p className="text-muted text-sm">
+                  Head back to your tournament tab to start the next game — you can close this one.
+                </p>
+                <a href={`/tournament/${game.tournament_id}`} className="btn-secondary btn-fit mx-auto text-sm">
+                  ← Back to Tournament
+                </a>
+              </div>
+              <TriviaHostManagePanel {...panelProps} section="finished" />
+            </div>
+          ) : (
+            <TriviaHostManagePanel {...panelProps} section="finished" />
+          )
+        }
       />
 
       <TriviaPlayAgainSetup

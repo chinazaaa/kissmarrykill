@@ -675,8 +675,51 @@ export default function TournamentLobbyPage() {
         </div>
       )}
 
+      {/* Host how-to */}
+      {isHost && !isFinished && (
+        <div className="glass-card p-5 space-y-2.5">
+          <p className="label-caps">How to run this tournament</p>
+          <ul className="space-y-2 text-sm text-muted">
+            <li className="flex gap-2.5">
+              <span aria-hidden>📣</span>
+              <span>
+                Share the invite link so players join. The roster <span className="text-body font-semibold">locks</span>{' '}
+                when you start the first game, so wait until everyone&apos;s in.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>▶️</span>
+              <span>
+                Tap <span className="text-body font-semibold">Start Tournament</span> to create a game, then open the
+                host dashboard (new tab) and start it there.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>🎮</span>
+              <span>
+                Players are pulled into each game automatically. You host from the dashboard — you don&apos;t play.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>🔁</span>
+              <span>
+                When a game ends, return to this tab — <span className="text-body font-semibold">Start Next Game</span>{' '}
+                appears here. Repeat until you&apos;re done.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>🏁</span>
+              <span>
+                It ends after your target games{lives ? ', or when one player is left in lives mode' : ''} — or tap End
+                Tournament anytime.
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
+
       {/* How it works */}
-      {!isFinished && (
+      {!isFinished && !isHost && (
         <div className="glass-card p-5 space-y-2.5">
           <p className="label-caps">How this tournament works</p>
           <ul className="space-y-2 text-sm text-muted">
