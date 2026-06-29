@@ -317,7 +317,7 @@ export function LudoPlayerView({ gameCode }: { gameCode: string }) {
           onLeft={handlePlayerLeft}
           title="Waiting for host to start"
           rulesLink={<GameRulesLink gameType="ludo" variant="subtle" />}
-          isSpectator={me?.spectator === true}
+          isSpectator={me?.spectator === true && !game?.tournament_id}
           onReady={async () => {
             if (!myResumeToken) return
             await fetch('/api/players/ready', {

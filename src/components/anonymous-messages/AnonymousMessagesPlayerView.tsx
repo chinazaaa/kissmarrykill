@@ -350,7 +350,7 @@ export function AnonymousMessagesPlayerView({ gameCode }: { gameCode: string }) 
         {game && <AnonymousRoomHeadcount game={game} players={players} />}
         <PlayerBar name={myPlayerName} />
         <LobbyPlayers players={players} game={game} />
-        {me?.spectator === true ? (
+        {me?.spectator === true && !game?.tournament_id ? (
           <div className="space-y-2 text-center">
             <p className="text-muted text-sm">Tap below to join the next session</p>
             <button

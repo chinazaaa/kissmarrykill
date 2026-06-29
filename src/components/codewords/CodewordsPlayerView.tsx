@@ -468,7 +468,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
   ) : null
 
   if (needsTeamPick || waitingInLobby) {
-    const isSpectator = me?.spectator === true
+    const isSpectator = me?.spectator === true && !game?.tournament_id
     return (
       <GameJoinLobbyShell gameCode={gameCode}>
         <div className="space-y-5">
@@ -608,7 +608,7 @@ export function CodewordsPlayerView({ gameCode }: { gameCode: string }) {
             myRole={myRole}
             players={allPlayers}
             myPlayerId={myPlayerId}
-            isSpectator={me?.spectator === true}
+            isSpectator={me?.spectator === true && !game?.tournament_id}
             onReady={markReady}
           />
           {leaveButton}

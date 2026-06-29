@@ -222,7 +222,7 @@ export function NpatPlayerView({ gameCode }: { gameCode: string }) {
           onLeft={handlePlayerLeft}
           title="Lobby"
           rulesLink={<GameRulesLink gameType="i_call_on" variant="subtle" />}
-          isSpectator={me?.spectator === true || me?.is_eliminated === true}
+          isSpectator={(me?.spectator === true || me?.is_eliminated === true) && !game?.tournament_id}
           onReady={async () => {
             if (!myResumeToken) return
             await fetch('/api/players/ready', {

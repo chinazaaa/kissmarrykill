@@ -524,6 +524,11 @@ export function PollGamePlayerExperience({
   if (view === 'not_found') return <NotFound onHome={() => router.push('/')} />
   if (game) {
     const DedicatedView = PLAYER_VIEW_REGISTRY[parseGameType(game.game_type)]
+    // Dedicated views only need `gameCode`: the `initialName` / `autoJoinAsViewer`
+    // auto-join (used by tournament "Watch live" links) is owned by useJoinFlow above,
+    // which — being a hook — always runs before this early return. So a watcher is
+    // already joined as a spectator by the time the dedicated view mounts; it just
+    // resolves that session. Don't re-thread those props into dedicated views.
     if (DedicatedView) return <DedicatedView gameCode={gameCode} />
   }
 
@@ -684,7 +689,9 @@ export function PollGamePlayerExperience({
     const isWst = isWhoSaidThis(game?.game_type)
     const wstTargets = isWst ? wstVoteTargets(participants) : []
     const me = myPlayerId ? players.find((p) => p.id === myPlayerId) : null
-    const isSpectatorInLobby = me?.spectator === true
+    // Tournament watchers/eliminated players follow as spectators and can't self-promote
+    // into the locked roster, so don't offer them the "ready to play" opt-in.
+    const isSpectatorInLobby = me?.spectator === true && !game?.tournament_id
     const myQuotes =
       isWst && myPlayerId
         ? wstPool.filter((e) => e.player_id === myPlayerId).sort((a, b) => a.created_at.localeCompare(b.created_at))

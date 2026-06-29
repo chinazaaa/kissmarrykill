@@ -90,6 +90,17 @@ export async function resolvePlayerSession(
   if (!session) return null
 
   if (players && !players.some((p) => p.id === session.playerId)) {
+    // The passed `players` list can be a STALE snapshot — e.g. a load() that started
+    // before this player's own join row replicated. This is common when a tournament
+    // forwards everyone into a fresh game at once: a racing load resolves the session
+    // against a list captured pre-join, the player isn't in it, and we'd wrongly nuke
+    // their session — bouncing them to the join screen, where re-joining hits "name
+    // already taken" on their own orphaned row. Confirm with the server (authoritative,
+    // by resume token) before clearing; only a genuine removal should end the session.
+    if (session.resumeToken) {
+      const confirmed = await resumeFromApi(gameCode, session.resumeToken)
+      if (confirmed) return confirmed
+    }
     clearPlayerSession(gameCode)
     return null
   }

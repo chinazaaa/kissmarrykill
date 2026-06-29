@@ -479,7 +479,7 @@ export function BingoPlayerView({ gameCode }: { gameCode: string }) {
           }
           rulesLink={<GameRulesLink gameType="bingo" variant="subtle" />}
           activity={<BingoCardLegend />}
-          isSpectator={me?.spectator === true}
+          isSpectator={me?.spectator === true && !game?.tournament_id}
           onReady={async () => {
             if (!myResumeToken) return
             await fetch('/api/players/ready', {

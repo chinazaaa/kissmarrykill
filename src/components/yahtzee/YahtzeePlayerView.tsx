@@ -342,7 +342,7 @@ export function YahtzeePlayerView({ gameCode }: { gameCode: string }) {
           onLeft={handlePlayerLeft}
           title="Waiting for the host to start"
           rulesLink={<GameRulesLink gameType="yahtzee" variant="subtle" />}
-          isSpectator={me?.spectator === true}
+          isSpectator={me?.spectator === true && !game?.tournament_id}
           onReady={async () => {
             if (!myResumeToken) return
             await fetch('/api/players/ready', {
