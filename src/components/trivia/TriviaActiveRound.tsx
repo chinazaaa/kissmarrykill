@@ -40,9 +40,6 @@ interface TriviaActiveRoundProps {
   /** Host play tab runs sync via useTriviaHostRoundAutomation — skip duplicate polling */
   skipGameSync?: boolean
   readOnly?: boolean
-  /** Host dashboard view — players get the floating "back to tournament" banner on the
-   *  game page instead, so the in-content button only shows for the host. */
-  isHostView?: boolean
 }
 
 export function TriviaActiveRound({
@@ -57,7 +54,6 @@ export function TriviaActiveRound({
   onReload,
   skipGameSync = false,
   readOnly = false,
-  isHostView = false,
 }: TriviaActiveRoundProps) {
   const { error: toastError } = useToast()
   // The tournament id rides in the URL (?tournament=) when a player came from a
@@ -220,10 +216,12 @@ export function TriviaActiveRound({
   if (screen === 'finished') {
     return (
       <div className="space-y-5">
-        {tournamentId && isHostView && (
-          <a href={`/tournament/${tournamentId}`} className="btn-primary block text-center">
-            ← Back to Tournament
-          </a>
+        {tournamentId && (
+          <div className="flex justify-center">
+            <a href={`/tournament/${tournamentId}`} className="btn-secondary btn-fit text-sm">
+              ← Back to Tournament
+            </a>
+          </div>
         )}
         <FinalResultsShareBlock
           game={game}
