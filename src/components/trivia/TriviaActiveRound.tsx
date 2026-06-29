@@ -212,6 +212,11 @@ export function TriviaActiveRound({
   if (screen === 'finished') {
     return (
       <div className="space-y-5">
+        {game.tournament_id && (
+          <a href={`/tournament/${game.tournament_id}`} className="btn-primary block text-center">
+            ← Back to Tournament
+          </a>
+        )}
         <FinalResultsShareBlock
           game={game}
           participants={[]}
