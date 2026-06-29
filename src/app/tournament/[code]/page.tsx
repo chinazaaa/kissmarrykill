@@ -100,13 +100,16 @@ export default function TournamentLobbyPage() {
   // they don't have to find it themselves. The host stays on the lobby to manage.
   useEffect(() => {
     if (!joined || isHost || tournament?.status === 'finished') return
+    const name = localStorage.getItem(`tournament_player_${tournamentId}`)
+    // Eliminated players stay on the lobby to spectate — don't pull them into games.
+    const me = name ? players.find((p) => p.player_name.toLowerCase() === name.toLowerCase()) : null
+    if (me?.is_eliminated) return
     const active = games.find((g) => g.status === 'active')
     if (!active || forwardedGameRef.current === active.game_id) return
     forwardedGameRef.current = active.game_id
-    const name = localStorage.getItem(`tournament_player_${tournamentId}`)
     const suffix = name ? `?name=${encodeURIComponent(name)}&tournament=${tournamentId}` : ''
     router.push(`/game/${active.game_id}${suffix}`)
-  }, [joined, isHost, tournament?.status, games, tournamentId, router])
+  }, [joined, isHost, tournament?.status, games, players, tournamentId, router])
 
   async function handleJoin() {
     if (!playerName.trim()) return
@@ -135,15 +138,19 @@ export default function TournamentLobbyPage() {
     const url = typeof window !== 'undefined' ? `${window.location.origin}/tournament/${tournamentId}` : ''
     try {
       await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     } catch {
-      // clipboard blocked — fall through and still show the confirmation
+      // Clipboard blocked (e.g. non-secure context) — let the host copy manually.
+      window.prompt('Copy this invite link:', url)
     }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
   }
 
   async function handleFile(file: File) {
     setUploadMsg(null)
+    // Clear any previously-loaded pack up front so a failed/invalid replacement
+    // can't leave stale questions that then get used on Start.
+    setCustomTrivia([])
     const ext = file.name.split('.').pop()?.toLowerCase()
     try {
       if (ext === 'csv' || ext === 'txt') {
@@ -281,10 +288,11 @@ export default function TournamentLobbyPage() {
   // Host-control derived state
   const rounds = parseInt(roundsCount, 10) || 10
   const isFirstGame = games.length === 0
-  const hasPriorGames = games.length > 0
   const isCustom = selectedGameType === 'trivia' && questionSource === 'custom'
-  // Custom is startable when enough were uploaded, or a previous game's set can be reused.
-  const canStartCustom = !isCustom || customTrivia.length >= rounds || hasPriorGames
+  // Custom requires a loaded pack with enough questions. The host's uploaded pack
+  // persists on the lobby between games (and the server de-dupes already-seen
+  // questions across games), so reuse needs no special-casing here.
+  const canStartCustom = !isCustom || customTrivia.length >= rounds
 
   return (
     <PageShell>
@@ -585,14 +593,8 @@ export default function TournamentLobbyPage() {
                   />
                   {customTrivia.length === 0 ? (
                     <div className="space-y-2">
-                      {hasPriorGames && (
-                        <p className="text-body text-xs">
-                          ♻️ Reusing your previous questions — ones already seen are skipped. Upload a file to replace
-                          them.
-                        </p>
-                      )}
                       <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary w-full">
-                        {hasPriorGames ? 'Upload a different file' : 'Choose CSV or Excel file'}
+                        Choose CSV or Excel file
                       </button>
                       <p className="text-faint text-xs">
                         Columns: question, option_a–option_d, correct (A–D).{' '}
@@ -604,6 +606,9 @@ export default function TournamentLobbyPage() {
                         >
                           Download sample
                         </a>
+                      </p>
+                      <p className="text-faint text-xs">
+                        Your pack stays loaded between games — already-seen questions are skipped automatically.
                       </p>
                     </div>
                   ) : (

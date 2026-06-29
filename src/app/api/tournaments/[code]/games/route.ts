@@ -156,6 +156,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   })
 
   if (tgError) {
+    // Roll back the game we just created so we don't leave an orphan row.
+    await admin.from('games').delete().eq('id', gameCode)
     return NextResponse.json({ error: tgError.message }, { status: 500 })
   }
 
