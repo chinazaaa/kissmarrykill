@@ -337,6 +337,11 @@ export default function TournamentLobbyPage() {
     }
   }
 
+  function handleWatchGame(gameCode: string) {
+    // Spectator entry — auto-joins as a viewer (watch-only) on the game page.
+    router.push(`/game/${gameCode}?tournament=${tournamentId}&watch=1`)
+  }
+
   function openHostDashboard(gameCode: string) {
     const token = localStorage.getItem(`host_token_${gameCode}`) ?? ''
     // Pass the tournament so the host's game-over screen can offer "Back to Tournament".
@@ -370,6 +375,10 @@ export default function TournamentLobbyPage() {
   const lives = tournament.elimination_config
   const isParticipant = joined && !isHost
   const isFull = tournament.max_players != null && players.length >= tournament.max_players
+  const myName = typeof window !== 'undefined' ? localStorage.getItem(`tournament_player_${tournamentId}`) : null
+  const iAmEliminated = Boolean(
+    isParticipant && myName && players.find((p) => p.player_name.toLowerCase() === myName.toLowerCase())?.is_eliminated
+  )
 
   // Host-control derived state
   const rounds = parseInt(roundsCount, 10) || 10
@@ -545,16 +554,35 @@ export default function TournamentLobbyPage() {
 
       {/* Join Form */}
       {!joined && !isHost && !isFinished && hasStarted && (
-        <div className="glass-card-strong p-5 text-center space-y-1">
+        <div className="glass-card-strong p-5 text-center space-y-2">
           <p className="font-bold text-body">Tournament already started</p>
-          <p className="text-muted text-sm">Joining is closed once the first game begins.</p>
+          <p className="text-muted text-sm">Joining is closed once the first game begins — but you can watch.</p>
+          {activeGame && (
+            <button
+              onClick={() => handleWatchGame(activeGame.game_id)}
+              className="btn-secondary btn-fit mx-auto text-sm"
+            >
+              👁 Watch live
+            </button>
+          )}
         </div>
       )}
 
       {!joined && !isHost && !isFinished && !hasStarted && isFull && (
-        <div className="glass-card-strong p-5 text-center space-y-1">
+        <div className="glass-card-strong p-5 text-center space-y-2">
           <p className="font-bold text-body">Tournament full</p>
-          <p className="text-muted text-sm">This tournament has reached its {tournament.max_players}-player limit.</p>
+          <p className="text-muted text-sm">
+            This tournament has reached its {tournament.max_players}-player limit.
+            {activeGame ? ' You can still watch.' : ''}
+          </p>
+          {activeGame && (
+            <button
+              onClick={() => handleWatchGame(activeGame.game_id)}
+              className="btn-secondary btn-fit mx-auto text-sm"
+            >
+              👁 Watch live
+            </button>
+          )}
         </div>
       )}
 
@@ -668,7 +696,16 @@ export default function TournamentLobbyPage() {
             </p>
             <span className="text-xs text-faint">Game {activeGame.game_order}</span>
           </div>
-          {joined && <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>}
+          {isParticipant && !iAmEliminated && (
+            <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>
+          )}
+          {/* Eliminated players watch instead of playing (non-joined spectators get a
+              Watch button in the started/full card above). */}
+          {iAmEliminated && (
+            <button onClick={() => handleWatchGame(activeGame.game_id)} className="btn-secondary w-full">
+              👁 Watch live
+            </button>
+          )}
           {isHost && (
             <button onClick={() => openHostDashboard(activeGame.game_id)} className="btn-secondary w-full">
               Open Host Dashboard
