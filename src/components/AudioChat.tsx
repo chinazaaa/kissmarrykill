@@ -75,6 +75,7 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
       {/* Floating Join/Leave Button — offset up so it clears the feedback button */}
       {!token ? (
         <button
+          data-audio-chat-trigger
           onClick={joinAudio}
           disabled={isConnecting}
           className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-lg shadow-emerald-950/20 active:scale-95 transition-all duration-150"
