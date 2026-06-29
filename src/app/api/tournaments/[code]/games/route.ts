@@ -16,10 +16,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  const { hostToken, gameType, gameSettings } = parsed.data
+  const { hostToken, gameType, gameSettings, questionSource, customQuestions } = parsed.data
 
   if (!TOURNAMENT_ELIGIBLE_TYPES.includes(gameType as (typeof TOURNAMENT_ELIGIBLE_TYPES)[number])) {
     return NextResponse.json({ error: `Game type "${gameType}" is not eligible for tournaments` }, { status: 400 })
+  }
+
+  const roundsCount = gameSettings?.rounds_count ?? 10
+  const useCustomQuestions = questionSource === 'custom' && Array.isArray(customQuestions) && customQuestions.length > 0
+
+  // Fail early (rather than at game start) if the host chose custom questions
+  // but uploaded fewer than the round count.
+  if (questionSource === 'custom' && (!Array.isArray(customQuestions) || customQuestions.length < roundsCount)) {
+    return NextResponse.json(
+      {
+        error: `Need at least ${roundsCount} custom questions for ${roundsCount} rounds — upload more or lower the round count`,
+      },
+      { status: 400 }
+    )
   }
 
   const admin = getSupabaseAdmin()
@@ -68,9 +82,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     host_token: gameHostToken,
     title: `${tournament.title} - Game`,
     game_type: gameType,
-    rounds_count: gameSettings?.rounds_count ?? 10,
+    rounds_count: roundsCount,
     timer_seconds: gameSettings?.timer_seconds ?? 30,
     tournament_id: tournamentId,
+    question_source: useCustomQuestions ? 'custom' : 'platform',
+    custom_questions: useCustomQuestions ? customQuestions : null,
   })
 
   if (gameError) {

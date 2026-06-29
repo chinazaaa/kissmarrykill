@@ -1,10 +1,17 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTournamentRealtime } from '@/hooks/useTournamentRealtime'
 import type { Tournament, TournamentPlayer, TournamentGame } from '@/types/tournament'
+import type { TriviaQuestion } from '@/types'
 import { TOURNAMENT_ELIGIBLE_TYPES } from '@/lib/tournament-validation'
+import {
+  parseTriviaQuestionImport,
+  parseExcelTriviaQuestionImport,
+  formatTriviaImportSummary,
+  questionSampleFile,
+} from '@/lib/custom-questions'
 import { PageShell, Field, PrimaryBtn } from '@/components/ui/PageShell'
 
 const MEDAL = ['🥇', '🥈', '🥉']
@@ -46,6 +53,12 @@ export default function TournamentLobbyPage() {
   const [roundsCount, setRoundsCount] = useState('10')
   const [timerSeconds, setTimerSeconds] = useState('30')
   const [actionLoading, setActionLoading] = useState(false)
+
+  const [questionSource, setQuestionSource] = useState<'platform' | 'custom'>('platform')
+  const [customTrivia, setCustomTrivia] = useState<TriviaQuestion[]>([])
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const hostToken = typeof window !== 'undefined' ? localStorage.getItem(`tournament_host_${tournamentId}`) : null
   const isHost = Boolean(hostToken)
@@ -105,9 +118,63 @@ export default function TournamentLobbyPage() {
     }
   }
 
+  async function handleShare() {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/tournament/${tournamentId}` : ''
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: tournament?.title ?? 'Tournament', url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // user dismissed the share sheet or clipboard was blocked — no-op
+    }
+  }
+
+  async function handleFile(file: File) {
+    setUploadMsg(null)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    try {
+      if (ext === 'csv' || ext === 'txt') {
+        const text = await file.text()
+        const result = parseTriviaQuestionImport(text)
+        if (result.questions.length === 0) {
+          setUploadMsg('No valid rows. Use question, option_a–option_d, and correct (A–D) columns.')
+          return
+        }
+        setCustomTrivia(result.questions)
+        setUploadMsg(formatTriviaImportSummary(result) ?? `${result.questions.length} questions ready`)
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const buffer = await file.arrayBuffer()
+        const result = await parseExcelTriviaQuestionImport(buffer)
+        if (result.questions.length === 0) {
+          setUploadMsg('No valid rows. Use question, option_a–option_d, and correct (A–D) columns.')
+          return
+        }
+        setCustomTrivia(result.questions)
+        setUploadMsg(formatTriviaImportSummary(result) ?? `${result.questions.length} questions ready`)
+      } else {
+        setUploadMsg('Please upload a .csv or .xlsx file')
+      }
+    } catch {
+      setUploadMsg('Could not read that file. Try the sample CSV.')
+    }
+  }
+
+  function clearCustom() {
+    setCustomTrivia([])
+    setUploadMsg(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   async function handleStartGame() {
     if (!hostToken) return
     setActionLoading(true)
+    setError('')
+
+    const useCustom = selectedGameType === 'trivia' && questionSource === 'custom'
 
     try {
       const res = await fetch(`/api/tournaments/${tournamentId}/games`, {
@@ -120,6 +187,8 @@ export default function TournamentLobbyPage() {
             rounds_count: parseInt(roundsCount, 10) || 10,
             timer_seconds: parseInt(timerSeconds, 10) || 30,
           },
+          questionSource: useCustom ? 'custom' : 'platform',
+          customQuestions: useCustom ? customTrivia : null,
         }),
       })
       const data = await res.json()
@@ -188,6 +257,9 @@ export default function TournamentLobbyPage() {
   const activeGame = games.find((g) => g.status === 'active')
   const finishedGames = games.filter((g) => g.status === 'finished')
   const isFinished = tournament.status === 'finished'
+  const points = tournament.placement_points ?? [10, 7, 5, 3, 2, 1]
+  const lives = tournament.elimination_config
+  const isParticipant = joined && !isHost
 
   return (
     <PageShell>
@@ -206,10 +278,14 @@ export default function TournamentLobbyPage() {
             </span>
           )}
         </p>
-        {isFinished && (
+        {isFinished ? (
           <span className="premium-badge" style={{ marginTop: '0.25rem' }}>
             🏆 Tournament Complete
           </span>
+        ) : (
+          <button onClick={handleShare} className="btn-secondary btn-fit mx-auto text-sm">
+            {copied ? '✓ Link copied' : '🔗 Share invite link'}
+          </button>
         )}
       </div>
 
@@ -237,6 +313,75 @@ export default function TournamentLobbyPage() {
         </div>
       )}
 
+      {/* Player waiting room */}
+      {isParticipant && !activeGame && !isFinished && (
+        <div className="glass-card-strong p-5 text-center space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span
+                className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
+                style={{ background: 'var(--primary)' }}
+              />
+              <span
+                className="relative inline-flex h-2.5 w-2.5 rounded-full"
+                style={{ background: 'var(--primary)' }}
+              />
+            </span>
+            <p className="font-bold text-body">You&apos;re in, {playerName}!</p>
+          </div>
+          <p className="text-muted text-sm">
+            Waiting for the host to start the next game. Hang tight — it&apos;ll appear here.
+          </p>
+        </div>
+      )}
+
+      {/* How it works */}
+      {!isFinished && (
+        <div className="glass-card p-5 space-y-2.5">
+          <p className="label-caps">How this tournament works</p>
+          <ul className="space-y-2 text-sm text-muted">
+            <li className="flex gap-2.5">
+              <span aria-hidden>🎮</span>
+              <span>The host runs a series of games. Everyone plays each one from their own device.</span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>🏅</span>
+              <span>
+                You earn points by how you place each game —{' '}
+                <span className="text-body font-semibold">
+                  1st {points[0]}pts, 2nd {points[1] ?? points[points.length - 1]}pts
+                </span>
+                , and so on.
+              </span>
+            </li>
+            {lives && (
+              <li className="flex gap-2.5">
+                <span aria-hidden>❤️</span>
+                <span>
+                  Lives mode: start with <span className="text-body font-semibold">{lives.startingLives}</span>. The
+                  bottom <span className="text-body font-semibold">{lives.eliminateCount}</span> each game lose one —
+                  run out and you&apos;re eliminated.
+                </span>
+              </li>
+            )}
+            <li className="flex gap-2.5">
+              <span aria-hidden>🚀</span>
+              <span>
+                When the host starts a game, tap <span className="text-body font-semibold">Join Game</span> to jump in.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden>👑</span>
+              <span>
+                Most points{' '}
+                {tournament.target_game_count ? `after ${tournament.target_game_count} games` : 'when the host ends it'}{' '}
+                wins.
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
+
       {/* Active Game Banner */}
       {activeGame && (
         <div
@@ -256,9 +401,7 @@ export default function TournamentLobbyPage() {
             </p>
             <span className="text-xs text-faint">Game {activeGame.game_order}</span>
           </div>
-          {joined && (
-            <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>
-          )}
+          {joined && <PrimaryBtn onClick={() => handleJoinGame(activeGame.game_id)}>Join Game</PrimaryBtn>}
           {isHost && (
             <button onClick={() => router.push(`/host/${activeGame.game_id}`)} className="btn-secondary w-full">
               Host Dashboard
@@ -366,9 +509,94 @@ export default function TournamentLobbyPage() {
             </Field>
           </div>
 
-          <PrimaryBtn onClick={handleStartGame} disabled={actionLoading}>
+          {/* Trivia question source */}
+          {selectedGameType === 'trivia' && (
+            <Field label="Questions">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  aria-pressed={questionSource === 'platform'}
+                  onClick={() => setQuestionSource('platform')}
+                  className={`chip flex-1 ${questionSource === 'platform' ? 'chip-active' : ''}`}
+                >
+                  Built-in pack
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={questionSource === 'custom'}
+                  onClick={() => setQuestionSource('custom')}
+                  className={`chip flex-1 ${questionSource === 'custom' ? 'chip-active' : ''}`}
+                >
+                  Upload CSV
+                </button>
+              </div>
+
+              {questionSource === 'custom' && (
+                <div className="surface-inset p-4 mt-3 space-y-3">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) handleFile(f)
+                    }}
+                    className="hidden"
+                  />
+                  {customTrivia.length === 0 ? (
+                    <div className="space-y-2">
+                      <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary w-full">
+                        Choose CSV or Excel file
+                      </button>
+                      <p className="text-faint text-xs">
+                        Columns: question, option_a–option_d, correct (A–D).{' '}
+                        <a
+                          href={questionSampleFile('trivia').href}
+                          download={questionSampleFile('trivia').download}
+                          className="underline hover:text-body"
+                          style={{ color: 'var(--primary)' }}
+                        >
+                          Download sample
+                        </a>
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-body font-medium">
+                        ✓ {customTrivia.length} question{customTrivia.length === 1 ? '' : 's'} loaded
+                      </p>
+                      <button type="button" onClick={clearCustom} className="btn-ghost text-xs">
+                        Clear
+                      </button>
+                    </div>
+                  )}
+                  {uploadMsg && <p className="text-faint text-xs">{uploadMsg}</p>}
+                </div>
+              )}
+            </Field>
+          )}
+
+          <PrimaryBtn
+            onClick={handleStartGame}
+            disabled={
+              actionLoading ||
+              (selectedGameType === 'trivia' &&
+                questionSource === 'custom' &&
+                customTrivia.length < (parseInt(roundsCount, 10) || 10))
+            }
+          >
             {actionLoading ? 'Starting…' : 'Start Game'}
           </PrimaryBtn>
+
+          {selectedGameType === 'trivia' &&
+            questionSource === 'custom' &&
+            customTrivia.length > 0 &&
+            customTrivia.length < (parseInt(roundsCount, 10) || 10) && (
+              <p className="text-faint text-xs text-center -mt-2">
+                Need {parseInt(roundsCount, 10) || 10} questions for {parseInt(roundsCount, 10) || 10} rounds — upload
+                more or lower the round count.
+              </p>
+            )}
 
           <button onClick={handleEndTournament} disabled={actionLoading} className="btn-danger-soft">
             End Tournament
