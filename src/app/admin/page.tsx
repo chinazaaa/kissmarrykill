@@ -8,6 +8,7 @@ import { GAME_TYPE_CONFIG } from '@/lib/game-types'
 type StatsResponse = {
   totals: {
     games: number
+    rooms: number
     players: number
     votes: number
     feedback: number
@@ -52,6 +53,7 @@ export default function AdminDashboardPage() {
 
   const statCards = [
     { label: 'Total games', value: stats.totals.games },
+    { label: 'Rooms created', value: stats.totals.rooms },
     { label: 'Players joined', value: stats.totals.players },
     { label: 'Votes cast', value: stats.totals.votes },
     { label: 'Feedback received', value: stats.totals.feedback },

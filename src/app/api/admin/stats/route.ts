@@ -10,8 +10,16 @@ export async function GET(req: NextRequest) {
 
   const supabase = getSupabaseAdmin()
 
-  const [gamesRes, playersRes, votesRes, finishedGamesRes, activeGamesRes, gamesLast7DaysRes, playSessionsRes] =
-    await Promise.all([
+  const [
+    gamesRes,
+    playersRes,
+    votesRes,
+    finishedGamesRes,
+    activeGamesRes,
+    gamesLast7DaysRes,
+    playSessionsRes,
+    roomsRes,
+  ] = await Promise.all([
       supabase.from('games').select('id, game_type, status, created_at', { count: 'exact', head: false }),
       supabase.from('players').select('id', { count: 'exact', head: true }),
       supabase.from('votes').select('id', { count: 'exact', head: true }),
@@ -26,6 +34,7 @@ export async function GET(req: NextRequest) {
         .select('id, session_started_at, finished_at')
         .eq('status', 'finished')
         .not('session_started_at', 'is', null),
+      supabase.from('rooms').select('id', { count: 'exact', head: true }),
     ])
 
   let feedbackCount = 0
@@ -78,6 +87,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     totals: {
       games: gamesRes.count ?? games.length,
+      rooms: roomsRes.count ?? 0,
       players: playersRes.count ?? 0,
       votes: votesRes.count ?? 0,
       feedback: feedbackCount,
