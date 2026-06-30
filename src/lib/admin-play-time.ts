@@ -39,9 +39,7 @@ export function computeTypicalPlayTime(
   durations.sort((a, b) => a - b)
   const mid = Math.floor(durations.length / 2)
   const typicalSeconds =
-    durations.length % 2 === 0
-      ? Math.round((durations[mid - 1] + durations[mid]) / 2)
-      : Math.round(durations[mid])
+    durations.length % 2 === 0 ? Math.round((durations[mid - 1] + durations[mid]) / 2) : Math.round(durations[mid])
 
   return { typicalSeconds, sampleCount: durations.length }
 }

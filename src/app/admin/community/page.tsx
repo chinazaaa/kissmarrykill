@@ -57,7 +57,10 @@ export default function AdminCommunityPage() {
     }
   }
 
-  const patchGame = async (id: string, patch: Partial<Pick<CommunityGame, 'name' | 'accent' | 'is_active' | 'sort_order'>>) => {
+  const patchGame = async (
+    id: string,
+    patch: Partial<Pick<CommunityGame, 'name' | 'accent' | 'is_active' | 'sort_order'>>
+  ) => {
     try {
       const res = await fetch('/api/admin/community/games', {
         method: 'PATCH',
@@ -74,7 +77,8 @@ export default function AdminCommunityPage() {
   const deleteGame = async (game: CommunityGame) => {
     const ok = await confirm({
       title: `Delete ${game.name}?`,
-      message: 'This also removes all recorded winners for this game from the leaderboard. To just hide it, toggle it off instead.',
+      message:
+        'This also removes all recorded winners for this game from the leaderboard. To just hide it, toggle it off instead.',
       confirmLabel: 'Delete',
       destructive: true,
     })
@@ -136,7 +140,12 @@ export default function AdminCommunityPage() {
               ))}
             </div>
           </div>
-          <button type="button" onClick={addGame} disabled={adding || !newName.trim()} className="btn-primary btn-fit px-5 py-2.5 disabled:opacity-60">
+          <button
+            type="button"
+            onClick={addGame}
+            disabled={adding || !newName.trim()}
+            className="btn-primary btn-fit px-5 py-2.5 disabled:opacity-60"
+          >
             {adding ? 'Adding…' : 'Add game'}
           </button>
         </div>
@@ -192,10 +201,22 @@ function GameRow({
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${game.is_active ? '' : 'opacity-50'}`}>
       <div className="flex flex-col">
-        <button type="button" onClick={() => onMove(-1)} disabled={isFirst} className="text-faint hover:text-[var(--foreground)] disabled:opacity-30 leading-none" aria-label="Move up">
+        <button
+          type="button"
+          onClick={() => onMove(-1)}
+          disabled={isFirst}
+          className="text-faint hover:text-[var(--foreground)] disabled:opacity-30 leading-none"
+          aria-label="Move up"
+        >
           ▲
         </button>
-        <button type="button" onClick={() => onMove(1)} disabled={isLast} className="text-faint hover:text-[var(--foreground)] disabled:opacity-30 leading-none" aria-label="Move down">
+        <button
+          type="button"
+          onClick={() => onMove(1)}
+          disabled={isLast}
+          className="text-faint hover:text-[var(--foreground)] disabled:opacity-30 leading-none"
+          aria-label="Move down"
+        >
           ▼
         </button>
       </div>
@@ -214,7 +235,12 @@ function GameRow({
       >
         {game.is_active ? 'Active' : 'Hidden'}
       </button>
-      <button type="button" onClick={onDelete} className="text-faint hover:text-red-500 transition-colors px-1" aria-label={`Delete ${game.name}`}>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="text-faint hover:text-red-500 transition-colors px-1"
+        aria-label={`Delete ${game.name}`}
+      >
         ✕
       </button>
     </div>
@@ -278,7 +304,12 @@ function ManagerCodePanel() {
             className="input-field flex-1"
             autoComplete="off"
           />
-          <button type="button" onClick={save} disabled={saving || code.trim().length < 4} className="btn-primary btn-fit px-5 py-2.5 disabled:opacity-60">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving || code.trim().length < 4}
+            className="btn-primary btn-fit px-5 py-2.5 disabled:opacity-60"
+          >
             {saving ? 'Saving…' : configured ? 'Rotate code' : 'Set code'}
           </button>
         </div>

@@ -118,21 +118,24 @@ function EntryForm({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [games, setGames] = useState<DailyGameWinner[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(async (forDate?: string) => {
-    setLoading(true)
-    try {
-      const qs = forDate ? `?date=${forDate}` : ''
-      const res = await fetch(`/api/manager/results${qs}`, { cache: 'no-store' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load')
-      setDate(data.date)
-      setGames(data.games)
-    } catch (err) {
-      error(err instanceof Error ? err.message : 'Failed to load')
-    } finally {
-      setLoading(false)
-    }
-  }, [error])
+  const load = useCallback(
+    async (forDate?: string) => {
+      setLoading(true)
+      try {
+        const qs = forDate ? `?date=${forDate}` : ''
+        const res = await fetch(`/api/manager/results${qs}`, { cache: 'no-store' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Failed to load')
+        setDate(data.date)
+        setGames(data.games)
+      } catch (err) {
+        error(err instanceof Error ? err.message : 'Failed to load')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [error]
+  )
 
   useEffect(() => {
     load()
@@ -199,7 +202,13 @@ function EntryForm({ onLoggedOut }: { onLoggedOut: () => void }) {
             </p>
             <div className="space-y-3">
               {games.map((g) => (
-                <GameRow key={g.game.id} entry={g} date={date} onChanged={() => load(date)} onToast={{ success, error }} />
+                <GameRow
+                  key={g.game.id}
+                  entry={g}
+                  date={date}
+                  onChanged={() => load(date)}
+                  onToast={{ success, error }}
+                />
               ))}
             </div>
           </>

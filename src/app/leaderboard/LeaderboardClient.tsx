@@ -58,7 +58,9 @@ export function LeaderboardClient() {
   }, [tab, selectedDate, load])
 
   const step = (dir: -1 | 1) =>
-    setSelectedDate((d) => (tab === 'today' ? addDays(d, dir) : tab === 'week' ? addDays(d, dir * 7) : addMonths(d, dir)))
+    setSelectedDate((d) =>
+      tab === 'today' ? addDays(d, dir) : tab === 'week' ? addDays(d, dir * 7) : addMonths(d, dir)
+    )
 
   // today falls inside the shown window → we're viewing the current period.
   const isCurrentWindow = !!data && data.rangeStart <= today && today <= data.rangeEnd
@@ -160,9 +162,7 @@ export function LeaderboardClient() {
 function TodayView({ data }: { data: LeaderboardResponse }) {
   if (data.today.length === 0) {
     return (
-      <div className="glass-card p-8 text-center text-muted text-sm">
-        No games are set up yet. Check back soon.
-      </div>
+      <div className="glass-card p-8 text-center text-muted text-sm">No games are set up yet. Check back soon.</div>
     )
   }
 
@@ -208,9 +208,7 @@ function TodayView({ data }: { data: LeaderboardResponse }) {
 function StandingsView({ data }: { data: LeaderboardResponse }) {
   if (data.standings.length === 0) {
     return (
-      <div className="glass-card p-8 text-center text-muted text-sm">
-        No wins recorded for this {data.window} yet.
-      </div>
+      <div className="glass-card p-8 text-center text-muted text-sm">No wins recorded for this {data.window} yet.</div>
     )
   }
 

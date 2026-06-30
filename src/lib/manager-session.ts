@@ -106,11 +106,7 @@ function timingSafeEqualHex(a: string, b: string): boolean {
 // True when a manager access code has been configured by the admin.
 export async function managerCodeIsSet(): Promise<boolean> {
   const supabase = getSupabaseAdmin()
-  const { data } = await supabase
-    .from('community_settings')
-    .select('value')
-    .eq('key', MANAGER_CODE_KEY)
-    .maybeSingle()
+  const { data } = await supabase.from('community_settings').select('value').eq('key', MANAGER_CODE_KEY).maybeSingle()
   return Boolean(data?.value)
 }
 
@@ -120,11 +116,7 @@ export async function verifyManagerCode(code: string): Promise<boolean> {
   if (!trimmed) return false
 
   const supabase = getSupabaseAdmin()
-  const { data } = await supabase
-    .from('community_settings')
-    .select('value')
-    .eq('key', MANAGER_CODE_KEY)
-    .maybeSingle()
+  const { data } = await supabase.from('community_settings').select('value').eq('key', MANAGER_CODE_KEY).maybeSingle()
 
   const storedHash = data?.value
   if (!storedHash) return false

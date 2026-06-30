@@ -98,11 +98,7 @@ export async function upsertResult(gameId: string, dateStr: string, playerName: 
 
 export async function deleteResult(gameId: string, dateStr: string): Promise<void> {
   const supabase = getSupabaseAdmin()
-  const { error } = await supabase
-    .from('community_results')
-    .delete()
-    .eq('game_id', gameId)
-    .eq('result_date', dateStr)
+  const { error } = await supabase.from('community_results').delete().eq('game_id', gameId).eq('result_date', dateStr)
   if (error) throw error
 }
 

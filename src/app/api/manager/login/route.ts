@@ -13,10 +13,7 @@ export async function POST(req: NextRequest) {
     const code = typeof body.code === 'string' ? body.code : ''
 
     if (!(await managerCodeIsSet())) {
-      return NextResponse.json(
-        { error: 'No access code has been set yet. Ask the admin to set one.' },
-        { status: 503 }
-      )
+      return NextResponse.json({ error: 'No access code has been set yet. Ask the admin to set one.' }, { status: 503 })
     }
 
     if (!(await verifyManagerCode(code))) {

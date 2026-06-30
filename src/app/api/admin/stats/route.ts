@@ -29,32 +29,32 @@ export async function GET(req: NextRequest) {
     gamesTodayRes,
     gamesThisMonthRes,
   ] = await Promise.all([
-      supabase.from('games').select('id, game_type, status, created_at', { count: 'exact', head: false }),
-      supabase.from('players').select('id', { count: 'exact', head: true }),
-      supabase.from('votes').select('id', { count: 'exact', head: true }),
-      supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'finished'),
-      supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase
-        .from('games')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-      supabase
-        .from('games')
-        .select('id, session_started_at, finished_at')
-        .eq('status', 'finished')
-        .not('session_started_at', 'is', null),
-      supabase.from('rooms').select('id', { count: 'exact', head: true }),
-      supabase
-        .from('games')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', todayRange.gte)
-        .lt('created_at', todayRange.lt),
-      supabase
-        .from('games')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', monthRange.gte)
-        .lt('created_at', monthRange.lt),
-    ])
+    supabase.from('games').select('id, game_type, status, created_at', { count: 'exact', head: false }),
+    supabase.from('players').select('id', { count: 'exact', head: true }),
+    supabase.from('votes').select('id', { count: 'exact', head: true }),
+    supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'finished'),
+    supabase.from('games').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase
+      .from('games')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    supabase
+      .from('games')
+      .select('id, session_started_at, finished_at')
+      .eq('status', 'finished')
+      .not('session_started_at', 'is', null),
+    supabase.from('rooms').select('id', { count: 'exact', head: true }),
+    supabase
+      .from('games')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', todayRange.gte)
+      .lt('created_at', todayRange.lt),
+    supabase
+      .from('games')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', monthRange.gte)
+      .lt('created_at', monthRange.lt),
+  ])
 
   let feedbackCount = 0
   const feedbackByCategory: Record<string, number> = {}
