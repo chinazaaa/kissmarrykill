@@ -269,15 +269,32 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
         side === 'right' ? 'right-4 items-end' : 'left-4 items-start'
       }`}
     >
-      {/* Move the control to the other side (e.g. to clear a wide game board). */}
+      {/* Move the control to the other side (e.g. to clear a wide game board).
+       * Labelled so it's obvious it repositions the voice button. */}
       <button
         type="button"
         onClick={flipSide}
-        title={`Move to the ${side === 'right' ? 'left' : 'right'}`}
+        title={`Move voice chat to the ${side === 'right' ? 'left' : 'right'}`}
         aria-label={`Move voice chat control to the ${side === 'right' ? 'left' : 'right'}`}
-        className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card-strong)] text-xs text-muted shadow hover:text-[var(--foreground)] active:scale-95 transition-all"
+        className={`flex h-7 items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--card-strong)] px-2 text-[10px] font-semibold uppercase tracking-wide text-muted shadow hover:text-[var(--foreground)] active:scale-95 transition-all ${
+          side === 'right' ? 'flex-row-reverse' : ''
+        }`}
       >
-        {side === 'right' ? '‹' : '›'}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3.5 w-3.5 shrink-0"
+          aria-hidden
+        >
+          <path d="M8 7 4 12l4 5" />
+          <path d="M16 7l4 5-4 5" />
+          <path d="M4 12h16" />
+        </svg>
+        Move
       </button>
       {/* Floating Join/Leave Button — compact round icon so it stays out of the
        * way during play (matches the connected-state icon below). */}
