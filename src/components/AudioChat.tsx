@@ -93,11 +93,16 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
             auth: authRef.current,
           }),
         })
-        if (!res.ok) return
+        if (!res.ok) {
+          if (active) setPresenceCount(0)
+          return
+        }
         const data = await res.json()
         if (active) setPresenceCount(typeof data.count === 'number' ? data.count : 0)
       } catch {
-        // Best-effort hint; ignore failures.
+        // Best-effort hint — clear the badge so a stale count from a previous
+        // room/auth doesn't linger after a failure.
+        if (active) setPresenceCount(0)
       }
     }
 
@@ -258,8 +263,10 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
               onClick={joinAudio}
               disabled={isConnecting}
               className="relative flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-body border border-theme text-xl shadow-lg active:scale-95 transition-all duration-150 disabled:opacity-70"
-              title="Voice chat is running in another tab. Click to switch audio here."
-              aria-label="Switch voice chat to this tab"
+              title={
+                isConnecting ? 'Transferring…' : 'Voice chat is running in another tab. Click to switch audio here.'
+              }
+              aria-label={isConnecting ? 'Transferring voice chat to this tab' : 'Switch voice chat to this tab'}
             >
               {isConnecting ? (
                 <span className="inline-block w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
@@ -272,11 +279,19 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
               onClick={joinAudio}
               disabled={isConnecting}
               className="relative flex items-center justify-center w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all duration-150 disabled:opacity-70"
-              title={presenceCount > 0 ? `Join voice chat — ${presenceCount} already in the call` : 'Join voice chat'}
+              title={
+                isConnecting
+                  ? 'Connecting…'
+                  : presenceCount > 0
+                    ? `Join voice chat — ${presenceCount} already in the call`
+                    : 'Join voice chat'
+              }
               aria-label={
-                presenceCount > 0
-                  ? `Join voice chat, ${presenceCount} ${presenceCount === 1 ? 'person' : 'people'} already in the call`
-                  : 'Join voice chat'
+                isConnecting
+                  ? 'Connecting to voice chat'
+                  : presenceCount > 0
+                    ? `Join voice chat, ${presenceCount} ${presenceCount === 1 ? 'person' : 'people'} already in the call`
+                    : 'Join voice chat'
               }
             >
               {isConnecting ? (

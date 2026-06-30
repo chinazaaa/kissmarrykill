@@ -14,6 +14,15 @@ import {
 } from '@/lib/chess-appearance'
 import { ChessPieceIcon } from '@/components/chess/ChessPieceIcon'
 
+const PIECE_NAMES: Record<ChessPieceType, string> = {
+  p: 'pawn',
+  r: 'rook',
+  n: 'knight',
+  b: 'bishop',
+  q: 'queen',
+  k: 'king',
+}
+
 /** Format remaining clock ms as m:ss (always reads as a clock, e.g. 10:00, 0:14, 0:05). */
 function formatClock(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000))
@@ -323,6 +332,11 @@ export function ChessGamePanel({
                   type="button"
                   onClick={() => handleSquareClick(square)}
                   disabled={!interactive}
+                  aria-label={
+                    piece
+                      ? `${square}, ${piece.color === 'w' ? 'white' : 'black'} ${PIECE_NAMES[piece.type as ChessPieceType]}`
+                      : `${square}, empty`
+                  }
                   style={{ backgroundColor: isLight ? boardTheme.light : boardTheme.dark }}
                   className={[
                     'relative aspect-square flex items-center justify-center',

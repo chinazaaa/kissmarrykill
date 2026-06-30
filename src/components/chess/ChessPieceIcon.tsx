@@ -68,12 +68,12 @@ export function ChessPieceIcon({
   style?: CSSProperties
 }) {
   const filled = variant === 'filled'
+  // Decorative: interactive squares and previews provide their own accessible labels.
   return (
     <svg
       viewBox="0 0 45 45"
       className={className}
       style={style}
-      role="img"
       aria-hidden
       fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"

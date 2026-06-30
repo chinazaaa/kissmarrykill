@@ -198,7 +198,7 @@ FateRound itself. They also open a fresh cosmetics surface (crests, banners, clu
 
 ## How a session upgrades through the tiers
 
-```
+```text
 Guest plays a few games  ──win/streak──▶  Account (claims guest history)
         │                                        │
         │                                   buys a skin ──▶ owns cosmetics
