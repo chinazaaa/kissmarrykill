@@ -164,20 +164,26 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
 
   // 5. Auto-reconnect persistence loop
   useEffect(() => {
+    if (token || isConnecting || activeTabId) return
     const resolvedCodeUpper = resolvedRoomCode.toUpperCase()
-    const stored = localStorage.getItem(`fateround_voice_${resolvedCodeUpper}`)
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored)
-        // Auto-reconnect if session was active within 4 hours
-        if (parsed.active && Date.now() - parsed.timestamp < 4 * 60 * 60 * 1000) {
-          void joinAudioRef.current?.()
+
+    const timeout = window.setTimeout(() => {
+      const stored = localStorage.getItem(`fateround_voice_${resolvedCodeUpper}`)
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          // Auto-reconnect if session was active within 4 hours and no tab claimed it.
+          if (parsed.active && Date.now() - parsed.timestamp < 4 * 60 * 60 * 1000) {
+            void joinAudioRef.current?.()
+          }
+        } catch (err) {
+          // ignore
         }
-      } catch (err) {
-        // ignore
       }
-    }
-  }, [resolvedRoomCode])
+    }, 300)
+
+    return () => window.clearTimeout(timeout)
+  }, [resolvedRoomCode, activeTabId, token, isConnecting])
 
   if (!serverUrl) {
     return (
@@ -324,11 +330,10 @@ function AudioChatInner({ localPlayerName }: AudioChatInnerProps) {
             return (
               <div
                 key={p.sid}
-                className={`flex items-center justify-between text-xs p-1.5 rounded transition-colors ${
-                  isSpeaking
-                    ? 'bg-emerald-500/10 border border-emerald-500/20'
-                    : 'bg-transparent border border-transparent'
-                }`}
+                className={`flex items-center justify-between text-xs p-1.5 rounded transition-colors ${isSpeaking
+                  ? 'bg-emerald-500/10 border border-emerald-500/20'
+                  : 'bg-transparent border border-transparent'
+                  }`}
               >
                 <div className="flex items-center gap-2 truncate">
                   <span className="text-xs">👥</span>
@@ -354,11 +359,10 @@ function AudioChatInner({ localPlayerName }: AudioChatInnerProps) {
       <div className="flex gap-2 border-t border-theme pt-3 mt-auto">
         <button
           onClick={toggleMute}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold text-white border shadow-sm transition-all active:scale-95 ${
-            isMicrophoneEnabled
-              ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500'
-              : 'bg-red-600 hover:bg-red-500 border-red-500'
-          }`}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold text-white border shadow-sm transition-all active:scale-95 ${isMicrophoneEnabled
+            ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500'
+            : 'bg-red-600 hover:bg-red-500 border-red-500'
+            }`}
         >
           <span>{isMicrophoneEnabled ? '🔇' : '🎙️'}</span>
           {isMicrophoneEnabled ? 'Mute' : 'Unmute'}
