@@ -280,6 +280,7 @@ export const GAME_LANDING_OG_BY_SLUG: Record<string, string> = {
   monopoly: '/og/monopoly.png',
   yahtzee: '/og/yahtzee.png',
   whot: '/og/whot.png',
+  'crazy-eights': '/og/crazy-eights.png',
   ludo: '/og/ludo.png',
   'i-call-on': '/og/i-call-on.png',
   'date-my-kid': '/og/date-my-kid.png',
