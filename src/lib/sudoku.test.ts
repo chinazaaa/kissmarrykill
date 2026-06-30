@@ -236,7 +236,7 @@ describe('completion helpers', () => {
   const submissions = [
     { player_id: 'a', cell_row: 0, cell_col: 2, is_correct: true },
     { player_id: 'b', cell_row: 0, cell_col: 3, is_correct: true },
-    { player_id: 'a', cell_row: 0, cell_col: 4, is_correct: true },
+    { player_id: 'a', cell_row: 0, cell_col: 5, is_correct: true },
   ]
 
   it('counts empty cells in the puzzle', () => {
@@ -252,7 +252,7 @@ describe('completion helpers', () => {
     const grid = buildClaimedValueGrid(PUZZLE, withValues)
     expect(grid[0]![2]).toBe(4)
     expect(grid[0]![3]).toBe(4)
-    expect(grid[0]![4]).toBe(4)
+    expect(grid[0]![5]).toBe(4)
     expect(grid[0]![0]).toBe(5) // given preserved
   })
 })

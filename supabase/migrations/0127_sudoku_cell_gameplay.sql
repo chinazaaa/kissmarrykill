@@ -10,6 +10,10 @@ ALTER TABLE sudoku_submissions ALTER COLUMN block_index DROP NOT NULL;
 
 DROP INDEX IF EXISTS sudoku_submissions_correct_unique;
 
+-- Retire the old sudoku_submit_block RPC and remove its EXECUTE grant.
+REVOKE EXECUTE ON FUNCTION sudoku_submit_block(text, uuid, integer, jsonb) FROM PUBLIC, anon, authenticated;
+DROP FUNCTION IF EXISTS sudoku_submit_block(text, uuid, integer, jsonb);
+
 -- Only one correct claim per cell per round (first solver wins the cell).
 CREATE UNIQUE INDEX IF NOT EXISTS sudoku_submissions_cell_claimed_unique
   ON sudoku_submissions (round_id, cell_row, cell_col)
@@ -148,5 +152,5 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION sudoku_submit_cell(text, uuid, integer, integer, integer) TO anon, authenticated;
+REVOKE EXECUTE ON FUNCTION sudoku_submit_cell(text, uuid, integer, integer, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION sudoku_claimed_cells(uuid) TO anon, authenticated;

@@ -104,7 +104,13 @@ export function SudokuBoard({
 
             const cellLabel = [
               `Row ${row + 1}, column ${col + 1}`,
-              given ? `given ${displayValue}` : hasValue ? `value ${displayValue}` : firstSolverId ? 'claimed' : 'empty',
+              given
+                ? `given ${displayValue}`
+                : hasValue
+                  ? `value ${displayValue}`
+                  : firstSolverId
+                    ? 'claimed'
+                    : 'empty',
             ].join(', ')
 
             return (

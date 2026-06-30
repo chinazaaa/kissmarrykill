@@ -318,7 +318,15 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     return map
   }, [activePlayers])
 
+  const leaderboard = tallySudokuScores(submissions, players)
+  const me = players.find((p) => p.id === myPlayerId)
+  const isSpectator = me?.spectator === true
+  const myRank = leaderboard.findIndex((r) => r.player_id === myPlayerId) + 1
+  const myCompletion = puzzle && myPlayerId ? playerCompletionPercent(puzzle, submissions, myPlayerId) : 0
+  const boardCompletion = puzzle ? boardCompletionPercent(puzzle, cellOwners) : 0
+
   function isCellEditable(row: number, col: number): boolean {
+    if (isSpectator) return false
     if (!puzzle || !myPlayerId) return false
     if (puzzle[row]![col] !== 0) return false
     return !playerHasSolvedCell(submissions, myPlayerId, row, col)
@@ -405,6 +413,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   function handleNumberPress(value: number) {
+    if (submitting) return
     if (!selectedCell) return
     const [row, col] = selectedCell
     if (!isCellEditable(row, col)) return
@@ -428,6 +437,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   function handleErase() {
+    if (submitting) return
     if (!selectedCell) return
     const [row, col] = selectedCell
     if (!isCellEditable(row, col)) return
@@ -440,6 +450,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
   }
 
   function handleUndo() {
+    if (submitting) return
     const stack = [...undoStack]
     while (stack.length > 0) {
       const last = stack.pop()!
@@ -456,14 +467,8 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
       setSelectedCell([last.row, last.col])
       return
     }
+    setUndoStack([])
   }
-
-  const leaderboard = tallySudokuScores(submissions, players)
-  const me = players.find((p) => p.id === myPlayerId)
-  const isSpectator = me?.spectator === true
-  const myRank = leaderboard.findIndex((r) => r.player_id === myPlayerId) + 1
-  const myCompletion = puzzle && myPlayerId ? playerCompletionPercent(puzzle, submissions, myPlayerId) : 0
-  const boardCompletion = puzzle ? boardCompletionPercent(puzzle, cellOwners) : 0
 
   if (view === 'loading') {
     return (

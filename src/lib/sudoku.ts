@@ -359,7 +359,7 @@ export function getCellDisplayColor(
 
 /** Distinct accent colors for up to 20 players (by join order). */
 export const SUDOKU_PLAYER_COLORS = [
-  '#86efac',
+  '#c7d2fe',
   '#93c5fd',
   '#fcd34d',
   '#f9a8d4',

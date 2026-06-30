@@ -59,6 +59,9 @@ BEGIN
 
   v_correct := p_value = (v_solution->p_row->>p_col)::int;
 
+  -- Serialize all submissions for this round to prevent concurrent check/insert races.
+  PERFORM pg_advisory_xact_lock(hashtext(v_round_id::text));
+
   IF v_correct THEN
     -- Serialize ranking for this cell so concurrent first-solvers don't both get 10.
     PERFORM pg_advisory_xact_lock(

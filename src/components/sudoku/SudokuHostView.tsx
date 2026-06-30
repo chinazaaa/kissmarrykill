@@ -291,7 +291,6 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
         {puzzle && (
           <SudokuBoard
             puzzle={puzzle}
-            solution={solution ?? undefined}
             userGrid={claimedGrid ?? undefined}
             cellOwners={cellOwners}
             playerColors={playerColors}
