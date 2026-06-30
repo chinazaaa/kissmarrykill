@@ -304,9 +304,11 @@ export function getLegalMovesForSteps(
     if (currentSteps == null) continue
 
     const newSteps = currentSteps + steps
-    if (newSteps > FINISH_STEPS) continue
 
     if (piece.zone === 'home') {
+      // House rule: a piece already in its home lane reaches the centre on ANY
+      // roll that is enough — an overshoot still finishes it (pieceAtSteps clamps
+      // newSteps >= FINISH_STEPS to 'finished'), so there is no exact-count wait.
       const to = pieceAtSteps(color, newSteps)
       moves.push({
         pieceId: piece.id,
@@ -316,6 +318,10 @@ export function getLegalMovesForSteps(
       })
       continue
     }
+
+    // A piece still on the main track needs an exact count to hit the centre
+    // (it can reach at most exactly FINISH_STEPS in a single roll, never beyond).
+    if (newSteps > FINISH_STEPS) continue
 
     let blocked = false
     for (let step = 1; step <= steps; step += 1) {
