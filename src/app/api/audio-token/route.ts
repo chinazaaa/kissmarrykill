@@ -17,13 +17,24 @@ async function isAuthorized(roomName: string, identity: string, auth: AudioAuth 
   const supabase = getSupabaseAdmin()
 
   if (auth.kind === 'player') {
-    const { data } = await supabase
+    // 1. Fetch player's current game_id
+    const { data: player } = await supabase
       .from('players')
-      .select('id')
+      .select('game_id')
       .eq('id', identity)
-      .eq('game_id', roomName)
       .maybeSingle()
-    return Boolean(data)
+    if (!player) return false
+
+    // 2. Check if it matches roomName directly (standalone game)
+    if (player.game_id.toUpperCase() === roomName.toUpperCase()) return true
+
+    // 3. Check if game is linked to a room whose ID matches roomName
+    const { data: roomGame } = await supabase
+      .from('room_games')
+      .select('room_id')
+      .eq('game_id', player.game_id)
+      .maybeSingle()
+    return Boolean(roomGame && roomGame.room_id.toUpperCase() === roomName.toUpperCase())
   }
 
   if (auth.kind === 'member') {
@@ -33,8 +44,36 @@ async function isAuthorized(roomName: string, identity: string, auth: AudioAuth 
 
   if (auth.kind === 'host') {
     if (!auth.token) return false
-    const { data } = await supabase.from('games').select('host_token').eq('id', roomName).maybeSingle()
-    return Boolean(data?.host_token && data.host_token === auth.token)
+
+    // 1. Check if token matches room's creator_token directly
+    const { data: room } = await supabase
+      .from('rooms')
+      .select('creator_token')
+      .eq('id', roomName)
+      .maybeSingle()
+    if (room?.creator_token && room.creator_token === auth.token) return true
+
+    // 2. Check if token matches game's host_token directly (standalone game)
+    const { data: game } = await supabase
+      .from('games')
+      .select('host_token')
+      .eq('id', roomName)
+      .maybeSingle()
+    if (game?.host_token && game.host_token === auth.token) return true
+
+    // 3. Check if token matches any game linked to this room
+    const { data: roomGames } = await supabase
+      .from('room_games')
+      .select('game_id')
+      .eq('room_id', roomName)
+    if (roomGames && roomGames.length > 0) {
+      const gameIds = roomGames.map((rg) => rg.game_id)
+      const { data: games } = await supabase
+        .from('games')
+        .select('host_token')
+        .in('id', gameIds)
+      if (games && games.some((g) => g.host_token === auth.token)) return true
+    }
   }
 
   return false
