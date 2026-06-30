@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { playAgainSchema } from '@/lib/validation'
 import { assertHostGameSettings } from '@/lib/game-admin'
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .select()
     .single()
 
-  if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+  if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/lobby-pool', gameError) }, { status: 500 })
 
   return NextResponse.json({ success: true, game: updated })
 }

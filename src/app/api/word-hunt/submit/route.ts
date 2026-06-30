@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { z } from 'zod'
 import { validateWordSubmission, validWordsSetForMetadata } from '@/lib/word-hunt-dictionary'
 import { parseWordHuntMetadata, wordHuntPoints, wordHuntSessionExpired } from '@/lib/word-hunt'
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
     if (insertError.code === '23505') {
       return NextResponse.json({ error: 'You already found this word' }, { status: 409 })
     }
-    return NextResponse.json({ error: insertError.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('word-hunt/submit', insertError) }, { status: 500 })
   }
 
   return NextResponse.json({

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
 import { finishCodewordsGame } from '@/lib/codewords'
 import { markGameFinished } from '@/lib/game-finish'
@@ -30,7 +31,7 @@ export async function adminEndGame(supabase: SupabaseClient, game: AdminGameToEn
     .eq('game_id', gameId)
     .eq('status', 'active')
 
-  if (roundError) return { error: roundError.message }
+  if (roundError) return { error: internalErrorMessage('admin-end-game', roundError) }
 
   const gameType = parseGameType(game.game_type)
   if (isAnonymousMessagesGame(gameType)) {
@@ -58,7 +59,7 @@ export async function countStaleOpenGames(
     .in('status', ['waiting', 'active'])
     .lt('created_at', cutoff)
 
-  if (error) return { count: 0, error: error.message }
+  if (error) return { count: 0, error: internalErrorMessage('admin-end-game', error) }
   return { count: count ?? 0, error: null }
 }
 
@@ -80,7 +81,7 @@ export async function fetchStaleOpenGames(
       .order('created_at', { ascending: true })
       .range(offset, offset + pageSize - 1)
 
-    if (error) return { games: [], error: error.message }
+    if (error) return { games: [], error: internalErrorMessage('admin-end-game', error) }
 
     const batch = data ?? []
     games.push(...batch)

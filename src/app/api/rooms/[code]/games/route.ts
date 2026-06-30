@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
@@ -17,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
     .order('created_at', { ascending: false })
     .limit(20)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('rooms/code/games', error) }, { status: 500 })
 
   return NextResponse.json({ games: games ?? [] })
 }
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   if (error) {
     if (error.code === '23505') return NextResponse.json({ success: true })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('rooms/code/games', error) }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

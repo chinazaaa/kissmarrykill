@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { getSupabaseAdmin, hasServiceRoleKey } from '@/lib/supabase-admin'
 import { parseJsonBody } from '@/lib/parse-body'
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   const supabase = getSupabaseAdmin()
   const { data, error } = await supabase.from('product_updates').update(payload).eq('id', id).select('*').single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/product-updates/id', error) }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'Update not found' }, { status: 404 })
 
   return NextResponse.json({ update: data })
@@ -55,7 +56,7 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
   const supabase = getSupabaseAdmin()
   const { error } = await supabase.from('product_updates').delete().eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/product-updates/id', error) }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

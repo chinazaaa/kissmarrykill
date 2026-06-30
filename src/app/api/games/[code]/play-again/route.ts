@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { playAgainSchema } from '@/lib/validation'
 import {
@@ -269,10 +270,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const admin = getSupabaseAdmin()
 
   const { error: votesError } = await admin.from('votes').delete().eq('game_id', gameId)
-  if (votesError) return NextResponse.json({ error: votesError.message }, { status: 500 })
+  if (votesError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', votesError) }, { status: 500 })
 
   const { error: confessionsError } = await admin.from('confessions').delete().eq('game_id', gameId)
-  if (confessionsError) return NextResponse.json({ error: confessionsError.message }, { status: 500 })
+  if (confessionsError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', confessionsError) }, { status: 500 })
 
   if (isTriviaGame(gameType)) {
     const { error: clearError } = await clearTriviaSessionData(getSupabaseAdmin(), gameId)
@@ -280,23 +281,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   const { error: roundsError } = await admin.from('rounds').delete().eq('game_id', gameId)
-  if (roundsError) return NextResponse.json({ error: roundsError.message }, { status: 500 })
+  if (roundsError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', roundsError) }, { status: 500 })
 
   const { error: poolError } = await admin.from('wst_quote_pool').delete().eq('game_id', gameId)
-  if (poolError) return NextResponse.json({ error: poolError.message }, { status: 500 })
+  if (poolError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', poolError) }, { status: 500 })
 
   const { error: pqError } = await admin.from('player_questions').delete().eq('game_id', gameId)
-  if (pqError) return NextResponse.json({ error: pqError.message }, { status: 500 })
+  if (pqError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', pqError) }, { status: 500 })
 
   const { error: playerNamesError } = await admin
     .from('participants')
     .delete()
     .eq('game_id', gameId)
     .not('submitted_by_player_id', 'is', null)
-  if (playerNamesError) return NextResponse.json({ error: playerNamesError.message }, { status: 500 })
+  if (playerNamesError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', playerNamesError) }, { status: 500 })
 
   const { error: hotSeatError } = await admin.from('hot_seat_submissions').delete().eq('game_id', gameId)
-  if (hotSeatError) return NextResponse.json({ error: hotSeatError.message }, { status: 500 })
+  if (hotSeatError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', hotSeatError) }, { status: 500 })
 
   if (isAnonymousMessagesGame(gameType)) {
     const { error: clearError } = await clearAnonymousRoomSessionData(supabase, gameId)
@@ -311,7 +312,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       .select()
       .eq('id', gameId)
       .single()
-    if (secretFetchError) return NextResponse.json({ error: secretFetchError.message }, { status: 500 })
+    if (secretFetchError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', secretFetchError) }, { status: 500 })
     return NextResponse.json({ success: true, game: updatedSecret })
   }
 
@@ -345,7 +346,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .select()
     .single()
 
-  if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+  if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/play-again', gameError) }, { status: 500 })
 
   return NextResponse.json({ success: true, game: updated })
 }

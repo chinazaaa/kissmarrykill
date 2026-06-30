@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 
 /**
  * Delete a game's per-game session rows from `tables` (matched by `game_id`), in the
@@ -17,7 +18,7 @@ export async function clearSessionTables(
 ): Promise<{ error: string | null }> {
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('game_id', gameId)
-    if (error) return { error: error.message }
+    if (error) return { error: internalErrorMessage('session-clear', error) }
   }
 
   if (opts?.resetSpectators) {
@@ -27,7 +28,7 @@ export async function clearSessionTables(
       .eq('game_id', gameId)
       .eq('spectator', true)
       .eq('is_eliminated', false)
-    if (error) return { error: error.message }
+    if (error) return { error: internalErrorMessage('session-clear', error) }
   }
 
   return { error: null }

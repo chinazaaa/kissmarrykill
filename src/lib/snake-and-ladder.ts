@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { clearSessionTables } from './session-clear'
 import { markGameFinished } from '@/lib/game-finish'
 import type { Player, SnakeLadderColor, SnakeLadderEvent, SnakeLadderPlayerState, SnakeLadderSession } from '@/types'
@@ -193,7 +194,7 @@ export async function initializeSnakeAndLadderGame(
   }
 
   const { error: sessionError } = await supabase.from('snake_ladder_sessions').insert(sessionRow)
-  if (sessionError) return { error: sessionError.message }
+  if (sessionError) return { error: internalErrorMessage('snake-and-ladder', sessionError) }
 
   const stateRows = turnOrder.map((playerId, index) => ({
     game_id: gameId,
@@ -208,7 +209,7 @@ export async function initializeSnakeAndLadderGame(
     // `snake_ladder_sessions.game_id` is unique — clean up the orphaned session
     // so a retry can start fresh instead of colliding with this row.
     await supabase.from('snake_ladder_sessions').delete().eq('game_id', gameId)
-    return { error: statesError.message }
+    return { error: internalErrorMessage('snake-and-ladder', statesError) }
   }
 
   return {}
@@ -371,7 +372,7 @@ export async function processSnakeAndLadderRoll(
       .update({ position: outcome.to })
       .eq('game_id', gameId)
       .eq('player_id', playerId)
-    if (moveError) return { error: moveError.message }
+    if (moveError) return { error: internalErrorMessage('snake-and-ladder', moveError) }
   }
 
   if (outcome.won) await markGameFinished(supabase, gameId)
@@ -462,7 +463,7 @@ export async function removeSnakeAndLadderPlayer(
     }
 
     const { error: sessionError } = await supabase.from('snake_ladder_sessions').update(update).eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('snake-and-ladder', sessionError) }
 
     await supabase.from('snake_ladder_player_state').delete().eq('game_id', gameId).eq('player_id', playerId)
     if (finishing) await markGameFinished(supabase, gameId)

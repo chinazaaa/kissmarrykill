@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { markGameFinished } from '@/lib/game-finish'
 import type { ChessColor, ChessSession } from '@/types'
@@ -191,7 +192,7 @@ export async function initializeChessGame(
   const { error } = existing
     ? await supabase.from('chess_sessions').update(sessionRow).eq('game_id', gameId)
     : await supabase.from('chess_sessions').insert({ ...sessionRow, game_id: gameId })
-  if (error) return { error: error.message }
+  if (error) return { error: internalErrorMessage('chess', error) }
   return {}
 }
 
@@ -200,7 +201,7 @@ async function loadSession(
   gameId: string
 ): Promise<{ session: ChessSession | null; error?: string }> {
   const { data, error } = await supabase.from('chess_sessions').select('*').eq('game_id', gameId).maybeSingle()
-  if (error) return { session: null, error: error.message }
+  if (error) return { session: null, error: internalErrorMessage('chess', error) }
   return { session: data as ChessSession | null }
 }
 
@@ -522,7 +523,7 @@ export async function removeChessPlayer(
         updated_at: new Date().toISOString(),
       })
       .eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('chess', sessionError) }
 
     await markGameFinished(supabase, gameId)
     const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)

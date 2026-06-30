@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { parseGameType, isCodewordsGame } from '@/lib/game-types'
 import { clampCodewordsTimer } from '@/lib/codewords'
 import { clampLobbyMaxPlayers, fetchGamePlayerLimits } from '@/lib/game-limits'
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     .eq('id', code)
     .select()
     .single()
-  if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+  if (gameError) return NextResponse.json({ error: internalErrorMessage('codewords/timers', gameError) }, { status: 500 })
 
   if (Object.keys(boardUpdate).length > 0) {
     const { data: board } = await supabase.from('codewords_boards').select('id').eq('game_id', code).maybeSingle()

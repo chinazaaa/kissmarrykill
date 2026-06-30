@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { bingoClaimSchema } from '@/lib/validation'
 import { parseGameType, isBingoGame } from '@/lib/game-types'
 import { hasBingoWin } from '@/lib/bingo'
@@ -70,10 +71,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (claimError) return NextResponse.json({ error: claimError.message }, { status: 500 })
+  if (claimError) return NextResponse.json({ error: internalErrorMessage('bingo/claim', claimError) }, { status: 500 })
 
   const { error: gameError } = await markGameFinished(supabase, code)
-  if (gameError) return NextResponse.json({ error: gameError.message }, { status: 500 })
+  if (gameError) return NextResponse.json({ error: internalErrorMessage('bingo/claim', gameError) }, { status: 500 })
 
   return NextResponse.json({ success: true, claim })
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   if (status !== 'all') query = query.eq('status', status)
 
   const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/library', error) }, { status: 500 })
 
   return NextResponse.json({ packs: data })
 }

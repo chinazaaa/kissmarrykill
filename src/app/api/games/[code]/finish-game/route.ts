@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { finishMonopolyGameEarly } from '@/lib/monopoly'
 import { finishAnonymousRoomSession, finishSecretMessageBoard } from '@/lib/anonymous-messages'
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .eq('game_id', gameId)
     .eq('status', 'active')
 
-  if (roundError) return NextResponse.json({ error: roundError.message }, { status: 500 })
+  if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/finish-game', roundError) }, { status: 500 })
 
   if (isAnonymousMessagesGame(gameType)) {
     const { error } = await finishAnonymousRoomSession(admin, gameId)
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   const { error } = await markGameFinished(admin, gameId, now)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('games/code/finish-game', error) }, { status: 500 })
 
   try {
     await awardTournamentPlacements(admin, gameId)

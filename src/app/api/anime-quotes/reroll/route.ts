@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { fetchSingleAnimeQuote } from '@/lib/anime-quotes'
 import { rerollAnimeQuoteSchema } from '@/lib/validation'
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     .eq('id', quoteId)
     .eq('game_id', gameCode)
 
-  if (removeError) return NextResponse.json({ error: removeError.message }, { status: 500 })
+  if (removeError) return NextResponse.json({ error: internalErrorMessage('anime-quotes/reroll', removeError) }, { status: 500 })
 
   try {
     const newQuote = await fetchSingleAnimeQuote()
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
       choices: newQuote.choices,
     })
 
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+    if (insertError) return NextResponse.json({ error: internalErrorMessage('anime-quotes/reroll', insertError) }, { status: 500 })
 
     const { data: pool } = await admin
       .from('anime_quote_pool')
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ quotes: pool ?? [] })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch replacement quote'
+    const message = internalErrorMessage('anime-quotes/reroll', err, 'Failed to fetch replacement quote')
     return NextResponse.json({ error: message }, { status: 502 })
   }
 }

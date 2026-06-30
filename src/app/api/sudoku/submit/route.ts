@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { z } from 'zod'
 import { markGameFinished } from '@/lib/game-finish'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
   if (error) {
     const known = Object.entries(ERROR_STATUS).find(([key]) => error.message.includes(key))
     if (known) return NextResponse.json({ error: known[1].message }, { status: known[1].status })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('sudoku/submit', error) }, { status: 500 })
   }
 
   const result = data as { is_correct: boolean; points_awarded: number; all_solved: boolean }

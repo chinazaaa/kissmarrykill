@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { clearSessionTables } from './session-clear'
 import { markGameFinished } from '@/lib/game-finish'
 import type { YahtzeeCategory, YahtzeeCategoryPoints, YahtzeePlayerScore, YahtzeeSession } from '@/types'
@@ -264,7 +265,7 @@ export async function initializeYahtzeeGame(
   }
 
   const { error: sessionError } = await supabase.from('yahtzee_sessions').insert(sessionRow)
-  if (sessionError) return { error: sessionError.message }
+  if (sessionError) return { error: internalErrorMessage('yahtzee', sessionError) }
 
   const scoreRows: Array<{
     game_id: string
@@ -279,7 +280,7 @@ export async function initializeYahtzeeGame(
   }))
 
   const { error: scoresError } = await supabase.from('yahtzee_player_scores').insert(scoreRows)
-  if (scoresError) return { error: scoresError.message }
+  if (scoresError) return { error: internalErrorMessage('yahtzee', scoresError) }
 
   return {}
 }
@@ -448,10 +449,10 @@ export async function processYahtzeeScore(
       .update({ scores: { categories: nextPoints } })
       .eq('game_id', gameId)
       .eq('player_id', playerId)
-    if (updateScoreError) return { error: updateScoreError.message }
+    if (updateScoreError) return { error: internalErrorMessage('yahtzee', updateScoreError) }
 
     const { error: gameError } = await markGameFinished(supabase, gameId)
-    if (gameError) return { error: gameError.message }
+    if (gameError) return { error: internalErrorMessage('yahtzee', gameError) }
     return {}
   }
 
@@ -466,7 +467,7 @@ export async function processYahtzeeScore(
       .update({ scores: { categories: nextPoints } })
       .eq('game_id', gameId)
       .eq('player_id', playerId)
-    if (updateScoreError) return { error: updateScoreError.message }
+    if (updateScoreError) return { error: internalErrorMessage('yahtzee', updateScoreError) }
     return {}
   }
 
@@ -497,7 +498,7 @@ export async function processYahtzeeScore(
     .update({ scores: { categories: nextPoints } })
     .eq('game_id', gameId)
     .eq('player_id', playerId)
-  if (updateScoreError) return { error: updateScoreError.message }
+  if (updateScoreError) return { error: internalErrorMessage('yahtzee', updateScoreError) }
 
   return {}
 }
@@ -579,7 +580,7 @@ export async function processYahtzeeExpireTurn(
       .update({ scores: { categories: nextPoints } })
       .eq('game_id', gameId)
       .eq('player_id', currentId)
-    if (updateScoreError) return { error: updateScoreError.message }
+    if (updateScoreError) return { error: internalErrorMessage('yahtzee', updateScoreError) }
 
     await markGameFinished(supabase, gameId)
     return {}
@@ -600,7 +601,7 @@ export async function processYahtzeeExpireTurn(
       .update({ scores: { categories: nextPoints } })
       .eq('game_id', gameId)
       .eq('player_id', currentId)
-    if (updateScoreError) return { error: updateScoreError.message }
+    if (updateScoreError) return { error: internalErrorMessage('yahtzee', updateScoreError) }
     return {}
   }
 
@@ -627,7 +628,7 @@ export async function processYahtzeeExpireTurn(
     .update({ scores: { categories: nextPoints } })
     .eq('game_id', gameId)
     .eq('player_id', currentId)
-  if (updateScoreError) return { error: updateScoreError.message }
+  if (updateScoreError) return { error: internalErrorMessage('yahtzee', updateScoreError) }
 
   return {}
 }
@@ -718,7 +719,7 @@ export async function removeYahtzeePlayer(
     }
 
     const { error: sessionError } = await supabase.from('yahtzee_sessions').update(update).eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('yahtzee', sessionError) }
 
     await supabase.from('yahtzee_player_scores').delete().eq('game_id', gameId).eq('player_id', playerId)
     if (finishing) await markGameFinished(supabase, gameId)

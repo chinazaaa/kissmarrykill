@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { anonymousRoomBanSchema, anonymousRoomUnbanSchema } from '@/lib/validation'
 import { parseJsonBody } from '@/lib/parse-body'
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('anonymous-room/bans', error) }, { status: 500 })
 
   return NextResponse.json({ success: true, ban })
 }
@@ -81,7 +82,7 @@ export async function DELETE(req: NextRequest) {
     .eq('game_id', auth.id)
     .eq('player_id', playerId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('anonymous-room/bans', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
 
   const { data: bans, error } = await supabase.from('anonymous_room_bans').select('*').eq('game_id', gameId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('anonymous-room/bans', error) }, { status: 500 })
 
   const active = (bans ?? []).filter((ban) => isPlayerBanned(ban.banned_until))
   return NextResponse.json({ bans: active })

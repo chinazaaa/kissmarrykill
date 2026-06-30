@@ -9,8 +9,15 @@
  * Use this only for *unexpected* failures. Intentional, user-facing validation
  * messages ("Clue is empty", "It's not your team's turn") are safe and should be
  * returned as-is.
+ *
+ * `fallback` overrides the generic line when a more specific (but still safe)
+ * message fits — e.g. "Failed to fetch from Klipy" for an upstream call.
  */
-export function internalErrorMessage(context: string, error: unknown): string {
+export function internalErrorMessage(
+  context: string,
+  error: unknown,
+  fallback = 'Something went wrong. Please try again.'
+): string {
   console.error(`[${context}]`, error)
-  return 'Something went wrong. Please try again.'
+  return fallback
 }

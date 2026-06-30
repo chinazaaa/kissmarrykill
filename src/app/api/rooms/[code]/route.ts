@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { ROOM_PUBLIC_FIELDS, verifyRoomCreator } from '@/lib/room-api'
 import { normalizeRoomDescription, normalizeRoomTimezone } from '@/lib/room-timezones'
@@ -17,7 +18,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ c
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { error } = await admin.from('rooms').delete().eq('id', roomCode)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('rooms/code', error) }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }
@@ -85,7 +86,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     .select(ROOM_PUBLIC_FIELDS)
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('rooms/code', error) }, { status: 500 })
 
   return NextResponse.json({ room })
 }

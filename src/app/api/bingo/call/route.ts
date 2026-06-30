@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { bingoCallSchema } from '@/lib/validation'
 import { parseGameType, isBingoGame } from '@/lib/game-types'
 import { isValidBingoNumber, pickRandomUncalledNumber } from '@/lib/bingo'
@@ -46,6 +47,6 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('bingo/call', error) }, { status: 500 })
   return NextResponse.json({ success: true, called: inserted })
 }

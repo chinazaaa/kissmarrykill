@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { fetchAnimeQuotes } from '@/lib/anime-quotes'
 import { fetchAnimeQuotesSchema } from '@/lib/validation'
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       }))
 
       const { error } = await admin.from('anime_quote_pool').insert(rows)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) return NextResponse.json({ error: internalErrorMessage('anime-quotes', error) }, { status: 500 })
     }
 
     const { data: pool } = await admin
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ quotes: pool ?? [] })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch anime quotes'
+    const message = internalErrorMessage('anime-quotes', err, 'Failed to fetch anime quotes')
     return NextResponse.json({ error: message }, { status: 502 })
   }
 }
@@ -88,7 +89,7 @@ export async function DELETE(req: NextRequest) {
     .eq('id', quoteId)
     .eq('game_id', gameCode)
     .select('id')
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('anime-quotes', error) }, { status: 500 })
   if (!removed || removed.length === 0) {
     return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
   }

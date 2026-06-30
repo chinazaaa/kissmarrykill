@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { clearSessionTables } from './session-clear'
 import { markGameFinished } from '@/lib/game-finish'
 import type {
@@ -340,10 +341,10 @@ export async function finishMonopolyGameEarly(
       updated_at: new Date().toISOString(),
     })
     .eq('game_id', gameId)
-  if (boardError) return { error: boardError.message }
+  if (boardError) return { error: internalErrorMessage('monopoly', boardError) }
 
   const { error: gameError } = await markGameFinished(supabase, gameId)
-  if (gameError) return { error: gameError.message }
+  if (gameError) return { error: internalErrorMessage('monopoly', gameError) }
 
   return { error: null }
 }
@@ -394,7 +395,7 @@ export async function extendMonopolyGameDuration(
   }
 
   const { error: gameError } = await supabase.from('games').update({ game_duration_seconds: next }).eq('id', gameId)
-  if (gameError) return { error: gameError.message }
+  if (gameError) return { error: internalErrorMessage('monopoly', gameError) }
 
   await supabase
     .from('monopoly_boards')
@@ -893,7 +894,7 @@ async function finalizeAuction(
             updated_at: new Date().toISOString(),
           })
           .eq('game_id', gameId)
-        return { error: cashError.message }
+        return { error: internalErrorMessage('monopoly', cashError) }
       }
 
       return {}
@@ -937,7 +938,7 @@ export async function initializeMonopolyGame(
   }))
 
   const { error: stateError } = await supabase.from('monopoly_player_state').insert(stateRows)
-  if (stateError) return { error: stateError.message }
+  if (stateError) return { error: internalErrorMessage('monopoly', stateError) }
 
   const { error: boardError } = await supabase.from('monopoly_boards').insert({
     game_id: gameId,
@@ -949,7 +950,7 @@ export async function initializeMonopolyGame(
     turn_deadline_at: monopolyTurnDeadline(timerSeconds),
     ...defaultBoardFields(),
   })
-  if (boardError) return { error: boardError.message }
+  if (boardError) return { error: internalErrorMessage('monopoly', boardError) }
 
   return { error: null }
 }
@@ -980,13 +981,13 @@ export async function addMonopolyLateJoinPlayer(
     cash: MONOPOLY_STARTING_CASH,
     player_order: playerOrder,
   })
-  if (stateError) return { error: stateError.message }
+  if (stateError) return { error: internalErrorMessage('monopoly', stateError) }
 
   const { error: boardError } = await supabase
     .from('monopoly_boards')
     .update({ turn_order: turnOrder })
     .eq('game_id', gameId)
-  if (boardError) return { error: boardError.message }
+  if (boardError) return { error: internalErrorMessage('monopoly', boardError) }
 
   return { error: null }
 }
@@ -1649,7 +1650,7 @@ export async function processMonopolyAuction(
     .select('id')
     .maybeSingle()
 
-  if (updateError) return { error: updateError.message }
+  if (updateError) return { error: internalErrorMessage('monopoly', updateError) }
   if (!updatedBoard) return { error: 'Auction already ended' }
 
   return {}
@@ -2180,7 +2181,7 @@ export async function processMonopolyTradeRespond(
     .eq('game_id', gameId)
     .eq('player_id', trade.from_player_id)
 
-  if (fromUpdateError) return { error: fromUpdateError.message }
+  if (fromUpdateError) return { error: internalErrorMessage('monopoly', fromUpdateError) }
 
   const { error: toUpdateError } = await supabase
     .from('monopoly_player_state')
@@ -2192,7 +2193,7 @@ export async function processMonopolyTradeRespond(
     .eq('game_id', gameId)
     .eq('player_id', trade.to_player_id)
 
-  if (toUpdateError) return { error: toUpdateError.message }
+  if (toUpdateError) return { error: internalErrorMessage('monopoly', toUpdateError) }
 
   return {}
 }
@@ -2391,14 +2392,14 @@ export async function removeMonopolyPlayer(
   }
 
   const { error: boardError } = await supabase.from('monopoly_boards').update(boardUpdate).eq('game_id', gameId)
-  if (boardError) return { error: boardError.message }
+  if (boardError) return { error: internalErrorMessage('monopoly', boardError) }
 
   const { error: stateError } = await supabase
     .from('monopoly_player_state')
     .delete()
     .eq('game_id', gameId)
     .eq('player_id', playerId)
-  if (stateError) return { error: stateError.message }
+  if (stateError) return { error: internalErrorMessage('monopoly', stateError) }
 
   if (winner) {
     await markGameFinished(supabase, gameId)

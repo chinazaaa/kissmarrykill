@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { ttlGuessSchema } from '@/lib/validation'
 import { parseJsonBody } from '@/lib/parse-body'
 import { parseGameType, isTwoTruthsGame } from '@/lib/game-types'
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     points,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('two-truths/guess', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }
