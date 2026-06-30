@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { getGames } from '@/lib/community-data'
 import { getSupabaseAdmin, hasServiceRoleKey } from '@/lib/supabase-admin'
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
   try {
     return NextResponse.json({ games: await getGames() })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('admin/community/games', err, 'Failed') }, { status: 500 })
   }
 }
 
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
   const sortOrder = existing.reduce((max, g) => Math.max(max, g.sort_order), 0) + 1
 
   const { error } = await supabase.from('community_games').insert({ name, slug, accent, sort_order: sortOrder })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/community/games', error) }, { status: 500 })
   return NextResponse.json({ games: await getGames() })
 }
 
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = getSupabaseAdmin()
   const { error } = await supabase.from('community_games').update(update).eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/community/games', error) }, { status: 500 })
   return NextResponse.json({ games: await getGames() })
 }
 
@@ -104,6 +105,6 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { error } = await supabase.from('community_games').delete().eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/community/games', error) }, { status: 500 })
   return NextResponse.json({ games: await getGames() })
 }

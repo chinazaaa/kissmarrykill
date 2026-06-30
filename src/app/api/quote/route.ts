@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createQuoteSchema } from '@/lib/validation'
 import { parseJsonBody } from '@/lib/parse-body'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     })
     .eq('id', roundId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('quote', error) }, { status: 500 })
 
   return NextResponse.json({ success: true, quoteText, authorParticipantId })
 }

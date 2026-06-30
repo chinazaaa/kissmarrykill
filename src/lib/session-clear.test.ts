@@ -50,10 +50,12 @@ describe('clearSessionTables', () => {
     await clearSessionTables(m.supabase, 'G', ['x'], { resetSpectators: true })
     expect(m.getSpectatorsReset()).toBe(true)
   })
-  it('returns the first error and stops deleting further tables', async () => {
+  it('returns a sanitized error and stops deleting further tables', async () => {
     const m = makeMockSupabase('b')
     const r = await clearSessionTables(m.supabase, 'G', ['a', 'b', 'c'])
-    expect(r.error).toBe('boom')
+    // The raw DB message is never surfaced to the caller (and so the client).
+    expect(r.error).toBeTruthy()
+    expect(r.error).not.toBe('boom')
     expect(m.deletedTables).toEqual(['a', 'b']) // 'c' never attempted
   })
 })

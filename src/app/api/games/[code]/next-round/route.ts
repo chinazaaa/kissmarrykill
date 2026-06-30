@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { parseGameType, isWhoSaidThis, isTriviaGame } from '@/lib/game-types'
 import { hostActionSchema } from '@/lib/validation'
@@ -76,7 +77,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .eq('game_id', gameId)
     .eq('round_number', nextRoundNumber)
     .select('id')
-  if (activateError) return NextResponse.json({ error: activateError.message }, { status: 500 })
+  if (activateError)
+    return NextResponse.json({ error: internalErrorMessage('games/code/next-round', activateError) }, { status: 500 })
   if (!activated || activated.length === 0) {
     return NextResponse.json({ error: 'Next round not found' }, { status: 404 })
   }

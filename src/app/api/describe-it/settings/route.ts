@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseGameType, isDescribeItGame } from '@/lib/game-types'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { describeItSettingsSchema } from '@/lib/validation'
 import {
   clampDescribeItMaxPlayers,
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   if (Object.keys(update).length > 0) {
     const { error } = await supabase.from('games').update(update).eq('id', code)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('describe-it:settings', error) }, { status: 500 })
   }
 
   // If the team count shrank, drop assignments for teams that no longer exist

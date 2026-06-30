@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { parseJsonBody } from '@/lib/parse-body'
 import { createClient } from '@supabase/supabase-js'
 import { updateTournamentSchema } from '@/lib/tournament-validation'
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
     .eq('id', tournamentId)
     .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('tournaments/code', error) }, { status: 500 })
   if (!tournament) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
 
   const [playersRes, gamesRes] = await Promise.all([
@@ -115,7 +116,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
 
   if (Object.keys(updates).length > 0) {
     const { error } = await admin.from('tournaments').update(updates).eq('id', tournamentId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('tournaments/code', error) }, { status: 500 })
   }
 
   // Write the elimination config and re-sync players' lives atomically, so a

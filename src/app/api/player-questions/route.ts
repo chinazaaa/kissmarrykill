@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { z } from 'zod'
 import { parseGameType, isBinaryChoiceGame, isMostLikelyTo, isNeverHaveIEver, isPickANumber } from '@/lib/game-types'
 import { lobbyAllowsPlayerQuestions } from '@/lib/player-question-pool'
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
       .insert({ game_id: upperGameId, player_id: playerId, question_type: 'wyr', option_a: a, option_b: b })
       .select()
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('player-questions', error) }, { status: 500 })
     return NextResponse.json({ question: created })
   }
 
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
     .insert({ game_id: upperGameId, player_id: playerId, question_type: 'mlt', question_text: text })
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('player-questions', error) }, { status: 500 })
   return NextResponse.json({ question: created })
 }
 
@@ -112,7 +113,7 @@ export async function GET(req: NextRequest) {
     .eq('game_id', gameId)
     .order('created_at', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('player-questions', error) }, { status: 500 })
   return NextResponse.json({ questions: data ?? [] })
 }
 
@@ -141,6 +142,6 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { error } = await supabase.from('player_questions').delete().eq('id', questionId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('player-questions', error) }, { status: 500 })
   return NextResponse.json({ success: true })
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { createParticipantSchema, updateParticipantSchema, deleteParticipantSchema } from '@/lib/validation'
 import { parseJsonBody } from '@/lib/parse-body'
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin()
   const { data: created, error } = await admin.from('participants').insert(rows).select()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('participants', error) }, { status: 500 })
 
   return NextResponse.json({ participants: created })
 }
@@ -150,7 +151,7 @@ export async function PATCH(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('participants', error) }, { status: 500 })
 
   if (auth.game!.participant_mode === 'joiners') {
     const { data: player } = await supabase
@@ -206,7 +207,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { error } = await getSupabaseAdmin().from('participants').delete().eq('id', participantId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('participants', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { codewordsRoleSchema } from '@/lib/validation'
 import { parseGameType, isCodewordsGame } from '@/lib/game-types'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -74,6 +75,6 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('codewords/role', error) }, { status: 500 })
   return NextResponse.json({ success: true, role: roleRow })
 }

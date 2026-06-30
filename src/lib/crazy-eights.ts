@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { clearSessionTables } from './session-clear'
 import { markGameFinished } from '@/lib/game-finish'
 import { secondsUntilDeadline } from '@/lib/round-timing'
@@ -484,7 +485,7 @@ export async function initializeCrazyEightsGame(
   }
 
   const { error: sessionError } = await supabase.from('crazy_eights_sessions').insert(sessionRow)
-  if (sessionError) return { error: sessionError.message }
+  if (sessionError) return { error: internalErrorMessage('crazy-eights', sessionError) }
 
   const handRows = turnOrder.map((playerId, index) => ({
     game_id: gameId,
@@ -497,7 +498,7 @@ export async function initializeCrazyEightsGame(
   if (handsError) {
     // Roll back the session row so a failed deal doesn't strand a half-initialized game.
     await supabase.from('crazy_eights_sessions').delete().eq('game_id', gameId)
-    return { error: handsError.message }
+    return { error: internalErrorMessage('crazy-eights', handsError) }
   }
 
   return {}
@@ -1172,7 +1173,7 @@ export async function removeCrazyEightsPlayer(
     }
 
     const { error: sessionError } = await supabase.from('crazy_eights_sessions').update(update).eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('crazy-eights', sessionError) }
 
     await supabase.from('crazy_eights_player_hands').delete().eq('game_id', gameId).eq('player_id', playerId)
     if (finishing) await markGameFinished(supabase, gameId)

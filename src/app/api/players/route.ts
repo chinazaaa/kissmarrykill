@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createPlayerSchema, updatePlayerSchema, deletePlayerSchema } from '@/lib/validation'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { normalizeGender, normalizePlayerGender, type ParticipantGender } from '@/lib/participants'
 import { removeMonopolyPlayer } from '@/lib/monopoly'
 import { removeScrabblePlayer } from '@/lib/scrabble'
@@ -252,7 +253,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     await linkPlayerToRoomMember(supabase, player.id, roomMemberId)
 
@@ -289,7 +290,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     await linkPlayerToRoomMember(supabase, player.id, roomMemberId)
 
@@ -344,7 +345,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     if (gameRow.status === 'waiting' || (gameRow.status === 'active' && !isSpectator)) {
       const { error: cardError } = await createBingoCardForPlayer(getSupabaseAdmin(), gameId, player.id)
@@ -413,7 +414,7 @@ export async function POST(req: NextRequest) {
       if (error.code === '23505') {
         return NextResponse.json({ error: 'That token is already taken — pick another' }, { status: 400 })
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
     }
 
     return jsonPlayerJoin(roomMemberId, player, gameRow as Game)
@@ -458,7 +459,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, gameRow as Game)
   }
@@ -503,7 +504,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, gameRow as Game)
   }
@@ -548,7 +549,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, gameRow as Game)
   }
@@ -593,7 +594,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, gameRow as Game)
   }
@@ -643,7 +644,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     if (gameRow.status === 'active' && !isSpectator) {
       const { role, error: assignError } = await assignCodewordsLateJoinOperative(getSupabaseAdmin(), gameId, player.id)
@@ -695,7 +696,7 @@ export async function POST(req: NextRequest) {
       })
       .select()
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('describe-it:join', error) }, { status: 500 })
 
     // Late joiner as a player → auto-assign to the smallest team so they can play.
     if (gameRow.status === 'active' && !isSpectator) {
@@ -754,7 +755,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, game as Game)
   }
@@ -781,7 +782,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (partError) return NextResponse.json({ error: partError.message }, { status: 500 })
+    if (partError) return NextResponse.json({ error: internalErrorMessage('players', partError) }, { status: 500 })
 
     const { data: player, error: playerError } = await getSupabaseAdmin()
       .from('players')
@@ -798,7 +799,7 @@ export async function POST(req: NextRequest) {
 
     if (playerError) {
       await getSupabaseAdmin().from('participants').delete().eq('id', participant.id)
-      return NextResponse.json({ error: playerError.message }, { status: 500 })
+      return NextResponse.json({ error: internalErrorMessage('players', playerError) }, { status: 500 })
     }
 
     return jsonPlayerJoin(roomMemberId, player, game as Game)
@@ -825,7 +826,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, game as Game)
   }
@@ -871,7 +872,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, game as Game)
   }
@@ -931,7 +932,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     await syncImportParticipantBallot(supabase, id, participantId, gender, identityGender, rawPollGender ?? undefined)
 
@@ -967,7 +968,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (playerError) return NextResponse.json({ error: playerError.message }, { status: 500 })
+    if (playerError) return NextResponse.json({ error: internalErrorMessage('players', playerError) }, { status: 500 })
 
     return jsonPlayerJoin(roomMemberId, player, game as Game)
   }
@@ -994,7 +995,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (partError) return NextResponse.json({ error: partError.message }, { status: 500 })
+    if (partError) return NextResponse.json({ error: internalErrorMessage('players', partError) }, { status: 500 })
 
     const { data: player, error: playerError } = await getSupabaseAdmin()
       .from('players')
@@ -1011,7 +1012,7 @@ export async function POST(req: NextRequest) {
 
     if (playerError) {
       await getSupabaseAdmin().from('participants').delete().eq('id', participant.id)
-      return NextResponse.json({ error: playerError.message }, { status: 500 })
+      return NextResponse.json({ error: internalErrorMessage('players', playerError) }, { status: 500 })
     }
 
     return jsonPlayerJoin(roomMemberId, player, game as Game)
@@ -1083,7 +1084,7 @@ export async function PATCH(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return NextResponse.json({
       playerId: updatedPlayer.id,
@@ -1109,7 +1110,7 @@ export async function PATCH(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     if (player.participant_id) {
       await getSupabaseAdmin().from('participants').update({ name }).eq('id', player.participant_id)
@@ -1140,7 +1141,7 @@ export async function PATCH(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return NextResponse.json({
       playerId: updatedPlayer.id,
@@ -1191,7 +1192,7 @@ export async function PATCH(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
     return NextResponse.json({
       playerId: updatedPlayer.id,
@@ -1314,7 +1315,7 @@ export async function PATCH(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
 
   if (game!.participant_mode === 'joiners' && participant) {
     const partUpdates: { name?: string; gender?: 'male' | 'female' } = {}
@@ -1484,7 +1485,7 @@ export async function DELETE(req: NextRequest) {
     await deleteJoinerPair(getSupabaseAdmin(), id, player)
   } else {
     const { error } = await getSupabaseAdmin().from('players').delete().eq('id', playerId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('players', error) }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

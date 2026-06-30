@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { assertHostGameSettings, assertHostLateJoinSettings } from '@/lib/game-admin'
 import { questionPoolCap } from '@/lib/custom-questions'
@@ -250,7 +251,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     .select(HOST_GAME_SELECT)
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('games/code', error) }, { status: 500 })
 
   return NextResponse.json({ game })
 }

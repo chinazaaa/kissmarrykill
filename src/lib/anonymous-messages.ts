@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { clearSessionTables } from './session-clear'
 import { markGameFinished } from '@/lib/game-finish'
 import type { Game, Player } from '@/types'
@@ -173,7 +174,7 @@ export async function finishAnonymousRoomSession(
   gameId: string
 ): Promise<{ error: string | null }> {
   const { error: gameError } = await markGameFinished(supabase, gameId)
-  if (gameError) return { error: gameError.message }
+  if (gameError) return { error: internalErrorMessage('anonymous-messages', gameError) }
 
   return clearAnonymousRoomSessionData(supabase, gameId)
 }
@@ -184,7 +185,7 @@ export async function finishSecretMessageBoard(
   gameId: string
 ): Promise<{ error: string | null }> {
   const { error: gameError } = await markGameFinished(supabase, gameId)
-  if (gameError) return { error: gameError.message }
+  if (gameError) return { error: internalErrorMessage('anonymous-messages', gameError) }
 
   return clearAnonymousRoomSessionData(supabase, gameId)
 }
@@ -207,7 +208,7 @@ export async function reopenSecretMessageBoard(
     })
     .eq('id', gameId)
 
-  if (gameError) return { error: gameError.message }
+  if (gameError) return { error: internalErrorMessage('anonymous-messages', gameError) }
   return { error: null }
 }
 

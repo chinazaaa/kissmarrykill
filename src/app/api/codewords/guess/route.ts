@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { codewordsGuessSchema } from '@/lib/validation'
 import { parseJsonBody } from '@/lib/parse-body'
 import { parseGameType, isCodewordsGame } from '@/lib/game-types'
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
     if (rpcError.message?.includes('ALREADY_REVEALED')) {
       return NextResponse.json({ error: 'That word is already revealed' }, { status: 400 })
     }
-    return NextResponse.json({ error: rpcError.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('codewords/guess', rpcError) }, { status: 500 })
   }
 
   const updated = (Array.isArray(rpcRows) ? rpcRows[0] : rpcRows) as CodewordsBoard | undefined

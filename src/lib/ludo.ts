@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { clearSessionTables } from './session-clear'
 import { markGameFinished } from '@/lib/game-finish'
 import type { LudoColor, LudoDiceRoll, LudoPiece, LudoPlayerState, LudoSession, Player } from '@/types'
@@ -584,7 +585,7 @@ export async function initializeLudoGame(
   }
 
   const { error: sessionError } = await supabase.from('ludo_sessions').insert(sessionRow)
-  if (sessionError) return { error: sessionError.message }
+  if (sessionError) return { error: internalErrorMessage('ludo', sessionError) }
 
   const stateRows = turnOrder.map((playerId, index) => ({
     game_id: gameId,
@@ -595,7 +596,7 @@ export async function initializeLudoGame(
   }))
 
   const { error: statesError } = await supabase.from('ludo_player_state').insert(stateRows)
-  if (statesError) return { error: statesError.message }
+  if (statesError) return { error: internalErrorMessage('ludo', statesError) }
 
   return {}
 }
@@ -765,7 +766,7 @@ async function persistMove(
     )
   )
   const writeError = writeResults.find((r) => r.error)
-  if (writeError?.error) return { error: writeError.error.message }
+  if (writeError?.error) return { error: internalErrorMessage('ludo', writeError.error) }
 
   // Mark the game over only when this committed claim ended it, so a single
   // winner finalizes.
@@ -1014,7 +1015,7 @@ export async function removeLudoPlayer(
     }
 
     const { error: sessionError } = await supabase.from('ludo_sessions').update(update).eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('ludo', sessionError) }
 
     await supabase.from('ludo_player_state').delete().eq('game_id', gameId).eq('player_id', playerId)
     if (finishing) await markGameFinished(supabase, gameId)

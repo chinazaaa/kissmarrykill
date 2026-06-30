@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { triviaAnswerSchema } from '@/lib/validation'
 import { parseGameType, isTriviaGame } from '@/lib/game-types'
 import { computeTriviaPoints, parseTriviaMetadata, TRIVIA_DEFAULT_TIMER } from '@/lib/trivia'
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('trivia/answer', error) }, { status: 500 })
 
   return NextResponse.json({
     success: true,

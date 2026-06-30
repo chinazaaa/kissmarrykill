@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { isICallOnGame, parseGameType } from '@/lib/game-types'
 import { parseNpatMetadata, isForcedInvalidAnswer, normalizeAnswer, duplicateKeysByCategory } from '@/lib/npat'
 import { npatDisputeSchema } from '@/lib/validation'
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
 
   const newMetadata = { ...(round.npat_metadata as object), disputes: updated }
   const { error } = await supabase.from('rounds').update({ npat_metadata: newMetadata }).eq('id', roundId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('npat/dispute', error) }, { status: 500 })
 
   return NextResponse.json({ success: true, disputed: !alreadyDisputed })
 }
