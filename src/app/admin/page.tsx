@@ -14,8 +14,8 @@ type StatsResponse = {
     finishedGames: number
     activeGames: number
     gamesLast7Days: number
-    averagePlayTimeSeconds: number | null
-    averagePlayTimeSampleCount: number
+    typicalPlayTimeSeconds: number | null
+    typicalPlayTimeSampleCount: number
   }
   gamesByStatus: Record<string, number>
   gamesByType: Record<string, number>
@@ -47,8 +47,8 @@ export default function AdminDashboardPage() {
   if (error) return <p className="text-red-500">{error}</p>
   if (!stats) return null
 
-  const averagePlayTimeLabel =
-    stats.totals.averagePlayTimeSeconds != null ? formatPlayDuration(stats.totals.averagePlayTimeSeconds) : '—'
+  const typicalPlayTimeLabel =
+    stats.totals.typicalPlayTimeSeconds != null ? formatPlayDuration(stats.totals.typicalPlayTimeSeconds) : '—'
 
   const statCards = [
     { label: 'Total games', value: stats.totals.games },
@@ -59,11 +59,11 @@ export default function AdminDashboardPage() {
     { label: 'Finished games', value: stats.totals.finishedGames },
     { label: 'Games (last 7 days)', value: stats.totals.gamesLast7Days },
     {
-      label: 'Avg. time played',
-      value: averagePlayTimeLabel,
+      label: 'Typical time played',
+      value: typicalPlayTimeLabel,
       detail:
-        stats.totals.averagePlayTimeSampleCount > 0
-          ? `Based on ${stats.totals.averagePlayTimeSampleCount.toLocaleString()} finished sessions`
+        stats.totals.typicalPlayTimeSampleCount > 0
+          ? `Median of ${stats.totals.typicalPlayTimeSampleCount.toLocaleString()} finished sessions`
           : 'No finished sessions yet',
     },
   ]

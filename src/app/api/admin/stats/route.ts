@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { computeAveragePlayTime } from '@/lib/admin-play-time'
+import { computeTypicalPlayTime } from '@/lib/admin-play-time'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { getSupabaseAdmin, hasServiceRoleKey } from '@/lib/supabase-admin'
 import type { GameType } from '@/types'
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const averagePlayTime = computeAveragePlayTime(playSessions, latestRoundEndedAtByGame)
+  const typicalPlayTime = computeTypicalPlayTime(playSessions, latestRoundEndedAtByGame)
 
   return NextResponse.json({
     totals: {
@@ -84,8 +84,8 @@ export async function GET(req: NextRequest) {
       finishedGames: finishedGamesRes.count ?? 0,
       activeGames: activeGamesRes.count ?? 0,
       gamesLast7Days: gamesLast7DaysRes.count ?? 0,
-      averagePlayTimeSeconds: averagePlayTime.averageSeconds,
-      averagePlayTimeSampleCount: averagePlayTime.sampleCount,
+      typicalPlayTimeSeconds: typicalPlayTime.typicalSeconds,
+      typicalPlayTimeSampleCount: typicalPlayTime.sampleCount,
     },
     gamesByStatus,
     gamesByType: gamesByType as Partial<Record<GameType | string, number>>,
