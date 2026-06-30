@@ -60,31 +60,38 @@ export async function searchPlayers(q: string, limit = 8): Promise<string[]> {
   return (data ?? []).map((r) => r.display_name as string)
 }
 
-// Per-game winner for a single day (one row per active game; null winner if none recorded).
+// Per-game winners for a single day (one row per active game; empty array if none
+// recorded). A game can be played in multiple rounds, so it may have many winners.
 export async function getDayWinners(dateStr: string): Promise<DailyGameWinner[]> {
   const supabase = getSupabaseAdmin()
   const games = await getGames({ activeOnly: true })
 
   const { data, error } = await supabase
     .from('community_results')
-    .select('game_id, player:community_players(display_name)')
+    .select('game_id, recorded_at, player:community_players(display_name)')
     .eq('result_date', dateStr)
+    .order('recorded_at', { ascending: true })
   if (error) throw error
 
-  const winnerByGame = new Map<string, string>()
+  const winnersByGame = new Map<string, string[]>()
   for (const row of data ?? []) {
     const player = row.player as { display_name: string } | { display_name: string }[] | null
     const name = Array.isArray(player) ? player[0]?.display_name : player?.display_name
-    if (name) winnerByGame.set(row.game_id as string, name)
+    if (!name) continue
+    const list = winnersByGame.get(row.game_id as string) ?? []
+    list.push(name)
+    winnersByGame.set(row.game_id as string, list)
   }
 
   return games.map((game) => ({
     game: { id: game.id, name: game.name, slug: game.slug, accent: game.accent },
-    winnerName: winnerByGame.get(game.id) ?? null,
+    winners: winnersByGame.get(game.id) ?? [],
   }))
 }
 
-export async function upsertResult(gameId: string, dateStr: string, playerName: string): Promise<void> {
+// Add a winner to a game for a day. Multiple winners per game/day are allowed;
+// re-adding the same player for the same game/day is a no-op (idempotent).
+export async function addResult(gameId: string, dateStr: string, playerName: string): Promise<void> {
   const supabase = getSupabaseAdmin()
 
   // Only active games may receive results — otherwise a crafted request could
@@ -98,14 +105,30 @@ export async function upsertResult(gameId: string, dateStr: string, playerName: 
     .from('community_results')
     .upsert(
       { game_id: gameId, result_date: dateStr, player_id: playerId, recorded_by: 'manager' },
-      { onConflict: 'game_id,result_date' }
+      { onConflict: 'game_id,result_date,player_id', ignoreDuplicates: true }
     )
   if (error) throw error
 }
 
-export async function deleteResult(gameId: string, dateStr: string): Promise<void> {
+// Remove a single winner from a game/day. With no playerName, clears every winner
+// recorded for that game on that day.
+export async function deleteResult(gameId: string, dateStr: string, playerName?: string): Promise<void> {
   const supabase = getSupabaseAdmin()
-  const { error } = await supabase.from('community_results').delete().eq('game_id', gameId).eq('result_date', dateStr)
+  let query = supabase.from('community_results').delete().eq('game_id', gameId).eq('result_date', dateStr)
+
+  if (playerName && playerName.trim()) {
+    const normalized = normalizeName(playerName)
+    const { data: player } = await supabase
+      .from('community_players')
+      .select('id')
+      .eq('normalized_name', normalized)
+      .maybeSingle()
+    // Unknown name => nothing recorded for that player; treat as a no-op.
+    if (!player) return
+    query = query.eq('player_id', player.id)
+  }
+
+  const { error } = await query
   if (error) throw error
 }
 
