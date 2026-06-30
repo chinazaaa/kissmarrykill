@@ -125,24 +125,30 @@ function GamesPlayedExplorer() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = useCallback(async (forDate: string) => {
+  const load = useCallback(async (forDate: string, signal: AbortSignal) => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/admin/stats/games?date=${forDate}`, { cache: 'no-store' })
+      const res = await fetch(`/api/admin/stats/games?date=${forDate}`, { cache: 'no-store', signal })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to load')
+      if (signal.aborted) return
       setData(json as GamesByDate)
     } catch (err) {
+      if (signal.aborted) return
       setError(err instanceof Error ? err.message : 'Failed to load')
       setData(null)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load(date)
+    // Abort the previous request when the date changes so a stale response can't
+    // overwrite the counts for the newer selection.
+    const controller = new AbortController()
+    load(date, controller.signal)
+    return () => controller.abort()
   }, [date, load])
 
   const step = (dir: -1 | 1) =>

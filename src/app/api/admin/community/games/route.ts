@@ -89,6 +89,20 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
   const supabase = getSupabaseAdmin()
+
+  // Don't destroy leaderboard history: games with recorded winners can't be
+  // deleted (the FK is ON DELETE RESTRICT). Tell the admin to hide it instead.
+  const { count } = await supabase
+    .from('community_results')
+    .select('id', { count: 'exact', head: true })
+    .eq('game_id', id)
+  if ((count ?? 0) > 0) {
+    return NextResponse.json(
+      { error: 'This game has recorded winners. Hide it (toggle it off) instead of deleting to keep the history.' },
+      { status: 409 }
+    )
+  }
+
   const { error } = await supabase.from('community_games').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ games: await getGames() })

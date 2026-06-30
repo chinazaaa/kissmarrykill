@@ -17,11 +17,13 @@ import {
 // the "Games (last 7 days)" card, which counts by created_at).
 async function countGames(supabase: SupabaseClient, startDate: string, endDate: string): Promise<number> {
   const { gte, lt } = watRangeToUtc(startDate, endDate)
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('games')
     .select('id', { count: 'exact', head: true })
     .gte('created_at', gte)
     .lt('created_at', lt)
+  // Don't mask a failed query as a real "0" — let the handler surface the error.
+  if (error) throw error
   return count ?? 0
 }
 
@@ -39,16 +41,21 @@ export async function GET(req: NextRequest) {
   const month = monthBounds(date)
 
   const supabase = getSupabaseAdmin()
-  const [day, wk, mo] = await Promise.all([
-    countGames(supabase, date, date),
-    countGames(supabase, week.start, week.end),
-    countGames(supabase, month.start, month.end),
-  ])
+  try {
+    const [day, wk, mo] = await Promise.all([
+      countGames(supabase, date, date),
+      countGames(supabase, week.start, week.end),
+      countGames(supabase, month.start, month.end),
+    ])
 
-  return NextResponse.json({
-    date,
-    day: { count: day, label: formatDayLabel(date) },
-    week: { count: wk, label: formatRangeLabel(week.start, week.end) },
-    month: { count: mo, label: formatMonthLabel(date) },
-  })
+    return NextResponse.json({
+      date,
+      day: { count: day, label: formatDayLabel(date) },
+      week: { count: wk, label: formatRangeLabel(week.start, week.end) },
+      month: { count: mo, label: formatMonthLabel(date) },
+    })
+  } catch (err) {
+    console.error('[admin/stats/games] failed', err)
+    return NextResponse.json({ error: 'Failed to load game counts' }, { status: 500 })
+  }
 }

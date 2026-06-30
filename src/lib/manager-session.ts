@@ -13,6 +13,9 @@ const MANAGER_CODE_KEY = 'manager_code_hash'
 
 type SessionPayload = {
   role: 'manager'
+  // Fingerprint of the manager code at issue time. When the admin rotates the
+  // code this changes, so previously-issued tokens stop validating.
+  v: string
   exp: number
 }
 
@@ -60,6 +63,21 @@ export async function hashManagerCode(code: string): Promise<string> {
   return toHex(new Uint8Array(digest))
 }
 
+// A short, non-reversible fingerprint of the stored code hash. Embedded in the
+// session token so rotating the code invalidates already-issued cookies. Derived
+// (not the stored hash itself) so the cookie never carries the hash verbatim.
+async function fingerprintOf(codeHash: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`manager-code-v1:${codeHash}`))
+  return toHex(new Uint8Array(digest)).slice(0, 16)
+}
+
+async function currentCodeFingerprint(): Promise<string | null> {
+  const supabase = getSupabaseAdmin()
+  const { data } = await supabase.from('community_settings').select('value').eq('key', MANAGER_CODE_KEY).maybeSingle()
+  if (!data?.value) return null
+  return fingerprintOf(data.value)
+}
+
 export function managerCookieName(): string {
   return COOKIE_NAME
 }
@@ -69,7 +87,8 @@ export function managerSessionMaxAgeSeconds(): number {
 }
 
 export async function createManagerSessionToken(): Promise<string> {
-  const payload: SessionPayload = { role: 'manager', exp: Date.now() + SESSION_MAX_AGE_MS }
+  const v = (await currentCodeFingerprint()) ?? ''
+  const payload: SessionPayload = { role: 'manager', v, exp: Date.now() + SESSION_MAX_AGE_MS }
   const encoded = toBase64Url(new TextEncoder().encode(JSON.stringify(payload)))
   const signature = await hmacSign(encoded, getSecret())
   return `${encoded}.${signature}`
@@ -88,6 +107,11 @@ export async function verifyManagerSessionToken(token: string | undefined | null
     const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded))) as SessionPayload
     if (payload.role !== 'manager' || typeof payload.exp !== 'number') return null
     if (Date.now() > payload.exp) return null
+
+    // Reject tokens issued under an old code: rotating the code (or clearing it)
+    // changes the fingerprint, which revokes existing manager sessions.
+    const currentV = await currentCodeFingerprint()
+    if (!currentV || payload.v !== currentV) return null
 
     return payload
   } catch {

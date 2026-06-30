@@ -51,6 +51,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response)
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })
+    // Public route — log details server-side but return a generic message so we
+    // don't leak database/internal errors to anonymous callers.
+    console.error('[leaderboard] failed to load', err)
+    return NextResponse.json({ error: 'Failed to load leaderboard' }, { status: 500 })
   }
 }

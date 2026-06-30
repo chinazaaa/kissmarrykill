@@ -86,6 +86,13 @@ export async function getDayWinners(dateStr: string): Promise<DailyGameWinner[]>
 
 export async function upsertResult(gameId: string, dateStr: string, playerName: string): Promise<void> {
   const supabase = getSupabaseAdmin()
+
+  // Only active games may receive results — otherwise a crafted request could
+  // record wins that never show in getDayWinners() but still count in standings.
+  const { data: game } = await supabase.from('community_games').select('is_active').eq('id', gameId).maybeSingle()
+  if (!game) throw new Error('Game not found')
+  if (!game.is_active) throw new Error('This game is not active')
+
   const { id: playerId } = await resolvePlayerId(playerName)
   const { error } = await supabase
     .from('community_results')

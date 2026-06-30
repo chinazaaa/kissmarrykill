@@ -71,7 +71,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  if (gamesRes.error) return NextResponse.json({ error: gamesRes.error.message }, { status: 500 })
+  // Surface a backend failure instead of silently rendering 0/null stats when any
+  // of the count queries error out.
+  const queryError =
+    gamesRes.error ??
+    playersRes.error ??
+    votesRes.error ??
+    finishedGamesRes.error ??
+    activeGamesRes.error ??
+    gamesLast7DaysRes.error ??
+    playSessionsRes.error ??
+    roomsRes.error ??
+    gamesTodayRes.error ??
+    gamesThisMonthRes.error
+  if (queryError) {
+    console.error('[admin/stats] query failed', queryError)
+    return NextResponse.json({ error: 'Failed to load statistics' }, { status: 500 })
+  }
 
   const games = gamesRes.data ?? []
   const gamesByStatus: Record<string, number> = {}

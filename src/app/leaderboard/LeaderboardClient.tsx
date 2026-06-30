@@ -37,24 +37,30 @@ export function LeaderboardClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = useCallback(async (window: LeaderboardWindow, date: string) => {
+  const load = useCallback(async (window: LeaderboardWindow, date: string, signal: AbortSignal) => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/leaderboard?window=${window}&date=${date}`, { cache: 'no-store' })
+      const res = await fetch(`/api/leaderboard?window=${window}&date=${date}`, { cache: 'no-store', signal })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to load')
+      if (signal.aborted) return
       setData(json as LeaderboardResponse)
     } catch (err) {
+      if (signal.aborted) return
       setError(err instanceof Error ? err.message : 'Failed to load')
       setData(null)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load(tab, selectedDate)
+    // Abort the in-flight request when the period/date changes so a stale
+    // response can't resolve last and overwrite the newer selection.
+    const controller = new AbortController()
+    load(tab, selectedDate, controller.signal)
+    return () => controller.abort()
   }, [tab, selectedDate, load])
 
   const step = (dir: -1 | 1) =>
@@ -212,7 +218,11 @@ function StandingsView({ data }: { data: LeaderboardResponse }) {
     )
   }
 
-  const [champion, ...rest] = data.standings
+  // getStandings() shares rank 1 across ties, so there can be more than one champion.
+  const champions = data.standings.filter((s) => s.rank === 1)
+  const rest = data.standings.filter((s) => s.rank !== 1)
+  const joint = champions.length > 1
+  const topWins = champions[0].wins
 
   return (
     <div className="space-y-3 animate-stagger">
@@ -225,11 +235,13 @@ function StandingsView({ data }: { data: LeaderboardResponse }) {
         }}
       >
         <div className="text-4xl mb-1">🥇</div>
-        <p className="text-xs uppercase tracking-widest text-faint">Champion of the {data.window}</p>
-        <p className="text-3xl font-black tracking-tight mt-1">{champion.playerName}</p>
+        <p className="text-xs uppercase tracking-widest text-faint">
+          {joint ? 'Joint champions' : 'Champion'} of the {data.window}
+        </p>
+        <p className="text-3xl font-black tracking-tight mt-1">{champions.map((c) => c.playerName).join(' & ')}</p>
         <p className="text-sm text-muted mt-1">
-          {champion.wins} {champion.wins === 1 ? 'win' : 'wins'}
-          {champion.gamesWon > 1 ? ` · across ${champion.gamesWon} games` : ''}
+          {topWins} {topWins === 1 ? 'win' : 'wins'}
+          {joint ? ' each' : champions[0].gamesWon > 1 ? ` · across ${champions[0].gamesWon} games` : ''}
         </p>
       </div>
 

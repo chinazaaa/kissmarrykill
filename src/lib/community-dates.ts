@@ -11,7 +11,10 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export function isValidDateStr(value: string | null | undefined): value is string {
   if (!value || !DATE_RE.test(value)) return false
   const d = new Date(`${value}T00:00:00Z`)
-  return !Number.isNaN(d.getTime())
+  if (Number.isNaN(d.getTime())) return false
+  // Reject impossible dates that Date silently normalizes (e.g. 2026-02-31 -> Mar 3)
+  // by round-tripping back to a string and requiring an exact match.
+  return d.toISOString().slice(0, 10) === value
 }
 
 // Current calendar date in WAT, as YYYY-MM-DD.

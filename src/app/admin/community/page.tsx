@@ -78,7 +78,7 @@ export default function AdminCommunityPage() {
     const ok = await confirm({
       title: `Delete ${game.name}?`,
       message:
-        'This also removes all recorded winners for this game from the leaderboard. To just hide it, toggle it off instead.',
+        'Games that already have recorded winners can’t be deleted — hide them instead to keep the leaderboard history.',
       confirmLabel: 'Delete',
       destructive: true,
     })
@@ -92,12 +92,30 @@ export default function AdminCommunityPage() {
     }
   }
 
-  const move = (index: number, dir: -1 | 1) => {
-    const other = games[index + dir]
+  const move = async (index: number, dir: -1 | 1) => {
     const current = games[index]
-    if (!other || !current) return
-    patchGame(current.id, { sort_order: other.sort_order })
-    patchGame(other.id, { sort_order: current.sort_order })
+    const other = games[index + dir]
+    if (!current || !other) return
+
+    const swap = (id: string, sort_order: number) =>
+      fetch('/api/admin/community/games', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, sort_order }),
+      }).then((res) => {
+        if (!res.ok) throw new Error('Failed to reorder')
+      })
+
+    try {
+      // Await sequentially (not two fire-and-forget PATCHes) so the writes can't
+      // race, then refresh once from the server as the source of truth.
+      await swap(current.id, other.sort_order)
+      await swap(other.id, current.sort_order)
+    } catch (err) {
+      error(err instanceof Error ? err.message : 'Failed to reorder')
+    } finally {
+      load()
+    }
   }
 
   return (
