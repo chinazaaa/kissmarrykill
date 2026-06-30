@@ -10,9 +10,9 @@ import {
   type ChessAppearanceDefaults,
   type ChessPieceSet,
   type ChessPieceType,
-  pieceGlyph,
   useChessAppearance,
 } from '@/lib/chess-appearance'
+import { ChessPieceIcon } from '@/components/chess/ChessPieceIcon'
 
 /** Format remaining clock ms as m:ss (always reads as a clock, e.g. 10:00, 0:14, 0:05). */
 function formatClock(ms: number): string {
@@ -128,13 +128,13 @@ function CapturedTray({
       </span>
       <div className="flex items-center flex-wrap gap-0.5 leading-none">
         {pieces.map((type, i) => (
-          <span
+          <ChessPieceIcon
             key={`${type}-${i}`}
-            className="text-xl sm:text-2xl leading-none"
-            style={{ color: face.color, textShadow: face.shadow }}
-          >
-            {pieceGlyph(set, glyphColor, type as ChessPieceType)}
-          </span>
+            type={type as ChessPieceType}
+            variant={face.variant}
+            className="h-5 w-5 sm:h-6 sm:w-6"
+            style={{ color: face.color, filter: face.filter }}
+          />
         ))}
       </div>
       {clock}
@@ -145,12 +145,12 @@ function CapturedTray({
 function Piece({ type, color, set }: { type: string; color: ChessColor; set: ChessPieceSet }) {
   const face = color === 'w' ? set.white : set.black
   return (
-    <span
-      className="relative z-10 select-none leading-none text-[9vw] sm:text-[2.9rem] lg:text-[3.5rem]"
-      style={{ color: face.color, textShadow: face.shadow }}
-    >
-      {pieceGlyph(set, color, type as ChessPieceType)}
-    </span>
+    <ChessPieceIcon
+      type={type as ChessPieceType}
+      variant={face.variant}
+      className="relative z-10 select-none w-[82%] h-[82%]"
+      style={{ color: face.color, filter: face.filter }}
+    />
   )
 }
 

@@ -67,7 +67,8 @@ import {
   isSudokuGame,
   isWordHuntGame,
 } from '@/lib/game-types'
-import { BOARD_THEMES, PIECE_SETS, pieceGlyph } from '@/lib/chess-appearance'
+import { BOARD_THEMES, PIECE_SETS } from '@/lib/chess-appearance'
+import { ChessPieceIcon } from '@/components/chess/ChessPieceIcon'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { THIS_OR_THAT_QUESTION_COUNT } from '@/lib/this-or-that-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -1907,13 +1908,19 @@ function CreateGameInner() {
                           ].join(' ')}
                           style={{ backgroundColor: '#b58863' }}
                         >
-                          <span className="leading-none text-xl flex gap-0.5">
-                            <span style={{ color: set.white.color, textShadow: set.white.shadow }}>
-                              {pieceGlyph(set, 'w', 'n')}
-                            </span>
-                            <span style={{ color: set.black.color, textShadow: set.black.shadow }}>
-                              {pieceGlyph(set, 'b', 'n')}
-                            </span>
+                          <span className="leading-none flex gap-0.5">
+                            <ChessPieceIcon
+                              type="n"
+                              variant={set.white.variant}
+                              className="h-6 w-6"
+                              style={{ color: set.white.color, filter: set.white.filter }}
+                            />
+                            <ChessPieceIcon
+                              type="n"
+                              variant={set.black.variant}
+                              className="h-6 w-6"
+                              style={{ color: set.black.color, filter: set.black.filter }}
+                            />
                           </span>
                           <span className="text-[10px] font-semibold text-white/90 leading-none">{set.name}</span>
                         </button>
