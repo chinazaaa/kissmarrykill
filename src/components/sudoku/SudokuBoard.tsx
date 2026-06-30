@@ -102,11 +102,18 @@ export function SudokuBoard({
 
             const cellDisabled = readOnly || given || (canSelectCell ? !canSelectCell(row, col) : false)
 
+            const cellLabel = [
+              `Row ${row + 1}, column ${col + 1}`,
+              given ? `given ${displayValue}` : hasValue ? `value ${displayValue}` : firstSolverId ? 'claimed' : 'empty',
+            ].join(', ')
+
             return (
               <button
                 key={`${row}-${col}`}
                 type="button"
                 disabled={cellDisabled}
+                aria-label={cellLabel}
+                aria-pressed={isSelected || undefined}
                 onClick={() => onCellSelect?.(row, col)}
                 className={[
                   'relative flex items-center justify-center select-none transition-colors',
