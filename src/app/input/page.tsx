@@ -158,7 +158,7 @@ function EntryForm({ onLoggedOut }: { onLoggedOut: () => void }) {
     onLoggedOut()
   }
 
-  const recordedCount = games.filter((g) => g.winnerName).length
+  const recordedCount = games.filter((g) => g.winners.length > 0).length
 
   return (
     <div className="page-wrap flex flex-col items-center px-4 py-10">
@@ -166,7 +166,7 @@ function EntryForm({ onLoggedOut }: { onLoggedOut: () => void }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight gradient-title">Enter scores</h1>
-            <p className="text-muted text-sm mt-1">Record one winner per game for the night.</p>
+            <p className="text-muted text-sm mt-1">Add every winner for each game — games can have more than one.</p>
           </div>
           <button type="button" onClick={logout} className="btn-secondary text-sm px-4 py-2 shrink-0">
             Log out
@@ -236,19 +236,17 @@ function GameRow({
   onToast: { success: (m: string) => void; error: (m: string) => void }
 }) {
   const { confirm } = useConfirm()
-  const [value, setValue] = useState(entry.winnerName ?? '')
+  const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [open, setOpen] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const blurRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => {
-    setValue(entry.winnerName ?? '')
-  }, [entry.winnerName])
-
   const accent = entry.game.accent ?? 'var(--primary)'
-  const dirty = value.trim() !== (entry.winnerName ?? '')
+  const winners = entry.winners
+  // Already-recorded (case-insensitive) so we don't fire a no-op save.
+  const alreadyAdded = winners.some((w) => w.toLowerCase() === value.trim().toLowerCase())
 
   const fetchSuggestions = (q: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -263,9 +261,13 @@ function GameRow({
     }, 180)
   }
 
-  const save = async (name = value) => {
+  const add = async (name = value) => {
     const trimmed = name.trim()
     if (!trimmed) return
+    if (winners.some((w) => w.toLowerCase() === trimmed.toLowerCase())) {
+      onToast.error(`${trimmed} is already a winner of ${entry.game.name}`)
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch('/api/manager/results', {
@@ -276,6 +278,7 @@ function GameRow({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to save')
       onToast.success(`${entry.game.name}: ${trimmed} 🏆`)
+      setValue('')
       onChanged()
     } catch (err) {
       onToast.error(err instanceof Error ? err.message : 'Failed to save')
@@ -285,24 +288,26 @@ function GameRow({
     }
   }
 
-  const clear = async () => {
+  const remove = async (name: string) => {
     const ok = await confirm({
-      title: `Clear ${entry.game.name}?`,
-      message: `Remove ${entry.winnerName} as the winner for this day.`,
-      confirmLabel: 'Clear',
+      title: `Remove ${name}?`,
+      message: `Remove ${name} as a winner of ${entry.game.name} for this day.`,
+      confirmLabel: 'Remove',
       destructive: true,
     })
     if (!ok) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/manager/results?gameId=${entry.game.id}&date=${date}`, { method: 'DELETE' })
+      const res = await fetch(
+        `/api/manager/results?gameId=${entry.game.id}&date=${date}&playerName=${encodeURIComponent(name)}`,
+        { method: 'DELETE' }
+      )
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to clear')
-      setValue('')
-      onToast.success(`${entry.game.name} cleared`)
+      if (!res.ok) throw new Error(data.error ?? 'Failed to remove')
+      onToast.success(`${name} removed from ${entry.game.name}`)
       onChanged()
     } catch (err) {
-      onToast.error(err instanceof Error ? err.message : 'Failed to clear')
+      onToast.error(err instanceof Error ? err.message : 'Failed to remove')
     } finally {
       setSaving(false)
     }
@@ -313,12 +318,34 @@ function GameRow({
       <div className="flex items-center gap-2 mb-3">
         <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: accent }} />
         <span className="font-semibold">{entry.game.name}</span>
-        {entry.winnerName && (
-          <span className="ml-auto text-xs text-faint">
-            current: <span className="text-[var(--foreground)] font-medium">{entry.winnerName}</span>
-          </span>
-        )}
+        <span className="ml-auto text-xs text-faint">
+          {winners.length === 0
+            ? 'no winners yet'
+            : `${winners.length} winner${winners.length === 1 ? '' : 's'}`}
+        </span>
       </div>
+
+      {winners.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {winners.map((name) => (
+            <span
+              key={name}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--chip-active-bg)] py-1 pl-3 pr-1.5 text-sm font-medium"
+            >
+              🏆 {name}
+              <button
+                type="button"
+                onClick={() => remove(name)}
+                disabled={saving}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-faint hover:bg-[var(--card-strong)] hover:text-[var(--foreground)] transition-colors disabled:opacity-50"
+                aria-label={`Remove ${name} from ${entry.game.name}`}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-stretch gap-2">
         <div className="relative flex-1">
@@ -339,10 +366,10 @@ function GameRow({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                save()
+                add()
               }
             }}
-            placeholder="Winner's name"
+            placeholder="Add a winner's name"
             className="input-field w-full"
           />
           {open && suggestions.length > 0 && (
@@ -357,7 +384,7 @@ function GameRow({
                     if (blurRef.current) clearTimeout(blurRef.current)
                     setValue(name)
                     setOpen(false)
-                    save(name)
+                    add(name)
                   }}
                 >
                   {name}
@@ -369,23 +396,12 @@ function GameRow({
 
         <button
           type="button"
-          onClick={() => save()}
-          disabled={saving || !dirty || !value.trim()}
+          onClick={() => add()}
+          disabled={saving || !value.trim() || alreadyAdded}
           className="btn-primary btn-fit px-4 disabled:opacity-50"
         >
-          {saving ? '…' : entry.winnerName ? 'Update' : 'Save'}
+          {saving ? '…' : 'Add'}
         </button>
-        {entry.winnerName && (
-          <button
-            type="button"
-            onClick={clear}
-            disabled={saving}
-            className="btn-secondary px-3 disabled:opacity-50"
-            aria-label={`Clear ${entry.game.name}`}
-          >
-            ✕
-          </button>
-        )}
       </div>
     </div>
   )
