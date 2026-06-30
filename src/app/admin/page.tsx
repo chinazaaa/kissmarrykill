@@ -173,50 +173,54 @@ function GamesPlayedExplorer() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          aria-label="Previous"
-          className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--card)] flex items-center justify-center text-xl leading-none text-muted hover:text-[var(--foreground)] hover:border-[var(--primary)] transition-colors"
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          onClick={() => step(1)}
-          disabled={!canGoNext}
-          aria-label="Next"
-          className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--card)] flex items-center justify-center text-xl leading-none text-muted hover:text-[var(--foreground)] hover:border-[var(--primary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          ›
-        </button>
-        <input
-          type="date"
-          value={date}
-          max={today}
-          onChange={(e) => e.target.value && setDate(e.target.value)}
-          className="input-field py-1.5"
-        />
-        {!isCurrent && (
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setDate(today)}
-            className="text-sm text-[var(--primary)] hover:text-[var(--primary-strong)] font-medium transition-colors"
+            onClick={() => step(-1)}
+            aria-label="Previous"
+            className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--card)] flex items-center justify-center text-xl leading-none text-muted hover:text-[var(--foreground)] hover:border-[var(--primary)] transition-colors"
           >
-            {period === 'day' ? 'Today' : period === 'week' ? 'This week' : 'This month'}
+            ‹
           </button>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            disabled={!canGoNext}
+            aria-label="Next"
+            className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--card)] flex items-center justify-center text-xl leading-none text-muted hover:text-[var(--foreground)] hover:border-[var(--primary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ›
+          </button>
+          <input
+            type="date"
+            value={date}
+            max={today}
+            onChange={(e) => e.target.value && setDate(e.target.value)}
+            className="input-field py-1.5 w-auto"
+          />
+          {!isCurrent && (
+            <button
+              type="button"
+              onClick={() => setDate(today)}
+              className="text-sm text-[var(--primary)] hover:text-[var(--primary-strong)] font-medium transition-colors"
+            >
+              {period === 'day' ? 'Today' : period === 'week' ? 'This week' : 'This month'}
+            </button>
+          )}
+        </div>
+
+        {error ? (
+          <p className="text-red-500 text-sm">{error}</p>
+        ) : (
+          <div>
+            <p className="text-4xl font-black leading-none">
+              {loading || !current ? '—' : current.count.toLocaleString()}
+            </p>
+            <p className="text-muted text-sm mt-1">games played · {current ? current.label : '…'}</p>
+          </div>
         )}
       </div>
-
-      {error ? (
-        <p className="text-red-500 text-sm">{error}</p>
-      ) : (
-        <div>
-          <p className="text-4xl font-black">{loading || !current ? '—' : current.count.toLocaleString()}</p>
-          <p className="text-muted text-sm mt-1">games played · {current ? current.label : '…'}</p>
-        </div>
-      )}
     </div>
   )
 }
