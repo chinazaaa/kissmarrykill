@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { LiveKitRoom, RoomAudioRenderer, useLocalParticipant, useParticipants } from '@livekit/components-react'
 import { useToast } from '@/components/ui/Toast'
 
@@ -26,10 +26,47 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL
+  // Dynamic Room Resolution: Resolve parent room code if game belongs to a room
+  const [resolvedRoomCode, setResolvedRoomCode] = useState<string>(roomCode)
 
+  // Cross-tab Synchronization States
+  const [myTabId] = useState(() => Math.random().toString(36).substring(2))
+  const [activeTabId, setActiveTabId] = useState<string | null>(null)
+
+  const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL
+  const joinAudioRef = useRef<() => Promise<void>>(null)
+
+  // 1. Resolve room code dynamically if this is a game linked to a persistent room
+  useEffect(() => {
+    let active = true
+
+    const fallbackRoomCode = roomCode
+    setResolvedRoomCode(fallbackRoomCode)
+
+    async function resolveRoom() {
+      try {
+        const res = await fetch(`/api/games/${encodeURIComponent(fallbackRoomCode.toUpperCase())}/room`)
+        if (!active) return
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.roomCode) {
+            setResolvedRoomCode(data.roomCode)
+          }
+        }
+      } catch (err) {
+        if (active) setResolvedRoomCode(fallbackRoomCode)
+      }
+    }
+    resolveRoom()
+    return () => {
+      active = false
+    }
+  }, [roomCode])
+
+  // 2. Join voice chat handler
   const joinAudio = async () => {
-    if (!roomCode || !playerName) return
+    if (!resolvedRoomCode || !playerName) return
     setIsConnecting(true)
     setError(null)
     try {
@@ -37,7 +74,7 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          roomName: roomCode.toUpperCase(),
+          roomName: resolvedRoomCode.toUpperCase(),
           identity: identity || playerName,
           name: playerName,
           auth,
@@ -50,17 +87,103 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
       const data = await res.json()
       setToken(data.token)
       setIsOpen(true)
+
+      // Persist call state in local storage (valid for 4 hours)
+      localStorage.setItem(
+        `fateround_voice_${resolvedRoomCode.toUpperCase()}`,
+        JSON.stringify({ active: true, timestamp: Date.now() })
+      )
+
+      // Broadcast claim to other tabs
+      const bc = new BroadcastChannel('fateround-audio-chat')
+      bc.postMessage({ type: 'claim_voice', roomCode: resolvedRoomCode.toUpperCase(), tabId: myTabId })
+      bc.close()
+
+      setActiveTabId(myTabId)
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to join voice chat')
     } finally {
       setIsConnecting(false)
     }
   }
+  joinAudioRef.current = joinAudio
 
-  const leaveAudio = () => {
+  // 3. Leave voice chat handler
+  const leaveAudio = (manual = true) => {
     setToken(null)
     setIsOpen(false)
+    if (manual) {
+      localStorage.removeItem(`fateround_voice_${resolvedRoomCode.toUpperCase()}`)
+      const bc = new BroadcastChannel('fateround-audio-chat')
+      bc.postMessage({ type: 'voice_disconnected', roomCode: resolvedRoomCode.toUpperCase(), tabId: myTabId })
+      bc.close()
+      setActiveTabId(null)
+    }
   }
+
+  // 4. Cross-tab communication listener (BroadcastChannel)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const resolvedCodeUpper = resolvedRoomCode.toUpperCase()
+    const bc = new BroadcastChannel('fateround-audio-chat')
+
+    const handleMessage = (e: MessageEvent) => {
+      const msg = e.data
+      if (!msg || msg.roomCode !== resolvedCodeUpper) return
+
+      if (msg.type === 'claim_voice' && msg.tabId !== myTabId) {
+        // Disconnect if another tab claimed voice chat
+        if (token) {
+          leaveAudio(false)
+        }
+        setActiveTabId(msg.tabId)
+      } else if (msg.type === 'voice_query') {
+        if (token) {
+          bc.postMessage({
+            type: 'voice_active',
+            roomCode: resolvedCodeUpper,
+            tabId: myTabId,
+            activeTabId: myTabId,
+          })
+        }
+      } else if (msg.type === 'voice_active') {
+        setActiveTabId(msg.activeTabId)
+      } else if (msg.type === 'voice_disconnected' && msg.tabId === activeTabId) {
+        setActiveTabId(null)
+      }
+    }
+
+    bc.addEventListener('message', handleMessage)
+    bc.postMessage({ type: 'voice_query', roomCode: resolvedCodeUpper, tabId: myTabId })
+
+    return () => {
+      bc.removeEventListener('message', handleMessage)
+      bc.close()
+    }
+  }, [resolvedRoomCode, myTabId, token, activeTabId])
+
+  // 5. Auto-reconnect persistence loop
+  useEffect(() => {
+    if (token || isConnecting || activeTabId) return
+    const resolvedCodeUpper = resolvedRoomCode.toUpperCase()
+
+    const timeout = window.setTimeout(() => {
+      const stored = localStorage.getItem(`fateround_voice_${resolvedCodeUpper}`)
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          // Auto-reconnect if session was active within 4 hours and no tab claimed it.
+          if (parsed.active && Date.now() - parsed.timestamp < 4 * 60 * 60 * 1000) {
+            void joinAudioRef.current?.()
+          }
+        } catch (err) {
+          // ignore
+        }
+      }
+    }, 300)
+
+    return () => window.clearTimeout(timeout)
+  }, [resolvedRoomCode, activeTabId, token, isConnecting])
 
   if (!serverUrl) {
     return (
@@ -70,25 +193,32 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
     )
   }
 
+  const isAnotherTabActive = activeTabId && activeTabId !== myTabId
+
   return (
     <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-2">
-      {/* Floating voice-chat control — a compact round icon so it stays out of the
-       * way during play (offset up so it clears the feedback button). */}
+      {/* Floating Join/Leave Button */}
       {!token ? (
-        <button
-          data-audio-chat-trigger
-          onClick={joinAudio}
-          disabled={isConnecting}
-          title="Join voice chat"
-          aria-label="Join voice chat"
-          className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all duration-150 disabled:opacity-70"
-        >
-          {isConnecting ? (
-            <span className="inline-block w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-          ) : (
+        isAnotherTabActive ? (
+          <button
+            onClick={joinAudio}
+            disabled={isConnecting}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-body border border-theme font-semibold text-xs shadow-lg active:scale-95 transition-all duration-150"
+            title="Voice chat is running in another tab. Click to switch audio here."
+          >
+            <span>🔊</span>
+            {isConnecting ? 'Transferring...' : 'Voice active elsewhere (Switch here)'}
+          </button>
+        ) : (
+          <button
+            onClick={joinAudio}
+            disabled={isConnecting}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-lg shadow-emerald-950/20 active:scale-95 transition-all duration-150"
+          >
             <span>🎙️</span>
-          )}
-        </button>
+            {isConnecting ? 'Connecting...' : 'Join Voice'}
+          </button>
+        )
       ) : (
         <div className="flex gap-2">
           <button
@@ -112,10 +242,7 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
         </div>
       )}
 
-      {/* Voice Chat Control Panel — the LiveKitRoom stays mounted whenever a
-       * token exists so the call keeps running while minimized. The ❌ toggle
-       * only flips `isOpen`, which hides the panel UI without tearing down the
-       * connection; Disconnect is the single way to actually leave the room. */}
+      {/* Voice Chat Control Panel */}
       {token && (
         <LiveKitRoom
           video={false}
@@ -123,7 +250,7 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
           token={token}
           serverUrl={serverUrl}
           connect={true}
-          onDisconnected={leaveAudio}
+          onDisconnected={() => leaveAudio(false)}
           className={isOpen ? 'glass-card-strong w-72 p-4 shadow-xl flex flex-col gap-3 max-h-87.5' : 'hidden'}
         >
           <RoomAudioRenderer />
@@ -135,7 +262,7 @@ export function AudioChat({ roomCode, playerName, identity, auth }: AudioChatPro
                   <h3 className="text-sm font-bold text-body">Voice Chat</h3>
                 </div>
                 <button
-                  onClick={leaveAudio}
+                  onClick={() => leaveAudio(true)}
                   className="text-xs text-red-500 hover:text-red-400 font-semibold px-2 py-0.5 rounded hover:bg-red-500/10 transition-colors"
                 >
                   Disconnect
@@ -154,9 +281,6 @@ interface AudioChatInnerProps {
   localPlayerName: string
 }
 
-/** The host joins with a `host-` prefixed LiveKit identity (see
- * HostAudioWrapper); players/members use server-generated UUIDs, so this
- * prefix uniquely marks the host. */
 function isHostIdentity(identity?: string): boolean {
   return !!identity?.startsWith('host-')
 }
