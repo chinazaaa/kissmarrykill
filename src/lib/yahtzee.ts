@@ -190,7 +190,7 @@ function shuffle<T>(items: T[]): T[] {
   const next = [...items]
   for (let i = next.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[next[i], next[j]] = [next[j], next[i]]
+      ;[next[i], next[j]] = [next[j], next[i]]
   }
   return next
 }
@@ -724,11 +724,11 @@ export async function removeYahtzeePlayer(
     await supabase.from('yahtzee_player_scores').delete().eq('game_id', gameId).eq('player_id', playerId)
     if (finishing) await markGameFinished(supabase, gameId)
     const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
-    return { error: error?.message ?? null }
+    return { error: error ? internalErrorMessage('yahtzee', error) : null }
   }
 
   // Lobby, spectator, already-finished, or not in the turn order — just drop their scores + row.
   await supabase.from('yahtzee_player_scores').delete().eq('game_id', gameId).eq('player_id', playerId)
   const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
-  return { error: error?.message ?? null }
+  return { error: error ? internalErrorMessage('yahtzee', error) : null }
 }
