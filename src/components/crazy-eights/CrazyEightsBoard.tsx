@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { CrazyEightsCard as CrazyEightsCardType, CrazyEightsCalledSuit, CrazyEightsSuit } from '@/types'
 import {
   CRAZY8_SUITS,
@@ -19,6 +20,9 @@ import {
   CrazyEightsTurnBar,
 } from '@/components/crazy-eights/CrazyEightsChrome'
 import { CrazyEightsSuitIcon } from '@/components/crazy-eights/CrazyEightsSuitIcon'
+
+/** Cards shown in the hand before it collapses behind a "+N more" toggle. */
+const HAND_DISPLAY_LIMIT = 10
 
 /**
  * Card-face gradients per suit. Classic playing-card look: clean light faces so the
@@ -322,6 +326,7 @@ export function CrazyEightsHand({
   rules?: CrazyEightsRules
 }) {
   const crazyEightsRules = rules ?? parseCrazyEightsRules(null)
+  const [expanded, setExpanded] = useState(false)
   if (cards.length === 0) {
     return (
       <CrazyEightsCardShell className="p-4 text-center text-sm text-muted">
@@ -330,21 +335,45 @@ export function CrazyEightsHand({
     )
   }
 
+  const decorated = cards.map((card) => ({
+    card,
+    playable: canPlayCard(card, session, crazyEightsRules) && session.phase === 'playing',
+  }))
+  // A big hand makes the page very tall, so collapse it past a limit. The visible set
+  // keeps the first N cards AND every playable card — so you never have to expand to make
+  // a move; only extra non-playable cards get tucked behind the "+N more" toggle.
+  const canCollapse = decorated.length > HAND_DISPLAY_LIMIT
+  let visible = decorated
+  if (canCollapse && !expanded) {
+    const shown = new Set(decorated.slice(0, HAND_DISPLAY_LIMIT).map((d) => d.card.id))
+    for (const d of decorated) if (d.playable) shown.add(d.card.id)
+    visible = decorated.filter((d) => shown.has(d.card.id))
+  }
+  const hiddenCount = decorated.length - visible.length
+
   return (
     <CrazyEightsCardShell className="p-4">
-      <p className="text-xs font-semibold text-muted mb-3 uppercase tracking-wide">Your hand</p>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-muted uppercase tracking-wide">Your hand · {cards.length}</p>
+        {canCollapse && (expanded || hiddenCount > 0) && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="rounded-full border border-(--border-strong) bg-(--surface-inset-bg) px-3 py-1 text-xs font-semibold text-muted hover:bg-(--primary)/10"
+          >
+            {expanded ? 'Show less' : `+${hiddenCount} more`}
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2 justify-center">
-        {cards.map((card) => {
-          const playable = canPlayCard(card, session, crazyEightsRules) && session.phase === 'playing'
-          return (
-            <CrazyEightsPlayingCard
-              key={card.id}
-              card={card}
-              playable={playable}
-              onClick={playable && !acting ? () => onPlay(card.id) : undefined}
-            />
-          )
-        })}
+        {visible.map(({ card, playable }) => (
+          <CrazyEightsPlayingCard
+            key={card.id}
+            card={card}
+            playable={playable}
+            onClick={playable && !acting ? () => onPlay(card.id) : undefined}
+          />
+        ))}
       </div>
     </CrazyEightsCardShell>
   )
