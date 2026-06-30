@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseGameType, isDescribeItGame } from '@/lib/game-types'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { balanceDescribeItTeams, clampDescribeItTeams } from '@/lib/describe-it'
 import { describeItBalanceSchema } from '@/lib/validation'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   const rows = [...assignment.entries()].map(([player_id, team]) => ({ game_id: code, player_id, team }))
   if (rows.length > 0) {
     const { error } = await supabase.from('describe_it_players').upsert(rows, { onConflict: 'game_id,player_id' })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('describe-it:balance', error) }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

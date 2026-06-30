@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { markGameFinished } from '@/lib/game-finish'
 import type { DescribeItMode, DescribeItSession, DescribeItWord, Game } from '@/types'
 import { DESCRIBE_IT_WORD_POOL, parseStoredDescribeItWords, pickDescribeWord } from '@/lib/describe-it-words'
@@ -280,7 +281,7 @@ export async function assignDescribeItLateJoinTeam(
   const { error } = await supabase
     .from('describe_it_players')
     .upsert({ game_id: gameId, player_id: playerId, team: smallest }, { onConflict: 'game_id,player_id' })
-  if (error) return { team: smallest, error: error.message }
+  if (error) return { team: smallest, error: internalErrorMessage('describe-it:assignLateJoinTeam', error) }
   return { team: smallest }
 }
 
@@ -308,7 +309,7 @@ async function loadSession(
   gameId: string
 ): Promise<{ session: DescribeItSession | null; error?: string }> {
   const { data, error } = await supabase.from('describe_it_sessions').select('*').eq('game_id', gameId).maybeSingle()
-  if (error) return { session: null, error: error.message }
+  if (error) return { session: null, error: internalErrorMessage('describe-it:loadSession', error) }
   return { session: data as DescribeItSession | null }
 }
 
@@ -408,7 +409,7 @@ export async function initializeDescribeItGame(
     const { error: seedError } = await supabase
       .from('describe_it_players')
       .upsert(rows, { onConflict: 'game_id,player_id' })
-    if (seedError) return { error: seedError.message }
+    if (seedError) return { error: internalErrorMessage('describe-it:initialize:seed', seedError) }
   } else {
     // Auto-assign any joined players who never picked a team onto the smallest
     // teams, so a player who skipped team selection isn't silently excluded.
@@ -422,7 +423,7 @@ export async function initializeDescribeItGame(
       const { error: assignError } = await supabase
         .from('describe_it_players')
         .upsert(newRows, { onConflict: 'game_id,player_id' })
-      if (assignError) return { error: assignError.message }
+      if (assignError) return { error: internalErrorMessage('describe-it:initialize:assign', assignError) }
     }
     const teamRows = newRows.length > 0 ? await loadTeamRows(supabase, gameId) : existingRows
     const ready = describeItLobbyReady(teamRows, numTeams)
@@ -478,7 +479,7 @@ export async function initializeDescribeItGame(
   const { error } = existing
     ? await supabase.from('describe_it_sessions').update(row).eq('game_id', gameId)
     : await supabase.from('describe_it_sessions').insert({ ...row, game_id: gameId })
-  if (error) return { error: error.message }
+  if (error) return { error: internalErrorMessage('describe-it:initialize:session', error) }
   return {}
 }
 
@@ -540,7 +541,7 @@ export async function processDescribeItClue(
     .eq('game_id', gameId)
     .eq('phase', 'turn')
     .eq('turn_index', working.turn_index)
-  if (updateError) return { error: updateError.message }
+  if (updateError) return { error: internalErrorMessage('describe-it:clue', updateError) }
   return {}
 }
 
@@ -861,7 +862,7 @@ export async function processDescribeItExpireTurn(
     .eq('game_id', gameId)
     .eq('phase', 'turn')
     .eq('turn_index', session.turn_index)
-  if (updateError) return { error: updateError.message }
+  if (updateError) return { error: internalErrorMessage('describe-it:expireTurn', updateError) }
   return {}
 }
 
@@ -939,7 +940,7 @@ export async function processDescribeItAdvance(
       .eq('phase', 'break')
       .eq('turn_index', session.turn_index)
       .select('id')
-    if (finishError) return { error: finishError.message }
+    if (finishError) return { error: internalErrorMessage('describe-it:advance:finish', finishError) }
     if (finished && finished.length > 0) await markGameFinished(supabase, gameId)
     return {}
   }
@@ -959,7 +960,7 @@ export async function processDescribeItAdvance(
     .eq('game_id', gameId)
     .eq('phase', 'break')
     .eq('turn_index', session.turn_index)
-  if (updateError) return { error: updateError.message }
+  if (updateError) return { error: internalErrorMessage('describe-it:advance', updateError) }
   return {}
 }
 

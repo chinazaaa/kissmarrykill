@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseGameType, isDescribeItGame } from '@/lib/game-types'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { describeItTeamSchema } from '@/lib/validation'
 import { clampDescribeItTeams } from '@/lib/describe-it'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase
     .from('describe_it_players')
     .upsert({ game_id: code, player_id: targetPlayerId, team }, { onConflict: 'game_id,player_id' })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('describe-it:team', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }
