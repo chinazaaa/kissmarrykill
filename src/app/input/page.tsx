@@ -298,10 +298,12 @@ function GameRow({
     if (!ok) return
     setSaving(true)
     try {
-      const res = await fetch(
-        `/api/manager/results?gameId=${entry.game.id}&date=${date}&playerName=${encodeURIComponent(name)}`,
-        { method: 'DELETE' }
-      )
+      const params = new URLSearchParams({
+        gameId: String(entry.game.id),
+        date,
+        playerName: name,
+      })
+      const res = await fetch(`/api/manager/results?${params.toString()}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to remove')
       onToast.success(`${name} removed from ${entry.game.name}`)

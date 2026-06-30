@@ -184,7 +184,7 @@ function TodayView({ data }: { data: LeaderboardResponse }) {
           <div
             key={entry.game.id}
             className="glass-card p-5 relative overflow-hidden"
-            style={{ borderColor: hasWinners ? `${accent}40` : undefined }}
+            style={{ borderColor: hasWinners ? `color-mix(in srgb, ${accent} 25%, transparent)` : undefined }}
           >
             <div
               className="absolute inset-x-0 top-0 h-1"
