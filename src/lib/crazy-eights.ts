@@ -664,7 +664,7 @@ async function finishByLowestHand(
  * clock, so a fast/skewed/throttled tab (or a dropped request) lets turns keep advancing
  * past time while the display reads 0:00. Every turn-processing path runs this first, using
  * the server clock — so the next turn poke or move after the buzzer finalizes the game by
- * lowest hand. Returns true when it ended the game (caller should stop).
+ * lowest hand. Returns true only when it actually ended the game (caller should stop).
  */
 async function finalizeIfGameExpired(
   supabase: SupabaseClient,
@@ -677,8 +677,10 @@ async function finalizeIfGameExpired(
 ): Promise<boolean> {
   if (session.phase === 'finished') return false
   if (!crazyEightsGameSessionExpired(sessionStartedAt, gameDurationSeconds)) return false
-  await finishByLowestHand(supabase, gameId, session, hands, playerNames, "Time's up!")
-  return true
+  // Return the CAS result, not an unconditional true: a lost claim means a concurrent
+  // in-flight write won, so we did NOT finalize and the caller must not report "time's up".
+  // The next turn poke re-evaluates from fresh state and finalizes then.
+  return finishByLowestHand(supabase, gameId, session, hands, playerNames, "Time's up!")
 }
 
 /**
@@ -803,15 +805,17 @@ export async function processCrazyEightsPlay(
     await loadGameState(supabase, gameId)
   if (!session) return { error: 'Session not found' }
   if (session.phase === 'finished') return { error: 'Game is finished' }
-  if (session.phase === 'choose_suit') return { error: 'Choose a suit first' }
 
   // The buzzer wins ties with a player's move: once the game clock is spent, no further
-  // card may be played — finalize by lowest hand instead.
+  // card may be played — finalize by lowest hand instead. Run before the phase check so an
+  // expired game still ends even if the request arrives in the "wrong" phase.
   if (
     await finalizeIfGameExpired(supabase, gameId, session, hands, playerNames, sessionStartedAt, gameDurationSeconds)
   ) {
     return { error: "Time's up — the game has ended" }
   }
+
+  if (session.phase === 'choose_suit') return { error: 'Choose a suit first' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
@@ -906,15 +910,17 @@ export async function processCrazyEightsDraw(
     await loadGameState(supabase, gameId)
   if (!session) return { error: 'Session not found' }
   if (session.phase === 'finished') return { error: 'Game is finished' }
-  if (session.phase === 'choose_suit') return { error: 'Choose a suit first' }
 
   // The buzzer wins ties with a player's move: once the game clock is spent, no further
-  // draw may happen — finalize by lowest hand instead.
+  // draw may happen — finalize by lowest hand instead. Run before the phase check so an
+  // expired game still ends even if the request arrives in the "wrong" phase.
   if (
     await finalizeIfGameExpired(supabase, gameId, session, hands, playerNames, sessionStartedAt, gameDurationSeconds)
   ) {
     return { error: "Time's up — the game has ended" }
   }
+
+  if (session.phase === 'choose_suit') return { error: 'Choose a suit first' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
@@ -1018,15 +1024,17 @@ export async function processCrazyEightsChoose(
     gameId
   )
   if (!session) return { error: 'Session not found' }
-  if (session.phase !== 'choose_suit') return { error: 'Not choosing a suit' }
 
   // The buzzer wins ties with a player's move: once the game clock is spent, finalize by
-  // lowest hand instead of resolving the suit call.
+  // lowest hand instead of resolving the suit call. Run before the phase check so an
+  // expired game still ends even if the request arrives in the "wrong" phase.
   if (
     await finalizeIfGameExpired(supabase, gameId, session, hands, playerNames, sessionStartedAt, gameDurationSeconds)
   ) {
     return { error: "Time's up — the game has ended" }
   }
+
+  if (session.phase !== 'choose_suit') return { error: 'Not choosing a suit' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }

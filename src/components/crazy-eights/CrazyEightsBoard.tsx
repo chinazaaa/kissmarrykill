@@ -296,9 +296,7 @@ export function CrazyEightsStandings({
     <div className="space-y-3">
       {activePlayers.length > 0 && (
         <div className="space-y-2">
-          {watchingPlayers.length > 0 && (
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Still playing</p>
-          )}
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Still playing</p>
           <div className={`grid ${gridClassName} gap-2`}>{activePlayers.map((p) => renderPlayerRow(p, false))}</div>
         </div>
       )}

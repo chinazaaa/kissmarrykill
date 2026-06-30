@@ -639,7 +639,7 @@ async function finishWhotByLowestHand(
  * so a fast/skewed/throttled tab (or a dropped request) lets turns keep advancing past
  * time while the display reads 0:00. Every turn-processing path runs this first, using the
  * server clock — so the next turn poke or move after the buzzer finalizes the game by
- * lowest hand. Returns true when it ended the game (caller should stop).
+ * lowest hand. Returns true only when it actually ended the game (caller should stop).
  */
 async function finalizeIfGameExpired(
   supabase: SupabaseClient,
@@ -652,8 +652,10 @@ async function finalizeIfGameExpired(
 ): Promise<boolean> {
   if (session.phase === 'finished') return false
   if (!whotGameSessionExpired(sessionStartedAt, gameDurationSeconds)) return false
-  await finishWhotByLowestHand(supabase, gameId, session, hands, playerNames, "Time's up!")
-  return true
+  // Return the CAS result, not an unconditional true: a lost claim means a concurrent
+  // in-flight write won, so we did NOT finalize and the caller must not report "time's up".
+  // The next turn poke re-evaluates from fresh state and finalizes then.
+  return finishWhotByLowestHand(supabase, gameId, session, hands, playerNames, "Time's up!")
 }
 
 /**
@@ -810,15 +812,17 @@ export async function processWhotPlay(
     await loadGameState(supabase, gameId)
   if (!session) return { error: 'Session not found' }
   if (session.phase === 'finished') return { error: 'Game is finished' }
-  if (session.phase === 'choose_whot') return { error: 'Choose WHOT shape or number first' }
 
   // The buzzer wins ties with a player's move: once the game clock is spent, no further
-  // card may be played — finalize by lowest hand instead.
+  // card may be played — finalize by lowest hand instead. Run before the phase check so an
+  // expired game still ends even if the request arrives in the "wrong" phase.
   if (
     await finalizeIfGameExpired(supabase, gameId, session, hands, playerNames, sessionStartedAt, gameDurationSeconds)
   ) {
     return { error: "Time's up — the game has ended" }
   }
+
+  if (session.phase === 'choose_whot') return { error: 'Choose WHOT shape or number first' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
@@ -936,15 +940,17 @@ export async function processWhotDraw(
     await loadGameState(supabase, gameId)
   if (!session) return { error: 'Session not found' }
   if (session.phase === 'finished') return { error: 'Game is finished' }
-  if (session.phase === 'choose_whot') return { error: 'Choose WHOT shape or number first' }
 
   // The buzzer wins ties with a player's move: once the game clock is spent, no further
-  // draw may happen — finalize by lowest hand instead.
+  // draw may happen — finalize by lowest hand instead. Run before the phase check so an
+  // expired game still ends even if the request arrives in the "wrong" phase.
   if (
     await finalizeIfGameExpired(supabase, gameId, session, hands, playerNames, sessionStartedAt, gameDurationSeconds)
   ) {
     return { error: "Time's up — the game has ended" }
   }
+
+  if (session.phase === 'choose_whot') return { error: 'Choose WHOT shape or number first' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
@@ -1043,15 +1049,17 @@ export async function processWhotChoose(
   const { session, hands, timerSeconds, gameDurationSeconds, sessionStartedAt, rules, playerNames } =
     await loadGameState(supabase, gameId)
   if (!session) return { error: 'Session not found' }
-  if (session.phase !== 'choose_whot') return { error: 'Not choosing WHOT' }
 
   // The buzzer wins ties with a player's move: once the game clock is spent, finalize by
-  // lowest hand instead of resolving the WHOT call.
+  // lowest hand instead of resolving the WHOT call. Run before the phase check so an
+  // expired game still ends even if the request arrives in the "wrong" phase.
   if (
     await finalizeIfGameExpired(supabase, gameId, session, hands, playerNames, sessionStartedAt, gameDurationSeconds)
   ) {
     return { error: "Time's up — the game has ended" }
   }
+
+  if (session.phase !== 'choose_whot') return { error: 'Not choosing WHOT' }
 
   const currentId = currentPlayerId(session)
   if (currentId !== playerId) return { error: 'Not your turn' }
