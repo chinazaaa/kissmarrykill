@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const auth = await assertPlayer(supabase, code, resumeToken)
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const { error, correct } = await processDescribeItGuess(supabase, code, auth.player.id, text)
-  if (error) return NextResponse.json({ error }, { status: 400 })
+  const { error, correct, internal } = await processDescribeItGuess(supabase, code, auth.player.id, text)
+  if (error) return NextResponse.json({ error }, { status: internal ? 500 : 400 })
   return NextResponse.json({ success: true, correct: !!correct })
 }

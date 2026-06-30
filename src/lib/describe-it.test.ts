@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { describerForIndividualTurn, nextIndividualDescriberIndex } from './describe-it'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { describerForIndividualTurn, nextIndividualDescriberIndex, processDescribeItAdvance } from './describe-it'
 
 describe('nextIndividualDescriberIndex', () => {
   const roster = ['A', 'B', 'C'] // rounds=2 → 6 turns: A B C A B C
@@ -41,5 +42,77 @@ describe('nextIndividualDescriberIndex', () => {
     const idx = nextIndividualDescriberIndex(roster, 0, live, total)
     expect(idx).toBeLessThan(total)
     expect(describerForIndividualTurn(roster, idx)).toBe('B')
+  })
+})
+
+/**
+ * Minimal Supabase stand-in for processDescribeItAdvance. Each builder method is
+ * chainable and awaitable (and exposes maybeSingle), mirroring supabase-js. The
+ * `describe_it_sessions` UPDATE result is supplied per-call so a test can make the
+ * first claim fail (e.g. an FK violation) and a later one succeed.
+ */
+function makeAdvanceSupabase(sessionUpdateResults: Array<{ error: unknown }>) {
+  const sessionRow = {
+    status: 'active',
+    phase: 'break',
+    break_deadline_at: new Date(Date.now() - 1000).toISOString(),
+    turn_index: 0,
+    mode: 'individual',
+    roster: ['A', 'B', 'C'],
+    num_teams: 0,
+    total_rounds: 2,
+    turn_seconds: 90,
+    used_words: [],
+  }
+  let sessionUpdates = 0
+  function from(table: string) {
+    const ctx = { table, isUpdate: false }
+    const result = () => {
+      if (table === 'describe_it_sessions' && ctx.isUpdate) {
+        return Promise.resolve(sessionUpdateResults[sessionUpdates++] ?? { error: null })
+      }
+      if (table === 'describe_it_sessions') return Promise.resolve({ data: sessionRow, error: null })
+      if (table === 'describe_it_players') {
+        return Promise.resolve({ data: [{ player_id: 'A', team: 1 }, { player_id: 'B', team: 1 }, { player_id: 'C', team: 1 }], error: null })
+      }
+      if (table === 'games') return Promise.resolve({ data: { question_source: 'platform' }, error: null })
+      if (table === 'players') return Promise.resolve({ data: { name: 'Bob' }, error: null })
+      return Promise.resolve({ data: null, error: null })
+    }
+    const chain: Record<string, unknown> = {
+      select: () => chain,
+      update: () => {
+        ctx.isUpdate = true
+        return chain
+      },
+      eq: () => chain,
+      order: () => chain,
+      is: () => chain,
+      maybeSingle: () => result(),
+      then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => result().then(res, rej),
+    }
+    return chain
+  }
+  return { supabase: { from } as unknown as SupabaseClient, sessionUpdateCount: () => sessionUpdates }
+}
+
+describe('processDescribeItAdvance — departed describer race', () => {
+  const FK = { code: '23503', message: 'insert or update ... violates foreign key constraint' }
+
+  it('retries once on an FK violation (describer left mid-advance) and resolves', async () => {
+    const m = makeAdvanceSupabase([{ error: FK }, { error: null }])
+    const r = await processDescribeItAdvance(m.supabase, 'GAME', { force: true })
+    expect(r).toEqual({})
+    expect(m.sessionUpdateCount()).toBe(2) // first claim trips the FK, retry succeeds
+  })
+
+  it('maps a non-recoverable write failure to an internal (5xx) error without leaking it', async () => {
+    const dbError = { code: '08006', message: 'connection failure to db host' }
+    const m = makeAdvanceSupabase([{ error: dbError }, { error: dbError }])
+    const r = await processDescribeItAdvance(m.supabase, 'GAME', { force: true })
+    expect(r.internal).toBe(true)
+    expect(r.error).toBeTruthy()
+    expect(r.error).not.toContain('connection failure') // raw message never surfaced
+    expect(m.sessionUpdateCount()).toBe(1) // non-FK error is not retried
   })
 })

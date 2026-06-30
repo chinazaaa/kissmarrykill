@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   // The host may skip the break; anyone else only advances once the break is up.
   const force = !!data.hostToken && data.hostToken === game.host_token
 
-  const { error } = await processDescribeItAdvance(supabase, code, { force })
-  if (error) return NextResponse.json({ error }, { status: 400 })
+  const { error, internal } = await processDescribeItAdvance(supabase, code, { force })
+  if (error) return NextResponse.json({ error }, { status: internal ? 500 : 400 })
   return NextResponse.json({ success: true })
 }

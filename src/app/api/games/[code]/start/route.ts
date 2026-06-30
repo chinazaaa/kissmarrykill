@@ -390,12 +390,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       return NextResponse.json({ error: `Need at least ${minPlayers} players to start` }, { status: 400 })
     }
 
-    const { error: initError } = await initializeDescribeItGame(
+    const { error: initError, internal: initInternal } = await initializeDescribeItGame(
       getSupabaseAdmin(),
       code.toUpperCase(),
       playingPlayers.map((p) => p.id)
     )
-    if (initError) return NextResponse.json({ error: initError }, { status: 400 })
+    if (initError) return NextResponse.json({ error: initError }, { status: initInternal ? 500 : 400 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')

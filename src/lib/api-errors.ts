@@ -21,3 +21,17 @@ export function internalErrorMessage(
   console.error(`[${context}]`, error)
   return fallback
 }
+
+/**
+ * Structured form of {@link internalErrorMessage} for engine functions whose
+ * result a route turns into an HTTP status. `internal: true` flags an unexpected
+ * failure the route should serialize as 5xx, distinct from a validation error
+ * (returned as a plain `{ error }` string) which stays 4xx.
+ */
+export function internalFailure(
+  context: string,
+  error: unknown,
+  fallback?: string
+): { error: string; internal: true } {
+  return { error: internalErrorMessage(context, error, fallback), internal: true }
+}

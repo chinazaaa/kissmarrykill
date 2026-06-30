@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not a Text Charades game' }, { status: 400 })
   }
 
-  const { error } = await processDescribeItExpireTurn(supabase, code)
-  if (error) return NextResponse.json({ error }, { status: 400 })
+  const { error, internal } = await processDescribeItExpireTurn(supabase, code)
+  if (error) return NextResponse.json({ error }, { status: internal ? 500 : 400 })
   return NextResponse.json({ success: true })
 }
