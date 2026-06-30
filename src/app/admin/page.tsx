@@ -1,13 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AdminGamesTable } from '@/components/admin/AdminGamesTable'
+import { Chip } from '@/components/ui/PageShell'
 import { formatPlayDuration } from '@/lib/admin-play-time'
+import { addDays, addMonths, monthBounds, watToday, weekBounds } from '@/lib/community-dates'
 import { GAME_TYPE_CONFIG } from '@/lib/game-types'
 
 type StatsResponse = {
   totals: {
     games: number
+    gamesToday: number
+    gamesThisMonth: number
     rooms: number
     players: number
     votes: number
@@ -22,6 +26,15 @@ type StatsResponse = {
   gamesByType: Record<string, number>
   feedbackByCategory: Record<string, number>
 }
+
+type GamesByDate = {
+  date: string
+  day: { count: number; label: string }
+  week: { count: number; label: string }
+  month: { count: number; label: string }
+}
+
+type GamesWindow = 'day' | 'week' | 'month'
 
 function formatGameType(type: string): string {
   return GAME_TYPE_CONFIG[type as keyof typeof GAME_TYPE_CONFIG]?.label ?? type
@@ -53,6 +66,8 @@ export default function AdminDashboardPage() {
 
   const statCards = [
     { label: 'Total games', value: stats.totals.games },
+    { label: 'Games played today', value: stats.totals.gamesToday },
+    { label: 'Games played this month', value: stats.totals.gamesThisMonth },
     { label: 'Rooms created', value: stats.totals.rooms },
     { label: 'Players joined', value: stats.totals.players },
     { label: 'Votes cast', value: stats.totals.votes },
@@ -89,6 +104,8 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
+      <GamesPlayedExplorer />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <BreakdownCard title="Games by status" items={stats.gamesByStatus} />
         <BreakdownCard title="Games by type" items={stats.gamesByType} formatLabel={formatGameType} />
@@ -96,6 +113,110 @@ export default function AdminDashboardPage() {
       </div>
 
       <AdminGamesTable onGamesChanged={() => setStatsVersion((version) => version + 1)} />
+    </div>
+  )
+}
+
+function GamesPlayedExplorer() {
+  const today = watToday()
+  const [date, setDate] = useState(today)
+  const [period, setPeriod] = useState<GamesWindow>('day')
+  const [data, setData] = useState<GamesByDate | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async (forDate: string) => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/stats/games?date=${forDate}`, { cache: 'no-store' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to load')
+      setData(json as GamesByDate)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load')
+      setData(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load(date)
+  }, [date, load])
+
+  const step = (dir: -1 | 1) =>
+    setDate((d) => (period === 'day' ? addDays(d, dir) : period === 'week' ? addDays(d, dir * 7) : addMonths(d, dir)))
+
+  const rangeStart = period === 'day' ? date : period === 'week' ? weekBounds(date).start : monthBounds(date).start
+  const rangeEnd = period === 'day' ? date : period === 'week' ? weekBounds(date).end : monthBounds(date).end
+  const canGoNext = rangeEnd < today
+  const isCurrent = rangeStart <= today && today <= rangeEnd
+  const current = data ? data[period] : null
+
+  const tabs: { key: GamesWindow; label: string }[] = [
+    { key: 'day', label: 'Day' },
+    { key: 'week', label: 'Week' },
+    { key: 'month', label: 'Month' },
+  ]
+
+  return (
+    <div className="glass-card-strong p-5 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-bold">Games played</h2>
+        <div className="flex gap-2">
+          {tabs.map((t) => (
+            <Chip key={t.key} active={period === t.key} onClick={() => setPeriod(t.key)}>
+              {t.label}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          aria-label="Previous"
+          className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--card)] flex items-center justify-center text-xl leading-none text-muted hover:text-[var(--foreground)] hover:border-[var(--primary)] transition-colors"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          onClick={() => step(1)}
+          disabled={!canGoNext}
+          aria-label="Next"
+          className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--card)] flex items-center justify-center text-xl leading-none text-muted hover:text-[var(--foreground)] hover:border-[var(--primary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          ›
+        </button>
+        <input
+          type="date"
+          value={date}
+          max={today}
+          onChange={(e) => e.target.value && setDate(e.target.value)}
+          className="input-field py-1.5"
+        />
+        {!isCurrent && (
+          <button
+            type="button"
+            onClick={() => setDate(today)}
+            className="text-sm text-[var(--primary)] hover:text-[var(--primary-strong)] font-medium transition-colors"
+          >
+            {period === 'day' ? 'Today' : period === 'week' ? 'This week' : 'This month'}
+          </button>
+        )}
+      </div>
+
+      {error ? (
+        <p className="text-red-500 text-sm">{error}</p>
+      ) : (
+        <div>
+          <p className="text-4xl font-black">{loading || !current ? '—' : current.count.toLocaleString()}</p>
+          <p className="text-muted text-sm mt-1">games played · {current ? current.label : '…'}</p>
+        </div>
+      )}
     </div>
   )
 }

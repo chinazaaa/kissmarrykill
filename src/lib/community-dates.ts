@@ -56,6 +56,15 @@ export function weekBounds(dateStr: string): { start: string; end: string } {
   return { start, end }
 }
 
+// UTC instant bounds [gte, lt) for querying a timestamptz column (e.g. created_at)
+// by an inclusive WAT date range. Africa/Lagos is a fixed +01:00 offset (no DST).
+export function watRangeToUtc(startDateStr: string, endDateStr: string): { gte: string; lt: string } {
+  return {
+    gte: new Date(`${startDateStr}T00:00:00+01:00`).toISOString(),
+    lt: new Date(`${addDays(endDateStr, 1)}T00:00:00+01:00`).toISOString(),
+  }
+}
+
 // First → last day of the calendar month containing the given date.
 export function monthBounds(dateStr: string): { start: string; end: string } {
   const d = toUtcDate(dateStr)
