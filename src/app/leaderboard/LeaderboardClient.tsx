@@ -172,33 +172,43 @@ function TodayView({ data }: { data: LeaderboardResponse }) {
     )
   }
 
-  // Games with a winner first; within each group keep the admin's order (stable sort).
-  const ordered = [...data.today].sort((a, b) => (b.winnerName ? 1 : 0) - (a.winnerName ? 1 : 0))
+  // Games with winners first; within each group keep the admin's order (stable sort).
+  const ordered = [...data.today].sort((a, b) => (b.winners.length ? 1 : 0) - (a.winners.length ? 1 : 0))
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-stagger">
       {ordered.map((entry) => {
         const accent = entry.game.accent ?? 'var(--primary)'
+        const hasWinners = entry.winners.length > 0
         return (
           <div
             key={entry.game.id}
             className="glass-card p-5 relative overflow-hidden"
-            style={{ borderColor: entry.winnerName ? `${accent}40` : undefined }}
+            style={{ borderColor: hasWinners ? `color-mix(in srgb, ${accent} 25%, transparent)` : undefined }}
           >
             <div
               className="absolute inset-x-0 top-0 h-1"
-              style={{ background: accent, opacity: entry.winnerName ? 0.9 : 0.25 }}
+              style={{ background: accent, opacity: hasWinners ? 0.9 : 0.25 }}
             />
             <div className="flex items-center gap-2 mb-3">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: accent }} />
               <span className="text-sm font-semibold text-muted">{entry.game.name}</span>
             </div>
-            {entry.winnerName ? (
-              <div className="flex items-center gap-3">
+            {hasWinners ? (
+              <div className="flex items-start gap-3">
                 <CrownIcon className="h-7 w-7 shrink-0" />
                 <div>
-                  <p className="text-xs text-faint uppercase tracking-wide">Winner</p>
-                  <p className="text-xl font-black tracking-tight">{entry.winnerName}</p>
+                  <p className="text-xs text-faint uppercase tracking-wide">
+                    {entry.winners.length === 1 ? 'Winner' : `Winners · ${entry.winners.length}`}
+                  </p>
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    {entry.winners.map((name, i) => (
+                      <span key={`${name}-${i}`} className="text-xl font-black tracking-tight">
+                        {name}
+                        {i < entry.winners.length - 1 && <span className="text-faint font-normal">,</span>}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (
