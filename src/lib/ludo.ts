@@ -412,30 +412,6 @@ function applyMoveLocally(
   })
 }
 
-function canPlayRemainingDiceSequence(
-  color: LudoColor,
-  pieces: LudoPiece[],
-  remainingDice: number[],
-  states: LudoPlayerState[],
-  playerId: string
-): boolean {
-  if (remainingDice.length === 0) return true
-
-  for (let diceIndex = 0; diceIndex < remainingDice.length; diceIndex += 1) {
-    const steps = remainingDice[diceIndex]!
-    const stepMoves = getLegalMovesForSteps(color, pieces, steps, states, playerId)
-    for (const move of stepMoves) {
-      const nextStates = applyMoveLocally(states, playerId, move, color)
-      const nextPieces = nextStates.find((s) => s.player_id === playerId)?.pieces ?? pieces
-      const rest = remainingDice.filter((_, i) => i !== diceIndex)
-      if (canPlayRemainingDiceSequence(color, nextPieces, rest, nextStates, playerId)) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
 export function parseRemainingDice(raw: number[] | null | undefined): number[] {
   if (!raw || !Array.isArray(raw)) return []
   return raw.filter((n) => typeof n === 'number' && n >= 1 && n <= 6)
@@ -798,7 +774,12 @@ export async function processLudoRoll(
   if (!playerRow) return { error: 'Player state not found' }
 
   const remainingDice = [dice.d1, dice.d2]
-  const canPlay = canPlayRemainingDiceSequence(playerRow.color, playerRow.pieces, remainingDice, states, playerId)
+  // A turn is only forfeited when NO die is playable. If at least one die has a
+  // legal move, the player enters the move phase; the move handler then advances
+  // the turn if the remaining die can't be used. (Requiring the full two-die
+  // sequence to be playable here wrongly skipped turns where only one die moved.)
+  const canPlay =
+    getLegalMovesFromRemaining(playerRow.color, playerRow.pieces, remainingDice, states, playerId).length > 0
   const name = playerNames.get(playerId) ?? 'Player'
   const rollLabel = formatLudoDiceRoll(dice)
 

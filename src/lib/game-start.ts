@@ -4,8 +4,8 @@ import { initializeMonopolyGame, MONOPOLY_MIN_PLAYERS } from '@/lib/monopoly'
 import { initializeYahtzeeGame, YAHTZEE_MIN_PLAYERS } from '@/lib/yahtzee'
 import { initializeWhotGame, WHOT_MIN_PLAYERS } from '@/lib/whot'
 import { initializeCrazyEightsGame, CRAZY8_MIN_PLAYERS } from '@/lib/crazy-eights'
-import { initializeLudoGame, LUDO_MIN_PLAYERS } from '@/lib/ludo'
-import { initializeSnakeAndLadderGame, SNAKE_LADDER_MIN_PLAYERS } from '@/lib/snake-and-ladder'
+import { initializeLudoGame, LUDO_MIN_PLAYERS, LUDO_MAX_PLAYERS } from '@/lib/ludo'
+import { initializeSnakeAndLadderGame, SNAKE_LADDER_MIN_PLAYERS, SNAKE_LADDER_MAX_PLAYERS } from '@/lib/snake-and-ladder'
 import { initializeTicTacToeGame, TIC_TAC_TOE_MIN_PLAYERS } from '@/lib/tic-tac-toe'
 import { initializeChessGame, CHESS_MIN_PLAYERS } from '@/lib/chess'
 import { initializeCheckersGame, CHECKERS_MIN_PLAYERS } from '@/lib/checkers'
@@ -59,10 +59,12 @@ export const GAME_START_SPECS: Partial<Record<GameType, StartSpec>> = {
   },
   ludo: {
     minPlayers: LUDO_MIN_PLAYERS,
+    maxPlayers: LUDO_MAX_PLAYERS,
     initialize: (admin, code, ids) => initializeLudoGame(admin, code, ids),
   },
   snake_and_ladder: {
     minPlayers: SNAKE_LADDER_MIN_PLAYERS,
+    maxPlayers: SNAKE_LADDER_MAX_PLAYERS,
     initialize: (admin, code, ids) => initializeSnakeAndLadderGame(admin, code, ids),
   },
   tic_tac_toe: {
