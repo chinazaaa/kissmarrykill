@@ -1,3 +1,4 @@
+import { internalErrorMessage } from '@/lib/api-errors'
 import {
   isAnonymousMessagesGame,
   isBingoGame,
@@ -220,7 +221,7 @@ export async function resetSpectatorsForLobby(
   exceptPlayerIds: string[] = []
 ): Promise<{ error: string | null }> {
   const { error: resetError } = await supabase.from('players').update({ spectator: true }).eq('game_id', gameId)
-  if (resetError) return { error: resetError.message }
+  if (resetError) return { error: internalErrorMessage('viewers', resetError) }
 
   if (exceptPlayerIds.length === 0) return { error: null }
 

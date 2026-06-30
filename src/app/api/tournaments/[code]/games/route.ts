@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import { addTournamentGameSchema, TOURNAMENT_ELIGIBLE_TYPES } from '@/lib/tournament-validation'
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   })
 
   if (gameError) {
-    return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('tournaments/code/games', gameError) }, { status: 500 })
   }
 
   const { data: lastGame } = await admin
@@ -156,7 +157,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (tgError) {
     // Roll back the game we just created so we don't leave an orphan row.
     await admin.from('games').delete().eq('id', gameCode)
-    return NextResponse.json({ error: tgError.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('tournaments/code/games', tgError) }, { status: 500 })
   }
 
   if (tournament.status === 'waiting') {

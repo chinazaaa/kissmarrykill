@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { createAppFeedbackSchema } from '@/lib/validation'
 import { parseJsonBody } from '@/lib/parse-body'
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     page_url: pageUrl,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('feedback', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

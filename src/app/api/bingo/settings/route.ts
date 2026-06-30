@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { bingoSettingsSchema } from '@/lib/validation'
 import { parseGameType, isBingoGame } from '@/lib/game-types'
 import { parseBingoCallMode, clampBingoCallInterval } from '@/lib/bingo'
@@ -43,6 +44,6 @@ export async function POST(req: NextRequest) {
 
   const { data: updated, error } = await supabase.from('games').update(gameUpdate).eq('id', code).select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('bingo/settings', error) }, { status: 500 })
   return NextResponse.json({ success: true, game: updated })
 }

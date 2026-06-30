@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { assertAdminRequest } from '@/lib/admin-api'
 import {
   fetchGamePlayerLimits,
@@ -56,7 +57,7 @@ export async function PATCH(req: NextRequest) {
       { onConflict: 'game_type' }
     )
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('admin/game-limits', error) }, { status: 500 })
   }
 
   invalidateGamePlayerLimitsCache()

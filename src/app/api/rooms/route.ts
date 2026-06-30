@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode } from '@/lib/utils'
 import { countMembersByRoom, ROOM_PUBLIC_FIELDS } from '@/lib/room-api'
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const { data: rooms, error } = await query
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('rooms', error) }, { status: 500 })
 
   const page = (rooms ?? []).slice(0, limit)
   const hasMore = (rooms ?? []).length > limit
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
     description,
     timezone,
   })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('rooms', error) }, { status: 500 })
 
   return NextResponse.json({ roomCode, creatorToken })
 }

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { markGameFinished } from '@/lib/game-finish'
 import { parseQuestionSource } from '@/lib/custom-questions'
 import {
@@ -298,7 +299,7 @@ export async function persistRandomizedRoles(
         { game_id: gameId, player_id: role.player_id, team: role.team, role: role.role },
         { onConflict: 'game_id,player_id' }
       )
-    if (error) return { roles: nextRoles, error: error.message }
+    if (error) return { roles: nextRoles, error: internalErrorMessage('codewords', error) }
   }
   const assigned = new Set(nextRoles.map((r) => r.player_id))
   for (const playerId of playerIds) {
@@ -388,7 +389,7 @@ export async function assignCodewordsLateJoinOperative(
     .select('player_id, team, role')
     .eq('game_id', code)
 
-  if (rolesError) return { team: 'red', role: null, error: rolesError.message }
+  if (rolesError) return { team: 'red', role: null, error: internalErrorMessage('codewords', rolesError) }
 
   const team = pickBalancedOperativeTeam((roles as CodewordsLobbyRole[]) ?? [])
   const { data: roleRow, error } = await supabase
@@ -397,7 +398,7 @@ export async function assignCodewordsLateJoinOperative(
     .select()
     .single()
 
-  if (error) return { team, role: null, error: error.message }
+  if (error) return { team, role: null, error: internalErrorMessage('codewords', error) }
   return { team, role: roleRow as CodewordsPlayerRole, error: null }
 }
 
@@ -552,13 +553,13 @@ export function setCodewordsHostMode(gameCode: string, mode: CodewordsHostMode) 
 
 export async function clearCodewordsChat(supabase: SupabaseClient, gameId: string): Promise<{ error: string | null }> {
   const { error } = await supabase.from('codewords_messages').delete().eq('game_id', gameId)
-  if (error) return { error: error.message }
+  if (error) return { error: internalErrorMessage('codewords', error) }
   return { error: null }
 }
 
 export async function finishCodewordsGame(supabase: SupabaseClient, gameId: string): Promise<{ error: string | null }> {
   const { error: gameError } = await markGameFinished(supabase, gameId)
-  if (gameError) return { error: gameError.message }
+  if (gameError) return { error: internalErrorMessage('codewords', gameError) }
 
   const { error: chatError } = await clearCodewordsChat(supabase, gameId)
   if (chatError) return { error: chatError }
@@ -573,7 +574,7 @@ export async function clearCodewordsRoundData(
   const tables = ['codewords_messages', 'codewords_guesses', 'codewords_boards'] as const
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('game_id', gameId)
-    if (error) return { error: error.message }
+    if (error) return { error: internalErrorMessage('codewords', error) }
   }
   return { error: null }
 }
@@ -599,7 +600,7 @@ export async function removeCodewordsPlayerRole(
     .delete()
     .eq('game_id', gameId)
     .eq('player_id', playerId)
-  if (error) return { error: error.message }
+  if (error) return { error: internalErrorMessage('codewords', error) }
   return { error: null }
 }
 
@@ -609,7 +610,7 @@ export async function removeCodewordsPlayer(
   playerId: string
 ): Promise<{ error: string | null }> {
   const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
-  if (error) return { error: error.message }
+  if (error) return { error: internalErrorMessage('codewords', error) }
   return { error: null }
 }
 
@@ -621,6 +622,6 @@ export async function clearCodewordsSessionData(
   const { error: roundError } = await clearCodewordsRoundData(supabase, gameId)
   if (roundError) return { error: roundError }
   const { error } = await supabase.from('codewords_player_roles').delete().eq('game_id', gameId)
-  if (error) return { error: error.message }
+  if (error) return { error: internalErrorMessage('codewords', error) }
   return { error: null }
 }

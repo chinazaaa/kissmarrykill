@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { markGameFinished } from '@/lib/game-finish'
 import { SCRABBLE_RACK_SIZE } from '@/lib/scrabble-constants'
 import {
@@ -153,7 +154,7 @@ export async function extendScrabbleGameDuration(
   }
 
   const { error: gameError } = await supabase.from('games').update({ game_duration_seconds: next }).eq('id', gameId)
-  if (gameError) return { error: gameError.message }
+  if (gameError) return { error: internalErrorMessage('scrabble', gameError) }
 
   // CAS the cosmetic status bump so it can't clobber a session that finished
   // concurrently (and resurrect a stale "game continues" message).
@@ -234,7 +235,7 @@ async function loadSession(
   gameId: string
 ): Promise<{ session: ScrabbleSession | null; error?: string }> {
   const { data, error } = await supabase.from('scrabble_sessions').select('*').eq('game_id', gameId).maybeSingle()
-  if (error) return { session: null, error: error.message }
+  if (error) return { session: null, error: internalErrorMessage('scrabble', error) }
   return { session: data as ScrabbleSession | null }
 }
 
@@ -381,7 +382,7 @@ export async function initializeScrabbleGame(
   const { error: sessionError } = existing
     ? await supabase.from('scrabble_sessions').update(sessionRow).eq('game_id', gameId)
     : await supabase.from('scrabble_sessions').insert({ ...sessionRow, game_id: gameId })
-  if (sessionError) return { error: sessionError.message }
+  if (sessionError) return { error: internalErrorMessage('scrabble', sessionError) }
 
   // Re-deal player racks from scratch (handles rematch by clearing prior rows).
   await supabase.from('scrabble_player_state').delete().eq('game_id', gameId)
@@ -393,7 +394,7 @@ export async function initializeScrabbleGame(
     player_order: idx,
   }))
   const { error: stateError } = await supabase.from('scrabble_player_state').insert(stateRows)
-  if (stateError) return { error: stateError.message }
+  if (stateError) return { error: internalErrorMessage('scrabble', stateError) }
 
   return {}
 }
@@ -507,7 +508,7 @@ export async function processScrabblePlay(
       .from('scrabble_player_state')
       .update({ rack: newRack, score: newScore })
       .eq('id', state.id)
-    if (stateError) return { error: stateError.message }
+    if (stateError) return { error: internalErrorMessage('scrabble', stateError) }
 
     await persistFinalScores(supabase, states, result.finalScores)
     await markGameFinished(supabase, gameId)
@@ -535,7 +536,7 @@ export async function processScrabblePlay(
     .from('scrabble_player_state')
     .update({ rack: newRack, score: newScore })
     .eq('id', state.id)
-  if (stateError) return { error: stateError.message }
+  if (stateError) return { error: internalErrorMessage('scrabble', stateError) }
 
   return {}
 }
@@ -658,7 +659,7 @@ export async function processScrabbleExchange(
     .from('scrabble_player_state')
     .update({ rack: newRack })
     .eq('id', state.id)
-  if (stateError) return { error: stateError.message }
+  if (stateError) return { error: internalErrorMessage('scrabble', stateError) }
 
   return {}
 }
@@ -792,7 +793,7 @@ export async function removeScrabblePlayer(
     }
 
     const { error: sessionError } = await supabase.from('scrabble_sessions').update(update).eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('scrabble', sessionError) }
 
     await supabase.from('scrabble_player_state').delete().eq('game_id', gameId).eq('player_id', playerId)
     if (finishing) await markGameFinished(supabase, gameId)

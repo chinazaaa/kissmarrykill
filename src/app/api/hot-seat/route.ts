@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { hotSeatSubmissionSchema } from '@/lib/validation'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { supabase as supabaseReadonly } from '@/lib/supabase'
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('hot-seat', error) }, { status: 500 })
 
   return NextResponse.json({ success: true, submission })
 }
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
     .eq('round_id', roundId)
     .eq('game_id', gameId.toUpperCase())
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('hot-seat', error) }, { status: 500 })
 
   return NextResponse.json({ submissions: submissions ?? [] })
 }

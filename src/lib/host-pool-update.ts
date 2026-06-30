@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { stripHtml } from '@/lib/validation'
 import {
   parseGameType,
@@ -101,7 +102,7 @@ export async function replaceHostParticipantList(
       .delete()
       .eq('game_id', gameId)
       .is('submitted_by_player_id', null)
-    if (deleteHostPartsError) return { error: deleteHostPartsError.message }
+    if (deleteHostPartsError) return { error: internalErrorMessage('host-pool-update', deleteHostPartsError) }
   }
 
   const participantRows = nextParticipants.map((p, index) => ({
@@ -111,7 +112,7 @@ export async function replaceHostParticipantList(
     display_order: index,
   }))
   const { error: insertPartsError } = await supabase.from('participants').insert(participantRows)
-  if (insertPartsError) return { error: insertPartsError.message }
+  if (insertPartsError) return { error: internalErrorMessage('host-pool-update', insertPartsError) }
 
   return { error: null }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { tournamentHostActionSchema } from '@/lib/tournament-validation'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { error } = await supabase.from('tournaments').update({ status: 'finished' }).eq('id', tournamentId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('tournaments/code/finish', error) }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

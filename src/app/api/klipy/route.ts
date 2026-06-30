@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { searchKlipyGifs, searchKlipyStickers } from '@/lib/klipy'
 
 export async function GET(req: NextRequest) {
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(result)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch from Klipy'
+    const message = internalErrorMessage('klipy', err, 'Failed to fetch from Klipy')
     return NextResponse.json({ error: message }, { status: 502 })
   }
 }

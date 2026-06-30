@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .select('id, display_name, text, created_at, member_id')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('rooms/code/messages', error) }, { status: 500 })
 
   return NextResponse.json({ message })
 }

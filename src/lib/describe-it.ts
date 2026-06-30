@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { internalErrorMessage } from '@/lib/api-errors'
+import { internalErrorMessage, internalFailure } from '@/lib/api-errors'
 import { markGameFinished } from '@/lib/game-finish'
 import type { DescribeItMode, DescribeItSession, DescribeItWord, Game } from '@/types'
 import { DESCRIBE_IT_WORD_POOL, parseStoredDescribeItWords, pickDescribeWord } from '@/lib/describe-it-words'
@@ -307,10 +307,15 @@ function dedupeWords(words: string[]): string[] {
 async function loadSession(
   supabase: SupabaseClient,
   gameId: string
-): Promise<{ session: DescribeItSession | null; error?: string }> {
+): Promise<{ session: DescribeItSession | null; error?: string; internal?: boolean }> {
   const { data, error } = await supabase.from('describe_it_sessions').select('*').eq('game_id', gameId).maybeSingle()
-  if (error) return { session: null, error: internalErrorMessage('describe-it:loadSession', error) }
+  if (error) return { session: null, ...internalFailure('describe-it:loadSession', error) }
   return { session: data as DescribeItSession | null }
+}
+
+/** Postgres foreign-key violation (SQLSTATE 23503) — e.g. a describer who left mid-advance. */
+function isForeignKeyViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: string }).code === '23503'
 }
 
 async function loadTeamRows(
@@ -380,7 +385,7 @@ export async function initializeDescribeItGame(
   supabase: SupabaseClient,
   gameId: string,
   playerIds: string[]
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; internal?: boolean }> {
   const { data: game } = await supabase
     .from('games')
     .select(
@@ -409,7 +414,7 @@ export async function initializeDescribeItGame(
     const { error: seedError } = await supabase
       .from('describe_it_players')
       .upsert(rows, { onConflict: 'game_id,player_id' })
-    if (seedError) return { error: internalErrorMessage('describe-it:initialize:seed', seedError) }
+    if (seedError) return internalFailure('describe-it:initialize:seed', seedError)
   } else {
     // Auto-assign any joined players who never picked a team onto the smallest
     // teams, so a player who skipped team selection isn't silently excluded.
@@ -423,7 +428,7 @@ export async function initializeDescribeItGame(
       const { error: assignError } = await supabase
         .from('describe_it_players')
         .upsert(newRows, { onConflict: 'game_id,player_id' })
-      if (assignError) return { error: internalErrorMessage('describe-it:initialize:assign', assignError) }
+      if (assignError) return internalFailure('describe-it:initialize:assign', assignError)
     }
     const teamRows = newRows.length > 0 ? await loadTeamRows(supabase, gameId) : existingRows
     const ready = describeItLobbyReady(teamRows, numTeams)
@@ -479,7 +484,7 @@ export async function initializeDescribeItGame(
   const { error } = existing
     ? await supabase.from('describe_it_sessions').update(row).eq('game_id', gameId)
     : await supabase.from('describe_it_sessions').insert({ ...row, game_id: gameId })
-  if (error) return { error: internalErrorMessage('describe-it:initialize:session', error) }
+  if (error) return internalFailure('describe-it:initialize:session', error)
   return {}
 }
 
@@ -488,9 +493,9 @@ export async function processDescribeItClue(
   gameId: string,
   playerId: string,
   clue: string
-): Promise<{ error?: string }> {
-  const { session, error } = await loadSession(supabase, gameId)
-  if (error) return { error }
+): Promise<{ error?: string; internal?: boolean }> {
+  const { session, error, internal } = await loadSession(supabase, gameId)
+  if (error) return { error, internal }
   if (!session || session.status === 'finished') return { error: 'Game not active' }
   if (session.phase !== 'turn') return { error: 'Not in a turn right now' }
   if (session.describer_player_id !== playerId) return { error: 'Only the describer can give a clue' }
@@ -541,7 +546,7 @@ export async function processDescribeItClue(
     .eq('game_id', gameId)
     .eq('phase', 'turn')
     .eq('turn_index', working.turn_index)
-  if (updateError) return { error: internalErrorMessage('describe-it:clue', updateError) }
+  if (updateError) return internalFailure('describe-it:clue', updateError)
   return {}
 }
 
@@ -550,9 +555,9 @@ export async function processDescribeItGuess(
   gameId: string,
   playerId: string,
   text: string
-): Promise<{ error?: string; correct?: boolean }> {
-  const { session, error } = await loadSession(supabase, gameId)
-  if (error) return { error }
+): Promise<{ error?: string; correct?: boolean; internal?: boolean }> {
+  const { session, error, internal } = await loadSession(supabase, gameId)
+  if (error) return { error, internal }
   if (!session || session.status === 'finished') return { error: 'Game not active' }
   if (session.phase !== 'turn') return { error: 'Not in a turn right now' }
   if (session.describer_player_id === playerId) return { error: "The describer can't guess" }
@@ -637,7 +642,7 @@ async function processIndividualGuess(
   playerId: string,
   text: string,
   session: DescribeItSession
-): Promise<{ error?: string; correct?: boolean }> {
+): Promise<{ error?: string; correct?: boolean; internal?: boolean }> {
   if (!session.roster.includes(playerId)) return { error: 'You are not in this game' }
   // The guessing window only opens once the describer's first clue lands.
   if ((session.current_clues?.length ?? 0) === 0) return { error: 'Wait for the describer’s first clue' }
@@ -772,9 +777,9 @@ export async function processDescribeItSkip(
   supabase: SupabaseClient,
   gameId: string,
   playerId: string
-): Promise<{ error?: string }> {
-  const { session, error } = await loadSession(supabase, gameId)
-  if (error) return { error }
+): Promise<{ error?: string; internal?: boolean }> {
+  const { session, error, internal } = await loadSession(supabase, gameId)
+  if (error) return { error, internal }
   if (!session || session.status === 'finished') return { error: 'Game not active' }
   if (session.phase !== 'turn') return { error: 'Not in a turn right now' }
   if (session.mode === 'individual') return { error: "You can't skip in this mode" }
@@ -825,9 +830,9 @@ export async function processDescribeItSkip(
 export async function processDescribeItExpireTurn(
   supabase: SupabaseClient,
   gameId: string
-): Promise<{ error?: string }> {
-  const { session, error } = await loadSession(supabase, gameId)
-  if (error) return { error }
+): Promise<{ error?: string; internal?: boolean }> {
+  const { session, error, internal } = await loadSession(supabase, gameId)
+  if (error) return { error, internal }
   if (!session || session.status === 'finished') return {}
   if (session.phase !== 'turn') return {}
   if (!session.turn_deadline_at || new Date(session.turn_deadline_at).getTime() > Date.now()) return {}
@@ -862,7 +867,7 @@ export async function processDescribeItExpireTurn(
     .eq('game_id', gameId)
     .eq('phase', 'turn')
     .eq('turn_index', session.turn_index)
-  if (updateError) return { error: internalErrorMessage('describe-it:expireTurn', updateError) }
+  if (updateError) return internalFailure('describe-it:expireTurn', updateError)
   return {}
 }
 
@@ -871,35 +876,13 @@ export async function processDescribeItAdvance(
   supabase: SupabaseClient,
   gameId: string,
   opts?: { force?: boolean }
-): Promise<{ error?: string }> {
-  const { session, error } = await loadSession(supabase, gameId)
-  if (error) return { error }
+): Promise<{ error?: string; internal?: boolean }> {
+  const { session, error, internal } = await loadSession(supabase, gameId)
+  if (error) return { error, internal }
   if (!session || session.status === 'finished') return {}
   if (session.phase !== 'break') return {}
   if (!opts?.force && (!session.break_deadline_at || new Date(session.break_deadline_at).getTime() > Date.now())) {
     return {}
-  }
-
-  let nextIndex = session.turn_index + 1
-  const teamRows = await loadTeamRows(supabase, gameId)
-  const roster = teamRoster(teamRows)
-
-  // Individual mode: the describer rotation is a snapshot locked at game start
-  // (`session.roster`). A player who has since left no longer has a `players` row,
-  // so rotating onto their turn would write a dangling describer_player_id and
-  // violate the FK. Skip past any turns whose describer has left — keeping the
-  // roster (and so the turn_index → round mapping) fixed. If none remain, the
-  // build below returns null and the match ends. (`describe_it_players` rows are
-  // cascade-deleted with the player, so present rows are the live roster.)
-  if (session.mode === 'individual') {
-    const liveIds = new Set(teamRows.map((r) => r.player_id))
-    const totalTurns = describeItTotalTurns(
-      'individual',
-      session.num_teams,
-      session.roster.length,
-      session.total_rounds
-    )
-    nextIndex = nextIndividualDescriberIndex(session.roster, nextIndex, liveIds, totalTurns)
   }
 
   const { data: game } = await supabase
@@ -909,58 +892,87 @@ export async function processDescribeItAdvance(
     .maybeSingle()
   const { primary, fallback } = describeItWordPools((game ?? {}) as Pick<Game, 'question_source' | 'custom_questions'>)
 
-  const nextTurn = buildTurn({
-    turnIndex: nextIndex,
-    mode: session.mode,
-    numTeams: session.num_teams,
-    totalRounds: session.total_rounds,
-    turnSeconds: session.turn_seconds,
-    teamRoster: roster,
-    individualRoster: session.roster,
-    primary,
-    fallback,
-    usedWords: session.used_words,
-  })
+  // Claim the break→next-turn transition, scoped to the break we observed so
+  // concurrent advances (every client runs the timer) resolve to a single winner
+  // instead of each committing its own randomly-picked next word.
+  //
+  // Individual mode: the describer rotation is a snapshot locked at game start
+  // (`session.roster`). A player who has since left no longer has a `players` row,
+  // so rotating onto their turn would write a dangling describer_player_id and
+  // violate the FK. We skip past any turns whose describer has left (keeping the
+  // roster — and so the turn_index → round mapping — fixed), but that liveness is
+  // snapshotted from `describe_it_players` (cascade-deleted with the player) just
+  // before the write, so the chosen describer can still leave in between. On that
+  // one foreign-key failure, recompute the live roster and retry once so the
+  // advance resolves now rather than stalling the break until a later tick.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const teamRows = await loadTeamRows(supabase, gameId)
+    const roster = teamRoster(teamRows)
+    let nextIndex = session.turn_index + 1
+    if (session.mode === 'individual') {
+      const liveIds = new Set(teamRows.map((r) => r.player_id))
+      const totalTurns = describeItTotalTurns(
+        'individual',
+        session.num_teams,
+        session.roster.length,
+        session.total_rounds
+      )
+      nextIndex = nextIndividualDescriberIndex(session.roster, nextIndex, liveIds, totalTurns)
+    }
 
-  // Scope every transition to the break we observed, so concurrent advances
-  // (every client runs the timer) resolve to a single winner instead of each
-  // committing its own randomly-picked next word.
-  if (!nextTurn) {
-    const { data: finished, error: finishError } = await supabase
+    const nextTurn = buildTurn({
+      turnIndex: nextIndex,
+      mode: session.mode,
+      numTeams: session.num_teams,
+      totalRounds: session.total_rounds,
+      turnSeconds: session.turn_seconds,
+      teamRoster: roster,
+      individualRoster: session.roster,
+      primary,
+      fallback,
+      usedWords: session.used_words,
+    })
+
+    if (!nextTurn) {
+      const { data: finished, error: finishError } = await supabase
+        .from('describe_it_sessions')
+        .update({
+          phase: 'finished',
+          status: 'finished',
+          turn_deadline_at: null,
+          break_deadline_at: null,
+          status_message: 'Final results',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('game_id', gameId)
+        .eq('phase', 'break')
+        .eq('turn_index', session.turn_index)
+        .select('id')
+      if (finishError) return internalFailure('describe-it:advance:finish', finishError)
+      if (finished && finished.length > 0) await markGameFinished(supabase, gameId)
+      return {}
+    }
+
+    const nextMessage =
+      session.mode === 'individual'
+        ? `${await playerName(supabase, gameId, nextTurn.describer_player_id ?? null)} is up`
+        : `${teamLabel(nextTurn.active_team!)} is up`
+
+    const { error: updateError } = await supabase
       .from('describe_it_sessions')
       .update({
-        phase: 'finished',
-        status: 'finished',
-        turn_deadline_at: null,
-        break_deadline_at: null,
-        status_message: 'Final results',
+        ...nextTurn,
+        status_message: nextMessage,
         updated_at: new Date().toISOString(),
       })
       .eq('game_id', gameId)
       .eq('phase', 'break')
       .eq('turn_index', session.turn_index)
-      .select('id')
-    if (finishError) return { error: internalErrorMessage('describe-it:advance:finish', finishError) }
-    if (finished && finished.length > 0) await markGameFinished(supabase, gameId)
-    return {}
+    if (!updateError) return {}
+    // Describer left between the liveness snapshot and this write — recompute once.
+    if (attempt === 0 && session.mode === 'individual' && isForeignKeyViolation(updateError)) continue
+    return internalFailure('describe-it:advance', updateError)
   }
-
-  const nextMessage =
-    session.mode === 'individual'
-      ? `${await playerName(supabase, gameId, nextTurn.describer_player_id ?? null)} is up`
-      : `${teamLabel(nextTurn.active_team!)} is up`
-
-  const { error: updateError } = await supabase
-    .from('describe_it_sessions')
-    .update({
-      ...nextTurn,
-      status_message: nextMessage,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('game_id', gameId)
-    .eq('phase', 'break')
-    .eq('turn_index', session.turn_index)
-  if (updateError) return { error: internalErrorMessage('describe-it:advance', updateError) }
   return {}
 }
 

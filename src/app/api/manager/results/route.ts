@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { assertManagerRequest } from '@/lib/manager-api'
 import { addResult, deleteResult, getDayWinners } from '@/lib/community-data'
 import { isValidDateStr, watToday } from '@/lib/community-dates'
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
     const games = await getDayWinners(date)
     return NextResponse.json({ date, games })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('manager/results', err, 'Failed') }, { status: 500 })
   }
 }
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     await addResult(gameId, date, playerName)
     return NextResponse.json({ success: true })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to save' }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('manager/results', err, 'Failed to save') }, { status: 500 })
   }
 }
 
@@ -57,6 +58,9 @@ export async function DELETE(req: NextRequest) {
     await deleteResult(gameId, date, playerName)
     return NextResponse.json({ success: true })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to clear' }, { status: 500 })
+    return NextResponse.json(
+      { error: internalErrorMessage('manager/results', err, 'Failed to clear') },
+      { status: 500 }
+    )
   }
 }

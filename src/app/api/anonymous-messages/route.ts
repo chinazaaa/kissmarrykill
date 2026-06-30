@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { createAnonymousMessageSchema, deleteAnonymousMessageSchema } from '@/lib/validation'
 import { parseGameType, isMessageInboxGame, isAnonymousMessagesGame, isSecretMessageGame } from '@/lib/game-types'
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
     media_url: mediaUrl,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('anonymous-messages', error) }, { status: 500 })
 
   await trimAnonymousMessagesIfDue(supabase, gameCode)
 
@@ -155,7 +156,7 @@ export async function DELETE(req: NextRequest) {
   if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
 
   const { error } = await supabase.from('anonymous_messages').delete().eq('id', messageId).eq('game_id', gameCode)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('anonymous-messages', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

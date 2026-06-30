@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { isICallOnGame, parseGameType } from '@/lib/game-types'
 import { parseNpatMetadata, trimNpatAnswerFields, validateNpatAnswerFields } from '@/lib/npat'
 import { npatSubmitSchema } from '@/lib/validation'
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await supabase.from('npat_answers').upsert(payload, { onConflict: 'player_id,round_id' })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('npat/submit', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

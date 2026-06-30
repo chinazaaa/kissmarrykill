@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { clearSessionTables } from './session-clear'
 import { markGameFinished } from '@/lib/game-finish'
 import { secondsUntilDeadline } from '@/lib/round-timing'
@@ -469,7 +470,7 @@ export async function initializeWhotGame(
   }
 
   const { error: sessionError } = await supabase.from('whot_sessions').insert(sessionRow)
-  if (sessionError) return { error: sessionError.message }
+  if (sessionError) return { error: internalErrorMessage('whot', sessionError) }
 
   const handRows = turnOrder.map((playerId, index) => ({
     game_id: gameId,
@@ -479,7 +480,7 @@ export async function initializeWhotGame(
   }))
 
   const { error: handsError } = await supabase.from('whot_player_hands').insert(handRows)
-  if (handsError) return { error: handsError.message }
+  if (handsError) return { error: internalErrorMessage('whot', handsError) }
 
   return {}
 }
@@ -1212,7 +1213,7 @@ export async function removeWhotPlayer(
     }
 
     const { error: sessionError } = await supabase.from('whot_sessions').update(update).eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('whot', sessionError) }
 
     await supabase.from('whot_player_hands').delete().eq('game_id', gameId).eq('player_id', playerId)
     if (finishing) await markGameFinished(supabase, gameId)

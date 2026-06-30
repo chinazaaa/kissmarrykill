@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode } from '@/lib/utils'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .select('id, display_name, member_code')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('rooms/code/join', error) }, { status: 500 })
 
   return NextResponse.json({
     memberId: member.id,

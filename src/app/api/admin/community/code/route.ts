@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { MANAGER_CODE_MIN_LENGTH } from '@/lib/manager-constants'
 import { managerCodeIsSet, setManagerCode } from '@/lib/manager-session'
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
     await setManagerCode(code)
     return NextResponse.json({ success: true, configured: true })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to set code' }, { status: 500 })
+    return NextResponse.json(
+      { error: internalErrorMessage('admin/community/code', err, 'Failed to set code') },
+      { status: 500 }
+    )
   }
 }

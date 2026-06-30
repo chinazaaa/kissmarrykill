@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { parseGameType, isWhoSaidThis } from '@/lib/game-types'
 import { assertHostGame, assertPlayer } from '@/lib/game-admin'
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
         .select()
         .single()
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) return NextResponse.json({ error: internalErrorMessage('wst-quotes', error) }, { status: 500 })
 
       return NextResponse.json({
         success: true,
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('wst-quotes', error) }, { status: 500 })
 
     return NextResponse.json({
       success: true,
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('wst-quotes', error) }, { status: 500 })
 
     return NextResponse.json({
       success: true,
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('wst-quotes', error) }, { status: 500 })
 
   return NextResponse.json({
     success: true,
@@ -234,7 +235,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { error } = await supabase.from('wst_quote_pool').delete().eq('id', quoteIdTrimmed)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: internalErrorMessage('wst-quotes', error) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -265,7 +266,7 @@ export async function DELETE(req: NextRequest) {
 
   const { error } = await supabase.from('wst_quote_pool').delete().eq('id', quoteIdTrimmed)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('wst-quotes', error) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

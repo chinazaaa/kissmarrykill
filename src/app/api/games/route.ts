@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { createClient } from '@supabase/supabase-js'
 import { generateGameCode, generateToken } from '@/lib/utils'
 import {
@@ -687,7 +688,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (gameError) {
-    return NextResponse.json({ error: gameError.message }, { status: 500 })
+    return NextResponse.json({ error: internalErrorMessage('games', gameError) }, { status: 500 })
   }
 
   if (usesHostParticipantList(participant_mode) && participants.length > 0) {
@@ -701,7 +702,7 @@ export async function POST(req: NextRequest) {
     const { error: partError } = await admin.from('participants').insert(participantRows)
     if (partError) {
       await admin.from('games').delete().eq('id', gameCode)
-      return NextResponse.json({ error: partError.message }, { status: 500 })
+      return NextResponse.json({ error: internalErrorMessage('games', partError) }, { status: 500 })
     }
   }
 

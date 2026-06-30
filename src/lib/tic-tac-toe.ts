@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { markGameFinished } from '@/lib/game-finish'
 import type { TicTacToeBoardResult, TicTacToeMark, TicTacToeSession } from '@/types'
 
@@ -172,7 +173,7 @@ export async function initializeTicTacToeGame(
   }
 
   const { error } = await supabase.from('tic_tac_toe_sessions').insert({ ...sessionRow, game_id: gameId })
-  if (error) return { error: error.message }
+  if (error) return { error: internalErrorMessage('tic-tac-toe', error) }
   return {}
 }
 
@@ -181,7 +182,7 @@ async function loadSession(
   gameId: string
 ): Promise<{ session: TicTacToeSession | null; error?: string }> {
   const { data, error } = await supabase.from('tic_tac_toe_sessions').select('*').eq('game_id', gameId).maybeSingle()
-  if (error) return { session: null, error: error.message }
+  if (error) return { session: null, error: internalErrorMessage('tic-tac-toe', error) }
   return { session: data as TicTacToeSession | null }
 }
 
@@ -382,7 +383,7 @@ export async function removeTicTacToePlayer(
         updated_at: new Date().toISOString(),
       })
       .eq('game_id', gameId)
-    if (sessionError) return { error: sessionError.message }
+    if (sessionError) return { error: internalErrorMessage('tic-tac-toe', sessionError) }
 
     await markGameFinished(supabase, gameId)
     const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)

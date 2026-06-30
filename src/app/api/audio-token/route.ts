@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { AccessToken } from 'livekit-server-sdk'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     const token = await at.toJwt()
     return NextResponse.json({ token })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to generate token'
+    const message = internalErrorMessage('audio-token', err, 'Failed to generate token')
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

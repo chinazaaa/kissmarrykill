@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { assertAdminRequest } from '@/lib/admin-api'
 import { sortProductUpdates } from '@/lib/product-updates'
 import { getSupabaseAdmin, hasServiceRoleKey } from '@/lib/supabase-admin'
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdmin()
   const { data, error } = await supabase.from('product_updates').select('*')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/product-updates', error) }, { status: 500 })
 
   return NextResponse.json({ updates: sortProductUpdates(data ?? []) })
 }
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     .select('*')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('admin/product-updates', error) }, { status: 500 })
 
   return NextResponse.json({ update: data }, { status: 201 })
 }

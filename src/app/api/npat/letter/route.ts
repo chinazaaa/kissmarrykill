@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { isICallOnGame, parseGameType } from '@/lib/game-types'
 import { parseNpatMetadata, availableLettersForPick, ensureBlankAnswers } from '@/lib/npat'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
     .eq('id', roundId)
     .eq('status', 'active')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('npat/letter', error) }, { status: 500 })
 
   const { data: players } = await supabase.from('players').select('id').eq('game_id', gameId).eq('spectator', false)
   await ensureBlankAnswers(

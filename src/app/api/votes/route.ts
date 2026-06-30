@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { internalErrorMessage } from '@/lib/api-errors'
 import { isVoterOnlyMode } from '@/lib/participant-mode'
 import { createVoteSchema } from '@/lib/validation'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -206,7 +207,7 @@ export async function POST(req: NextRequest) {
       .update({ mlt_question: revealedQuestion })
       .eq('id', roundId)
     if (revealError) {
-      return NextResponse.json({ error: revealError.message }, { status: 500 })
+      return NextResponse.json({ error: internalErrorMessage('votes', revealError) }, { status: 500 })
     }
   } else if (isNeverHaveIEver(gameType)) {
     const wyrChoice = rawWyrChoice === 'a' || rawWyrChoice === 'b' ? rawWyrChoice : null
@@ -436,7 +437,7 @@ export async function POST(req: NextRequest) {
     { onConflict: 'player_id,round_id' }
   )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: internalErrorMessage('votes', error) }, { status: 500 })
 
   if (isPickANumber(gameType)) {
     const pool = parsePickANumberPool(game.custom_questions)
