@@ -45,7 +45,7 @@ export async function adminEndGame(supabase: SupabaseClient, game: AdminGameToEn
   }
 
   const { error } = await markGameFinished(supabase, gameId, now)
-  return { error: error?.message ?? null }
+  return { error: error ? internalErrorMessage('admin-end-game', error) : null }
 }
 
 export async function countStaleOpenGames(
