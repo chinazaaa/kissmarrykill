@@ -13,6 +13,7 @@ import {
   useChessAppearance,
 } from '@/lib/chess-appearance'
 import { ChessPieceIcon } from '@/components/chess/ChessPieceIcon'
+import { useChessTurnSound } from '@/hooks/useChessTurnSound'
 
 const PIECE_NAMES: Record<ChessPieceType, string> = {
   p: 'pawn',
@@ -187,6 +188,10 @@ export function ChessGamePanel({
   const [selected, setSelected] = useState<string | null>(null)
   const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null)
   const { boardTheme, pieceSet } = useChessAppearance(appearanceDefaults)
+
+  // Cue when it becomes the local player's turn. Only fires for the seated player
+  // (a spectating host has a null myPlayerId, so it stays silent for them).
+  useChessTurnSound(session, myPlayerId, true)
 
   const myColor = myPlayerId ? colorForPlayer(session, myPlayerId) : null
   const flip = myColor === 'b'
