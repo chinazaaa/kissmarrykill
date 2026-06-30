@@ -89,6 +89,7 @@ export function WhotTable({
   secondsLeft,
   hasTimer,
   urgent,
+  showStandings = true,
 }: {
   session: WhotSession
   players: { id: string; name: string; spectator?: boolean | null }[]
@@ -98,54 +99,13 @@ export function WhotTable({
   isMyTurn?: boolean
   secondsLeft?: number
   hasTimer?: boolean
+  showStandings?: boolean
   urgent?: boolean
 }) {
   const top = session.top_card
   const drawCount = (session.draw_pile as unknown[])?.length ?? 0
   const discardCount = (session.discard_pile as unknown[])?.length ?? 0
-  const turnId = session.turn_order[session.current_turn_index]
-
-  const activePlayers = players.filter((p) => !isWhotPlayerOut(handCounts[p.id] ?? 0, p.spectator))
-  const watchingPlayers = players.filter((p) => isWhotPlayerOut(handCounts[p.id] ?? 0, p.spectator))
   const pickPenalty = getActivePickPenalty(session)
-
-  function renderPlayerRow(p: { id: string; name: string; spectator?: boolean | null }, watching: boolean) {
-    const count = handCounts[p.id] ?? 0
-    const isTurn = !watching && p.id === turnId
-    const isMe = p.id === myPlayerId
-
-    return (
-      <div
-        key={p.id}
-        className={[
-          'rounded-lg px-3 py-2 text-sm flex items-center justify-between gap-2',
-          watching
-            ? 'border border-dashed border-(--border-strong) bg-(--surface-inset-bg)/60 opacity-75'
-            : isTurn
-              ? 'bg-(--primary)/15 border border-(--primary)/40 font-bold'
-              : 'bg-(--surface-inset-bg)',
-        ].join(' ')}
-      >
-        <div className="min-w-0 flex flex-wrap items-center gap-1.5">
-          <span className="truncate">
-            {p.name}
-            {isMe ? ' (you)' : ''}
-          </span>
-          {isTurn && (
-            <span className="rounded-full bg-[color-mix(in_srgb,var(--marry)_20%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-(--marry)">
-              Turn
-            </span>
-          )}
-          {watching && (
-            <span className="rounded-full bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-              Watching
-            </span>
-          )}
-        </div>
-        <span className="text-muted ml-2 shrink-0 tabular-nums">{watching ? '👀' : `${count} 🃏`}</span>
-      </div>
-    )
-  }
 
   return (
     <WhotCardShell className="p-4 space-y-4">
@@ -217,27 +177,94 @@ export function WhotTable({
         <p className="text-center text-sm text-muted border-t border-(--border) pt-3">{session.status_message}</p>
       )}
 
-      <div className="space-y-3 border-t border-(--border) pt-3">
-        {activePlayers.length > 0 && (
-          <div className="space-y-2">
-            {watchingPlayers.length > 0 && (
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Still playing</p>
-            )}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {activePlayers.map((p) => renderPlayerRow(p, false))}
-            </div>
-          </div>
-        )}
-        {watchingPlayers.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Watching</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {watchingPlayers.map((p) => renderPlayerRow(p, true))}
-            </div>
-          </div>
-        )}
-      </div>
+      {showStandings && (
+        <div className="border-t border-(--border) pt-3">
+          <WhotStandings session={session} players={players} myPlayerId={myPlayerId} handCounts={handCounts} />
+        </div>
+      )}
     </WhotCardShell>
+  )
+}
+
+/**
+ * The "Still playing" / "Watching" roster. Split out of WhotTable so the active-player
+ * view can place it BELOW the player's own hand and draw button — the hand is what you
+ * act on, so it should sit above the standings rather than below the whole board.
+ */
+export function WhotStandings({
+  session,
+  players,
+  myPlayerId,
+  handCounts,
+}: {
+  session: WhotSession
+  players: { id: string; name: string; spectator?: boolean | null }[]
+  myPlayerId: string | null
+  handCounts: Record<string, number>
+}) {
+  const turnId = session.turn_order[session.current_turn_index]
+  const activePlayers = players.filter((p) => !isWhotPlayerOut(handCounts[p.id] ?? 0, p.spectator))
+  const watchingPlayers = players.filter((p) => isWhotPlayerOut(handCounts[p.id] ?? 0, p.spectator))
+
+  function renderPlayerRow(p: { id: string; name: string; spectator?: boolean | null }, watching: boolean) {
+    const count = handCounts[p.id] ?? 0
+    const isTurn = !watching && p.id === turnId
+    const isMe = p.id === myPlayerId
+
+    return (
+      <div
+        key={p.id}
+        className={[
+          'rounded-lg px-3 py-2 text-sm flex items-center justify-between gap-2',
+          watching
+            ? 'border border-dashed border-(--border-strong) bg-(--surface-inset-bg)/60 opacity-75'
+            : isTurn
+              ? 'bg-(--primary)/15 border border-(--primary)/40 font-bold'
+              : 'bg-(--surface-inset-bg)',
+        ].join(' ')}
+      >
+        <div className="min-w-0 flex flex-wrap items-center gap-1.5">
+          <span className="truncate">
+            {p.name}
+            {isMe ? ' (you)' : ''}
+          </span>
+          {isTurn && (
+            <span className="rounded-full bg-[color-mix(in_srgb,var(--marry)_20%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-(--marry)">
+              Turn
+            </span>
+          )}
+          {watching && (
+            <span className="rounded-full bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+              Watching
+            </span>
+          )}
+        </div>
+        <span className="text-muted ml-2 shrink-0 tabular-nums">{watching ? '👀' : `${count} 🃏`}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {activePlayers.length > 0 && (
+        <div className="space-y-2">
+          {watchingPlayers.length > 0 && (
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Still playing</p>
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {activePlayers.map((p) => renderPlayerRow(p, false))}
+          </div>
+        </div>
+      )}
+      {watchingPlayers.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Watching</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {watchingPlayers.map((p) => renderPlayerRow(p, true))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

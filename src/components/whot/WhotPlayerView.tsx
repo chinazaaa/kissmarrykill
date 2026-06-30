@@ -9,7 +9,7 @@ import {
   WhotSecondaryButton,
   WhotShell,
 } from '@/components/whot/WhotChrome'
-import { WhotChoosePanel, WhotHand, WhotTable } from '@/components/whot/WhotBoard'
+import { WhotChoosePanel, WhotHand, WhotStandings, WhotTable } from '@/components/whot/WhotBoard'
 import { WhotGameTimerBar } from '@/components/whot/WhotGameTimerBar'
 import { WhotFinalResultsShareBlock } from '@/components/whot/WhotFinalResultsShareBlock'
 import { gameTypeConfig } from '@/lib/game-types'
@@ -385,6 +385,7 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
         players={players}
         myPlayerId={myPlayerId}
         handCounts={handCounts}
+        showStandings={false}
         {...tableTimerProps}
       />
 
@@ -442,6 +443,10 @@ export function WhotPlayerView({ gameCode }: { gameCode: string }) {
           Waiting for {players.find((p) => p.id === turnPlayerId)?.name ?? 'next player'}…
         </WhotCard>
       )}
+
+      <WhotCard className="p-4">
+        <WhotStandings session={session} players={players} myPlayerId={myPlayerId} handCounts={handCounts} />
+      </WhotCard>
     </WhotShell>
   )
 }
