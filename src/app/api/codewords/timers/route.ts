@@ -72,7 +72,8 @@ export async function POST(req: NextRequest) {
     .eq('id', code)
     .select()
     .single()
-  if (gameError) return NextResponse.json({ error: internalErrorMessage('codewords/timers', gameError) }, { status: 500 })
+  if (gameError)
+    return NextResponse.json({ error: internalErrorMessage('codewords/timers', gameError) }, { status: 500 })
 
   if (Object.keys(boardUpdate).length > 0) {
     const { data: board } = await supabase.from('codewords_boards').select('id').eq('game_id', code).maybeSingle()

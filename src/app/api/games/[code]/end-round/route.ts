@@ -53,7 +53,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .update({ status: 'finished', ended_at: now })
     .eq('id', activeRound.id)
 
-  if (endRoundError) return NextResponse.json({ error: internalErrorMessage('games/code/end-round', endRoundError) }, { status: 500 })
+  if (endRoundError)
+    return NextResponse.json({ error: internalErrorMessage('games/code/end-round', endRoundError) }, { status: 500 })
 
   const isLastRound = activeRound.round_number >= game.rounds_count
   return NextResponse.json({

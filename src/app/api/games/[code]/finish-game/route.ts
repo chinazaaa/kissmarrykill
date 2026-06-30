@@ -48,7 +48,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .eq('game_id', gameId)
     .eq('status', 'active')
 
-  if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/finish-game', roundError) }, { status: 500 })
+  if (roundError)
+    return NextResponse.json({ error: internalErrorMessage('games/code/finish-game', roundError) }, { status: 500 })
 
   if (isAnonymousMessagesGame(gameType)) {
     const { error } = await finishAnonymousRoomSession(admin, gameId)

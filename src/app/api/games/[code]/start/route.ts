@@ -256,7 +256,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
@@ -293,7 +294,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     })
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const updatedPoolUsage = {
       ...poolUsage,
@@ -313,7 +315,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     const { error: elimError } = await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
     if (elimError) return NextResponse.json({ error: elimError }, { status: 500 })
@@ -343,7 +346,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
@@ -373,7 +377,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
@@ -397,7 +402,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       .update({ status: 'active', session_started_at: sessionStartedAt, current_round_number: 1 })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
@@ -468,7 +474,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
         turn_deadline_at: turnDeadline(spymasterTimer),
       })
 
-    if (boardError) return NextResponse.json({ error: internalErrorMessage('games/code/start', boardError) }, { status: 500 })
+    if (boardError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', boardError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -480,7 +487,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
@@ -516,7 +524,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -528,7 +537,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     const { error: elimError } = await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
     if (elimError) return NextResponse.json({ error: elimError }, { status: 500 })
@@ -550,7 +560,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     })
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRow)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -562,7 +573,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     const { error: elimError } = await initializeEliminationLives(code.toUpperCase(), game.elimination_config)
     if (elimError) return NextResponse.json({ error: elimError }, { status: 500 })
@@ -592,7 +604,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { error: solutionError } = await supabase
       .from('sudoku_solutions')
       .insert({ round_id: insertedRound.id, solution })
-    if (solutionError) return NextResponse.json({ error: internalErrorMessage('games/code/start', solutionError) }, { status: 500 })
+    if (solutionError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', solutionError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -604,7 +617,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
@@ -619,7 +633,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const roundRow = buildWordHuntRoundRow(code.toUpperCase(), metadata)
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRow)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -631,7 +646,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
@@ -659,7 +675,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { roundRows, roundsCount } = built
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -671,7 +688,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -781,7 +799,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     })
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(allRoundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -793,7 +812,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -897,14 +917,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }))
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
       .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -990,14 +1012,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }))
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
       .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -1069,10 +1093,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       .from('games')
       .update({ custom_questions: questionPool })
       .eq('id', code.toUpperCase())
-    if (poolError) return NextResponse.json({ error: internalErrorMessage('games/code/start', poolError) }, { status: 500 })
+    if (poolError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', poolError) }, { status: 500 })
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -1084,7 +1110,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -1149,14 +1176,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }))
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
       .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -1240,14 +1269,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }))
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
       .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -1326,7 +1357,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }))
 
     const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-    if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+    if (roundError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
     const { error: gameError } = await getSupabaseAdmin()
       .from('games')
@@ -1338,7 +1370,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
       })
       .eq('id', code.toUpperCase())
 
-    if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+    if (gameError)
+      return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
     return NextResponse.json({ success: true })
   }
@@ -1422,14 +1455,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }))
 
   const { error: roundError } = await getSupabaseAdmin().from('rounds').insert(roundRows)
-  if (roundError) return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
+  if (roundError)
+    return NextResponse.json({ error: internalErrorMessage('games/code/start', roundError) }, { status: 500 })
 
   const { error: gameError } = await getSupabaseAdmin()
     .from('games')
     .update({ status: 'active', current_round_number: 1, session_started_at: sessionStartedAt })
     .eq('id', code.toUpperCase())
 
-  if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
+  if (gameError)
+    return NextResponse.json({ error: internalErrorMessage('games/code/start', gameError) }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

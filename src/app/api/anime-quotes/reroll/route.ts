@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
     .eq('id', quoteId)
     .eq('game_id', gameCode)
 
-  if (removeError) return NextResponse.json({ error: internalErrorMessage('anime-quotes/reroll', removeError) }, { status: 500 })
+  if (removeError)
+    return NextResponse.json({ error: internalErrorMessage('anime-quotes/reroll', removeError) }, { status: 500 })
 
   try {
     const newQuote = await fetchSingleAnimeQuote()
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
       choices: newQuote.choices,
     })
 
-    if (insertError) return NextResponse.json({ error: internalErrorMessage('anime-quotes/reroll', insertError) }, { status: 500 })
+    if (insertError)
+      return NextResponse.json({ error: internalErrorMessage('anime-quotes/reroll', insertError) }, { status: 500 })
 
     const { data: pool } = await admin
       .from('anime_quote_pool')

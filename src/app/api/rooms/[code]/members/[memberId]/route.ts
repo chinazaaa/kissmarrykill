@@ -22,7 +22,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ c
 
   const { error } = await admin.from('room_members').delete().eq('id', memberId).eq('room_id', roomCode)
 
-  if (error) return NextResponse.json({ error: internalErrorMessage('rooms/code/members/memberId', error) }, { status: 500 })
+  if (error)
+    return NextResponse.json({ error: internalErrorMessage('rooms/code/members/memberId', error) }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

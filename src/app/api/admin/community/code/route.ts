@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
     await setManagerCode(code)
     return NextResponse.json({ success: true, configured: true })
   } catch (err) {
-    return NextResponse.json({ error: internalErrorMessage('admin/community/code', err, 'Failed to set code') }, { status: 500 })
+    return NextResponse.json(
+      { error: internalErrorMessage('admin/community/code', err, 'Failed to set code') },
+      { status: 500 }
+    )
   }
 }

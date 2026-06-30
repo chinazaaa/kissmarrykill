@@ -55,6 +55,9 @@ export async function DELETE(req: NextRequest) {
     await deleteResult(gameId, date)
     return NextResponse.json({ success: true })
   } catch (err) {
-    return NextResponse.json({ error: internalErrorMessage('manager/results', err, 'Failed to clear') }, { status: 500 })
+    return NextResponse.json(
+      { error: internalErrorMessage('manager/results', err, 'Failed to clear') },
+      { status: 500 }
+    )
   }
 }

@@ -170,7 +170,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .select()
     .single()
 
-  if (gameError) return NextResponse.json({ error: internalErrorMessage('games/code/lobby-pool', gameError) }, { status: 500 })
+  if (gameError)
+    return NextResponse.json({ error: internalErrorMessage('games/code/lobby-pool', gameError) }, { status: 500 })
 
   return NextResponse.json({ success: true, game: updated })
 }
