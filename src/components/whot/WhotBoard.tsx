@@ -196,11 +196,15 @@ export function WhotStandings({
   players,
   myPlayerId,
   handCounts,
+  gridClassName = 'grid-cols-2 sm:grid-cols-3',
 }: {
   session: WhotSession
   players: { id: string; name: string; spectator?: boolean | null }[]
   myPlayerId: string | null
   handCounts: Record<string, number>
+  // Column layout for the player rows. Defaults to the wide grid; the desktop
+  // sidebar passes a single-column list so it reads like the trivia leaderboard.
+  gridClassName?: string
 }) {
   const turnId = session.turn_order[session.current_turn_index]
   const activePlayers = players.filter((p) => !isWhotPlayerOut(handCounts[p.id] ?? 0, p.spectator))
@@ -251,17 +255,13 @@ export function WhotStandings({
           {watchingPlayers.length > 0 && (
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Still playing</p>
           )}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {activePlayers.map((p) => renderPlayerRow(p, false))}
-          </div>
+          <div className={`grid ${gridClassName} gap-2`}>{activePlayers.map((p) => renderPlayerRow(p, false))}</div>
         </div>
       )}
       {watchingPlayers.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Watching</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {watchingPlayers.map((p) => renderPlayerRow(p, true))}
-          </div>
+          <div className={`grid ${gridClassName} gap-2`}>{watchingPlayers.map((p) => renderPlayerRow(p, true))}</div>
         </div>
       )}
     </div>
