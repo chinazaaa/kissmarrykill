@@ -73,7 +73,14 @@ function makeAdvanceSupabase(sessionUpdateResults: Array<{ error: unknown }>) {
       }
       if (table === 'describe_it_sessions') return Promise.resolve({ data: sessionRow, error: null })
       if (table === 'describe_it_players') {
-        return Promise.resolve({ data: [{ player_id: 'A', team: 1 }, { player_id: 'B', team: 1 }, { player_id: 'C', team: 1 }], error: null })
+        return Promise.resolve({
+          data: [
+            { player_id: 'A', team: 1 },
+            { player_id: 'B', team: 1 },
+            { player_id: 'C', team: 1 },
+          ],
+          error: null,
+        })
       }
       if (table === 'games') return Promise.resolve({ data: { question_source: 'platform' }, error: null })
       if (table === 'players') return Promise.resolve({ data: { name: 'Bob' }, error: null })

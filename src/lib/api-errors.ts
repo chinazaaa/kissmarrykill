@@ -28,10 +28,6 @@ export function internalErrorMessage(
  * failure the route should serialize as 5xx, distinct from a validation error
  * (returned as a plain `{ error }` string) which stays 4xx.
  */
-export function internalFailure(
-  context: string,
-  error: unknown,
-  fallback?: string
-): { error: string; internal: true } {
+export function internalFailure(context: string, error: unknown, fallback?: string): { error: string; internal: true } {
   return { error: internalErrorMessage(context, error, fallback), internal: true }
 }
