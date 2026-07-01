@@ -5,6 +5,7 @@ import { markGameFinished } from '@/lib/game-finish'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { assertPlayer } from '@/lib/game-admin'
 import { parseJsonBody } from '@/lib/parse-body'
+import { parseSudokuMetadata } from '@/lib/sudoku'
 
 const submitSchema = z.object({
   gameId: z.string().min(1).max(10).toUpperCase(),
@@ -56,8 +57,54 @@ export async function POST(req: NextRequest) {
 
   const result = data as { is_correct: boolean; points_awarded: number; all_solved: boolean }
 
-  if (result.all_solved) {
-    await markGameFinished(supabase, code)
+  const { data: round, error: roundError } = await supabase
+    .from('rounds')
+    .select('id, participant_ids, sudoku_metadata')
+    .eq('game_id', code)
+    .eq('round_number', 1)
+    .maybeSingle()
+
+  if (roundError) {
+    return NextResponse.json(
+      { error: internalErrorMessage('sudoku/submit completion round', roundError) },
+      { status: 500 }
+    )
+  }
+
+  const meta = parseSudokuMetadata(round?.sudoku_metadata)
+  if (meta && round) {
+    const emptyCellsCount = meta.puzzle.flat().filter((v) => v === 0).length
+    const roundParticipantIds = (round.participant_ids as string[]) ?? []
+
+    if (roundParticipantIds.length > 0) {
+      // Fetch all correct submissions for this round
+      const { data: correctSubs, error: subsError } = await supabase
+        .from('sudoku_submissions')
+        .select('player_id, cell_row, cell_col')
+        .eq('round_id', round.id)
+        .eq('is_correct', true)
+
+      if (subsError) {
+        return NextResponse.json(
+          { error: internalErrorMessage('sudoku/submit completeness check', subsError) },
+          { status: 500 }
+        )
+      }
+
+      // The game ends only when every active player has solved all empty cells
+      const allCompleted = roundParticipantIds.every((pId) => {
+        const solvedCount = new Set(
+          (correctSubs ?? [])
+            .filter((s) => s.player_id === pId && s.cell_row != null && s.cell_col != null)
+            .map((s) => `${s.cell_row}-${s.cell_col}`)
+        ).size
+        return solvedCount >= emptyCellsCount
+      })
+
+      if (allCompleted) {
+        await markGameFinished(supabase, code)
+      }
+    }
   }
 
   return NextResponse.json({ success: true, isCorrect: result.is_correct, pointsAwarded: result.points_awarded })
