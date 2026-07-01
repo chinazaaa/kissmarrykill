@@ -118,14 +118,27 @@ async function pickLetterAndStartWriting(
   const metadata = parseNpatMetadata(round.npat_metadata)
   if (!metadata || metadata.phase !== 'letter_pick') return false
   const now = new Date().toISOString()
-  const ok = await updateRoundMetadata(supabase, round.id, {
-    ...metadata,
-    letter: letter.toUpperCase().slice(0, 1),
-    phase: 'writing',
-    phase_started_at: now,
-  })
-  if (ok) await ensureBlankAnswers(supabase, gameId, round.id, playerIds)
-  return ok
+  // Condition the write on the round still being in letter_pick. `round` is a
+  // snapshot; a caller may have already picked (or another poller auto-picked)
+  // since it was read. Without this guard a stale auto-pick overwrites the real
+  // letter after writing began, flipping the letter mid-round and zeroing everyone.
+  const { data: updated } = await supabase
+    .from('rounds')
+    .update({
+      npat_metadata: {
+        ...metadata,
+        letter: letter.toUpperCase().slice(0, 1),
+        phase: 'writing',
+        phase_started_at: now,
+      },
+    })
+    .eq('id', round.id)
+    .eq('npat_metadata->>phase', 'letter_pick')
+    .select('id')
+    .maybeSingle()
+  if (!updated) return false
+  await ensureBlankAnswers(supabase, gameId, round.id, playerIds)
+  return true
 }
 
 async function startMarkingPhase(
