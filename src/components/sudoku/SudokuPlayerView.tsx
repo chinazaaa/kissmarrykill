@@ -23,12 +23,13 @@ import {
   type SudokuUnitFlash,
 } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
+import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
 import type { Game, Player } from '@/types'
 
 const GRID_KEY = (roundId: string, playerId: string) => `sudoku_grid_${roundId}_${playerId}`
@@ -317,6 +318,14 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     await load()
   }
 
+  function handlePlayerLeft() {
+    clearPlayerSession(gameCode)
+    myPlayerIdRef.current = null
+    myResumeTokenRef.current = null
+    setJoinName('')
+    void load()
+  }
+
   const cellOwners = useMemo(() => buildCellOwnerGrid(submissions), [submissions])
   const mySolvedCells = useMemo(
     () => (myPlayerId ? buildPlayerSolvedGrid(submissions, myPlayerId) : undefined),
@@ -590,6 +599,17 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
                 </p>
               </>
             )}
+            {myPlayerId && (
+              <PlayerSessionControls
+                gameCode={gameCode}
+                playerId={myPlayerId}
+                currentName={me?.name ?? ''}
+                onRenamed={() => void load()}
+                onLeft={handlePlayerLeft}
+                inLobby
+                className="pt-2 text-left"
+              />
+            )}
           </div>
         </main>
       </div>
@@ -780,6 +800,17 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
             )
           })}
         </div>
+
+        {myPlayerId && (
+          <PlayerSessionControls
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            currentName={me?.name ?? ''}
+            onRenamed={() => void load()}
+            onLeft={handlePlayerLeft}
+            leaveOnly={isViewer}
+          />
+        )}
       </main>
     </div>
   )
