@@ -88,9 +88,7 @@ export function SudokuBoard({
             const isWrongDraft = draftWrongCells?.[row]?.[col]
             const isFlashing = isCellInFlashingUnits(row, col, flashUnits)
 
-            const baseBg = displayColor
-              ? { backgroundColor: `${displayColor}${iSolved ? '55' : '35'}` }
-              : undefined
+            const baseBg = displayColor ? { backgroundColor: `${displayColor}${iSolved ? '55' : '35'}` } : undefined
 
             const bgStyle = isSelected
               ? { backgroundColor: 'rgba(99, 102, 241, 0.35)', transition: 'background-color 0.15s ease-out' }

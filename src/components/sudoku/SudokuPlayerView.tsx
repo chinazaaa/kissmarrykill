@@ -763,7 +763,10 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
                   </div>
                   {game?.session_started_at && effectiveWatchedId && (
                     <div className="text-sm font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-md">
-                      ⏱️ {formatMinutesSeconds(getPlayerTimeSpent(game, submissions, effectiveWatchedId, watchedCompletion, nowMs))}
+                      ⏱️{' '}
+                      {formatMinutesSeconds(
+                        getPlayerTimeSpent(game, submissions, effectiveWatchedId, watchedCompletion, nowMs)
+                      )}
                     </div>
                   )}
                 </div>
@@ -821,7 +824,8 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">{row.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {ordinal(i + 1)} of {leaderboard.length} · Completed: {pct}% {game?.session_started_at ? `· ⏱️ ${formatMinutesSeconds(timeSecs)}` : ''}
+                    {ordinal(i + 1)} of {leaderboard.length} · Completed: {pct}%{' '}
+                    {game?.session_started_at ? `· ⏱️ ${formatMinutesSeconds(timeSecs)}` : ''}
                   </p>
                 </div>
                 <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">

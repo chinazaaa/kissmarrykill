@@ -68,11 +68,7 @@ export async function POST(req: NextRequest) {
     const emptyCellsCount = meta.puzzle.flat().filter((v) => v === 0).length
 
     // Fetch all active players (non-spectators)
-    const { data: players } = await supabase
-      .from('players')
-      .select('id')
-      .eq('game_id', code)
-      .eq('spectator', false)
+    const { data: players } = await supabase.from('players').select('id').eq('game_id', code).eq('spectator', false)
 
     if (players && players.length > 0) {
       // Fetch all correct submissions for this round
