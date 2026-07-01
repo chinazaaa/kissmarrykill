@@ -11,6 +11,7 @@ import {
   isSnakeAndLadderGame,
   isTicTacToeGame,
   isChessGame,
+  isCheckersGame,
   isScrabbleGame,
   isDescribeItGame,
   isWordHuntGame,
@@ -19,6 +20,8 @@ import {
   isSecretMessageGame,
   isThisOrThat,
   isTriviaGame,
+  isTwoTruthsGame,
+  isICallOnGame,
   isWouldYouRather,
   parseGameType,
 } from '@/lib/game-types'
@@ -71,6 +74,7 @@ export function gameAllowsLatePlayerJoin(gameType: GameType): boolean {
     !isSnakeAndLadderGame(gameType) &&
     !isTicTacToeGame(gameType) &&
     !isChessGame(gameType) &&
+    !isCheckersGame(gameType) &&
     !isScrabbleGame(gameType)
   )
 }
@@ -86,7 +90,9 @@ export function gameOffersLateJoinChoice(gameType: GameType): boolean {
     isWouldYouRather(gameType) ||
     isNeverHaveIEver(gameType) ||
     isThisOrThat(gameType) ||
-    isMostLikelyTo(gameType)
+    isMostLikelyTo(gameType) ||
+    isTwoTruthsGame(gameType) ||
+    isICallOnGame(gameType)
   )
 }
 

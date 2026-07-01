@@ -60,7 +60,7 @@ export const WHOT_SESSION_SELECT =
 export const WHOT_PLAYER_HANDS_SELECT = 'id,game_id,player_id,cards,player_order,created_at'
 
 export const CRAZY8_SESSION_SELECT =
-  'id,game_id,turn_order,current_turn_index,direction,phase,draw_pile,discard_pile,top_card,required_suit,pick_two_stack,joker_penalty,status_message,winner_player_id,turn_deadline_at,created_at,updated_at'
+  'id,game_id,turn_order,current_turn_index,direction,phase,draw_pile,discard_pile,top_card,required_suit,pick_two_stack,joker_penalty,status_message,winner_player_id,finish_order,turn_deadline_at,created_at,updated_at'
 
 export const CRAZY8_PLAYER_HANDS_SELECT = 'id,game_id,player_id,cards,player_order,created_at'
 
@@ -79,6 +79,9 @@ export const TIC_TAC_TOE_SESSION_SELECT =
 
 export const CHESS_SESSION_SELECT =
   'id,game_id,player_white_id,player_black_id,fen,pgn,current_turn,white_time_ms,black_time_ms,turn_started_at,last_move_from,last_move_to,in_check,status,result_reason,winner_player_id,is_draw,status_message,turn_deadline_at,created_at,updated_at'
+
+export const CHECKERS_SESSION_SELECT =
+  'id,game_id,player_red_id,player_black_id,board,current_turn,move_count,position_counts,must_continue_from,red_time_ms,black_time_ms,turn_started_at,last_move_from,last_move_to,status,result_reason,winner_player_id,is_draw,status_message,turn_deadline_at,created_at,updated_at'
 
 export const DESCRIBE_IT_SESSION_SELECT =
   'id,game_id,mode,num_teams,total_rounds,turn_seconds,phase,turn_index,current_round,active_team,describer_player_id,roster,current_word,current_clue,current_clues,used_words,turn_deadline_at,break_deadline_at,status,status_message,created_at,updated_at'

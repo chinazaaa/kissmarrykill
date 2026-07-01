@@ -594,9 +594,20 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
       ],
     },
     {
+      title: 'Scorecard categories & points',
+      points: [
+        'Upper section — Ones, Twos, Threes, Fours, Fives, Sixes: score the sum of the dice showing that number.',
+        'Three of a Kind & Four of a Kind: score the total of all five dice when you have 3 (or 4) matching.',
+        'Full House: three of one number plus two of another — a flat 25 points.',
+        'Small Straight (four in a row) 30 points · Large Straight (five in a row) 40 points.',
+        'Yahtzee (five of a kind) 50 points · Chance: the sum of all five dice, any combination.',
+      ],
+    },
+    {
       title: 'Scoring bonus',
       points: [
         'Score 63+ in the upper section (Ones through Sixes) to earn a 35-point bonus.',
+        'After scoring 50 in the Yahtzee box, each extra five-of-a-kind is worth a 100-point Yahtzee bonus.',
         'Each category can only be scored once per game.',
       ],
     },
@@ -882,6 +893,41 @@ export const GAME_LANDING_RULES: Record<GameType, GameLandingRuleSection[]> = {
         'Deliver checkmate to win immediately. You can also win if your opponent resigns or runs out of time.',
         'Stalemate or insufficient material ends the game in a draw.',
         'Play again starts a fresh game — colors swap so the previous Black player opens as White.',
+      ],
+    },
+  ],
+
+  checkers: [
+    {
+      title: 'Objective',
+      points: [
+        'Capture all of your opponent’s pieces — or leave them with no legal move — to win.',
+        'A game where neither side can make progress can end in a draw (threefold repetition or the 40-move rule).',
+      ],
+    },
+    {
+      title: 'Setup',
+      points: [
+        'Exactly 2 players join a room. The host can play too.',
+        'One player is randomly assigned Black, the other Red. Black always moves first.',
+        'Optional clock — each player gets their own time bank (e.g. 10 minutes) that only counts down on their turn. Run out and you lose on time.',
+      ],
+    },
+    {
+      title: 'Taking a turn',
+      points: [
+        'On your turn, tap one of your pieces to see its legal moves, then tap a highlighted square to move there.',
+        'Men move one square diagonally forward; jump an adjacent opponent piece into the empty square beyond to capture it.',
+        'Captures are forced — if any jump is available you must take it, and you must keep jumping with the same piece while more captures are on offer.',
+        'A man that reaches the far row is crowned a king, which can move and capture both forward and backward.',
+      ],
+    },
+    {
+      title: 'Winning',
+      points: [
+        'Capture every enemy piece, or block their last legal move, to win. You can also win if your opponent resigns or runs out of time.',
+        'The game is drawn if the same position repeats three times, or after 40 moves with no capture or man advance.',
+        'Play again starts a fresh game — colors swap so the previous Red player opens as Black.',
       ],
     },
   ],
