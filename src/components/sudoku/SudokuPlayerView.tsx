@@ -533,24 +533,19 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
 
   if (view === 'late_join_choice' && game) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <GamePlayerChrome />
-        <main className="pt-16 flex-1">
-          <LateJoinChoice
-            gameCode={gameCode}
-            game={game}
-            context={lateJoinContext}
-            contextLoading={lateJoinContextLoading}
-            playersAllowed={allowLatePlayers(game)}
-            showNameField
-            nameInput={joinName}
-            onNameChange={setJoinName}
-            joining={joining}
-            onJoinAsViewer={() => void handleJoin({ joinAsViewer: true })}
-            onJoinAsPlayer={() => void handleJoin({ joinAsViewer: false })}
-          />
-        </main>
-      </div>
+      <LateJoinChoice
+        gameCode={gameCode}
+        game={game}
+        context={lateJoinContext}
+        contextLoading={lateJoinContextLoading}
+        playersAllowed={allowLatePlayers(game)}
+        showNameField
+        nameInput={joinName}
+        onNameChange={setJoinName}
+        joining={joining}
+        onJoinAsViewer={() => void handleJoin({ joinAsViewer: true })}
+        onJoinAsPlayer={() => void handleJoin({ joinAsViewer: false })}
+      />
     )
   }
 
