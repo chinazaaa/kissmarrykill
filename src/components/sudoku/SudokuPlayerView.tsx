@@ -23,12 +23,19 @@ import {
   type SudokuUnitFlash,
 } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
-import { getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
 import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
 import { LateJoinChoice } from '@/components/LateJoinChoice'
 import { ViewerModeBanner } from '@/components/ViewerModeBanner'
+import { PlayerSessionControls } from '@/components/ui/PlayerSessionControls'
+import { GameJoinLobbyShell } from '@/components/game-lobby/GameJoinLobbyShell'
+import { GameJoinHeader } from '@/components/game-lobby/GameJoinHeader'
+import { GameLobbyWaitingPanel } from '@/components/game-lobby/GameLobbyWaitingPanel'
+import { NameJoinForm } from '@/components/game-lobby/NameJoinForm'
+import { GameRulesLink } from '@/components/ui/GameRulesLink'
+import { gameTypeConfig } from '@/lib/game-types'
 import type { Game, Player } from '@/types'
 
 const GRID_KEY = (roundId: string, playerId: string) => `sudoku_grid_${roundId}_${playerId}`
@@ -73,6 +80,7 @@ function emptyWrongGrid(): boolean[][] {
 const EMPTY_DRAFTS: number[][] = Array.from({ length: 9 }, () => Array(9).fill(0))
 
 export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
+  const cfg = gameTypeConfig('sudoku')
   const [view, setView] = useState<View>('loading')
   const [game, setGame] = useState<Game | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
@@ -317,6 +325,14 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     await load()
   }
 
+  function handlePlayerLeft() {
+    clearPlayerSession(gameCode)
+    myPlayerIdRef.current = null
+    myResumeTokenRef.current = null
+    setJoinName('')
+    void load()
+  }
+
   const cellOwners = useMemo(() => buildCellOwnerGrid(submissions), [submissions])
   const mySolvedCells = useMemo(
     () => (myPlayerId ? buildPlayerSolvedGrid(submissions, myPlayerId) : undefined),
@@ -537,12 +553,30 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     }
 
     return (
-      <div className="min-h-screen flex flex-col">
-        <GamePlayerChrome />
-        <main className="pt-16 flex-1 flex items-center justify-center px-4">
-          <JoinForm name={joinName} onNameChange={setJoinName} onJoin={() => void handleJoin()} joining={joining} />
-        </main>
-      </div>
+      <GameJoinLobbyShell
+        gameCode={gameCode}
+        header={
+          <GameJoinHeader
+            emoji={cfg.headerEmoji}
+            title={game?.title ?? 'Sudoku'}
+            gameType="sudoku"
+            subtitle="Race to fill cells before your friends."
+          />
+        }
+      >
+        <NameJoinForm
+          value={joinName}
+          onChange={setJoinName}
+          onSubmit={() => void handleJoin()}
+          joining={joining}
+          submitLabel="Join game"
+          footer={
+            <p className="text-center pt-1">
+              <GameRulesLink gameType="sudoku" variant="subtle" />
+            </p>
+          }
+        />
+      </GameJoinLobbyShell>
     )
   }
 
@@ -566,33 +600,22 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
 
   if (view === 'waiting') {
     return (
-      <div className="min-h-screen flex flex-col">
-        <GamePlayerChrome />
-        <main className="pt-16 flex-1 flex items-center justify-center px-4 py-8">
-          <div className="glass-card-strong p-8 w-full max-w-sm text-center space-y-4">
-            <p className="text-3xl">🔢</p>
-            <h2 className="text-xl font-black">{game?.title ?? 'Sudoku'}</h2>
-            {isSpectator ? (
-              <>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">New round</p>
-                <p className="text-muted text-sm">Tap below to join the next round</p>
-                <button type="button" onClick={handleReady} className="btn-primary w-full py-3 font-bold">
-                  I'm in — ready to play
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--primary)]">You're in</p>
-                <p className="text-muted text-sm">Waiting for the host to start the puzzle…</p>
-                <p className="text-muted text-xs">
-                  {activePlayers.length} player
-                  {activePlayers.length !== 1 ? 's' : ''} ready
-                </p>
-              </>
-            )}
-          </div>
-        </main>
-      </div>
+      <GameJoinLobbyShell gameCode={gameCode} onResumed={load}>
+        <GameLobbyWaitingPanel
+          gameCode={gameCode}
+          gameType={game?.game_type}
+          players={players}
+          myPlayerId={myPlayerId}
+          myPlayerName={me?.name ?? ''}
+          onRenamed={() => void load()}
+          onLeft={handlePlayerLeft}
+          title={game?.title ?? 'Sudoku'}
+          description="Waiting for the host to start the puzzle…"
+          rulesLink={<GameRulesLink gameType="sudoku" variant="subtle" />}
+          isSpectator={isSpectator}
+          onReady={handleReady}
+        />
+      </GameJoinLobbyShell>
     )
   }
 
@@ -780,6 +803,17 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
             )
           })}
         </div>
+
+        {myPlayerId && (
+          <PlayerSessionControls
+            gameCode={gameCode}
+            playerId={myPlayerId}
+            currentName={me?.name ?? ''}
+            onRenamed={() => void load()}
+            onLeft={handlePlayerLeft}
+            leaveOnly={isViewer}
+          />
+        )}
       </main>
     </div>
   )
@@ -826,43 +860,5 @@ function MiniGrid({
         )
       })}
     </div>
-  )
-}
-
-function JoinForm({
-  name,
-  onNameChange,
-  onJoin,
-  joining,
-}: {
-  name: string
-  onNameChange: (value: string) => void
-  onJoin: () => void
-  joining: boolean
-}) {
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!name.trim()) return
-    await onJoin()
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="glass-card-strong p-8 w-full max-w-sm space-y-4 text-center">
-      <p className="text-3xl">🔢</p>
-      <h1 className="text-2xl font-black">Join Sudoku</h1>
-      <p className="text-muted text-sm">Race to fill cells before your friends</p>
-      <input
-        type="text"
-        placeholder="Your name"
-        value={name}
-        onChange={(e) => onNameChange(e.target.value)}
-        maxLength={32}
-        className="input-field w-full"
-        autoFocus
-      />
-      <button type="submit" disabled={!name.trim() || joining} className="btn-primary w-full">
-        {joining ? 'Joining…' : 'Join game'}
-      </button>
-    </form>
   )
 }
