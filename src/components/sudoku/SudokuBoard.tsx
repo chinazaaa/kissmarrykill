@@ -90,15 +90,15 @@ export function SudokuBoard({
 
             const baseBg = displayColor
               ? { backgroundColor: `${displayColor}${iSolved ? '55' : '35'}` }
-              : isSelected
-                ? { backgroundColor: 'rgba(148, 163, 184, 0.25)' }
-                : undefined
+              : undefined
 
-            const bgStyle = isFlashing
-              ? { backgroundColor: 'rgba(251, 191, 36, 0.55)', transition: 'background-color 0.5s ease-out' }
-              : baseBg
-                ? { ...baseBg, transition: 'background-color 0.5s ease-out' }
-                : undefined
+            const bgStyle = isSelected
+              ? { backgroundColor: 'rgba(99, 102, 241, 0.35)', transition: 'background-color 0.15s ease-out' }
+              : isFlashing
+                ? { backgroundColor: 'rgba(251, 191, 36, 0.55)', transition: 'background-color 0.5s ease-out' }
+                : baseBg
+                  ? { ...baseBg, transition: 'background-color 0.5s ease-out' }
+                  : undefined
 
             const cellDisabled = readOnly || given || (canSelectCell ? !canSelectCell(row, col) : false)
 
@@ -127,6 +127,7 @@ export function SudokuBoard({
                   borderBottom,
                   cellDisabled ? 'cursor-default' : 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/60',
                   given ? 'bg-white dark:bg-slate-900' : '',
+                  isSelected ? 'ring-2 ring-indigo-500 ring-inset z-10' : '',
                 ].join(' ')}
                 style={{ aspectRatio: '1', ...bgStyle }}
               >

@@ -20,12 +20,15 @@ import {
   buildCellOwnerGrid,
   buildClaimedValueGrid,
   boardCompletionPercent,
+  playerCompletionPercent,
   sudokuPlayerColor,
   SUDOKU_MIN_PLAYERS,
+  getPlayerTimeSpent,
   type SudokuSubmission,
 } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
 import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { formatMinutesSeconds } from '@/lib/timer-format'
 import type { Game, Player } from '@/types'
 import { useHostAutoReady } from '@/hooks/useHostAutoReady'
 import { useHostRemovePlayer } from '@/hooks/useHostRemovePlayer'
@@ -61,6 +64,16 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
   const [hostJoinName, setHostJoinName] = useState('')
   const [hostJoining, setHostJoining] = useState(false)
   const [tab, setTab] = useState<HostTab>('manage')
+  const [nowMs, setNowMs] = useState<number>(Date.now())
+
+  useEffect(() => {
+    if (game?.status === 'active') {
+      const interval = setInterval(() => {
+        setNowMs(Date.now())
+      }, 1000)
+      return () => clearInterval(interval)
+    }
+  }, [game?.status])
 
   const load = useCallback(async () => {
     const [{ data: gameData }, { data: playersData }] = await Promise.all([
@@ -309,14 +322,23 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
 
         <div className="space-y-3">
           <p className="label-caps text-xs">Live scores</p>
-          {leaderboard.map((row, i) => (
-            <div key={row.player_id} className="glass-card px-3 py-2 flex items-center justify-between">
-              <span className="text-sm font-medium">
-                {i + 1}. {row.name}
-              </span>
-              <span className="text-sm font-bold">{row.points} pts</span>
-            </div>
-          ))}
+          {leaderboard.map((row, i) => {
+            const pct = puzzle ? playerCompletionPercent(puzzle, submissions, row.player_id) : 0
+            const timeSecs = getPlayerTimeSpent(game, submissions, row.player_id, pct, nowMs)
+            return (
+              <div key={row.player_id} className="glass-card px-3 py-2.5 flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold truncate block">
+                    {i + 1}. {row.name}
+                  </span>
+                  <span className="text-xs text-muted block">
+                    Completed: {pct}% · ⏱️ {formatMinutesSeconds(timeSecs)}
+                  </span>
+                </div>
+                <span className="text-sm font-bold shrink-0">{row.points} pts</span>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -400,7 +422,16 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
           </div>
           <PaginatedLeaderboard
             title="Final leaderboard"
-            rows={leaderboard.map((row, i) => ({ id: row.player_id, name: row.name, score: row.points, rank: i + 1 }))}
+            rows={leaderboard.map((row, i) => {
+              const pct = puzzle ? playerCompletionPercent(puzzle, submissions, row.player_id) : 0
+              const timeSecs = getPlayerTimeSpent(game, submissions, row.player_id, pct, nowMs)
+              return {
+                id: row.player_id,
+                name: `${row.name} (⏱️ ${formatMinutesSeconds(timeSecs)})`,
+                score: row.points,
+                rank: i + 1,
+              }
+            })}
             scoreLabel={(n) => `${n} pts`}
           />
           <button

@@ -56,8 +56,46 @@ export async function POST(req: NextRequest) {
 
   const result = data as { is_correct: boolean; points_awarded: number; all_solved: boolean }
 
-  if (result.all_solved) {
-    await markGameFinished(supabase, code)
+  const { data: round } = await supabase
+    .from('rounds')
+    .select('sudoku_metadata')
+    .eq('game_id', code)
+    .eq('round_number', 1)
+    .maybeSingle()
+
+  if (round && round.sudoku_metadata) {
+    const meta = round.sudoku_metadata as { puzzle: number[][] }
+    const emptyCellsCount = meta.puzzle.flat().filter((v) => v === 0).length
+
+    // Fetch all active players (non-spectators)
+    const { data: players } = await supabase
+      .from('players')
+      .select('id')
+      .eq('game_id', code)
+      .eq('spectator', false)
+
+    if (players && players.length > 0) {
+      // Fetch all correct submissions for this round
+      const { data: correctSubs } = await supabase
+        .from('sudoku_submissions')
+        .select('player_id, cell_row, cell_col')
+        .eq('game_id', code)
+        .eq('is_correct', true)
+
+      // The game ends only when every active player has solved all empty cells
+      const allCompleted = players.every((p) => {
+        const solvedCount = new Set(
+          (correctSubs ?? [])
+            .filter((s) => s.player_id === p.id && s.cell_row != null && s.cell_col != null)
+            .map((s) => `${s.cell_row}-${s.cell_col}`)
+        ).size
+        return solvedCount >= emptyCellsCount
+      })
+
+      if (allCompleted) {
+        await markGameFinished(supabase, code)
+      }
+    }
   }
 
   return NextResponse.json({ success: true, isCorrect: result.is_correct, pointsAwarded: result.points_awarded })

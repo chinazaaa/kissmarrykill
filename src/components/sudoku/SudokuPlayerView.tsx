@@ -19,11 +19,13 @@ import {
   playerHasSolvedCell,
   SUDOKU_MY_CELL_COLOR,
   SUDOKU_WRONG_PENALTY,
+  getPlayerTimeSpent,
   type SudokuSubmission,
   type SudokuUnitFlash,
 } from '@/lib/sudoku'
 import { GAME_SELECT, PLAYER_SELECT, ROUND_SELECT, SUDOKU_SUBMISSION_SELECT } from '@/lib/supabase-selects'
-import { clearPlayerSession, getPlayerSession, setPlayerSession } from '@/lib/utils'
+import { getPlayerSession, clearPlayerSession, setPlayerSession } from '@/lib/utils'
+import { formatMinutesSeconds } from '@/lib/timer-format'
 import { useRoomMemberAutoJoin, useRoomMemberJoin, useRoomMemberNamePrefill } from '@/hooks/useRoomMemberJoin'
 import { useLateJoinContext } from '@/hooks/useLateJoinContext'
 import { allowLatePlayers, playerIsViewer, preJoinScreen } from '@/lib/viewers'
@@ -88,6 +90,16 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
   const [puzzle, setPuzzle] = useState<number[][] | null>(null)
   const [userGrid, setUserGrid] = useState<number[][]>(Array.from({ length: 9 }, () => Array(9).fill(0)))
   const [wrongDrafts, setWrongDrafts] = useState<boolean[][]>(emptyWrongGrid)
+  const [nowMs, setNowMs] = useState<number>(Date.now())
+
+  useEffect(() => {
+    if (view === 'playing') {
+      const interval = setInterval(() => {
+        setNowMs(Date.now())
+      }, 1000)
+      return () => clearInterval(interval)
+    }
+  }, [view])
   const [undoStack, setUndoStack] = useState<DraftUndo[]>([])
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null)
   const [watchedPlayerId, setWatchedPlayerId] = useState<string | null>(null)
@@ -424,7 +436,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     setWrongDraft(row, col, false)
   }
 
-  async function submitCell(row: number, col: number, value: number, hideDraftWhileSolving: boolean) {
+  async function submitCell(row: number, col: number, value: number) {
     if (!myPlayerId || !roundId || submitting) return
 
     const resumeToken = myResumeTokenRef.current
@@ -460,17 +472,13 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
         setWrongDraft(row, col, false)
       } else {
         showToast(`✗ Wrong! ${SUDOKU_WRONG_PENALTY} pts`, false)
-        if (hideDraftWhileSolving) {
-          clearLocalDraft(row, col)
-        } else {
-          setUserGrid((prev) => {
-            const next = prev.map((r) => [...r])
-            next[row][col] = value
-            if (roundId && myPlayerId) saveGrid(roundId, myPlayerId, next)
-            return next
-          })
-          setWrongDraft(row, col, true)
-        }
+        setUserGrid((prev) => {
+          const next = prev.map((r) => [...r])
+          next[row][col] = value
+          if (roundId && myPlayerId) saveGrid(roundId, myPlayerId, next)
+          return next
+        })
+        setWrongDraft(row, col, true)
       }
     } finally {
       setSubmitting(false)
@@ -483,22 +491,18 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     const [row, col] = selectedCell
     if (!isCellEditable(row, col)) return
 
-    const owner = cellOwners[row]![col]
-    const someoneElseSolvedFirst = !!(owner && owner !== myPlayerId)
-    if (!someoneElseSolvedFirst) {
-      const prev = userGrid[row]?.[col] ?? 0
-      const prevWrong = wrongDrafts[row]?.[col] ?? false
-      setUserGrid((prevGrid) => {
-        const next = prevGrid.map((r) => [...r])
-        next[row][col] = value
-        if (roundId && myPlayerId) saveGrid(roundId, myPlayerId, next)
-        return next
-      })
-      setWrongDraft(row, col, false)
-      pushDraftUndo(row, col, prev, prevWrong)
-    }
+    const prev = userGrid[row]?.[col] ?? 0
+    const prevWrong = wrongDrafts[row]?.[col] ?? false
+    setUserGrid((prevGrid) => {
+      const next = prevGrid.map((r) => [...r])
+      next[row][col] = value
+      if (roundId && myPlayerId) saveGrid(roundId, myPlayerId, next)
+      return next
+    })
+    setWrongDraft(row, col, false)
+    pushDraftUndo(row, col, prev, prevWrong)
 
-    void submitCell(row, col, value, someoneElseSolvedFirst)
+    void submitCell(row, col, value)
   }
 
   function handleErase() {
@@ -641,7 +645,16 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
           </div>
           <PaginatedLeaderboard
             title="Final leaderboard"
-            rows={leaderboard.map((row, i) => ({ id: row.player_id, name: row.name, score: row.points, rank: i + 1 }))}
+            rows={leaderboard.map((row, i) => {
+              const pct = puzzle ? playerCompletionPercent(puzzle, submissions, row.player_id) : 0
+              const timeSecs = getPlayerTimeSpent(game, submissions, row.player_id, pct, nowMs)
+              return {
+                id: row.player_id,
+                name: `${row.name} (⏱️ ${formatMinutesSeconds(timeSecs)})`,
+                score: row.points,
+                rank: i + 1,
+              }
+            })}
             highlightId={myPlayerId ?? undefined}
             scoreLabel={(n) => `${n} pts`}
           />
@@ -714,14 +727,21 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
           </>
         ) : (
           /* Player status header */
-          <div className="flex items-center gap-3 px-1">
-            <div className="w-4 h-4 rounded-sm shrink-0" style={{ backgroundColor: SUDOKU_MY_CELL_COLOR }} />
-            <div>
-              <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">{me?.name ?? 'Me'}</p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {myRank > 0 ? `${ordinal(myRank)}` : '—'} | {myCompletion}%
-              </p>
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 rounded-sm shrink-0" style={{ backgroundColor: SUDOKU_MY_CELL_COLOR }} />
+              <div>
+                <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">{me?.name ?? 'Me'}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {myRank > 0 ? `${ordinal(myRank)}` : '—'} | {myCompletion}%
+                </p>
+              </div>
             </div>
+            {game?.session_started_at && (
+              <div className="text-sm font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-md">
+                ⏱️ {formatMinutesSeconds(getPlayerTimeSpent(game, submissions, myPlayerId || '', myCompletion, nowMs))}
+              </div>
+            )}
           </div>
         )}
 
@@ -729,16 +749,23 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
           (isViewer ? (
             watchedGrid && (
               <div className="space-y-3">
-                <div className="flex items-center gap-3 px-1">
-                  <div className="w-4 h-4 rounded-sm shrink-0" style={{ backgroundColor: SUDOKU_MY_CELL_COLOR }} />
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                      {watchedPlayer?.name ?? 'Player'}
-                    </p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {watchedRank > 0 ? `${ordinal(watchedRank)}` : '—'} | {watchedCompletion}%
-                    </p>
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-sm shrink-0" style={{ backgroundColor: SUDOKU_MY_CELL_COLOR }} />
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                        {watchedPlayer?.name ?? 'Player'}
+                      </p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {watchedRank > 0 ? `${ordinal(watchedRank)}` : '—'} | {watchedCompletion}%
+                      </p>
+                    </div>
                   </div>
+                  {game?.session_started_at && effectiveWatchedId && (
+                    <div className="text-sm font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-md">
+                      ⏱️ {formatMinutesSeconds(getPlayerTimeSpent(game, submissions, effectiveWatchedId, watchedCompletion, nowMs))}
+                    </div>
+                  )}
                 </div>
                 <SudokuBoard
                   puzzle={puzzle}
@@ -779,6 +806,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
             const pct = puzzle ? playerCompletionPercent(puzzle, submissions, row.player_id) : 0
             const color = playerColors[row.player_id] ?? '#86efac'
             const playerSolved = buildPlayerSolvedGrid(submissions, row.player_id)
+            const timeSecs = getPlayerTimeSpent(game, submissions, row.player_id, pct, nowMs)
             return (
               <div
                 key={row.player_id}
@@ -793,7 +821,7 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">{row.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {ordinal(i + 1)} of {leaderboard.length} · Completed: {pct}%
+                    {ordinal(i + 1)} of {leaderboard.length} · Completed: {pct}% {game?.session_started_at ? `· ⏱️ ${formatMinutesSeconds(timeSecs)}` : ''}
                   </p>
                 </div>
                 <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">
