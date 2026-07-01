@@ -303,7 +303,12 @@ export function gamesItemListJsonLd(): string {
   })
 }
 
-/** HowTo structured data built from a game's "how it works" steps — eligible for step-by-step rich results and quoted by AI answers. */
+/**
+ * HowTo structured data built from a game's "how it works" steps — parsed by AI
+ * answer engines and Bing. `totalTime` is intentionally omitted: play length
+ * varies per game and per group, so asserting a fixed duration would be
+ * inaccurate structured data.
+ */
 export function gameHowToJsonLd(content: GameLandingContent): string {
   const cfg = gameTypeConfig(content.gameType)
   const origin = appOrigin()
@@ -313,7 +318,6 @@ export function gameHowToJsonLd(content: GameLandingContent): string {
     '@type': 'HowTo',
     name: `How to play ${cfg.label} online`,
     description: content.seoDescription,
-    totalTime: 'PT1M',
     step: content.steps.map((step, i) => ({
       '@type': 'HowToStep',
       position: i + 1,
