@@ -286,9 +286,9 @@ function CreateGameInner() {
   const [scrabbleDictionary, setScrabbleDictionary] = useState<ScrabbleDictionaryId>(SCRABBLE_DEFAULT_DICTIONARY)
   const [chessBoardTheme, setChessBoardTheme] = useState('green')
   const [chessPieceSet, setChessPieceSet] = useState('neo')
-  // Picking a look here is the host's explicit choice, so mirror it into this
-  // device's personal preference too — otherwise a leftover per-device override
-  // from a previous game would silently shadow it on the host's own board.
+  // On successful chess-game creation we mirror the host's chosen look into this
+  // device's personal preference (see createGame), so a leftover per-device
+  // override from a previous game doesn't silently shadow it on the host's board.
   const { setBoardTheme: setDeviceBoardTheme, setPieceSet: setDevicePieceSet } = useChessAppearance()
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
@@ -1304,6 +1304,14 @@ function CreateGameInner() {
       })
       const data = await res.json()
       if (data.gameCode) {
+        // Mirror the host's chosen look into this device's personal preference so
+        // the host sees exactly what they picked, rather than a leftover override
+        // from a previous game. Done only once the game is actually created — not
+        // on every swatch click while they're still deciding.
+        if (isChess) {
+          setDeviceBoardTheme(chessBoardTheme)
+          setDevicePieceSet(chessPieceSet)
+        }
         setResult(data)
         setStep('done')
         const roomParam = searchParams.get('room')
@@ -1892,10 +1900,7 @@ function CreateGameInner() {
                         <button
                           key={theme.id}
                           type="button"
-                          onClick={() => {
-                            setChessBoardTheme(theme.id)
-                            setDeviceBoardTheme(theme.id)
-                          }}
+                          onClick={() => setChessBoardTheme(theme.id)}
                           title={theme.name}
                           aria-label={`${theme.name} board`}
                           aria-pressed={active}
@@ -1923,10 +1928,7 @@ function CreateGameInner() {
                         <button
                           key={set.id}
                           type="button"
-                          onClick={() => {
-                            setChessPieceSet(set.id)
-                            setDevicePieceSet(set.id)
-                          }}
+                          onClick={() => setChessPieceSet(set.id)}
                           title={set.name}
                           aria-label={`${set.name} pieces`}
                           aria-pressed={active}

@@ -358,7 +358,7 @@ export function ChessGamePanel({
                   {isCheck && <span className="absolute inset-0 z-0 bg-rose-500/50" />}
                   {showRank && (
                     <span
-                      className="pointer-events-none absolute top-0.5 left-0.5 z-0 text-[9px] sm:text-[11px] font-bold leading-none select-none"
+                      className="pointer-events-none absolute top-0.5 left-0.5 z-20 text-[9px] sm:text-[11px] font-bold leading-none select-none"
                       style={{ color: coordColor }}
                       aria-hidden
                     >
@@ -367,7 +367,7 @@ export function ChessGamePanel({
                   )}
                   {showFile && (
                     <span
-                      className="pointer-events-none absolute bottom-0.5 right-1 z-0 text-[9px] sm:text-[11px] font-bold leading-none select-none"
+                      className="pointer-events-none absolute bottom-0.5 right-1 z-20 text-[9px] sm:text-[11px] font-bold leading-none select-none"
                       style={{ color: coordColor }}
                       aria-hidden
                     >
