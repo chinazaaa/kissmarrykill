@@ -353,7 +353,9 @@ export function SudokuPlayerView({ gameCode }: { gameCode: string }) {
     null
   const watchedPlayer = players.find((p) => p.id === effectiveWatchedId)
   const watchedGrid =
-    puzzle && effectiveWatchedId ? buildPlayerDisplayGrid(puzzle, submissions, effectiveWatchedId, EMPTY_DRAFTS) : puzzle
+    puzzle && effectiveWatchedId
+      ? buildPlayerDisplayGrid(puzzle, submissions, effectiveWatchedId, EMPTY_DRAFTS)
+      : puzzle
   const watchedSolvedCells = effectiveWatchedId ? buildPlayerSolvedGrid(submissions, effectiveWatchedId) : undefined
   const watchedRank = leaderboard.findIndex((r) => r.player_id === effectiveWatchedId) + 1
   const watchedCompletion =
