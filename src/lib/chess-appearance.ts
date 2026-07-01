@@ -25,16 +25,48 @@ export type PieceFace = {
   color: string
   /** CSS `filter` value: a drop-shadow chain giving the piece a halo / depth. */
   filter: string
+  /** Detailed sets only: outline stroke around the piece body. */
+  outline?: string
+  /** Detailed sets only: interior "ink" lines / accents (crown lines, knight eye). */
+  detail?: string
 }
 
 export type ChessPieceSet = {
   id: string
   name: string
+  /**
+   * How the pieces are drawn. `silhouette` (default) uses the single-tone
+   * `ChessPieceIcon`; `detailed` uses the two-tone `ChessPieceDetailed` set —
+   * the classic light-body / dark-ink look you see on chess.com & lichess.
+   */
+  style?: 'silhouette' | 'detailed'
   white: PieceFace
   black: PieceFace
 }
 
 export const PIECE_SETS: ChessPieceSet[] = [
+  {
+    // The most-requested look: classic two-tone pieces (light body, dark ink).
+    // Rendered by `ChessPieceDetailed`; the `color`/`outline`/`detail` fields
+    // drive its body fill, silhouette stroke, and interior lines respectively.
+    id: 'neo',
+    name: 'Neo',
+    style: 'detailed',
+    white: {
+      variant: 'filled',
+      color: '#f8f8f8',
+      outline: '#4b4b4b',
+      detail: '#4b4b4b',
+      filter: 'drop-shadow(0 1.5px 1px rgba(0,0,0,0.28))',
+    },
+    black: {
+      variant: 'filled',
+      color: '#38352f',
+      outline: '#0e0d0b',
+      detail: '#e6e2db',
+      filter: 'drop-shadow(0 1.5px 1px rgba(0,0,0,0.3))',
+    },
+  },
   {
     id: 'classic',
     name: 'Classic',
@@ -110,8 +142,8 @@ export type ChessBoardTheme = {
 }
 
 export const BOARD_THEMES: ChessBoardTheme[] = [
+  { id: 'green', name: 'Green', light: '#ebecd0', dark: '#739552' },
   { id: 'classic', name: 'Classic', light: '#eed9b5', dark: '#b58863' },
-  { id: 'emerald', name: 'Emerald', light: '#eeeed2', dark: '#769656' },
   { id: 'ocean', name: 'Ocean', light: '#dee3e6', dark: '#8ca2ad' },
   { id: 'midnight', name: 'Midnight', light: '#6b7a8a', dark: '#2c3a47' },
   { id: 'walnut', name: 'Walnut', light: '#e3c6a0', dark: '#7a4a2b' },

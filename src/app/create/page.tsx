@@ -68,8 +68,8 @@ import {
   isSudokuGame,
   isWordHuntGame,
 } from '@/lib/game-types'
-import { BOARD_THEMES, PIECE_SETS } from '@/lib/chess-appearance'
-import { ChessPieceIcon } from '@/components/chess/ChessPieceIcon'
+import { BOARD_THEMES, PIECE_SETS, useChessAppearance } from '@/lib/chess-appearance'
+import { ChessPieceGlyph } from '@/components/chess/ChessPieceDetailed'
 import { WYR_QUESTION_COUNT } from '@/lib/would-you-rather-questions'
 import { THIS_OR_THAT_QUESTION_COUNT } from '@/lib/this-or-that-questions'
 import type { WyrQuestion } from '@/lib/would-you-rather-questions'
@@ -284,8 +284,12 @@ function CreateGameInner() {
   const [monopolyGameDuration, setMonopolyGameDuration] = useState(0)
   const [scrabbleGameDuration, setScrabbleGameDuration] = useState(0)
   const [scrabbleDictionary, setScrabbleDictionary] = useState<ScrabbleDictionaryId>(SCRABBLE_DEFAULT_DICTIONARY)
-  const [chessBoardTheme, setChessBoardTheme] = useState('classic')
-  const [chessPieceSet, setChessPieceSet] = useState('classic')
+  const [chessBoardTheme, setChessBoardTheme] = useState('green')
+  const [chessPieceSet, setChessPieceSet] = useState('neo')
+  // Picking a look here is the host's explicit choice, so mirror it into this
+  // device's personal preference too — otherwise a leftover per-device override
+  // from a previous game would silently shadow it on the host's own board.
+  const { setBoardTheme: setDeviceBoardTheme, setPieceSet: setDevicePieceSet } = useChessAppearance()
   const [yahtzeeMaxPlayers, setYahtzeeMaxPlayers] = useState(YAHTZEE_DEFAULT_MAX_PLAYERS)
   const [whotMaxPlayers, setWhotMaxPlayers] = useState(WHOT_DEFAULT_MAX_PLAYERS)
   const [whotGameDuration, setWhotGameDuration] = useState(0)
@@ -1888,7 +1892,10 @@ function CreateGameInner() {
                         <button
                           key={theme.id}
                           type="button"
-                          onClick={() => setChessBoardTheme(theme.id)}
+                          onClick={() => {
+                            setChessBoardTheme(theme.id)
+                            setDeviceBoardTheme(theme.id)
+                          }}
                           title={theme.name}
                           aria-label={`${theme.name} board`}
                           aria-pressed={active}
@@ -1916,7 +1923,10 @@ function CreateGameInner() {
                         <button
                           key={set.id}
                           type="button"
-                          onClick={() => setChessPieceSet(set.id)}
+                          onClick={() => {
+                            setChessPieceSet(set.id)
+                            setDevicePieceSet(set.id)
+                          }}
                           title={set.name}
                           aria-label={`${set.name} pieces`}
                           aria-pressed={active}
@@ -1929,18 +1939,8 @@ function CreateGameInner() {
                           style={{ backgroundColor: '#b58863' }}
                         >
                           <span className="leading-none flex gap-0.5">
-                            <ChessPieceIcon
-                              type="n"
-                              variant={set.white.variant}
-                              className="h-6 w-6"
-                              style={{ color: set.white.color, filter: set.white.filter }}
-                            />
-                            <ChessPieceIcon
-                              type="n"
-                              variant={set.black.variant}
-                              className="h-6 w-6"
-                              style={{ color: set.black.color, filter: set.black.filter }}
-                            />
+                            <ChessPieceGlyph set={set} color="w" type="n" className="h-6 w-6" />
+                            <ChessPieceGlyph set={set} color="b" type="n" className="h-6 w-6" />
                           </span>
                           <span className="text-[10px] font-semibold text-white/90 leading-none">{set.name}</span>
                         </button>
