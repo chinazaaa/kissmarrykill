@@ -11,6 +11,7 @@ import { HostGameLayout } from '@/components/host/HostGameLayout'
 import { HostManageSection } from '@/components/host/HostManageSection'
 import { HostModeSelector } from '@/components/host/HostModeSelector'
 import { HostLobbyWaitingFooter } from '@/components/host-lobby/HostLobbyWaitingFooter'
+import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { ExitIcon } from '@/components/host/host-icons'
 import {
@@ -343,6 +344,9 @@ export function SudokuHostView({ gameCode, hostToken }: { gameCode: string; host
             spectatorHint="Watch the puzzle from the Watch tab"
           />
         ) : undefined
+      }
+      settings={
+        <HostLateJoinSettingsCard gameCode={gameCode} hostToken={hostToken} game={game} onGameUpdate={setGame} />
       }
       footer={
         game.status === 'waiting' ? (
