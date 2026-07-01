@@ -2609,6 +2609,11 @@ function CreateGameInner() {
                     ))}
                   </select>
                 </Field>
+                {showViewerToggle && (
+                  <Field label="Late joiners">
+                    <LateJoinPolicyToggle value={lateJoinPolicy} onChange={setLateJoinPolicy} gameType="sudoku" />
+                  </Field>
+                )}
                 <p className="text-faint text-sm leading-relaxed">
                   Race to solve the 9×9 puzzle block by block. First to claim a block gets 10 pts, second 6, third 3,
                   rest 1. Wrong answer? −3 pts, but you can try that block again.
