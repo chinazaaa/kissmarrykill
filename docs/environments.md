@@ -1,8 +1,9 @@
 # Environments
 
-Two fully-isolated stacks — `fateround-dev` and `fateround-prod` — each its own EC2/ASG behind
-Cloudflare, with its own **Supabase** project. **LiveKit is a single self-hosted instance shared
-by both** (rooms are namespaced per game code). Your local `.env.local` should mirror whichever
+`fateround-dev` and `fateround-prod` are separate app stacks — each its own EC2/ASG behind
+Cloudflare, with its own **Supabase** project. They are isolated at the compute, edge, and database
+layers, but **not fully isolated**: they share a single self-hosted **LiveKit** instance and its
+credentials (rooms are namespaced per game code). Your local `.env.local` should mirror whichever
 environment you're targeting.
 
 > **Secrets are not in this file.** Real secret values live only in `infra/terraform.<env>.tfvars`
@@ -49,7 +50,7 @@ gated redeploy (`gh workflow run "Build & Push Image" -f environment=<env>`).
 `.env.local` is gitignored and per-developer. For a dev run, it needs the dev Supabase trio plus the
 (shared) self-hosted LiveKit trio:
 
-```
+```dotenv
 NEXT_PUBLIC_SUPABASE_URL=https://xzvsrzbbgxbaagqwtpts.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_4U7akfEx_4sxtLrxeCU_Rw_VpSeFRAu
 SUPABASE_SERVICE_ROLE_KEY=<dev service-role — from terraform.dev.tfvars>
