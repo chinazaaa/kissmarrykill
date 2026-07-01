@@ -5,6 +5,7 @@ import { markGameFinished } from '@/lib/game-finish'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { assertPlayer } from '@/lib/game-admin'
 import { parseJsonBody } from '@/lib/parse-body'
+import { parseSudokuMetadata } from '@/lib/sudoku'
 
 const submitSchema = z.object({
   gameId: z.string().min(1).max(10).toUpperCase(),
@@ -64,7 +65,10 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (roundError) {
-    return NextResponse.json({ error: internalErrorMessage('sudoku/submit completion round', roundError) }, { status: 500 })
+    return NextResponse.json(
+      { error: internalErrorMessage('sudoku/submit completion round', roundError) },
+      { status: 500 }
+    )
   }
 
   const meta = parseSudokuMetadata(round?.sudoku_metadata)

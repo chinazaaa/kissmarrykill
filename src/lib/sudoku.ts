@@ -523,8 +523,6 @@ export function getPlayerTimeSpent(
       return Math.max(0, Math.floor((endMs - startMs) / 1000))
     }
   }
-  const endMs = (completionPercent < 100 && game.finished_at)
-    ? new Date(game.finished_at).getTime()
-    : nowMs
+  const endMs = completionPercent < 100 && game.finished_at ? new Date(game.finished_at).getTime() : nowMs
   return Math.max(0, Math.floor((endMs - startMs) / 1000))
 }
