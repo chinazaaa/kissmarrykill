@@ -78,11 +78,18 @@ export async function POST(req: NextRequest) {
 
     if (roundParticipantIds.length > 0) {
       // Fetch all correct submissions for this round
-      const { data: correctSubs } = await supabase
+      const { data: correctSubs, error: subsError } = await supabase
         .from('sudoku_submissions')
         .select('player_id, cell_row, cell_col')
         .eq('round_id', round.id)
         .eq('is_correct', true)
+
+      if (subsError) {
+        return NextResponse.json(
+          { error: internalErrorMessage('sudoku/submit completeness check', subsError) },
+          { status: 500 }
+        )
+      }
 
       // The game ends only when every active player has solved all empty cells
       const allCompleted = roundParticipantIds.every((pId) => {
