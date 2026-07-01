@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { YahtzeeDiceTray } from '@/components/yahtzee/YahtzeeChrome'
 import { YahtzeeScorecard } from '@/components/yahtzee/YahtzeeScorecard'
 import { YahtzeeFinalResultsShareBlock } from '@/components/yahtzee/YahtzeeFinalResultsShareBlock'
+import { PostWinToCommunity } from '@/components/community/PostWinToCommunity'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { HostGameLayout } from '@/components/host/HostGameLayout'
 import { HostManageSection } from '@/components/host/HostManageSection'
@@ -429,6 +430,7 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
       primary={hostPlays ? interactivePlay : watchBoard}
       manage={manage}
       finished={
+        <>
         <YahtzeeFinalResultsShareBlock
           game={game}
           players={players}
@@ -445,6 +447,15 @@ export function YahtzeeHostView({ gameCode, hostToken }: { gameCode: string; hos
             </button>
           }
         />
+        {hostPlayerId && session?.winner_player_id === hostPlayerId && (
+          <PostWinToCommunity
+            gameType="yahtzee"
+            gameCode={gameCode}
+            winnerName={hostPlayerName}
+            roundKey={session?.id}
+          />
+        )}
+        </>
       }
     />
   )

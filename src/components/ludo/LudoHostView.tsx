@@ -35,6 +35,7 @@ import { useLudoTurnTimer } from '@/hooks/useLudoTurnTimer'
 import { useLudoNotifications, playLudoActionSound, playLudoRollSound } from '@/hooks/useLudoNotifications'
 import { LudoGamePanel } from '@/components/ludo/LudoBoard'
 import { LudoFinalResultsShareBlock } from '@/components/ludo/LudoFinalResultsShareBlock'
+import { PostWinToCommunity } from '@/components/community/PostWinToCommunity'
 import { LudoPrimaryButton } from '@/components/ludo/LudoChrome'
 
 const ROLL_MIN_MS = 700
@@ -375,6 +376,7 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
       primary={hostPlays ? interactivePlay : watchBoard}
       manage={manage}
       finished={
+        <>
         <LudoFinalResultsShareBlock
           game={game}
           players={players}
@@ -387,6 +389,10 @@ export function LudoHostView({ gameCode, hostToken }: { gameCode: string; hostTo
             </LudoPrimaryButton>
           }
         />
+        {hostPlayerId && session?.winner_player_id === hostPlayerId && (
+          <PostWinToCommunity gameType="ludo" gameCode={gameCode} winnerName={hostPlayerName} roundKey={session?.id} />
+        )}
+        </>
       }
     />
   )

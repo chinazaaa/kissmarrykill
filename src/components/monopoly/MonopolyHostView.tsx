@@ -7,6 +7,7 @@ import { MonopolyHostTimeExtension } from '@/components/monopoly/MonopolyHostTim
 import { HostLateJoinSettingsCard } from '@/components/HostLateJoinSettingsCard'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 import { MonopolyFinalResultsShareBlock } from '@/components/monopoly/MonopolyFinalResultsShareBlock'
+import { PostWinToCommunity } from '@/components/community/PostWinToCommunity'
 import { HostGameHeader } from '@/components/host/HostGameHeader'
 import { HostGameLayout } from '@/components/host/HostGameLayout'
 import { HostManageSection } from '@/components/host/HostManageSection'
@@ -477,6 +478,7 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
       primary={hostPlays ? interactivePlay : watchBoard}
       manage={manage}
       finished={
+        <>
         <MonopolyFinalResultsShareBlock
           game={game}
           players={players}
@@ -490,6 +492,15 @@ export function MonopolyHostView({ gameCode, hostToken }: { gameCode: string; ho
             </button>
           }
         />
+        {hostPlayerId && board?.winner_player_id === hostPlayerId && (
+          <PostWinToCommunity
+            gameType="monopoly"
+            gameCode={gameCode}
+            winnerName={hostPlayerName}
+            roundKey={board?.id}
+          />
+        )}
+        </>
       }
     />
   )

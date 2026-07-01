@@ -41,6 +41,7 @@ import {
 } from '@/hooks/useSnakeLadder'
 import { SnakeLadderGamePanel } from '@/components/snake-and-ladder/SnakeLadderBoard'
 import { SnakeLadderFinalResultsShareBlock } from '@/components/snake-and-ladder/SnakeLadderFinalResultsShareBlock'
+import { PostWinToCommunity } from '@/components/community/PostWinToCommunity'
 import { SnakeLadderCard, SnakeLadderPrimaryButton } from '@/components/snake-and-ladder/SnakeLadderChrome'
 import { HostEndGameButton } from '@/components/ui/HostEndGameButton'
 
@@ -443,6 +444,7 @@ export function SnakeLadderHostView({ gameCode, hostToken }: { gameCode: string;
             />
           </>
         ) : (
+          <>
           <SnakeLadderFinalResultsShareBlock
             game={game}
             players={players}
@@ -455,6 +457,15 @@ export function SnakeLadderHostView({ gameCode, hostToken }: { gameCode: string;
               </SnakeLadderPrimaryButton>
             }
           />
+          {hostPlayerId && session?.winner_player_id === hostPlayerId && (
+            <PostWinToCommunity
+              gameType="snake_and_ladder"
+              gameCode={gameCode}
+              winnerName={hostPlayerName}
+              roundKey={session?.id}
+            />
+          )}
+          </>
         )
       }
     />

@@ -24,6 +24,7 @@ import { useScrollHostViewToTop } from '@/hooks/useScrollHostViewToTop'
 import { useCheckersClockExpiry } from '@/hooks/useCheckersClocks'
 import { CheckersGamePanel } from '@/components/checkers/CheckersBoard'
 import { CheckersFinalResultsShareBlock } from '@/components/checkers/CheckersFinalResultsShareBlock'
+import { PostWinToCommunity } from '@/components/community/PostWinToCommunity'
 import { CheckersPrimaryButton } from '@/components/checkers/CheckersChrome'
 
 type HostTab = 'play' | 'manage'
@@ -372,6 +373,7 @@ export function CheckersHostView({ gameCode, hostToken }: { gameCode: string; ho
       primary={hostPlays ? interactivePlay : watchBoard}
       manage={manage}
       finished={
+        <>
         <CheckersFinalResultsShareBlock
           game={game}
           players={players}
@@ -384,6 +386,15 @@ export function CheckersHostView({ gameCode, hostToken }: { gameCode: string; ho
             </CheckersPrimaryButton>
           }
         />
+        {hostPlayerId && session?.winner_player_id === hostPlayerId && (
+          <PostWinToCommunity
+            gameType="checkers"
+            gameCode={gameCode}
+            winnerName={hostPlayerName}
+            roundKey={session?.id}
+          />
+        )}
+        </>
       }
     />
   )
