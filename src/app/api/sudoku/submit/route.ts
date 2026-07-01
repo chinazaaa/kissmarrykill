@@ -56,15 +56,19 @@ export async function POST(req: NextRequest) {
 
   const result = data as { is_correct: boolean; points_awarded: number; all_solved: boolean }
 
-  const { data: round } = await supabase
+  const { data: round, error: roundError } = await supabase
     .from('rounds')
     .select('sudoku_metadata')
     .eq('game_id', code)
     .eq('round_number', 1)
     .maybeSingle()
 
-  if (round && round.sudoku_metadata) {
-    const meta = round.sudoku_metadata as { puzzle: number[][] }
+  if (roundError) {
+    return NextResponse.json({ error: internalErrorMessage('sudoku/submit completion round', roundError) }, { status: 500 })
+  }
+
+  const meta = parseSudokuMetadata(round?.sudoku_metadata)
+  if (meta) {
     const emptyCellsCount = meta.puzzle.flat().filter((v) => v === 0).length
 
     // Fetch all active players (non-spectators)
