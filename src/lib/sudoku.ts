@@ -502,3 +502,27 @@ export function tallySudokuScores(
     .map((p) => ({ player_id: p.id, name: p.name, points: totals.get(p.id) ?? 0 }))
     .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
 }
+
+/** Time spent by a player in seconds. If completed, stops at their final correct submission. */
+export function getPlayerTimeSpent(
+  game: { session_started_at?: string | null; finished_at?: string | null } | null,
+  submissions: Pick<SudokuSubmission, 'player_id' | 'is_correct' | 'cell_row' | 'cell_col' | 'submitted_at'>[],
+  playerId: string,
+  completionPercent: number,
+  nowMs: number
+): number {
+  if (!game?.session_started_at) return 0
+  const startMs = new Date(game.session_started_at).getTime()
+  if (completionPercent >= 100) {
+    const myCorrect = submissions
+      .filter((s) => s.player_id === playerId && s.is_correct && s.cell_row != null && s.cell_col != null)
+      .sort((a, b) => new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime())
+    if (myCorrect.length > 0) {
+      const lastCorrect = myCorrect[myCorrect.length - 1]
+      const endMs = new Date(lastCorrect.submitted_at).getTime()
+      return Math.max(0, Math.floor((endMs - startMs) / 1000))
+    }
+  }
+  const endMs = completionPercent < 100 && game.finished_at ? new Date(game.finished_at).getTime() : nowMs
+  return Math.max(0, Math.floor((endMs - startMs) / 1000))
+}
